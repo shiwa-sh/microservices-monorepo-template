@@ -1,7 +1,0 @@
-type: 'application'
-language: 'go'
-stack: 'backend'
-
-project:
-  name: 'gateway'
-  description: 'gRPC gateway'
