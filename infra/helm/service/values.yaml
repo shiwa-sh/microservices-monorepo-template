@@ -1,0 +1,75 @@
+# Default values for a backend service. Every per-env values file overrides on top.
+# See ADR-0002 (layout), ADR-0004 (chart shape), ADR-0006 (Temporal worker),
+# ADR-0007 (migrations), ADR-0010 (auth), ADR-0011 (observability).
+
+# Required: the service slug (used for resource names and label values).
+name: ""
+
+# Server image (cmd/server). Tag MUST be a concrete git SHA per ADR-0002.
+image:
+  repository: ""        # e.g. ghcr.io/tabmadi/microservices-monorepo-template/catalog-server
+  tag: ""               # e.g. 4f9dbcb12
+  pullPolicy: IfNotPresent
+
+# Worker image (cmd/worker). Disabled by default; enable for services that own workflows.
+worker:
+  enabled: false
+  image:
+    repository: ""      # e.g. .../catalog-worker
+    tag: ""             # SAME sha as the server image
+  replicas: 1
+  resources:
+    requests: { cpu: "50m",  memory: "64Mi" }
+    limits:   { cpu: "500m", memory: "256Mi" }
+
+server:
+  replicas: 2
+  port: 8080
+  adminPort: 9090       # pprof + healthz + metrics (ADR-0011)
+  resources:
+    requests: { cpu: "50m",  memory: "64Mi" }
+    limits:   { cpu: "500m", memory: "256Mi" }
+
+# Database migrations run as a Helm pre-install/pre-upgrade Job (ADR-0007).
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/amacneil/dbmate
+    tag: "2.27.0"
+
+# Standard observability env (ADR-0011). The shared library reads these.
+otel:
+  endpoint: "http://otel-collector.platform.svc.cluster.local:4317"
+  sampling: "parentbased_traceidratio=0.1"
+
+# Ingress through Traefik (ADR-0003). API traffic is path-routed under /api/<name>/.
+ingress:
+  enabled: true
+  host: ""              # set per env, e.g. dev.example.com
+  pathPrefix: ""        # defaults to /api/<name>/
+
+# References to SOPS-decrypted Kubernetes Secrets (ADR-0005).
+# The sops-operator materialises these from infra/gitops/<env>/secrets/<svc>.enc.yaml.
+secrets:
+  envFrom: []           # list of Secret names mounted via envFrom
+  files: []             # list of {name, mountPath, items} mounted as volumes
+
+# Extra env vars, merged into both server and worker.
+env: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532      # distroless static "nonroot"
+  fsGroup: 65532
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# NetworkPolicy is on by default (ADR-0003). Service-specific allowances go here.
+networkPolicy:
+  enabled: true
+  allowFromGateway: true
+  egressDNS: true

@@ -1,0 +1,25 @@
+# CNPG operator defaults. The Cluster CR for the shared instance is rendered
+# from templates/cluster.yaml; per-database tenancy is configured per-service.
+cloudnative-pg:
+  fullnameOverride: cnpg-operator
+  monitoring:
+    podMonitorEnabled: true
+
+cluster:
+  name: postgres
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  storage:
+    size: 20Gi
+    storageClass: ""    # defaults to k3s local-path (ADR-0003)
+  pooler:
+    instances: 2
+    poolMode: transaction      # ADR-0007: transaction mode is the default
+    maxClientConn: 1000
+    defaultPoolSize: 25
+  backup:
+    enabled: true
+    s3:
+      destinationPath: "s3://platform-backups/postgres"
+      endpointURL: ""          # set per env
+      retentionPolicy: "30d"   # 7d in non-prod, see per-env values

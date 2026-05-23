@@ -1,0 +1,13 @@
+image:
+  repository: ""        # ghcr.io/.../admin
+  tag: ""               # git SHA
+  pullPolicy: IfNotPresent
+
+replicas: 2
+service:
+  port: 3000
+
+env:
+  LOWDEFY_BUILD_OUT_DIR: /app/build
+  # The gateway forwards an authenticated identity header (ADR-0012).
+  LOWDEFY_REQ_HEADER_USER: x-user-email

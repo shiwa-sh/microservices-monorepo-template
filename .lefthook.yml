@@ -1,14 +1,37 @@
+# Git hooks (ADR-0002, ADR-0013). Installed via `mise run setup`.
+
 commit-msg:
   commands:
     cog:
       run: cog verify --ignore-merge-commits --file {1}
 
 pre-commit:
+  parallel: true
   commands:
-    lint:
-      run: mise run pre-commit
+    gofmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+    golangci-lint:
+      glob: "*.go"
+      run: golangci-lint run --new-from-rev HEAD -- {staged_files}
+    sqlfluff:
+      glob: "{services/**/migrations/*.sql,services/**/internal/store/queries/*.sql}"
+      run: sqlfluff lint {staged_files}
+    spectral:
+      glob: "{services/**/openapi.yaml,api/shared/**/*.yaml}"
+      run: spectral lint --ruleset tools/codegen/spectral.yaml {staged_files}
+    floating-tags:
+      run: bash scripts/lint-floating-tags.sh
+    gen-drift:
+      glob: "{services/**/openapi.yaml,services/**/internal/store/queries/*.sql,services/**/migrations/*.sql,sqlc.yaml}"
+      run: mise run ci:gen
+    biome:
+      glob: "{apps/**/*.{ts,tsx,js,jsx,json},libs/ts/**/*.{ts,tsx,js,jsx,json}}"
+      run: biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
 
 pre-push:
   commands:
-    cog:
+    cog-check:
       run: cog check --ignore-merge-commits

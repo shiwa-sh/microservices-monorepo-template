@@ -1,0 +1,38 @@
+opentelemetry-collector:
+  mode: deployment
+  fullnameOverride: otel-collector
+  presets: { kubernetesAttributes: { enabled: true } }
+  config:
+    receivers:
+      otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
+    exporters:
+      otlphttp/tempo:   { endpoint: http://tempo.platform.svc.cluster.local:4318 }
+      otlphttp/mimir:   { endpoint: http://mimir-distributed-nginx.platform.svc.cluster.local/otlp }
+      loki:             { endpoint: http://loki.platform.svc.cluster.local:3100/loki/api/v1/push }
+    service:
+      pipelines:
+        traces:  { receivers: [otlp], exporters: [otlphttp/tempo] }
+        metrics: { receivers: [otlp], exporters: [otlphttp/mimir] }
+        logs:    { receivers: [otlp], exporters: [loki] }
+
+grafana:
+  fullnameOverride: grafana
+  adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - { name: Mimir,     type: prometheus, url: http://mimir-distributed-nginx.platform.svc.cluster.local/prometheus }
+        - { name: Loki,      type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
+        - { name: Tempo,     type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
+        - { name: Pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
+  dashboardsConfigMaps:
+    default: grafana-dashboards     # populated from infra/observability/dashboards/
+
+loki:                 { deploymentMode: SingleBinary, loki: { commonConfig: { replication_factor: 1 } } }
+tempo:                { tempo: { reportingEnabled: false } }
+mimir-distributed:    { mimir: { structuredConfig: { multitenancy_enabled: false } } }
+pyroscope:            { pyroscope: { replicas: 1 } }
+
+alloy:
+  alloy: {}           # config supplied via ConfigMap by templates/alloy-config.yaml

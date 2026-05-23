@@ -1,0 +1,37 @@
+# Platform ApplicationSet (ADR-0004). One Application per platform component
+# per environment. Sync waves order CRDs → operators → instances.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata: { name: platform, namespace: argocd }
+spec:
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/*" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          valueFiles:
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]

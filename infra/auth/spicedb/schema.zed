@@ -1,0 +1,27 @@
+// SpiceDB schema for the platform (ADR-0010).
+// Kept minimal — extend per service as authz needs grow.
+// `zed validate` runs in CI against assertions.yaml + validations.yaml.
+
+definition user {}
+
+definition org {
+    relation member: user
+    relation admin:  user
+
+    permission read   = member + admin
+    permission write  = admin
+    permission manage = admin
+}
+
+definition product {
+    relation org: org
+    permission read  = org->member + org->admin
+    permission write = org->admin
+}
+
+definition order {
+    relation org:     org
+    relation owner:   user
+    permission read  = owner + org->admin
+    permission write = owner + org->admin
+}

@@ -1,0 +1,10 @@
+# Cross-service workflow handle shape (ADR-0006). Returned in 202 Accepted
+# responses from any endpoint that starts a Temporal workflow.
+WorkflowHandle:
+  type: object
+  required: [id, run_id, status]
+  properties:
+    id:     { type: string }
+    run_id: { type: string }
+    status: { type: string, enum: [running, completed, failed, cancelled] }
+    result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }

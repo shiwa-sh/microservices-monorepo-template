@@ -1,0 +1,16 @@
+argo-cd:
+  global:
+    domain: argocd.example.com
+  configs:
+    params:
+      server.insecure: "true"          # TLS terminates upstream at Traefik
+    cm:
+      kustomize.buildOptions: "--enable-helm"
+      timeout.reconciliation: "60s"
+    rbac:
+      policy.default: role:readonly
+  server:
+    service: { type: ClusterIP }
+  redis-ha: { enabled: false }         # 3-node embedded etcd; HA Redis is overkill (ADR-0003)
+  controller: { replicas: 1 }
+  applicationSet: { replicas: 1 }

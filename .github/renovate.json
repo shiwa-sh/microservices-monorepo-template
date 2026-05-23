@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits"],
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "pin",
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 6am on monday"] },
+  "packageRules": [
+    {
+      "description": "Group all Go module updates into one PR for the single go.mod (ADR-0002).",
+      "matchManagers": ["gomod"],
+      "groupName": "go modules",
+      "groupSlug": "gomod"
+    },
+    {
+      "description": "Group Helm chart updates per platform component.",
+      "matchManagers": ["helmv3", "helm-values"],
+      "groupName": "helm charts",
+      "groupSlug": "helm"
+    },
+    {
+      "description": "Auto-merge patch + minor updates after CI passes.",
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ],
+  "vulnerabilityAlerts": { "labels": ["security"], "automerge": false }
+}

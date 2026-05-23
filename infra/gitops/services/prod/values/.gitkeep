@@ -1,0 +1,2 @@
+# Per-service deploy values land here as <svc>.yaml. Promoted only by
+# tag-driven release per ADR-0013.

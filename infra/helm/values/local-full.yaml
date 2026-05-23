@@ -1,0 +1,31 @@
+# Full local profile (ADR-0003): every chart, k3d sizing.
+certManager:   { enabled: false }   # mkcert local CA — installed by dev:up.sh, not Let's Encrypt
+postgres:      { enabled: true }
+temporal:      { enabled: true }
+tyk:           { enabled: true }
+ory:           { enabled: true }
+spicedb:       { enabled: true }
+observability: { enabled: true }
+minio:         { enabled: true }
+sopsOperator:  { enabled: true }
+lowdefy:       { enabled: true }
+
+# Shrink everything down so it fits on a laptop.
+postgres:
+  cloudnative-pg: { resources: { requests: { cpu: 50m, memory: 128Mi } } }
+  cluster:
+    instances: 1
+    storage: { size: 2Gi }
+    pooler:  { instances: 1, defaultPoolSize: 10 }
+    backup:  { enabled: false }
+
+temporal:
+  temporal:
+    server:
+      replicaCount: 1
+    cassandra: { enabled: false }
+
+observability:
+  loki:                { singleBinary: { replicas: 1 } }
+  mimir-distributed:   { mimir: { structuredConfig: { limits: { ingestion_rate: 1000 } } } }
+  grafana:             { persistence: { enabled: false } }

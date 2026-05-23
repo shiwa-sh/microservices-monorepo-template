@@ -1,0 +1,4 @@
+[tasks.build] run = "bun x lowdefy build"
+[tasks.run]   run = "bun x lowdefy dev"
+[tasks.lint]  run = "bun x lowdefy validate"
+[tasks.test]  run = "echo 'no tests yet'"

@@ -1,0 +1,15 @@
+{
+  "title": "Service: RED metrics",
+  "uid": "service-red",
+  "schemaVersion": 39,
+  "tags": ["service", "red"],
+  "templating": { "list": [ { "name": "service", "type": "query", "datasource": "Mimir", "query": "label_values(http_server_duration_milliseconds_count, service_name)" } ] },
+  "panels": [
+    { "type": "timeseries", "title": "Request rate",  "datasource": "Mimir",
+      "targets": [{ "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=\"$service\"}[1m]))" }] },
+    { "type": "timeseries", "title": "Error rate",    "datasource": "Mimir",
+      "targets": [{ "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=\"$service\",http_response_status_code=~\"5..\"}[1m]))" }] },
+    { "type": "timeseries", "title": "p99 duration",  "datasource": "Mimir",
+      "targets": [{ "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"$service\"}[1m])))" }] }
+  ]
+}

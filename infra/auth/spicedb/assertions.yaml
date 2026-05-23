@@ -1,0 +1,10 @@
+# Tested with `zed validate schema.zed --assertions assertions.yaml`.
+# Each line states a permission check that MUST be true or MUST be false.
+assertTrue:
+  - "org:acme#member@user:alice"
+  - "org:acme#read@user:alice"
+  - "order:o1#read@user:alice"
+assertFalse:
+  - "org:acme#admin@user:alice"
+  - "org:acme#write@user:alice"
+  - "order:o2#write@user:alice"

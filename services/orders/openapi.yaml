@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info: { title: orders, version: 0.1.0 }
+servers: [{ url: /api/orders }]
+tags: [{ name: orders }]
+paths:
+  /orders:
+    post:
+      operationId: checkout
+      tags: [orders]
+      description: Starts the Checkout Temporal saga (ADR-0006).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CheckoutInput" }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "../../api/shared/workflow-handle.yaml#/WorkflowHandle" }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+components:
+  schemas:
+    CheckoutInput:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id: { type: string, format: uuid }
+        quantity:   { type: integer, minimum: 1 }
+    Order:
+      type: object
+      required: [id, product_id, quantity, total_cents, status]
+      properties:
+        id:          { type: string, format: uuid }
+        product_id:  { type: string, format: uuid }
+        quantity:    { type: integer }
+        total_cents: { type: integer }
+        status:      { type: string, enum: [pending, confirmed, failed] }

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: service
+description: |
+  The single Helm chart used by every backend service in the monorepo (ADR-0004).
+  Per-service difference is one values file per environment under
+  infra/gitops/services/<env>/values/<svc>.yaml.
+  The chart parameterises: image, ports, replicas, env vars, ingress paths,
+  resources, the Temporal worker, the migration init container, and SOPS-backed
+  Kubernetes Secret references.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

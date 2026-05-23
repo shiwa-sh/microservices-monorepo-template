@@ -1,0 +1,13 @@
+# Cluster bootstrap playbook (ADR-0003). Run after `terraform apply`:
+#   ansible-playbook -i inventory/<env> bootstrap.yml
+#
+# Idempotent. Each role's tasks/main.yml documents what it owns.
+- name: Bootstrap a k3s cluster
+  hosts: all
+  become: true
+  roles:
+    - hardening
+    - unattended_upgrades
+    - node_exporter
+    - k3s_server          # first node initializes embedded etcd; others join
+    - sops_age_key        # writes /etc/sops/age/keys.txt for the in-cluster operator

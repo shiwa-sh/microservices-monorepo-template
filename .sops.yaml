@@ -1,0 +1,39 @@
+# SOPS recipient rules (ADR-0005).
+# `name`s are placeholders — replace with real age public keys before use.
+# Engineer keys are added per-PR via `age-keygen` onboarding.
+
+keys:
+  # Engineer keys — one per active engineer.
+  - &eng_placeholder age1example0engineer000000000000000000000000000000000000000000
+
+  # Per-cluster keys — private half lives only in that cluster.
+  - &cluster_dev     age1example0cluster0dev000000000000000000000000000000000000000
+  - &cluster_staging age1example0cluster0staging00000000000000000000000000000000000
+  - &cluster_prod    age1example0cluster0prod0000000000000000000000000000000000000000
+
+  # Ops-recovery — private halves held offline by 2-3 seniors.
+  - &ops_recovery    age1example0ops0recovery000000000000000000000000000000000000000
+
+creation_rules:
+  # Per-env secret files: cluster + engineers + ops-recovery.
+  - path_regex: infra/gitops/dev/secrets/.*\.enc\.ya?ml$
+    age:
+      - *eng_placeholder
+      - *cluster_dev
+      - *ops_recovery
+  - path_regex: infra/gitops/staging/secrets/.*\.enc\.ya?ml$
+    age:
+      - *eng_placeholder
+      - *cluster_staging
+      - *ops_recovery
+  - path_regex: infra/gitops/prod/secrets/.*\.enc\.ya?ml$
+    age:
+      - *eng_placeholder
+      - *cluster_prod
+      - *ops_recovery
+
+  # Anything else encrypted in the repo: engineers + ops-recovery only.
+  - path_regex: .*\.enc\.ya?ml$
+    age:
+      - *eng_placeholder
+      - *ops_recovery

@@ -1,0 +1,39 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "service.fullname" . }}-worker
+  labels: {{- include "service.labels" . | nindent 4 }}
+    component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels: {{- include "service.selector" . | nindent 6 }}
+      component: worker
+  template:
+    metadata:
+      labels: {{- include "service.selector" . | nindent 8 }}
+        component: worker
+    spec:
+      serviceAccountName: {{ include "service.fullname" . }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: worker
+          image: {{ include "service.worker.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: admin, containerPort: {{ .Values.server.adminPort }} }
+          env:
+            {{- include "service.otelEnv" . | nindent 12 }}
+            {{- range $k, $v := .Values.env }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+          envFrom:
+            {{- range .Values.secrets.envFrom }}
+            - secretRef: { name: {{ . }} }
+            {{- end }}
+          readinessProbe: { httpGet: { path: /healthz, port: admin }, initialDelaySeconds: 2 }
+          livenessProbe:  { httpGet: { path: /healthz, port: admin }, periodSeconds: 30 }
+          resources: {{- toYaml .Values.worker.resources | nindent 12 }}
+{{- end }}

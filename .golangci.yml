@@ -1,0 +1,71 @@
+# golangci-lint configuration for the whole monorepo (ADR-0001, ADR-0002).
+# Service-local overrides are not permitted.
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - revive
+    - depguard
+    - bodyclose
+    - sqlclosecheck
+    - rowserrcheck
+    - misspell
+    - unconvert
+    - prealloc
+    - nilerr
+    - errorlint
+    - gocritic
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/tabmadi/microservices-monorepo-template
+
+  depguard:
+    rules:
+      # Services must not import each other directly (ADR-0002, ADR-0008).
+      # Shared code lives in libs/; cross-service goes through generated clients.
+      service-isolation:
+        list-mode: lax
+        files:
+          - "**/services/*/**"
+        deny:
+          - pkg: github.com/tabmadi/microservices-monorepo-template/services
+            desc: "Services must not import other services. Use libs/sdks/go/<service>/client for cross-service calls."
+      # Apps and tools shouldn't reach into internal/ of services either.
+      no-deep-imports:
+        list-mode: lax
+        files:
+          - "**/apps/**"
+          - "**/tools/**"
+        deny:
+          - pkg: github.com/tabmadi/microservices-monorepo-template/services
+            desc: "apps/ and tools/ must not import services/<X>/internal/. Use the generated client."
+      # PgBouncer transaction-mode forbids certain pgx features (ADR-0007).
+      pgx-transaction-mode:
+        list-mode: lax
+        files:
+          - "**/services/**"
+          - "**/libs/go/dbmw/**"
+        deny:
+          - pkg: github.com/jackc/pgx/v5/stdlib
+            desc: "Use *pgxpool.Pool, not stdlib database/sql. ADR-0007 §SQL access."
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters: [errcheck, gocritic, prealloc]
+    - path: tools/
+      linters: [revive]
+  max-issues-per-linter: 0
+  max-same-issues: 0

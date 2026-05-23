@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info: { title: catalog, version: 0.1.0 }
+servers: [{ url: /api/catalog }]
+tags: [{ name: products }]
+paths:
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Product" } } } } }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+    post:
+      operationId: createProduct
+      tags: [products]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProductInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+components:
+  schemas:
+    Product:
+      type: object
+      required: [id, name, price_cents]
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        price_cents: { type: integer, minimum: 0 }
+    ProductInput:
+      type: object
+      required: [name, price_cents]
+      properties:
+        name:        { type: string, minLength: 1 }
+        price_cents: { type: integer, minimum: 0 }

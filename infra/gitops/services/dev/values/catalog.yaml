@@ -1,0 +1,15 @@
+name: catalog
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/catalog-server
+  tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+worker:
+  enabled: false
+server:
+  replicas: 1
+ingress:
+  enabled: true
+  host: dev.example.com
+secrets:
+  envFrom: [catalog-db-creds]
+env:
+  DATABASE_URL_SECRET_REF: catalog-db-creds

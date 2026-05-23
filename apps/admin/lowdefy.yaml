@@ -1,0 +1,34 @@
+# Lowdefy admin (ADR-0012). Pure YAML. Pages under _generated/ are produced
+# from each service's OpenAPI spec at codegen time; pages under custom/ are
+# hand- or LLM-written.
+name: platform-admin
+lowdefy: 4.5.7
+
+config:
+  homePageId: dashboard
+  basePath:   /internal/admin
+  auth:
+    pages:
+      protected: true
+    # No Lowdefy session store — auth is enforced at the gateway (ADR-0012).
+    # Trust the X-User-Email header forwarded by Tyk.
+
+connections:
+  - id: catalog
+    type: AxiosHttp
+    properties:
+      baseURL: http://catalog-server.platform.svc.cluster.local
+  - id: orders
+    type: AxiosHttp
+    properties:
+      baseURL: http://orders-server.platform.svc.cluster.local
+  - id: payment
+    type: AxiosHttp
+    properties:
+      baseURL: http://payment-server.platform.svc.cluster.local
+
+pages:
+  - _ref: pages/dashboard.yaml
+  - _ref: _generated/catalog/products.yaml
+  - _ref: _generated/orders/orders.yaml
+  - _ref: custom/refund-tool.yaml

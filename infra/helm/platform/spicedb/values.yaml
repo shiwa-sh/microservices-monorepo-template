@@ -1,0 +1,12 @@
+cluster:
+  name: spicedb
+  datastoreEngine: postgres
+  secret:
+    existingSecret: spicedb-creds        # holds datastore_uri + preshared_key
+  replicas: 2
+  image:
+    repository: authzed/spicedb
+    tag: "v1.39.1"
+  config:
+    logLevel: info
+    dispatchClusterEnabled: false

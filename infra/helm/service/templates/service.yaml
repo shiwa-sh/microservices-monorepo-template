@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "service.fullname" . }}-server
+  labels: {{- include "service.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "service.selector" . | nindent 4 }}
+    component: server
+  ports:
+    - { name: http,  port: 80,   targetPort: http }
+    - { name: admin, port: 9090, targetPort: admin }

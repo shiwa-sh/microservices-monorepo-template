@@ -1,0 +1,8 @@
+# Per-env platform overrides (ADR-0004). Empty stub — populate as needed.
+postgres:
+  cluster:
+    instances: 3
+    storage: { size: 50Gi }
+    backup:
+      retentionPolicy: "7d"
+      s3: { endpointURL: "https://s3.eu-central-1.amazonaws.com", destinationPath: "s3://platform-dev-backups/postgres" }

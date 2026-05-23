@@ -1,0 +1,21 @@
+# Minimal host hardening (ADR-0003).
+- name: Disable root SSH login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+  notify: restart sshd
+
+- name: Disable password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  notify: restart sshd
+
+- name: Set sysctl basics
+  sysctl: { name: "{{ item.key }}", value: "{{ item.value }}", state: present, reload: yes }
+  loop:
+    - { key: "net.ipv4.ip_forward",                value: "1" }
+    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { key: "fs.inotify.max_user_watches",        value: "524288" }

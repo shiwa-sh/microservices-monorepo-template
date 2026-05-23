@@ -1,0 +1,15 @@
+name: orders
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/orders-server
+  tag: "0000000000000000000000000000000000000000"
+worker:
+  enabled: true
+  image:
+    repository: ghcr.io/tabmadi/microservices-monorepo-template/orders-worker
+    tag: "0000000000000000000000000000000000000000"
+server:  { replicas: 1 }
+ingress: { enabled: true, host: dev.example.com }
+secrets: { envFrom: [orders-db-creds] }
+env:
+  CATALOG_URL: http://catalog-server.platform.svc.cluster.local
+  PAYMENT_URL: http://payment-server.platform.svc.cluster.local

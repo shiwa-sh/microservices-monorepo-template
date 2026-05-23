@@ -1,0 +1,14 @@
+apiVersion: v2
+name: ory
+description: Ory Kratos (identity) + Hydra (OAuth2/OIDC), Postgres-backed (ADR-0010).
+type: application
+version: 0.1.0
+appVersion: "1.3.0"
+
+dependencies:
+  - name: kratos
+    version: "0.45.0"
+    repository: https://k8s.ory.sh/helm/charts
+  - name: hydra
+    version: "0.45.0"
+    repository: https://k8s.ory.sh/helm/charts

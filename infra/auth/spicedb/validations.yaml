@@ -1,0 +1,7 @@
+# Sample tuples used by `zed validate` together with assertions.yaml.
+relationships: |
+  org:acme#member@user:alice
+  order:o1#org@org:acme
+  order:o1#owner@user:alice
+  order:o2#org@org:acme
+  order:o2#owner@user:bob

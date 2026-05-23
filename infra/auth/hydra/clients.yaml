@@ -1,0 +1,26 @@
+# OAuth2 client registrations (ADR-0010). Applied via `hydra create client`
+# in a Helm post-sync hook. One client per internal service (s2s) + one per
+# third-party developer as they arrive.
+clients:
+  # Service-to-service (client_credentials).
+  - client_id:     orgs
+    client_name:   "orgs (s2s)"
+    grant_types:   [client_credentials]
+    response_types: []
+    scope:         "orgs.read orgs.write"
+    token_endpoint_auth_method: client_secret_post
+
+  - client_id:     catalog
+    client_name:   "catalog (s2s)"
+    grant_types:   [client_credentials]
+    scope:         "catalog.read"
+
+  - client_id:     orders
+    client_name:   "orders (s2s)"
+    grant_types:   [client_credentials]
+    scope:         "catalog.read payment.charge orgs.read"
+
+  - client_id:     payment
+    client_name:   "payment (s2s)"
+    grant_types:   [client_credentials]
+    scope:         "payment.charge"

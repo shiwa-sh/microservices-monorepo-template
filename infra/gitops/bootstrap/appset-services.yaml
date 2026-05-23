@@ -1,0 +1,36 @@
+# Services ApplicationSet (ADR-0004). Git-directory generator over per-env
+# values files; one Application per service per environment, auto-onboarded
+# when its values file lands in master.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata: { name: services, namespace: argocd }
+spec:
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     syncWindowStart: "*",          server: "https://kubernetes.default.svc" }
+                - { env: staging, syncWindowStart: "0 5 * * *",  server: "https://kubernetes.default.svc" }
+                - { env: prod,    syncWindowStart: "*",          server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              files:
+                - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
+  template:
+    metadata:
+      name: "{{ .env }}-svc-{{ .path.filenameNormalized }}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: infra/helm/service
+        helm:
+          valueFiles:
+            - "../../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]

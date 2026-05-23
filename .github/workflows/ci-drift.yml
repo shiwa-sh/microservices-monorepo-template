@@ -1,0 +1,33 @@
+# Drift check (ADR-0002, ADR-0008). Regenerate everything and fail if anything changed.
+name: ci-drift
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+
+      - name: Regenerate
+        run: mise run gen:all
+
+      - name: Fail on drift
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated artifacts are out of date. Run 'mise run gen:all' and commit the result."
+            exit 1
+          fi

@@ -1,0 +1,28 @@
+temporal:
+  server:
+    config:
+      persistence:
+        default:
+          driver: sql
+          sql:
+            driver: postgres12
+            host: postgres-rw.platform.svc.cluster.local
+            port: 5432
+            database: temporal
+            existingSecret: temporal-db-creds
+        visibility:
+          driver: sql
+          sql:
+            driver: postgres12
+            host: postgres-rw.platform.svc.cluster.local
+            port: 5432
+            database: temporal_visibility
+            existingSecret: temporal-db-creds
+  cassandra: { enabled: false }
+  prometheus: { enabled: false }       # we scrape from OTel collector instead
+  grafana:   { enabled: false }
+  elasticsearch: { enabled: false }
+  web:
+    image:
+      repository: temporalio/ui
+      tag: "2.32.0"

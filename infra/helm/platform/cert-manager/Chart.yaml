@@ -1,0 +1,11 @@
+apiVersion: v2
+name: cert-manager
+description: TLS via cert-manager + Let's Encrypt DNS-01 (ADR-0003).
+type: application
+version: 0.1.0
+appVersion: "1.16.2"
+
+dependencies:
+  - name: cert-manager
+    version: "v1.16.2"
+    repository: https://charts.jetstack.io

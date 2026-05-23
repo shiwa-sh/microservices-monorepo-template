@@ -1,0 +1,30 @@
+kratos:
+  kratos:
+    config:
+      dsn: "postgres://kratos@postgres-rw.platform.svc.cluster.local:5432/kratos?sslmode=disable"
+      identity:
+        default_schema_id: user_v1
+        schemas:
+          - id: user_v1
+            url: file:///etc/config/identity-schemas/user.v1.json
+      selfservice:
+        default_browser_return_url: https://dev.example.com/
+        flows:
+          login:        { ui_url: https://dev.example.com/auth/login }
+          registration: { ui_url: https://dev.example.com/auth/register }
+          recovery:     { ui_url: https://dev.example.com/auth/recovery }
+          settings:     { ui_url: https://dev.example.com/auth/settings }
+    identitySchemas:
+      "user.v1.json": |
+        {{ readFile "../../auth/kratos/identity-schemas/user.v1.json" | nindent 8 }}
+
+hydra:
+  hydra:
+    config:
+      dsn: "postgres://hydra@postgres-rw.platform.svc.cluster.local:5432/hydra?sslmode=disable"
+      urls:
+        self:
+          issuer: https://dev.example.com/oauth2/
+        login:   https://dev.example.com/auth/login
+        consent: https://dev.example.com/auth/consent
+        logout:  https://dev.example.com/auth/logout

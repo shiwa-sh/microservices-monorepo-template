@@ -1,0 +1,18 @@
+apiVersion: v2
+name: observability
+description: |
+  Grafana LGTM (Loki, Grafana, Tempo, Mimir) + Pyroscope + OTel Collector + Alloy
+  (ADR-0011). Self-hosted via official charts; long-term storage is the external
+  S3 bucket from ADR-0003.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+dependencies:
+  - { name: loki,             version: "6.21.0", repository: https://grafana.github.io/helm-charts }
+  - { name: mimir-distributed, version: "5.5.1",  repository: https://grafana.github.io/helm-charts }
+  - { name: tempo,            version: "1.18.1", repository: https://grafana.github.io/helm-charts }
+  - { name: grafana,          version: "8.8.4",  repository: https://grafana.github.io/helm-charts }
+  - { name: pyroscope,        version: "1.14.0", repository: https://grafana.github.io/helm-charts }
+  - { name: opentelemetry-collector, version: "0.114.0", repository: https://open-telemetry.github.io/opentelemetry-helm-charts }
+  - { name: alloy,            version: "0.12.6", repository: https://grafana.github.io/helm-charts }

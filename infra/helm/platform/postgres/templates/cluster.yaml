@@ -1,0 +1,43 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cluster.name }}
+  namespace: platform
+spec:
+  instances: {{ .Values.cluster.instances }}
+  imageName: {{ .Values.cluster.imageName }}
+  storage:
+    size: {{ .Values.cluster.storage.size }}
+    {{- with .Values.cluster.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  {{- if .Values.cluster.backup.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: {{ .Values.cluster.backup.s3.destinationPath | quote }}
+      {{- with .Values.cluster.backup.s3.endpointURL }}
+      endpointURL: {{ . | quote }}
+      {{- end }}
+      s3Credentials:
+        accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: postgres-backup-creds, key: SECRET_ACCESS_KEY }
+      wal: { compression: gzip }
+      data: { compression: gzip }
+    retentionPolicy: {{ .Values.cluster.backup.retentionPolicy | quote }}
+  {{- end }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ .Values.cluster.name }}-rw
+  namespace: platform
+spec:
+  cluster:
+    name: {{ .Values.cluster.name }}
+  instances: {{ .Values.cluster.pooler.instances }}
+  type: rw
+  pgbouncer:
+    poolMode: {{ .Values.cluster.pooler.poolMode }}
+    parameters:
+      max_client_conn: {{ .Values.cluster.pooler.maxClientConn | quote }}
+      default_pool_size: {{ .Values.cluster.pooler.defaultPoolSize | quote }}

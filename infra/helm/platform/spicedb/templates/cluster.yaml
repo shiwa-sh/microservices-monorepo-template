@@ -1,0 +1,12 @@
+apiVersion: authzed.com/v1alpha1
+kind: SpiceDBCluster
+metadata:
+  name: {{ .Values.cluster.name }}
+  namespace: platform
+spec:
+  config:
+    datastoreEngine: {{ .Values.cluster.datastoreEngine }}
+    image: "{{ .Values.cluster.image.repository }}:{{ .Values.cluster.image.tag }}"
+    replicas: {{ .Values.cluster.replicas }}
+    logLevel: {{ .Values.cluster.config.logLevel }}
+  secretName: {{ .Values.cluster.secret.existingSecret }}

@@ -1,0 +1,28 @@
+# Hand-written page. Demonstrates the escape hatch from generated pages
+# (ADR-0012). Submits a refund through the payment service's HTTP API rather
+# than touching the DB.
+id: refund-tool
+type: PageHeaderMenu
+properties:
+  title: Refund tool
+blocks:
+  - id: chargeId
+    type: Input
+    properties: { label: "Charge ID" }
+  - id: reason
+    type: TextArea
+    properties: { label: "Reason" }
+  - id: submit
+    type: Button
+    properties: { title: Refund }
+    events:
+      onClick:
+        - id: refund
+          type: Request
+          params:
+            connectionId: payment
+            properties:
+              url:    { _string_concat: ["/charges/", { _state: chargeId }, "/refund"] }
+              method: POST
+              data:
+                reason: { _state: reason }

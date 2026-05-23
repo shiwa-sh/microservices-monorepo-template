@@ -1,0 +1,14 @@
+id: dashboard
+type: PageHeaderMenu
+properties:
+  title: Platform admin
+blocks:
+  - id: hello
+    type: Markdown
+    properties:
+      content: |
+        # Welcome, {{ _request.headers.x-user-email }}
+
+        - [Products](/internal/admin/products)
+        - [Orders](/internal/admin/orders)
+        - [Refund tool](/internal/admin/refund-tool)

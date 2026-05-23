@@ -1,0 +1,6 @@
+[tasks.run]      run = "go run ./cmd/server"
+[tasks.test]     run = "go test ./..."
+[tasks.lint]     run = "golangci-lint run ./..."
+[tasks.migrate]  run = "dbmate --no-dump-schema up"
+[tasks.generate] run = "sqlc generate && bash ../../scripts/gen-openapi.sh"
+[tasks.build]    run = "go build ./..."

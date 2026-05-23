@@ -1,0 +1,7 @@
+sops-secrets-operator:
+  secretsAsFiles:
+    - name: sops-age-key
+      mountPath: /etc/sops/age
+      secretName: sops-age-key       # contains keys.txt provisioned by Ansible at cluster bootstrap
+  extraEnv:
+    - { name: SOPS_AGE_KEY_FILE, value: /etc/sops/age/keys.txt }

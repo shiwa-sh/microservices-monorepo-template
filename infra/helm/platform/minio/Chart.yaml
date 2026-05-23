@@ -1,0 +1,13 @@
+apiVersion: v2
+name: minio
+description: |
+  MinIO for LOCAL development only (ADR-0003). Production uses an external S3
+  bucket. This chart is gated to non-prod environments by the umbrella chart.
+type: application
+version: 0.1.0
+appVersion: "RELEASE.2024-12-18T13-15-44Z"
+
+dependencies:
+  - name: minio
+    version: "5.4.0"
+    repository: https://charts.min.io/

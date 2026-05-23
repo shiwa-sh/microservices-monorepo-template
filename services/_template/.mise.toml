@@ -1,0 +1,27 @@
+# Service-local tasks. These are the standard task names (ADR-0002) that
+# every service exposes.
+
+[tasks.run]
+description = "Run the HTTP server against the locally port-forwarded deps"
+run = "go run ./cmd/server"
+
+[tasks.worker]
+description = "Run the Temporal worker"
+run = "go run ./cmd/worker"
+
+[tasks.test]
+run = "go test ./..."
+
+[tasks.lint]
+run = "golangci-lint run ./..."
+
+[tasks.migrate]
+description = "Run dbmate up against $DATABASE_URL"
+run = "dbmate --no-dump-schema up"
+
+[tasks.generate]
+description = "Regenerate sqlc + OpenAPI server/client for this service"
+run = "sqlc generate && bash ../../scripts/gen-openapi.sh"
+
+[tasks.build]
+run = "go build ./..."

@@ -1,0 +1,19 @@
+tyk-stack:
+  global:
+    license: {}                       # OSS — no license
+    redis:
+      addrs: ["tyk-redis.platform.svc.cluster.local:6379"]
+  tyk-gateway:
+    gateway:
+      kind: Deployment
+      replicaCount: 2
+      tls:
+        enabled: false                # TLS terminates upstream at Traefik (ADR-0003)
+      service:
+        type: ClusterIP
+        port: 8080
+    extraEnvs:
+      - { name: TYK_GW_OAUTHTOKENEXPIRE, value: "3600" }
+
+# Hand-written security policies live at infra/gateway/policies/ and are loaded
+# via the Tyk operator's SecurityPolicy CRD by the gitops layer (ADR-0009).

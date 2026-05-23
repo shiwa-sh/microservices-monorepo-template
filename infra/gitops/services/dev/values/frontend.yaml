@@ -1,0 +1,11 @@
+name: frontend
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/frontend
+  tag: "0000000000000000000000000000000000000000"
+worker: { enabled: false }
+server:
+  port: 3000
+  adminPort: 3001
+  replicas: 1
+ingress: { enabled: true, host: dev.example.com, pathPrefix: "/" }
+migrations: { enabled: false }

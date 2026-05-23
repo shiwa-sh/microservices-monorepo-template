@@ -1,0 +1,12 @@
+# Authenticated-user policy (ADR-0009). Token issued by Hydra; user
+# identifier comes from the JWT sub claim and is forwarded as X-User-Id.
+apiVersion: tyk.tyk.io/v1alpha1
+kind: SecurityPolicy
+metadata: { name: authenticated-user, namespace: tyk }
+spec:
+  name: authenticated-user
+  active: true
+  rate:   1000
+  per:    60
+  quota_max:    10000
+  quota_renewal_rate: 3600

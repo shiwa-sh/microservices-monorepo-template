@@ -1,0 +1,48 @@
+# Auto-bump dev + staging values files to the latest image SHA on master merges
+# (ADR-0004). Opens (and auto-merges) a PR per affected service.
+name: promote-on-merge
+
+on:
+  workflow_run:
+    workflows: [publish]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: jdx/mise-action@v2
+        with: { install: true, cache: true }
+
+      - name: Compute affected
+        id: affected
+        run: mise run ci:affected > /tmp/affected.json && cat /tmp/affected.json
+
+      - name: Bump dev + staging values
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          jq -r '.services[]' /tmp/affected.json | while read -r svc; do
+            for env in dev staging; do
+              path="infra/gitops/services/${env}/values/${svc}.yaml"
+              if [[ -f "$path" ]]; then
+                sed -i -E "s|(tag:[[:space:]]*).*|\1${SHA}|" "$path"
+              fi
+            done
+          done
+
+      - name: Open auto-merge PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(deploy): bump dev+staging to ${{ github.event.workflow_run.head_sha }}"
+          title: "chore(deploy): promote ${{ github.event.workflow_run.head_sha }} to dev+staging"
+          branch: deploy/auto-${{ github.event.workflow_run.head_sha }}
+          delete-branch: true
+          labels: auto-merge

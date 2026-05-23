@@ -1,0 +1,35 @@
+name: lint
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+
+      - name: Validate commits (cocogitto)
+        if: github.event_name == 'pull_request'
+        run: cog check --ignore-merge-commits "origin/${{ github.base_ref }}..HEAD"
+
+      - name: Affected manifest
+        id: affected
+        run: |
+          mise run ci:affected > /tmp/affected.json
+          cat /tmp/affected.json
+
+      - name: Run linters
+        run: mise run ci:lint

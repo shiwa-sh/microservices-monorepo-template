@@ -1,0 +1,7 @@
+postgres:
+  cluster:
+    instances: 3
+    storage: { size: 200Gi }
+    backup:
+      retentionPolicy: "30d"
+      s3: { destinationPath: "s3://platform-prod-backups/postgres" }

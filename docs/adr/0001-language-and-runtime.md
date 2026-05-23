@@ -37,7 +37,7 @@ In priority order:
 ## Decision
 
 - **Primary backend language: Go.** Latest stable major version, tracked in `.mise.toml`.
-- **Frontend language: TypeScript** via Next.js, latest stable.
+- **Frontend language: TypeScript** via Next.js, latest stable. **Bun is the sole JS runtime** — install, dev, build, and the production `server.js` all run under Bun. Node.js is not installed anywhere.
 - **Sanctioned escape hatches:**
   - **Rust** for services with measured CPU/latency requirements Go cannot meet, or for blockchain components whose canonical libraries are Rust-native.
   - **Python** for ML/data services where the Python scientific ecosystem is the reason the service exists. Never permitted for general API services.
@@ -72,6 +72,7 @@ In priority order:
 - Every backend service is written in Go unless an ADR sanctions an escape hatch.
 - Go version is pinned by `.mise.toml`; services do not override it.
 - The frontend is TypeScript on Next.js, single app per [ADR-0002](0002-monorepo.md).
+- Bun is the only JS runtime — Node.js is not installed locally or in any container image.
 - A Rust service requires its own ADR demonstrating measured Go inadequacy or Rust-native ecosystem need.
 - A Python service requires its own ADR; it is permitted only for ML/data workloads.
 - JVM, .NET, and Node.js backends are not permitted, with or without an ADR.

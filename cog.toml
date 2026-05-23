@@ -1,0 +1,25 @@
+# cocogitto configuration (ADR-0013).
+# Conventional Commits with a fixed type set; scopes are derived from repo layout.
+
+from_latest_tag = false
+ignore_merge_commits = true
+generate_mono_repository_global_tag = false
+branch_whitelist = ["master", "release/**"]
+
+# Repo layout maps onto monorepo packages so per-component bumps work.
+[packages]
+"apps/frontend"  = { path = "apps/frontend",  changelog_path = "apps/frontend/CHANGELOG.md" }
+"apps/admin"     = { path = "apps/admin",     changelog_path = "apps/admin/CHANGELOG.md" }
+
+# Allowed commit types.
+[commit_types]
+feat     = { changelog_title = "Features" }
+fix      = { changelog_title = "Bug Fixes" }
+perf     = { changelog_title = "Performance" }
+refactor = { changelog_title = "Refactor" }
+docs     = { changelog_title = "Documentation" }
+test     = { changelog_title = "Tests" }
+chore    = { changelog_title = "Chore" }
+build    = { changelog_title = "Build" }
+ci       = { changelog_title = "CI" }
+revert   = { changelog_title = "Reverts" }

@@ -1,0 +1,16 @@
+minio:
+  mode: standalone
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests: { memory: "256Mi" }
+  rootUser: minio
+  rootPassword: minio-dev-password
+  buckets:
+    - { name: platform-backups, policy: none, purge: false }
+    - { name: loki,             policy: none, purge: false }
+    - { name: mimir,            policy: none, purge: false }
+    - { name: tempo,            policy: none, purge: false }
+    - { name: pyroscope,        policy: none, purge: false }

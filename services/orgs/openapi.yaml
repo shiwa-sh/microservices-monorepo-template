@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info: { title: orgs, version: 0.1.0 }
+servers: [{ url: /api/orgs }]
+tags: [{ name: orgs }, { name: internal }]
+paths:
+  /orgs:
+    post:
+      operationId: createOrg
+      tags: [orgs]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/OrgInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+  /orgs/{id}:
+    get:
+      operationId: getOrg
+      tags: [orgs]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+  /internal/identity-created:
+    post:
+      operationId: onIdentityCreated
+      tags: [internal]
+      description: Kratos post-registration webhook. Creates a personal org for the new identity.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { identity_id: { type: string }, email: { type: string } } } } }
+      responses:
+        "204": { description: Ack }
+        default: { $ref: "../../api/shared/error.yaml#/Error" }
+components:
+  schemas:
+    Org:
+      type: object
+      required: [id, name]
+      properties:
+        id:   { type: string, format: uuid }
+        name: { type: string }
+    OrgInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }

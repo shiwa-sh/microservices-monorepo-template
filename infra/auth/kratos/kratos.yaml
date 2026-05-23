@@ -1,0 +1,26 @@
+# Kratos server config (ADR-0010). Identity schema is the file under
+# identity-schemas/, loaded into the chart via Helm `readFile`.
+serve:
+  public:  { base_url: "https://{{ env }}.example.com/auth/" }
+  admin:   { base_url: "http://kratos-admin.platform.svc.cluster.local/" }
+
+session:
+  cookie:    { domain: "{{ env }}.example.com", same_site: Lax }
+  lifespan:  "168h"
+  whoami:    { required_aal: "highest_available" }
+
+selfservice:
+  default_browser_return_url: "https://{{ env }}.example.com/"
+  flows:
+    login:        { lifespan: "10m", ui_url: "https://{{ env }}.example.com/auth/login" }
+    registration: { lifespan: "10m", ui_url: "https://{{ env }}.example.com/auth/register",
+                    after: { password: { hooks: [{ hook: "session" },
+                                                 { hook: "web_hook",
+                                                   config: { url: "http://orgs-server.platform.svc.cluster.local/internal/identity-created",
+                                                             method: POST, body: "base64://e30=", response: { ignore: true } } }] } } }
+    recovery:     { ui_url: "https://{{ env }}.example.com/auth/recovery" }
+    settings:     { ui_url: "https://{{ env }}.example.com/auth/settings" }
+    verification: { ui_url: "https://{{ env }}.example.com/auth/verification" }
+
+courier:
+  smtp: { connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false" }

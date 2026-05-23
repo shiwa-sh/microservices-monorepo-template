@@ -1,0 +1,52 @@
+# Tag-driven prod promotion (ADR-0004, ADR-0013).
+# Triggered by a service release tag: services/<svc>/v<X.Y.Z>.
+name: promote-on-release
+
+on:
+  push:
+    tags: ["services/*/v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Parse tag
+        id: tag
+        run: |
+          ref="${GITHUB_REF#refs/tags/}"
+          svc=$(echo "$ref" | cut -d/ -f2)
+          ver=$(echo "$ref" | cut -d/ -f3)
+          echo "service=$svc" >> "$GITHUB_OUTPUT"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse "$ref^{}")" >> "$GITHUB_OUTPUT"
+
+      - name: Label image with semver tag
+        run: |
+          echo "Would skopeo copy + tag ghcr.io/${{ github.repository }}/${{ steps.tag.outputs.service }}-server:${{ steps.tag.outputs.sha }} → :${{ steps.tag.outputs.version }}"
+
+      - name: Bump prod values
+        run: |
+          path="infra/gitops/services/prod/values/${{ steps.tag.outputs.service }}.yaml"
+          if [[ -f "$path" ]]; then
+            sed -i -E "s|(tag:[[:space:]]*).*|\1${{ steps.tag.outputs.sha }}|" "$path"
+          fi
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(deploy): promote ${{ steps.tag.outputs.service }} ${{ steps.tag.outputs.version }} to prod"
+          title: "chore(deploy): ${{ steps.tag.outputs.service }} ${{ steps.tag.outputs.version }} → prod"
+          branch: deploy/prod-${{ steps.tag.outputs.service }}-${{ steps.tag.outputs.version }}
+          labels: auto-merge
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.tag.outputs.service }} ${{ steps.tag.outputs.version }}"
+          generate_release_notes: true

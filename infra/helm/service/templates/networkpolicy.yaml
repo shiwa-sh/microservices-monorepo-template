@@ -1,0 +1,34 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "service.fullname" . }}
+  labels: {{- include "service.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "service.selector" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    {{- if .Values.networkPolicy.allowFromGateway }}
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: tyk } }
+      ports:
+        - { port: {{ .Values.server.port }}, protocol: TCP }
+    {{- end }}
+    # Allow scrape from the OTel collector namespace.
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
+      ports:
+        - { port: {{ .Values.server.adminPort }}, protocol: TCP }
+  egress:
+    # Platform deps: Postgres, Temporal, OTel, SpiceDB, Kratos/Hydra.
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
+    {{- if .Values.networkPolicy.egressDNS }}
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    {{- end }}
+{{- end }}

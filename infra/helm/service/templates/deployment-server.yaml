@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "service.fullname" . }}-server
+  labels: {{- include "service.labels" . | nindent 4 }}
+    component: server
+spec:
+  replicas: {{ .Values.server.replicas }}
+  selector:
+    matchLabels: {{- include "service.selector" . | nindent 6 }}
+      component: server
+  template:
+    metadata:
+      labels: {{- include "service.selector" . | nindent 8 }}
+        component: server
+    spec:
+      serviceAccountName: {{ include "service.fullname" . }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.migrations.enabled }}
+      initContainers:
+        - name: migrations
+          image: "{{ .Values.migrations.image.repository }}:{{ .Values.migrations.image.tag }}"
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command: ["dbmate", "--no-dump-schema", "up"]
+          envFrom:
+            {{- range .Values.secrets.envFrom }}
+            - secretRef: { name: {{ . }} }
+            {{- end }}
+          volumeMounts:
+            - { name: migrations, mountPath: /db/migrations, readOnly: true }
+      {{- end }}
+      containers:
+        - name: server
+          image: {{ include "service.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: http,  containerPort: {{ .Values.server.port }} }
+            - { name: admin, containerPort: {{ .Values.server.adminPort }} }
+          env:
+            {{- include "service.otelEnv" . | nindent 12 }}
+            {{- range $k, $v := .Values.env }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+          envFrom:
+            {{- range .Values.secrets.envFrom }}
+            - secretRef: { name: {{ . }} }
+            {{- end }}
+          readinessProbe: { httpGet: { path: /healthz, port: admin }, initialDelaySeconds: 2 }
+          livenessProbe:  { httpGet: { path: /healthz, port: admin }, periodSeconds: 30 }
+          resources: {{- toYaml .Values.server.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- range .Values.secrets.files }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+              readOnly: true
+            {{- end }}
+      volumes:
+        - { name: tmp, emptyDir: {} }
+        {{- if .Values.migrations.enabled }}
+        - name: migrations
+          configMap: { name: {{ include "service.fullname" . }}-migrations }
+        {{- end }}
+        {{- range .Values.secrets.files }}
+        - name: {{ .name }}
+          secret: { secretName: {{ .name }} }
+        {{- end }}

@@ -1,8 +1,21 @@
-# JetBrain
-.idea/
+# Editors
+# JetBrains (default IDE) — commit shared config, ignore user-specific state.
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/shelf/
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+.idea/httpRequests/
+.idea/replstate.xml
+.idea/sonarlint/
+*.iml
 .run/
 
-# Visual Studio Code
+# VS Code (not the team's default — but if anyone uses it, keep it out of git)
 .vscode/
 .history
 
@@ -11,7 +24,50 @@
 *.swp
 *.swo
 
-# Environment variable files
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files (ADR-0005: never commit real secrets; encrypted .enc.yaml is ok)
 .env
-.env*
+.env.*
 !.env.example
+
+# Go
+/bin/
+/dist/
+*.test
+*.out
+coverage.*
+
+# Node / Bun
+node_modules/
+.next/
+out/
+.bun/
+
+# Biome (ADR-0014)
+.biome/
+
+# Playwright (ADR-0014)
+playwright-report/
+test-results/
+
+# Helm / Terraform
+**/charts/*.tgz
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Local k3d state
+.k3d/
+
+# Mise local cache
+.mise.local.toml
+
+# Generated artifacts that ARE committed (do NOT ignore — listed here for clarity):
+# - libs/sdks/{go,ts}/<service>/
+# - services/*/internal/store/   (sqlc output)
+# - infra/gateway/apis/

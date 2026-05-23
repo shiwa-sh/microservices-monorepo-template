@@ -1,0 +1,11 @@
+# Third-party partner API policy (ADR-0009). Per-API-key rate limits.
+apiVersion: tyk.tyk.io/v1alpha1
+kind: SecurityPolicy
+metadata: { name: partner, namespace: tyk }
+spec:
+  name: partner
+  active: true
+  rate:   100
+  per:    60
+  quota_max:    1000
+  quota_renewal_rate: 3600

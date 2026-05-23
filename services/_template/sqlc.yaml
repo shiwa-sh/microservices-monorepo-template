@@ -1,0 +1,14 @@
+# sqlc config for the template service (ADR-0007). Copy alongside the rest
+# when scaffolding a new service.
+version: "2"
+sql:
+  - engine: postgresql
+    schema:      "migrations/"
+    queries:     "internal/store/queries/"
+    gen:
+      go:
+        package: "store"
+        out:     "internal/store"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        emit_json_tags: true

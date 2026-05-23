@@ -1,0 +1,17 @@
+# Materialize the per-cluster age key as a Kubernetes Secret in the sops
+# namespace (ADR-0005). The private key is held in Ansible Vault.
+- name: Write age key to disk
+  copy:
+    dest: /etc/sops/age/keys.txt
+    content: "{{ cluster_age_private_key }}"
+    mode: "0400"
+  no_log: true
+
+- name: Create namespace
+  shell: kubectl create ns sops --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Create cluster-key Secret
+  shell: |
+    kubectl -n sops create secret generic sops-age-key \
+      --from-file=keys.txt=/etc/sops/age/keys.txt \
+      --dry-run=client -o yaml | kubectl apply -f -

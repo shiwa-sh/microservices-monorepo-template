@@ -1,0 +1,11 @@
+apiVersion: v2
+name: spicedb
+description: SpiceDB authorization engine (ADR-0010), Postgres-backed.
+type: application
+version: 0.1.0
+appVersion: "1.39.1"
+
+dependencies:
+  - name: spicedb-operator
+    version: "0.4.0"
+    repository: https://authzed.github.io/charts

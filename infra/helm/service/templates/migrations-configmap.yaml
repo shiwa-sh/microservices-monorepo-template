@@ -1,0 +1,15 @@
+{{- if .Values.migrations.enabled }}
+# Migrations are baked into the service image at build time under /db/migrations.
+# This ConfigMap is the fallback path for charts that mount migrations from outside
+# the image (rare); for the default path the initContainer reads /db/migrations
+# straight from the image filesystem.
+#
+# We still ship an empty ConfigMap so the volumeMount in deployment-server.yaml
+# resolves cleanly when --set migrations.fromConfigMap=true.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "service.fullname" . }}-migrations
+  labels: {{- include "service.labels" . | nindent 4 }}
+data: {}
+{{- end }}

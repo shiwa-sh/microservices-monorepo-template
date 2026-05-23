@@ -1,0 +1,56 @@
+openapi: 3.1.0
+info:
+  title: Template service
+  version: 0.1.0
+  description: |
+    Skeleton OpenAPI spec. Copy this file when scaffolding a new service
+    (see scripts/new-service.sh) and replace `_template` with the new name.
+servers:
+  - url: /api/_template
+tags:
+  - name: items
+paths:
+  /items:
+    get:
+      operationId: listItems
+      tags: [items]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Item" }
+        "default":
+          $ref: "../../api/shared/error.yaml#/Error"
+    post:
+      operationId: createItem
+      tags: [items]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "default":
+          $ref: "../../api/shared/error.yaml#/Error"
+
+components:
+  schemas:
+    Item:
+      type: object
+      required: [id, name]
+      properties:
+        id:   { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
+    ItemInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }

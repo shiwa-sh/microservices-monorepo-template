@@ -1,0 +1,12 @@
+# Shared OpenAPI fragments referenced from every service spec (ADR-0008).
+Error:
+  description: Error response
+  content:
+    application/problem+json:
+      schema:
+        type: object
+        required: [code, message]
+        properties:
+          code:    { type: string, example: "not_found" }
+          message: { type: string }
+          details: { type: object, additionalProperties: true }
