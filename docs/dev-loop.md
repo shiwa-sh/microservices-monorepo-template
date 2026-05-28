@@ -37,10 +37,26 @@ Observability UI: <http://localhost:3000> (Grafana, no auth in dev).
 mise run dev:down                    # stops port-forwards + deletes the k3d cluster
 ```
 
+## Formatting & linting
+
+`mise run format` / `mise run lint` cover every language, including Markdown.
+Markdown is governed by **markdownlint** (`.markdownlint.jsonc`) — the same
+ruleset JetBrains' Markdown plugin reads natively, so editor warnings match CI
+exactly. `mise run format:md` (markdownlint-cli2 `--fix`) auto-fixes most rules
+and runs on staged `.md` files via the lefthook pre-commit hook.
+
+**Tables** are the one thing `--fix` can't repair. `MD060` enforces *aligned*
+tables (whitespace-padded columns) — the exact format the JetBrains
+"Incorrect table formatting" inspection wants, so CI and the IDE agree. When a
+table is flagged, align it with **Alt+Enter → "Reformat table"** in JetBrains
+(note: plain `Ctrl+Alt+L` does *not* align Markdown tables — only that quick-fix
+does). Outside JetBrains, align the columns by hand to satisfy CI.
+
 ## When to use the **full** profile instead
 
 `mise run dev:up` (no flag) brings up the gateway, auth stack, ArgoCD, and every
 other chart. Use it when the bug only reproduces with Tyk, Kratos, SpiceDB, or
 GitOps in the path. The inner-loop pattern above does not apply — services run
 in-cluster via `mise run dev:build <service>` (build image + `k3d image import`
-+ rollout restart).
+
+- rollout restart).

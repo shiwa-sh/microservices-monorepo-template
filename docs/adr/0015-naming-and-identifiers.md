@@ -46,7 +46,7 @@ reads identically in files and in every console.
 
 Every named resource derives from a single dash-joined slug:
 
-```
+```text
 {project}-{env}-{role}[-{n}]
 ```
 
@@ -91,7 +91,7 @@ rare, and that is the first line of defence: **pick a distinctive enough slug th
 When it does fire, the fix is mechanical, not a judgement call: append a short random token to the **project
 segment** and use that as the project slug everywhere.
 
-```
+```text
 acme            → acme-prod-assets bucket taken globally
 acme-x7q2       ← project slug becomes acme-x7q2, applied across all resources
 ```

@@ -2,10 +2,10 @@
 
 This directory contains ports of Untitled UI primitives and design tokens. Per ADR-0014, the ports are committed source — not runtime-fetched.
 
-| Tracked        | Version   | Synced on     |
-|----------------|-----------|---------------|
-| Untitled UI    | —         | not yet synced |
-| lucide-react   | 0.469.0   | 2026-05-20    |
+| Tracked      | Version | Synced on      |
+|--------------|---------|----------------|
+| Untitled UI  | —       | not yet synced |
+| lucide-react | 0.469.0 | 2026-05-20     |
 
 Annual bump cadence. To re-sync:
 

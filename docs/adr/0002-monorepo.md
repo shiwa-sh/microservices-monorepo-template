@@ -34,7 +34,7 @@ We need a single answer to:
 
 ## Repository layout
 
-```
+```text
 go.mod                        # single Go module for the entire repo
 go.sum
 

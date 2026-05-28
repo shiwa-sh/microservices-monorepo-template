@@ -3,7 +3,7 @@
 The single Next.js application (ADR-0002 §"TypeScript workspaces"). Route
 groups separate audiences inside one deploy unit:
 
-```
+```text
 src/app/(landing)/    — public marketing, sign-in
 src/app/(panel)/      — authenticated customer panel
 src/app/(admin)/      — staff-only tile that links to /internal/admin (Lowdefy)

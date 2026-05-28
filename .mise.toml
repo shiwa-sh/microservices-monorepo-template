@@ -33,6 +33,7 @@ lefthook = "2.1.8"
 cocogitto = "7.0.0"
 act = "0.2.88"
 golangci-lint = "v2.12.2"
+"npm:markdownlint-cli2" = "0.22.1"
 
 [env]
 GOFLAGS = "-mod=readonly"
@@ -68,7 +69,7 @@ run = "bash scripts/gen-sqlc.sh"
 run = "go run ./tools/codegen/tyk-gen"
 
 [tasks.lint]
-depends = ["lint:go", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts"]
+depends = ["lint:go", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md"]
 
 [tasks."lint:ts"]
 run = "biome ci ."
@@ -84,6 +85,10 @@ run = "bash scripts/lint-openapi.sh"
 
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
+
+[tasks."lint:md"]
+# Reads rules from .markdownlint.jsonc, globs/ignores from .markdownlint-cli2.jsonc.
+run = "markdownlint-cli2"
 
 [tasks.test]
 run = "go test ./..."
@@ -108,13 +113,18 @@ depends = ["build"]
 run = "mise run gen:all && git diff --exit-code"
 
 [tasks.format]
-depends = ["format:go", "format:ts"]
+depends = ["format:go", "format:ts", "format:md"]
 
 [tasks."format:go"]
 run = "gofmt -w ."
 
 [tasks."format:ts"]
 run = "biome format --write ."
+
+[tasks."format:md"]
+# markdownlint is the only Markdown formatter — do NOT rely on the IDE's
+# Ctrl+Alt+L for .md files (see docs/adr / README).
+run = "markdownlint-cli2 --fix"
 
 [tasks.pre-commit]
 depends = ["format", "lint"]

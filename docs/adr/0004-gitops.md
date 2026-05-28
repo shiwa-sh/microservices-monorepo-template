@@ -42,7 +42,7 @@ ArgoCD is the GitOps controller in every cluster, installed via Helm and managin
 
 GitOps state lives **in this monorepo**, alongside application code.
 
-```
+```text
 infra/
 ├── helm/
 │   ├── platform/<comp>/        # one chart per platform component
@@ -102,11 +102,11 @@ schedule, and the release act is the one human decision that matters. **ArgoCD I
 
 ### Sync policy
 
-| Environment | Platform sync | Services sync                | Sync window              | `selfHeal`                       | `prune` |
-|-------------|---------------|------------------------------|--------------------------|----------------------------------|---------|
-| dev         | auto          | auto                         | none (continuous)        | true                             | true    |
-| staging     | auto          | auto                         | `05:00 UTC, 1h` daily    | true                             | true    |
-| prod        | manual        | auto (on release tag)        | none (event-driven)      | false (platform) / true (services) | true  |
+| Environment | Platform sync | Services sync         | Sync window           | `selfHeal`                         | `prune` |
+|-------------|---------------|-----------------------|-----------------------|------------------------------------|---------|
+| dev         | auto          | auto                  | none (continuous)     | true                               | true    |
+| staging     | auto          | auto                  | `05:00 UTC, 1h` daily | true                               | true    |
+| prod        | manual        | auto (on release tag) | none (event-driven)   | false (platform) / true (services) | true    |
 
 The staging sync window is configured on the AppProject; `manualSync: true` permits ad-hoc `argocd app sync` outside
 the window for incident response.

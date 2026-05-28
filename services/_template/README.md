@@ -6,21 +6,21 @@ tags. Use `scripts/new-service.sh <name>` to do this automatically.
 
 ## What's inside
 
-| Path                              | Purpose                                                    |
-|-----------------------------------|------------------------------------------------------------|
-| `openapi.yaml`                    | The service contract (ADR-0008). Source of truth.          |
-| `cmd/server/main.go`              | HTTP server entry point (calls `obs.Init`, `dbmw`, etc.)   |
-| `cmd/worker/main.go`              | Temporal worker entry point (ADR-0006)                     |
-| `internal/handlers/`              | Generated-server-binding glue                              |
-| `internal/workflows/`             | Owned Temporal workflows (ADR-0006)                        |
-| `internal/activities/`            | Owned Temporal activities                                  |
-| `internal/domain/`                | Pure types — no DB/HTTP/Temporal imports                   |
-| `internal/store/queries/`         | sqlc input — SQL files (ADR-0007)                           |
-| `internal/store/` (generated)     | sqlc output — typed Go                                     |
-| `migrations/`                     | dbmate migrations (ADR-0007)                                |
-| `sqlc.yaml`                       | sqlc config for this service                                |
-| `.mise.toml`                      | Service-local tasks (`run`, `worker`, `test`, `migrate`, …) |
-| `Dockerfile`                      | Multi-stage build with `CMD` build arg (ADR-0002)           |
+| Path                          | Purpose                                                     |
+|-------------------------------|-------------------------------------------------------------|
+| `openapi.yaml`                | The service contract (ADR-0008). Source of truth.           |
+| `cmd/server/main.go`          | HTTP server entry point (calls `obs.Init`, `dbmw`, etc.)    |
+| `cmd/worker/main.go`          | Temporal worker entry point (ADR-0006)                      |
+| `internal/handlers/`          | Generated-server-binding glue                               |
+| `internal/workflows/`         | Owned Temporal workflows (ADR-0006)                         |
+| `internal/activities/`        | Owned Temporal activities                                   |
+| `internal/domain/`            | Pure types — no DB/HTTP/Temporal imports                    |
+| `internal/store/queries/`     | sqlc input — SQL files (ADR-0007)                           |
+| `internal/store/` (generated) | sqlc output — typed Go                                      |
+| `migrations/`                 | dbmate migrations (ADR-0007)                                |
+| `sqlc.yaml`                   | sqlc config for this service                                |
+| `.mise.toml`                  | Service-local tasks (`run`, `worker`, `test`, `migrate`, …) |
+| `Dockerfile`                  | Multi-stage build with `CMD` build arg (ADR-0002)           |
 
 ## Standard tasks
 

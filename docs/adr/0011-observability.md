@@ -57,12 +57,12 @@ Service authors never touch the OTel SDK directly. Custom spans use `obs.StartSp
 
 **Pre-wired middleware** that the service template imports automatically:
 
-| Package | Wraps | Emits |
-|---|---|---|
-| `libs/go/httpmw/` | HTTP server & client | trace span, RED metrics, structured access log |
-| `libs/go/dbmw/` | `pgx` tracer | DB span per query, statement metrics |
-| `libs/go/temporalmw/` | Temporal client + worker interceptors | workflow/activity spans + duration metrics |
-| `libs/go/authmw/` | JWT validation ([ADR-0010](0010-auth.md)) | auth-failure metrics; user/org attributes on the active span |
+| Package               | Wraps                                     | Emits                                                        |
+|-----------------------|-------------------------------------------|--------------------------------------------------------------|
+| `libs/go/httpmw/`     | HTTP server & client                      | trace span, RED metrics, structured access log               |
+| `libs/go/dbmw/`       | `pgx` tracer                              | DB span per query, statement metrics                         |
+| `libs/go/temporalmw/` | Temporal client + worker interceptors     | workflow/activity spans + duration metrics                   |
+| `libs/go/authmw/`     | JWT validation ([ADR-0010](0010-auth.md)) | auth-failure metrics; user/org attributes on the active span |
 
 A new service starts with full instrumentation by virtue of being created from `services/_template/`.
 

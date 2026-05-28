@@ -51,25 +51,25 @@ A workflow is the **wrong** primitive when the operation is a single atomic acti
 
 Concrete classification:
 
-| Operation | Workflow? |
-|---|---|
-| Register user (Kratos + orgs + authz tuples + welcome email) | Yes |
-| Checkout (reserve → charge → order → deduct → confirm) | Yes |
-| Payment (often a child workflow of checkout) | Yes |
-| Refund (compensation, multi-system) | Yes |
-| Authz-relevant resource mutation (app DB + authz store) | Yes — per [ADR-0010](0010-auth.md) |
-| Send transactional email | Yes |
-| Generate thumbnail / index document | Yes |
-| Daily reconciliation job | Yes — Temporal `Schedule`, not k8s `CronJob` |
-| Update profile name | No |
-| Add item to cart | No |
-| List orders | No |
+| Operation                                                    | Workflow?                                    |
+|--------------------------------------------------------------|----------------------------------------------|
+| Register user (Kratos + orgs + authz tuples + welcome email) | Yes                                          |
+| Checkout (reserve → charge → order → deduct → confirm)       | Yes                                          |
+| Payment (often a child workflow of checkout)                 | Yes                                          |
+| Refund (compensation, multi-system)                          | Yes                                          |
+| Authz-relevant resource mutation (app DB + authz store)      | Yes — per [ADR-0010](0010-auth.md)           |
+| Send transactional email                                     | Yes                                          |
+| Generate thumbnail / index document                          | Yes                                          |
+| Daily reconciliation job                                     | Yes — Temporal `Schedule`, not k8s `CronJob` |
+| Update profile name                                          | No                                           |
+| Add item to cart                                             | No                                           |
+| List orders                                                  | No                                           |
 
 ### Architecture: co-located workflows, HTTP between services
 
 Workflows, activities, and workers live **inside the service that owns the business process**.
 
-```
+```text
 services/<service>/
 ├── openapi.yaml
 ├── cmd/{server,worker}/main.go
@@ -102,11 +102,11 @@ Direct Temporal signals across service boundaries are not permitted.
 
 ### Activity placement
 
-| Scope of use | Location | Notes |
-|---|---|---|
-| One service's workflows only | `services/<service>/internal/activities/` | The 90% case. |
-| Generic infrastructure (email, S3, metrics, webhooks) | `libs/go/temporal-activities/<concern>/` | Stateless and service-agnostic. No dependency on `services/...`. |
-| Logically owned by another service | **Not shared.** Each caller writes a thin activity in its own `internal/activities/` wrapping `libs/go/sdks/<owning-service>/`. | The shared thing is the HTTP API. |
+| Scope of use                                          | Location                                                                                                                        | Notes                                                            |
+|-------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|
+| One service's workflows only                          | `services/<service>/internal/activities/`                                                                                       | The 90% case.                                                    |
+| Generic infrastructure (email, S3, metrics, webhooks) | `libs/go/temporal-activities/<concern>/`                                                                                        | Stateless and service-agnostic. No dependency on `services/...`. |
+| Logically owned by another service                    | **Not shared.** Each caller writes a thin activity in its own `internal/activities/` wrapping `libs/go/sdks/<owning-service>/`. | The shared thing is the HTTP API.                                |
 
 Sharing an activity *across services* by putting domain logic in `libs/` is a smell.
 

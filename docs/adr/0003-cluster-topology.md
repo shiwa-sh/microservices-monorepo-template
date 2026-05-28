@@ -57,18 +57,18 @@ Three nodes from day one (not one) because:
 
 **Growth triggers** — each tied to a measurable signal, each landing in a follow-up ADR when it fires:
 
-| Trigger | Signal | Response |
-|---|---|---|
-| Resource pressure | Sustained CPU or memory >70% for 7 days across the node set | Add worker nodes (k3s agents). Keep control plane at 3. |
-| Storage scale | Any service's PVC >50% of node disk | Adopt Longhorn as default storage class. Existing PVs migrate per-workload. |
-| Network policy needs | Need for eBPF observability or zero-trust policies | Swap Flannel → Cilium at next cluster rebuild. |
-| Compliance segregation | Regulated data with isolation requirement | Dedicated cluster for that workload. |
+| Trigger                | Signal                                                      | Response                                                                    |
+|------------------------|-------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Resource pressure      | Sustained CPU or memory >70% for 7 days across the node set | Add worker nodes (k3s agents). Keep control plane at 3.                     |
+| Storage scale          | Any service's PVC >50% of node disk                         | Adopt Longhorn as default storage class. Existing PVs migrate per-workload. |
+| Network policy needs   | Need for eBPF observability or zero-trust policies          | Swap Flannel → Cilium at next cluster rebuild.                              |
+| Compliance segregation | Regulated data with isolation requirement                   | Dedicated cluster for that workload.                                        |
 
 Triggers are documented in `docs/cluster/growth-plan.md` so growth happens on data, not memory.
 
 ### Traffic flow
 
-```
+```text
 Internet
   │
 Hetzner Load Balancer  (provider L4 LB, one stable public IP per env)
@@ -112,7 +112,7 @@ When the storage-scale trigger fires, Longhorn becomes the default for new block
 
 ### Provisioning order
 
-```
+```text
 1. terraform apply              # VPS instances, network, LB, DNS, firewall, bucket
 2. ansible-playbook bootstrap   # OS hardening, kernel params, k3s install
 3. kubectl apply -f infra/gitops/bootstrap/root-application.yaml
@@ -125,17 +125,17 @@ The cluster identity is reproducible from git plus one Terraform state file (sto
 
 Parity is at the manifest, chart, and API level. Topology differences are explicit:
 
-| Layer | Local (k3d) | Prod (k3s on Hetzner) | Same? |
-|---|---|---|---|
-| Kubernetes API | k3s | k3s | yes |
-| Helm charts | `infra/helm/` | `infra/helm/` | yes |
-| Service code | identical image | identical image | yes |
-| Ingress | Traefik | Traefik | yes |
-| TLS issuer | mkcert local CA | Let's Encrypt | no |
-| LB driver | klipper-lb | hcloud-ccm | no |
-| Object storage | MinIO | external S3 bucket | interface yes, backend no |
-| GitOps | not used | ArgoCD | no, by design |
-| Sizing | tiny | sized for traffic | no |
+| Layer          | Local (k3d)     | Prod (k3s on Hetzner) | Same?                     |
+|----------------|-----------------|-----------------------|---------------------------|
+| Kubernetes API | k3s             | k3s                   | yes                       |
+| Helm charts    | `infra/helm/`   | `infra/helm/`         | yes                       |
+| Service code   | identical image | identical image       | yes                       |
+| Ingress        | Traefik         | Traefik               | yes                       |
+| TLS issuer     | mkcert local CA | Let's Encrypt         | no                        |
+| LB driver      | klipper-lb      | hcloud-ccm            | no                        |
+| Object storage | MinIO           | external S3 bucket    | interface yes, backend no |
+| GitOps         | not used        | ArgoCD                | no, by design             |
+| Sizing         | tiny            | sized for traffic     | no                        |
 
 `mise run dev:up` brings up the full k3d cluster with `infra/helm/` charts and local-built images. For fast inner-loop work, `mise run dev:up --minimal` boots a stripped k3d profile (Postgres, Temporal dev server, OTel-LGTM bundle, MinIO) using a reduced Helm values overlay. There is no docker-compose path: k3d is the single local runtime, keeping local and prod on the same manifests.
 
@@ -143,10 +143,10 @@ Parity is at the manifest, chart, and API level. Topology differences are explic
 
 k3d is the single local runtime. Two profiles, one cluster lifecycle:
 
-| Profile | Command | Brings up | Use for |
-|---|---|---|---|
-| Full | `mise run dev:up` | every chart in `infra/helm/` (services, gateway, auth, observability, MinIO) | end-to-end flows, gateway/auth/policy work, demo |
-| Minimal | `mise run dev:up --minimal` | Postgres (CNPG), Temporal dev server, OTel-LGTM bundle, MinIO | inner loop: running one service + its tests against real deps |
+| Profile | Command                     | Brings up                                                                    | Use for                                                       |
+|---------|-----------------------------|------------------------------------------------------------------------------|---------------------------------------------------------------|
+| Full    | `mise run dev:up`           | every chart in `infra/helm/` (services, gateway, auth, observability, MinIO) | end-to-end flows, gateway/auth/policy work, demo              |
+| Minimal | `mise run dev:up --minimal` | Postgres (CNPG), Temporal dev server, OTel-LGTM bundle, MinIO                | inner loop: running one service + its tests against real deps |
 
 Both profiles use the same charts. Minimal is a values overlay (`infra/helm/values/local-minimal.yaml`) that:
 

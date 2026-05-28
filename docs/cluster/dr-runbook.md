@@ -3,6 +3,7 @@
 Target RTO: 30 min. RPO ≈ WAL archive interval (minutes).
 
 ## Detection
+
 Uptime Kuma pages on-call within 1-2 minutes of total cluster loss.
 
 ## Recovery

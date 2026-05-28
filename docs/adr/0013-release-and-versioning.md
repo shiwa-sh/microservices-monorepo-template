@@ -45,7 +45,7 @@ for version bumps.
 
 All commits on `master` follow the [Conventional Commits](https://www.conventionalcommits.org/) spec:
 
-```
+```text
 <type>(<scope>): <subject>
 
 [body]
@@ -105,7 +105,7 @@ Releases are explicit per component, and a release **is** the prod deploy. Dev a
 
 A maintainer runs:
 
-```
+```text
 mise run release -- services/gateway
 ```
 

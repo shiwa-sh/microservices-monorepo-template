@@ -97,7 +97,7 @@ Auth is enforced at the gateway:
 
 ### Repository layout
 
-```
+```text
 apps/admin/
 ├── lowdefy.yaml                    # root config: connections, menu, global theme
 ├── _generated/                     # committed codegen output (drift-checked)

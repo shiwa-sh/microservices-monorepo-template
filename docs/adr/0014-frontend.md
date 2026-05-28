@@ -13,16 +13,16 @@ This ADR is the single entry point for a newcomer working on the frontend.
 
 ### Pinned by earlier ADRs (not relitigated)
 
-| Concern | Decision | ADR |
-|---|---|---|
-| Framework | Next.js, single app, route groups `(landing\|panel\|admin\|devportal)` | [0001](0001-language-and-runtime.md), [0002](0002-monorepo.md) |
-| Language + runtime | TypeScript, Bun as the only JS runtime (no Node anywhere) | [0001](0001-language-and-runtime.md) |
-| Workspaces | Bun workspaces, no Turborepo | [0002](0002-monorepo.md) |
-| API clients | Generated via `openapi-typescript` + `openapi-fetch` from per-service `openapi.yaml` | [0008](0008-api-contracts.md) |
-| Login UI | Custom Next.js driving Kratos self-service flows in `(landing)/auth/` | [0010](0010-auth.md) |
-| Developer portal | Route group, not a separate app | [0009](0009-api-gateway.md) |
-| Container | Next.js standalone output, tagged `frontend:<git-sha>`, deployed via the shared service chart | [0002](0002-monorepo.md), [0004](0004-gitops.md) |
-| Cross-route-group imports | Lint-forbidden | [0002](0002-monorepo.md) |
+| Concern                   | Decision                                                                                      | ADR                                                            |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| Framework                 | Next.js, single app, route groups `(landing\|panel\|admin\|devportal)`                        | [0001](0001-language-and-runtime.md), [0002](0002-monorepo.md) |
+| Language + runtime        | TypeScript, Bun as the only JS runtime (no Node anywhere)                                     | [0001](0001-language-and-runtime.md)                           |
+| Workspaces                | Bun workspaces, no Turborepo                                                                  | [0002](0002-monorepo.md)                                       |
+| API clients               | Generated via `openapi-typescript` + `openapi-fetch` from per-service `openapi.yaml`          | [0008](0008-api-contracts.md)                                  |
+| Login UI                  | Custom Next.js driving Kratos self-service flows in `(landing)/auth/`                         | [0010](0010-auth.md)                                           |
+| Developer portal          | Route group, not a separate app                                                               | [0009](0009-api-gateway.md)                                    |
+| Container                 | Next.js standalone output, tagged `frontend:<git-sha>`, deployed via the shared service chart | [0002](0002-monorepo.md), [0004](0004-gitops.md)               |
+| Cross-route-group imports | Lint-forbidden                                                                                | [0002](0002-monorepo.md)                                       |
 
 This ADR adds the remaining first-party choices.
 

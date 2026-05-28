@@ -47,13 +47,13 @@ Wire efficiency for internal calls is explicitly **not** a priority. JSON over H
 
 ### Codegen
 
-| Output | Tool | Location |
-|---|---|---|
-| Go server (strict mode) | `oapi-codegen` | `libs/go/sdks/<service>/server/` |
-| Go internal client | `oapi-codegen` | `libs/go/sdks/<service>/client/` |
-| TS client | `openapi-typescript` + `openapi-fetch` (~6 KB runtime) | `libs/ts/sdks/<service>/` |
-| Tyk API definitions | `tools/codegen/tyk-gen` | `infra/gateway/apis/` |
-| Public SDKs | OpenAPI Generator | published per-language as third-party consumers arrive |
+| Output                  | Tool                                                   | Location                                               |
+|-------------------------|--------------------------------------------------------|--------------------------------------------------------|
+| Go server (strict mode) | `oapi-codegen`                                         | `libs/go/sdks/<service>/server/`                       |
+| Go internal client      | `oapi-codegen`                                         | `libs/go/sdks/<service>/client/`                       |
+| TS client               | `openapi-typescript` + `openapi-fetch` (~6 KB runtime) | `libs/ts/sdks/<service>/`                              |
+| Tyk API definitions     | `tools/codegen/tyk-gen`                                | `infra/gateway/apis/`                                  |
+| Public SDKs             | OpenAPI Generator                                      | published per-language as third-party consumers arrive |
 
 All generated artifacts are committed to the repo and drift-checked in CI per [ADR-0002](0002-monorepo.md).
 
