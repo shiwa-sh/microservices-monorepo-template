@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spicedb
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: spicedb
+    app.kubernetes.io/part-of: platform
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spicedb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spicedb
+    spec:
+      {{- if .Values.migrate.enabled }}
+      initContainers:
+        # Bring the Postgres datastore to head before serving. `migrate head` is
+        # idempotent and lock-guarded, so it is safe on every replica/restart, and
+        # it self-orders against Postgres by failing + retrying until reachable.
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          args: ["migrate", "head"]
+          env:
+            - name: SPICEDB_DATASTORE_ENGINE
+              value: postgres
+            - name: SPICEDB_DATASTORE_CONN_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: datastore_uri
+      {{- end }}
+      containers:
+        - name: spicedb
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          args: ["serve"]
+          env:
+            - name: SPICEDB_DATASTORE_ENGINE
+              value: postgres
+            - name: SPICEDB_LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: SPICEDB_HTTP_ENABLED
+              value: {{ .Values.httpEnabled | quote }}
+            - name: SPICEDB_GRPC_PRESHARED_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: preshared_key
+            - name: SPICEDB_DATASTORE_CONN_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: datastore_uri
+          ports:
+            - { name: grpc,    containerPort: 50051 }
+            - { name: http,    containerPort: 8443 }
+            - { name: metrics, containerPort: 9090 }
+          readinessProbe:
+            tcpSocket: { port: grpc }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: grpc }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

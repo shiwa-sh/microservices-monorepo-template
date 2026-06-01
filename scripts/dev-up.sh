@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# Bring up the local k3d cluster and reconcile platform charts (ADR-0003).
-# Two profiles: full (default) and --minimal.
+# Create the local k3d cluster and the lightweight dev dependencies (ADR-0003).
+# The inner loop itself is `skaffold dev` (mise run dev). The full platform is
+# delivered by ArgoCD in staging/prod, not here.
 set -euo pipefail
 
-PROFILE="full"
-for arg in "$@"; do
-  if [[ "$arg" == "--minimal" ]]; then PROFILE="minimal"; fi
-done
-
 CLUSTER="platform-dev"
-VALUES="infra/helm/values/local-${PROFILE}.yaml"
 
-if ! k3d cluster list | awk '{print $1}' | grep -qx "$CLUSTER"; then
+if ! k3d cluster list 2>/dev/null | awk '{print $1}' | grep -qx "$CLUSTER"; then
   echo "→ creating k3d cluster '$CLUSTER'"
   k3d cluster create "$CLUSTER" \
     --servers 1 --agents 0 \
@@ -21,14 +16,8 @@ fi
 
 kubectl config use-context "k3d-${CLUSTER}"
 
-echo "→ installing platform charts (profile: $PROFILE)"
-helm dependency build infra/helm/platform/_umbrella 2>/dev/null || true
-helm upgrade --install platform infra/helm/platform/_umbrella \
-  --values "$VALUES" \
-  --namespace platform --create-namespace \
-  --wait --timeout 5m
+echo "→ applying lightweight dev dependencies (Postgres, Temporal, SpiceDB)"
+kubectl apply -f infra/local/deps.yaml
+kubectl -n platform rollout status deploy/postgres --timeout=120s
 
-echo "→ establishing port-forwards"
-bash scripts/dev-portforward.sh up
-
-echo "✓ dev:up complete ($PROFILE)"
+echo "✓ dev:up complete — now run 'mise run dev' (skaffold dev) to build & run services"

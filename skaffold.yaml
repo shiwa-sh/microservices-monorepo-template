@@ -1,0 +1,85 @@
+# Inner dev loop (ADR-0003): build service images, deploy them + lightweight deps
+# into the local k3d cluster, and live-rebuild on change.
+#   mise run dev:up      # create the k3d cluster (once)
+#   skaffold dev         # build + deploy + watch   (or: mise run dev)
+#   skaffold debug       # same, with Delve attached (or: mise run dev:debug)
+#
+# Same service chart as prod (infra/helm/service); only laptop knobs differ
+# (infra/helm/values/local-service.yaml). Adding a service = copy an artifact +
+# a release block. If `skaffold` is newer than this schema, run `skaffold fix`.
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: services
+
+build:
+  local:
+    push: false          # load images straight into k3d, no registry round-trip
+    useBuildkit: true
+  artifacts:
+    - image: orders-server
+      context: .
+      docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, CMD: server } }
+    - image: orders-worker
+      context: .
+      docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, CMD: worker } }
+    - image: catalog-server
+      context: .
+      docker: { dockerfile: services/catalog/Dockerfile, buildArgs: { SERVICE: catalog, CMD: server } }
+    - image: orgs-server
+      context: .
+      docker: { dockerfile: services/orgs/Dockerfile, buildArgs: { SERVICE: orgs, CMD: server } }
+    - image: payment-server
+      context: .
+      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: server } }
+
+manifests:
+  rawYaml:
+    - infra/local/deps.yaml
+  helm:
+    releases:
+      - name: orders
+        chartPath: infra/helm/service
+        namespace: platform
+        createNamespace: true
+        valuesFiles: [infra/helm/values/local-service.yaml]
+        setValues: { name: orders, worker.enabled: true, "secrets.envFrom": "{orders-db}" }
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_orders_server}}"
+          image.tag: "{{.IMAGE_TAG_orders_server}}"
+          worker.image.repository: "{{.IMAGE_REPO_orders_worker}}"
+          worker.image.tag: "{{.IMAGE_TAG_orders_worker}}"
+      - name: catalog
+        chartPath: infra/helm/service
+        namespace: platform
+        valuesFiles: [infra/helm/values/local-service.yaml]
+        setValues: { name: catalog, "secrets.envFrom": "{catalog-db}" }
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_catalog_server}}"
+          image.tag: "{{.IMAGE_TAG_catalog_server}}"
+      - name: orgs
+        chartPath: infra/helm/service
+        namespace: platform
+        valuesFiles: [infra/helm/values/local-service.yaml]
+        setValues: { name: orgs, "secrets.envFrom": "{orgs-db}" }
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_orgs_server}}"
+          image.tag: "{{.IMAGE_TAG_orgs_server}}"
+      - name: payment
+        chartPath: infra/helm/service
+        namespace: platform
+        valuesFiles: [infra/helm/values/local-service.yaml]
+        setValues: { name: payment, "secrets.envFrom": "{payment-db}" }
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_payment_server}}"
+          image.tag: "{{.IMAGE_TAG_payment_server}}"
+
+deploy:
+  kubeContext: k3d-platform-dev
+  helm: {}
+  kubectl: {}
+
+portForward:
+  - { resourceType: service, resourceName: orders,   namespace: platform, port: 8080, localPort: 8080 }
+  - { resourceType: service, resourceName: temporal, namespace: platform, port: 8233, localPort: 8233 }
+  - { resourceType: service, resourceName: postgres, namespace: platform, port: 5432, localPort: 5432 }

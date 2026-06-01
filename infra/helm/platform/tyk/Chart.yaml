@@ -1,12 +1,19 @@
 apiVersion: v2
 name: tyk
-description: Tyk Gateway OSS + operator (ADR-0009).
+description: Tyk Gateway OSS (ADR-0009), Redis-backed.
 type: application
 version: 0.1.0
 appVersion: "5.7.0"
 
+# OSS gateway via tyk-oss — NOT the licensed tyk-stack chart (it deploys the
+# Dashboard and runs a bootstrap job that fails without a Dashboard license).
+# simple-redis provides a dev Redis locally (Service "redis"); in prod disable
+# simple-redis and point global.redis.addrs at a managed Redis.
 dependencies:
-  - name: tyk-stack
-    version: "2.4.0"
+  - name: tyk-oss
+    version: "5.2.0"
     repository: https://helm.tyk.io/public/helm/charts/
-    condition: tyk.gateway.enabled
+  - name: simple-redis
+    version: "0.1.1"
+    repository: https://helm.tyk.io/public/helm/charts/
+    condition: simple-redis.enabled

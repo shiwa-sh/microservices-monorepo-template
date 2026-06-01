@@ -14,9 +14,36 @@ kratos:
           registration: { ui_url: https://dev.example.com/auth/register }
           recovery:     { ui_url: https://dev.example.com/auth/recovery }
           settings:     { ui_url: https://dev.example.com/auth/settings }
+    # Inlined from infra/auth/kratos/identity-schemas/user.v1.json (canonical
+    # source). Helm cannot read files outside a chart, so keep the two in sync.
     identitySchemas:
       "user.v1.json": |
-        {{ readFile "../../auth/kratos/identity-schemas/user.v1.json" | nindent 8 }}
+        {
+          "$id": "https://example.com/identity-schemas/user.v1.json",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "User",
+          "type": "object",
+          "properties": {
+            "traits": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "title": "E-Mail",
+                  "ory.sh/kratos": {
+                    "credentials": { "password": { "identifier": true } },
+                    "verification": { "via": "email" },
+                    "recovery":     { "via": "email" }
+                  }
+                },
+                "name": { "type": "string", "title": "Name" }
+              },
+              "required": ["email"],
+              "additionalProperties": false
+            }
+          }
+        }
 
 hydra:
   hydra:

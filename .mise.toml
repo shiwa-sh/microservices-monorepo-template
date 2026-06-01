@@ -47,14 +47,26 @@ run = "lefthook install"
 run = "bash scripts/upgrade-tools.sh"
 
 [tasks."dev:up"]
+# Create the local k3d cluster + lightweight deps (Postgres, Temporal, SpiceDB).
 run = "bash scripts/dev-up.sh"
 
 [tasks."dev:down"]
+# Delete the local k3d cluster.
 run = "bash scripts/dev-down.sh"
 
-[tasks."dev:build"]
-# Usage: mise run dev:build <service>
-run = "bash scripts/dev-build.sh"
+[tasks.dev]
+# Inner loop: build, deploy and live-reload services in k3d (ADR-0003).
+depends = ["dev:up"]
+run = "skaffold dev"
+
+[tasks."dev:debug"]
+# Same as dev, with Delve attached for IDE remote-debugging.
+depends = ["dev:up"]
+run = "skaffold debug"
+
+[tasks."dev:migrate"]
+# Apply each service's migrations to the local Postgres (ADR-0007).
+run = "bash scripts/dev-migrate.sh"
 
 [tasks."gen:all"]
 depends = ["gen:openapi", "gen:sqlc", "gen:tyk"]

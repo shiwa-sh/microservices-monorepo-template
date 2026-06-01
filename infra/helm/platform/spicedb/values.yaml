@@ -1,12 +1,21 @@
-cluster:
-  name: spicedb
-  datastoreEngine: postgres
-  secret:
-    existingSecret: spicedb-creds        # holds datastore_uri + preshared_key
-  replicas: 2
-  image:
-    repository: authzed/spicedb
-    tag: "v1.39.1"
-  config:
-    logLevel: info
-    dispatchClusterEnabled: false
+# Direct SpiceDB deployment (ADR-0010): a plain Deployment + Service, with a
+# `spicedb migrate head` initContainer that runs before serve. No operator/CRD —
+# the rare phased datastore migration is handled manually per SpiceDB release notes.
+image:
+  repository: authzed/spicedb
+  tag: "v1.39.1"
+
+replicas: 2
+logLevel: info
+httpEnabled: true            # REST gateway (8443) alongside gRPC (50051)
+
+# Secret holding the gRPC preshared key + Postgres connection URI (SOPS-managed
+# in prod). Expected keys: preshared_key, datastore_uri
+existingSecret: spicedb-creds
+
+migrate:
+  enabled: true              # run `spicedb migrate head` as an initContainer
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits:   { memory: 256Mi }
