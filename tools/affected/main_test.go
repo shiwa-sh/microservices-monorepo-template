@@ -49,7 +49,7 @@ func TestClassify(t *testing.T) {
 		},
 		{
 			name:  "sdk change marks underlying service",
-			files: []string{"libs/sdks/go/payment/client/client.gen.go"},
+			files: []string{"libs/go/sdks/payment/client/client.gen.go"},
 			want: Manifest{
 				Services: []string{"payment"},
 				Apps:     []string{},

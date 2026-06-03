@@ -42,7 +42,7 @@ linters:
         # NOTE: a `service-isolation` rule denying the whole `services` prefix also
         # flags a service importing its OWN internal packages (legal Go), so it is
         # not expressible cleanly in depguard. Cross-service isolation (ADR-0002,
-        # ADR-0008) is enforced by the SDK convention (libs/sdks/go/<svc>/client)
+        # ADR-0008) is enforced by the SDK convention (libs/go/sdks/<svc>/client)
         # plus the no-deep-imports rule above (which blocks apps/ and tools/ from
         # reaching into services/<x>/internal) and code review.
   exclusions:

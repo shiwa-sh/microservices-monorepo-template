@@ -1,6 +1,6 @@
 //go:build _template
 
-// Handlers implement the ogen-generated server Handler interface from libs/sdks/go/<svc>.
+// Handlers implement the ogen-generated server Handler interface from libs/go/sdks/<svc>.
 // Copy this file when scaffolding a new service; the codegen + this glue
 // is what services own per-route.
 package handlers

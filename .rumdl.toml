@@ -12,7 +12,7 @@ exclude = [
   "dist",
   "build",
   ".github/**",
-  "libs/sdks/ts/**",
+  "libs/ts/sdks/**",
   "apps/admin/_generated/**",
   "**/CHANGELOG.md",
 ]

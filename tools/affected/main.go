@@ -94,17 +94,17 @@ func classify(files []string, forceAll bool) Manifest {
 				appSet[p] = struct{}{}
 			}
 
-		case strings.HasPrefix(f, "libs/go/") || strings.HasPrefix(f, "libs/ts/"):
-			if p := segment(f, 2); p != "" {
-				libSet[p] = struct{}{}
-			}
-
-		case strings.HasPrefix(f, "libs/sdks/"):
-			// A change under libs/sdks/{go,ts}/<service>/ affects consumers of that service's client.
+		case strings.HasPrefix(f, "libs/go/sdks/") || strings.HasPrefix(f, "libs/ts/sdks/"):
+			// A change under libs/{go,ts}/sdks/<service>/ affects consumers of that service's client.
 			// We mark the underlying service as affected; downstream consumers are handled by
 			// `go list -deps` in CI when this turns out to be insufficient.
 			if p := segment(f, 3); p != "" {
 				svcSet[p] = struct{}{}
+			}
+
+		case strings.HasPrefix(f, "libs/go/") || strings.HasPrefix(f, "libs/ts/"):
+			if p := segment(f, 2); p != "" {
+				libSet[p] = struct{}{}
 			}
 		}
 	}

@@ -49,8 +49,8 @@ Wire efficiency for internal calls is explicitly **not** a priority. JSON over H
 
 | Output                      | Tool                                                   | Location                                               |
 |-----------------------------|--------------------------------------------------------|--------------------------------------------------------|
-| Go server + client + types  | `ogen` (type-safe, OpenTelemetry-instrumented)         | `libs/sdks/go/<service>/`                              |
-| TS client                   | `openapi-typescript` + `openapi-fetch` (~6 KB runtime) | `libs/sdks/ts/<service>/`                              |
+| Go server + client + types  | `ogen` (type-safe, OpenTelemetry-instrumented)         | `libs/go/sdks/<service>/`                              |
+| TS client                   | `openapi-typescript` + `openapi-fetch` (~6 KB runtime) | `libs/ts/sdks/<service>/`                              |
 | Tyk API definitions         | `tools/codegen/tyk-gen`                                | `infra/gateway/apis/`                                  |
 | Public SDKs                 | OpenAPI Generator                                      | published per-language as third-party consumers arrive |
 

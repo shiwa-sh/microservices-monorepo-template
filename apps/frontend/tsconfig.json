@@ -16,7 +16,7 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
-      "@sdks/*": ["../../libs/sdks/ts/*"],
+      "@sdks/*": ["../../libs/ts/sdks/*"],
       "@ui": ["../../libs/ts/ui/index.ts"],
       "@ui/*": ["../../libs/ts/ui/*"],
       "@server-fetch": ["../../libs/ts/server-fetch/index.ts"],

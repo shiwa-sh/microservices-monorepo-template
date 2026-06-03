@@ -12,7 +12,7 @@
       "!**/.next",
       "!**/dist",
       "!**/build",
-      "!**/libs/sdks/ts",
+      "!**/libs/ts/sdks",
       "!**/apps/admin/_generated"
     ]
   },
