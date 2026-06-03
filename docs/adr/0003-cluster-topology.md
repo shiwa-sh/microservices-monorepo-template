@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-19
+- **Amended:** 2026-06-02 — added service mesh decision
 - **Deciders:** Platform team
 - **Related:
   ** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
@@ -73,7 +74,6 @@ Three nodes from day one (not one) because:
 |------------------------|-------------------------------------------------------------|-----------------------------------------------------------------------------|
 | Resource pressure      | Sustained CPU or memory >70% for 7 days across the node set | Add worker nodes (k3s agents). Keep control plane at 3.                     |
 | Storage scale          | Any service's PVC >50% of node disk                         | Adopt Longhorn as default storage class. Existing PVs migrate per-workload. |
-| Network policy needs   | Need for eBPF observability or zero-trust policies          | Swap Flannel → Cilium at next cluster rebuild.                              |
 | Compliance segregation | Regulated data with isolation requirement                   | Dedicated cluster for that workload.                                        |
 
 Triggers are documented in `docs/cluster/growth-plan.md` so growth happens on data, not memory.
@@ -103,8 +103,10 @@ is a cluster ingress: TLS, hostname routing, static assets. Mixing the roles cou
 - `cert-manager` requests one wildcard certificate per environment via DNS-01 (Cloudflare).
 - `external-dns` is not used. The wildcard absorbs new services.
 
-**Cluster networking:** Flannel + VXLAN. Network policies are enabled cluster-wide with permissive defaults; per-service
-tightening is part of the service template.
+**Cluster networking:** Cilium. Network policies are enabled cluster-wide with permissive defaults; per-service
+tightening is part of the service template. Hubble (bundled) provides per-flow network visibility. k3s is installed
+with `--flannel-backend=none --disable-network-policy`; Cilium is installed by the Ansible bootstrap role before
+ArgoCD is started, then adopted by ArgoCD for upgrades.
 
 ### Storage
 
@@ -198,6 +200,48 @@ needs it.
 `DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP, SpiceDB), the Postgres major version. A bug reproduced locally reproduces in
 staging and prod. Skaffold loads images into k3d (no registry round-trip) and manages port-forwards.
 
+### Service mesh
+
+A service mesh adds mTLS, L7 traffic policies, and per-route observability without application code changes. Several
+families were evaluated.
+
+#### Sidecar meshes — rejected (Istio, Linkerd, Consul Connect, AWS App Mesh)
+
+Every sidecar mesh injects a proxy container into each pod. At 100 services that means 100+ extra containers, each
+carrying ~20–50 MB RAM and CPU on the hot path — a direct violation of ADR-0000's "per-service cost dominates"
+principle.
+
+Beyond cost:
+
+- **Istio** is the most capable option but the most operationally expensive: large CRD surface, upgrade complexity, and
+  the ambient-vs-sidecar split add permanent toil that the 3–8-engineer team size cannot absorb. The control-plane
+  components (istiod, ingress gateway) are substantial standalone systems.
+- **Linkerd** is the lightest sidecar mesh and the most operationally pleasant of the group. However it is not a CNI —
+  it requires Flannel or another CNI underneath, adding a second networking component rather than replacing one.
+- **Consul Connect** is the service-mesh face of a larger HashiCorp platform; it pulls in Consul as a mandatory
+  dependency, adding a distributed key-value store solely for mesh config.
+- **AWS App Mesh / Google Traffic Director** are managed offerings that tie durably to a cloud provider, contradicting
+  the self-host and cloud-agnostic stance from ADR-0000.
+
+#### Cilium as the single component covering CNI + mesh — accepted, from day one
+
+Cilium is the CNI from day one. Its sidecarless mesh mode (eBPF, no injected proxy) covers every mesh concern at the
+kernel level without adding a second component or per-pod overhead:
+
+- **mTLS / transparent encryption:** WireGuard node-to-node encryption; SPIFFE/SPIRE layerable on top for mutual
+  workload identity when needed.
+- **L7 network policies:** HTTP-aware allow/deny rules enforced in eBPF, not in a sidecar.
+- **Network observability:** Hubble (bundled) provides per-flow visibility and a service map comparable to
+  Linkerd's dashboard — no sidecar tax.
+
+Installing Cilium from day one avoids the only painful part: migrating a live cluster's CNI. CNI pod-network CIDRs
+are baked in at cluster creation time; a hot-swap is not possible. Starting with Cilium eliminates that migration
+entirely. The operational overhead over Flannel is small (one Helm chart, one DaemonSet) and the kernel compatibility
+on Ubuntu LTS (kernel ≥ 5.15 on 22.04, ≥ 6.8 on 24.04) is solid.
+
+**No dedicated service mesh is deployed.** Sidecar meshes (Istio, Linkerd, Consul Connect) are ruled out by
+per-service resource cost and component count. Cilium's built-in capabilities are the sufficient and complete answer.
+
 ### Disaster recovery
 
 Three-node HA tolerates single-node failure with no downtime; etcd quorum survives. A full-cluster loss is the disaster
@@ -229,16 +273,16 @@ case:
 - Three Hetzner nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we
   never want to plan.
 - k3s on bare metal is more ops than managed K8s. Mitigated by Ansible roles as the codified operational knowledge.
-- Flannel + permissive policies on day one is not zero-trust. Tightening per-service is part of the service template;
-  Cilium is the documented upgrade.
+- Cilium is more complex to debug than Flannel (eBPF programs, `cilium status`, Hubble CLI). Mitigated by the Helm
+  chart being committed and ArgoCD managing upgrades after the initial bootstrap.
 - External bucket fees grow with retention. Mitigated by lifecycle policies (cold-tier after 30 days) configured in
   Terraform.
 
 ### Follow-ups
 
 - `infra/terraform/modules/hetzner/` for VPS, network, LB, DNS, firewall, bucket.
-- `infra/ansible/roles/` for `k3s_server`, `hardening`, `unattended_upgrades`, `node_exporter`.
-- `infra/helm/platform/{traefik,cert-manager,minio}/` with local and prod values.
+- `infra/ansible/roles/` for `k3s_server`, `cilium`, `hardening`, `unattended_upgrades`, `node_exporter`.
+- `infra/helm/platform/{cilium,traefik,cert-manager,minio}/` with local and prod values.
 - `docs/cluster/growth-plan.md` (triggers and responses).
 - `docs/cluster/local-vs-prod.md` (parity table, divergences).
 - `docs/cluster/dr-runbook.md` (full-cluster recovery).
@@ -255,7 +299,11 @@ case:
 - Object storage in production is an external S3-compatible bucket. MinIO exists only in local development.
 - Database backups are written off-cluster to the same external bucket and rehearsed quarterly.
 - Storage class is k3s `local-path` until the storage-scale trigger fires, then Longhorn.
-- CNI is Flannel until the network-policy trigger fires, then Cilium.
+- CNI is Cilium from day one. k3s is installed with `--flannel-backend=none --disable-network-policy`. Cilium is
+  bootstrapped by the Ansible `cilium` role (before ArgoCD) and adopted by ArgoCD for upgrades.
 - A new cluster bootstraps with `terraform apply` → `ansible-playbook bootstrap` → `kubectl apply` of the ArgoCD root
   Application. No fourth manual step.
 - Growth from day-one topology happens only on a documented trigger firing, captured in a new ADR.
+- No dedicated service mesh is deployed. Sidecar meshes (Istio, Linkerd, Consul Connect) are ruled out by per-service
+  resource cost and component count. Cilium covers CNI + zero-trust + L7 policies + Hubble observability in a single
+  component with no per-pod proxy overhead.

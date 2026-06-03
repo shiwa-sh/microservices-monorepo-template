@@ -1,0 +1,17 @@
+cilium:
+  # k3s runs its own API server on localhost:6443.
+  kubeProxyReplacement: true
+  k8sServiceHost: 127.0.0.1
+  k8sServicePort: 6443
+
+  ipam:
+    mode: kubernetes
+
+  # Hubble gives per-flow network visibility without a sidecar (ADR-0003).
+  hubble:
+    enabled: true
+    relay:
+      enabled: true
+    ui:
+      # UI is off by default; enable per-env in gitops/platform/<env>/values.yaml.
+      enabled: false

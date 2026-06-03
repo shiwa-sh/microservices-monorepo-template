@@ -1,9 +1,12 @@
 # Install k3s in HA mode with embedded etcd (ADR-0003).
+# Flannel is disabled so Cilium can own the CNI (ADR-0003).
 - name: Install k3s on the first server node
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
       sh -s - server --cluster-init \
         --disable=traefik \
+        --flannel-backend=none \
+        --disable-network-policy \
         --tls-san={{ inventory_hostname }} \
         --node-taint=CriticalAddonsOnly=true:NoExecute
   args: { creates: /usr/local/bin/k3s }
@@ -19,6 +22,9 @@
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \
       K3S_URL=https://{{ groups['servers'][0] }}:6443 \
       K3S_TOKEN={{ hostvars[groups['servers'][0]].k3s_token.content | b64decode | trim }} \
-      sh -s - server --disable=traefik
+      sh -s - server \
+        --disable=traefik \
+        --flannel-backend=none \
+        --disable-network-policy
   args: { creates: /usr/local/bin/k3s }
   when: inventory_hostname != groups['servers'][0]

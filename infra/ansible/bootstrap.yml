@@ -10,4 +10,5 @@
     - unattended_upgrades
     - node_exporter
     - k3s_server          # first node initializes embedded etcd; others join
+    - cilium              # CNI — must be up before any pod can be scheduled
     - sops_age_key        # writes /etc/sops/age/keys.txt for the in-cluster operator

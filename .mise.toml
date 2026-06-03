@@ -19,6 +19,7 @@ biome = "1.9.4"
 # Kubernetes & infra
 helm = "4.2.0"
 kubectl = "1.36.1"
+cilium-cli = "0.18.4"
 kustomize = "5.8.1"
 terraform = "1.15.3"
 k3d = "v5.8.3"
