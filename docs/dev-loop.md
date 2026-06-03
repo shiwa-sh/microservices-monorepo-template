@@ -40,10 +40,11 @@ mise run dev:down                    # stops port-forwards + deletes the k3d clu
 ## Formatting & linting
 
 `mise run format` / `mise run lint` cover every language, including Markdown.
-Markdown is governed by **markdownlint** (`.markdownlint.jsonc`) — the same
-ruleset JetBrains' Markdown plugin reads natively, so editor warnings match CI
-exactly. `mise run format:md` (markdownlint-cli2 `--fix`) auto-fixes most rules
-and runs on staged `.md` files via the lefthook pre-commit hook.
+Markdown is governed by **rumdl** (`.rumdl.toml`), the single source of truth for
+both linting and formatting. `mise run format:md` (`rumdl fmt`) auto-fixes most
+rules and runs on staged `.md` files via the lefthook pre-commit hook. For inline
+editor warnings that match CI exactly, point your editor at rumdl's LSP
+(`rumdl server`) — the repo stays IDE-neutral and ships no editor config.
 
 **Tables** are the one thing `--fix` can't repair. `MD060` enforces *aligned*
 tables (whitespace-padded columns) — the exact format the JetBrains

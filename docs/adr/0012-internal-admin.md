@@ -193,7 +193,7 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
 - `tools/admin-gen/` Go program with unit tests. Generates `_generated/` from
   `services/*/openapi.yaml`.
 - `mise run gen:admin` task; inclusion in `mise run gen:all` and `ci-drift.yml`.
-- Spectral rule (or `tools/admin-gen/` lint pass) enforcing valid `admin:crud` / `admin:action`
+- vacuum ruleset rule (or `tools/admin-gen/` lint pass) enforcing valid `admin:crud` / `admin:action`
   tags on OpenAPI operations.
 - Postgres read-only role provisioning template in `infra/helm/cnpg/`, referenced by per-service
   Helm values.

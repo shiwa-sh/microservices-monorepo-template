@@ -34,7 +34,8 @@ func New() (Checker, error) {
 	if psk == "" {
 		return nil, fmt.Errorf("SPICEDB_PRESHARED_KEY not set")
 	}
-	c, err := authzed.NewClient(endpoint,
+	c, err := authzed.NewClient(
+		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpcutil.WithInsecureBearerToken(psk),
 	)

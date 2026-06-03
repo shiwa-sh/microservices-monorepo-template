@@ -35,18 +35,23 @@ func (e *Error) Write(w http.ResponseWriter) {
 func BadRequest(msg string) *Error {
 	return &Error{Status: http.StatusBadRequest, Code: "bad_request", Message: msg}
 }
+
 func Unauthorized() *Error {
 	return &Error{Status: http.StatusUnauthorized, Code: "unauthorized", Message: "missing or invalid credentials"}
 }
+
 func Forbidden(msg string) *Error {
 	return &Error{Status: http.StatusForbidden, Code: "forbidden", Message: msg}
 }
+
 func NotFound(resource string) *Error {
 	return &Error{Status: http.StatusNotFound, Code: "not_found", Message: resource + " not found"}
 }
+
 func Conflict(msg string) *Error {
 	return &Error{Status: http.StatusConflict, Code: "conflict", Message: msg}
 }
+
 func Internal(msg string) *Error {
 	return &Error{Status: http.StatusInternalServerError, Code: "internal", Message: msg}
 }

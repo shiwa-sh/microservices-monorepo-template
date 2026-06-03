@@ -6,15 +6,17 @@ bun = "1.3.14"
 # Database tooling
 dbmate = "v2.33.0"
 sqlc = "v1.31.1"
-"ubi:quarylabs/sqruff" = "0.38.0"
+"github:quarylabs/sqruff" = "0.38.0"
 
 # API contracts & codegen
-oapi-codegen = "v2.7.0"
-spectral = "6.15.0"
+# ogen: type-safe Go server/client with built-in OpenTelemetry instrumentation.
+"go:github.com/ogen-go/ogen/cmd/ogen" = "v1.20.3"
+# vacuum: fast, Spectral-ruleset-compatible OpenAPI linter (single binary).
+vacuum = "0.28.4"
 "npm:openapi-typescript" = "7.13.0"
 
 # Frontend toolchain
-biome = "1.9.4"
+biome = "2.4.16"
 
 # Kubernetes & infra
 helm = "4.2.0"
@@ -35,7 +37,9 @@ lefthook = "2.1.8"
 cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "v2.12.2"
-"npm:markdownlint-cli2" = "0.22.1"
+gofumpt = "0.10.0"
+# rumdl: fast Rust Markdown linter + formatter (reads .rumdl.toml).
+"github:rvben/rumdl" = "0.2.6"
 
 [settings]
 npm.package_manager = "bun"
@@ -108,8 +112,8 @@ run = "bash scripts/lint-openapi.sh"
 run = "bash scripts/lint-floating-tags.sh"
 
 [tasks."lint:md"]
-# Reads rules from .markdownlint.jsonc, globs/ignores from .markdownlint-cli2.jsonc.
-run = "markdownlint-cli2"
+# Reads rules and ignores from .rumdl.toml at repo root.
+run = "rumdl check ."
 
 [tasks.test]
 run = "go test ./..."
@@ -137,15 +141,15 @@ run = "mise run gen:all && git diff --exit-code"
 depends = ["format:go", "format:ts", "format:md"]
 
 [tasks."format:go"]
-run = "gofmt -w ."
+run = "gofumpt -w ."
 
 [tasks."format:ts"]
 run = "biome format --write ."
 
 [tasks."format:md"]
-# markdownlint is the only Markdown formatter — do NOT rely on the IDE's
+# rumdl is the only Markdown formatter — do NOT rely on the IDE's
 # Ctrl+Alt+L for .md files (see docs/adr / README).
-run = "markdownlint-cli2 --fix"
+run = "rumdl fmt ."
 
 [tasks.pre-commit]
 depends = ["format", "lint"]

@@ -1,7 +1,11 @@
 {
   "name": "platform-monorepo",
   "private": true,
-  "workspaces": ["apps/frontend", "libs/ts/*", "libs/sdks/ts/*"],
+  "workspaces": [
+    "apps/frontend",
+    "libs/ts/*",
+    "libs/sdks/ts/*"
+  ],
   "scripts": {
     "lint": "biome ci .",
     "format": "biome format --write .",

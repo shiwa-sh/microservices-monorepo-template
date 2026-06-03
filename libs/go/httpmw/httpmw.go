@@ -66,7 +66,8 @@ func access(next http.Handler) http.Handler {
 		sw := &statusWriter{ResponseWriter: w, status: 200}
 		start := time.Now()
 		next.ServeHTTP(sw, r)
-		slog.LogAttrs(r.Context(), slog.LevelInfo, "http",
+		slog.LogAttrs(
+			r.Context(), slog.LevelInfo, "http",
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
 			slog.Int("status", sw.status),

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Regenerate Go servers/clients and TS clients from every service's OpenAPI spec.
 # Outputs land in libs/sdks/{go,ts}/<service>/ (ADR-0008).
+#   - Go:  ogen emits one type-safe package per spec (server + client + types,
+#          with built-in OpenTelemetry instrumentation).
+#   - TS:  openapi-typescript emits the types consumed via openapi-fetch.
 set -euo pipefail
 
 shopt -s nullglob
@@ -12,16 +15,15 @@ for spec in services/*/openapi.yaml; do
   service=$(basename "$(dirname "$spec")")
   go_out="libs/sdks/go/${service}"
   ts_out="libs/sdks/ts/${service}"
-  mkdir -p "$go_out/server" "$go_out/client" "$ts_out"
+  # ogen package name must be a valid Go identifier (e.g. "_template" -> "template").
+  pkg=$(printf '%s' "$service" | tr -cd '[:alnum:]')
 
-  echo "→ $service: Go server"
-  oapi-codegen -package server -generate types,strict-server,std-http \
-    -o "$go_out/server/server.gen.go" "$spec"
-
-  echo "→ $service: Go client"
-  oapi-codegen -package client -generate types,client \
-    -o "$go_out/client/client.gen.go" "$spec"
+  echo "→ $service: Go SDK (ogen)"
+  rm -rf "$go_out"
+  mkdir -p "$go_out"
+  ogen --target "$go_out" --package "$pkg" --clean "$spec"
 
   echo "→ $service: TS client"
+  mkdir -p "$ts_out"
   openapi-typescript "$spec" --output "$ts_out/index.d.ts"
 done

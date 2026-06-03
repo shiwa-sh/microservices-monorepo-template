@@ -106,7 +106,7 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
 
 Every executable the repo depends on is pinned to a specific version in one of exactly two places:
 
-- **Developer / CI tools** (Go, Bun, `dbmate`, `sqlc`, `sqruff`, `oapi-codegen`, `spectral`, `helm`, `kubectl`,
+- **Developer / CI tools** (Go, Bun, `dbmate`, `sqlc`, `sqruff`, `ogen`, `vacuum`, `helm`, `kubectl`,
   `kustomize`, `terraform`, `ansible`, `zed`, `age`, `sops`, `mise` itself, etc.) live in the root `.mise.toml` (and
   service-local `.mise.toml` files when a service genuinely needs a different version).
 - **Runtime services** (Postgres, Redis, Temporal, Kratos, Hydra, SpiceDB, Tyk, MinIO, Loki, Mimir, Tempo, Pyroscope,

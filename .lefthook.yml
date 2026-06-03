@@ -8,9 +8,9 @@ commit-msg:
 pre-commit:
   parallel: true
   commands:
-    gofmt:
+    gofumpt:
       glob: "*.go"
-      run: gofmt -w {staged_files}
+      run: gofumpt -w {staged_files}
       stage_fixed: true
     golangci-lint:
       glob: "*.go"
@@ -21,9 +21,9 @@ pre-commit:
     sqruff:
       glob: "{services/**/migrations/*.sql,services/**/internal/store/queries/*.sql}"
       run: sqruff lint {staged_files}
-    spectral:
+    vacuum:
       glob: "services/**/openapi.yaml"
-      run: spectral lint --ruleset tools/codegen/spectral.yaml {staged_files}
+      run: vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error {staged_files}
     floating-tags:
       run: bash scripts/lint-floating-tags.sh
     gen-drift:
@@ -33,9 +33,9 @@ pre-commit:
       glob: "{apps/**/*.{ts,tsx,js,jsx,json},libs/ts/**/*.{ts,tsx,js,jsx,json}}"
       run: biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
-    markdownlint:
+    rumdl:
       glob: "*.md"
-      run: markdownlint-cli2 --fix {staged_files}
+      run: rumdl check --fix {staged_files}
       stage_fixed: true
 
 pre-push:

@@ -1,0 +1,34 @@
+# OpenAPI 3.1 lint ruleset for all services (ADR-0008). Spectral-format ruleset,
+# run by vacuum (`mise run lint:openapi`). `spectral:oas` is the built-in core ruleset.
+extends:
+  - "spectral:oas"
+
+rules:
+  # Style
+  operation-operationId: error
+  operation-tag-defined: error
+  oas3-server-not-example.com: warn
+  info-contact: off
+  info-license: off
+
+  # Breaking-change hygiene — every operation must declare its security and a 2xx + 4xx response.
+  operation-success-response: error
+
+  # Naming conventions
+  operation-operationId-valid-in-url:
+    description: operationId must be camelCase, ASCII, no spaces
+    given: $.paths.*[get,post,put,patch,delete].operationId
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]+$"
+
+  # Every path must have a tag for grouping
+  must-have-tag:
+    description: every operation must have at least one tag
+    given: $.paths.*[get,post,put,patch,delete]
+    severity: error
+    then:
+      field: tags
+      function: truthy

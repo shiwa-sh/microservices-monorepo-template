@@ -43,7 +43,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		cfg.AdminAddr = ":9090"
 	}
 
-	res, err := resource.New(ctx,
+	res, err := resource.New(
+		ctx,
 		resource.WithAttributes(semconv.ServiceName(cfg.ServiceName)),
 		resource.WithFromEnv(),
 		resource.WithProcessRuntimeName(),

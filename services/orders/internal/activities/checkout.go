@@ -1,7 +1,7 @@
 // Activities for the Checkout saga (ADR-0006).
 // All cross-service calls go through HTTP via the generated client surface
-// (here: raw http.Client — replace with libs/sdks/go/<service>/client when
-// `mise run gen:all` produces the typed clients).
+// (here: raw http.Client — replace with the ogen client in libs/sdks/go/<service>
+// when `mise run gen:all` produces the typed clients).
 package activities
 
 import (

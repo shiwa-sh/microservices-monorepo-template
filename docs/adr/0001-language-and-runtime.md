@@ -27,7 +27,7 @@ In priority order:
 
 ## Considered options
 
-- **Go** — best fit for our stack. Fast cold start (~100 ms), small memory footprint (~30 MB idle), first-class SDKs for Temporal, OTel, k8s, sqlc, oapi-codegen. Verbose error handling and less expressive type system are accepted costs.
+- **Go** — best fit for our stack. Fast cold start (~100 ms), small memory footprint (~30 MB idle), first-class SDKs for Temporal, OTel, k8s, sqlc, ogen. Verbose error handling and less expressive type system are accepted costs.
 - **Rust** — best correctness and performance; velocity cost is real at 100-service scale with a small team; Temporal SDK is community-maintained. Kept as an escape hatch.
 - **JVM (Java/Kotlin)** — mature, but per-service memory footprint (200–500 MB) and JVM tuning tax are incompatible with the 100-service target.
 - **Node.js / TypeScript backend** — shared language with frontend is appealing, but single-threaded event loop and erased runtime types are wrong for CPU-bound and financial workloads.
@@ -53,12 +53,12 @@ In priority order:
 
 - One language across ~100 services. Shared libraries in `libs/go/`, shared lint/format, easy engineer rotation.
 - Predictable per-service footprint (~30 MB image, ~30 MB idle RAM) keeps 100 services tractable on the cluster sizes chosen in [ADR-0003](0003-cluster-topology.md).
-- Tightest fit with everything else we use: Temporal, OTel, Kubernetes, sqlc, oapi-codegen are all Go-native.
+- Tightest fit with everything else we use: Temporal, OTel, Kubernetes, sqlc, ogen are all Go-native.
 - Frontend TS + generated TS clients gives cross-language type sharing without polyglotting the backend.
 
 ### Negative / Risks
 
-- Go's type system is less expressive than Rust or Kotlin. Discipline + linters (`golangci-lint`) + codegen (sqlc, oapi-codegen) compensate.
+- Go's type system is less expressive than Rust or Kotlin. Discipline + linters (`golangci-lint`) + codegen (sqlc, ogen) compensate.
 - Verbose error handling is accepted. No bespoke error-handling DSLs.
 - Every Rust or Python service is a permanent ops tax: separate toolchain, separate codegen pipeline, separate CI cache, separate hire profile. The ADR requirement makes adoption deliberate.
 

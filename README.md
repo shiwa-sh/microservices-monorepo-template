@@ -23,7 +23,7 @@ in the [ADRs](docs/adr) so a new project starts at "build features" rather than 
 | Secrets              | SOPS + age                                        | [0005](docs/adr/0005-secrets.md)                                                 |
 | Workflows            | Self-hosted Temporal                              | [0006](docs/adr/0006-temporal.md)                                                |
 | Database             | PostgreSQL via CNPG, sqlc, dbmate, sqruff         | [0007](docs/adr/0007-data.md)                                                    |
-| API contract         | OpenAPI 3.1 (oapi-codegen + openapi-typescript)   | [0008](docs/adr/0008-api-contracts.md)                                           |
+| API contract         | OpenAPI 3.1 (ogen + openapi-typescript)           | [0008](docs/adr/0008-api-contracts.md)                                           |
 | API gateway          | Tyk Gateway OSS                                   | [0009](docs/adr/0009-api-gateway.md)                                             |
 | Auth                 | Ory Kratos + Hydra + SpiceDB                      | [0010](docs/adr/0010-auth.md)                                                    |
 | Observability        | OpenTelemetry → Grafana LGTM + Pyroscope          | [0011](docs/adr/0011-observability.md)                                           |

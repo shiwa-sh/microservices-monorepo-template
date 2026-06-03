@@ -1,0 +1,35 @@
+# Shared Markdown ruleset + runner config for CI (`mise run lint:md` / `format:md`),
+# lefthook, and any editor with the rumdl LSP. rumdl is the single source of truth
+# for Markdown lint *and* format — do NOT use the IDE's Ctrl+Alt+L on .md files.
+# Rules: https://github.com/rvben/rumdl
+
+[global]
+# Prose is hand-wrapped inconsistently; enforcing a column would only cause churn.
+disable = ["MD013"]
+exclude = [
+  "node_modules",
+  ".next",
+  "dist",
+  "build",
+  ".github/**",
+  "libs/sdks/ts/**",
+  "apps/admin/_generated/**",
+  "**/CHANGELOG.md",
+]
+
+[MD004]
+style = "dash"
+
+[MD007]
+indent = 2
+style = "fixed"
+
+# ADRs reuse section names (Context, Decision, Consequences) under different parents.
+[MD024]
+siblings-only = true
+
+[MD029]
+style = "ordered"
+
+[MD060]
+style = "aligned"
