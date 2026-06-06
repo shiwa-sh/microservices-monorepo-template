@@ -9,11 +9,8 @@ sqlc = "v1.31.1"
 "github:quarylabs/sqruff" = "0.38.0"
 
 # API contracts & codegen
-# ogen: type-safe Go server/client with built-in OpenTelemetry instrumentation.
 "go:github.com/ogen-go/ogen/cmd/ogen" = "v1.20.3"
-# vacuum: fast, Spectral-ruleset-compatible OpenAPI linter (single binary).
 vacuum = "0.28.4"
-"npm:openapi-typescript" = "7.13.0"
 
 # Frontend toolchain
 biome = "2.4.16"
@@ -38,11 +35,7 @@ cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "v2.12.2"
 gofumpt = "0.10.0"
-# rumdl: fast Rust Markdown linter + formatter (reads .rumdl.toml).
-"github:rvben/rumdl" = "0.2.6"
-
-[settings]
-npm.package_manager = "bun"
+rumdl = "0.2.6"
 
 [env]
 GOFLAGS = "-mod=readonly"

@@ -25,5 +25,6 @@ for spec in services/*/openapi.yaml; do
 
   echo "→ $service: TS client"
   mkdir -p "$ts_out"
-  openapi-typescript "$spec" --output "$ts_out/index.d.ts"
+
+  bun x openapi-typescript@7.13.0 "$spec" --output "$ts_out/index.d.ts"
 done
