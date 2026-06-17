@@ -8,9 +8,11 @@ commit-msg:
 pre-commit:
   parallel: true
   commands:
-    gofumpt:
+    go-fmt:
       glob: "*.go"
-      run: gofumpt -w {staged_files}
+      # golangci-lint fmt applies the formatters from .golangci.yml and skips
+      # generated files (formatters.exclusions.generated), unlike bare gofumpt.
+      run: golangci-lint fmt {staged_files}
       stage_fixed: true
     golangci-lint:
       glob: "*.go"

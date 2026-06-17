@@ -40,6 +40,10 @@ mise run cluster:down                    # stops port-forwards + deletes the k3d
 ## Formatting & linting
 
 `mise run format` / `mise run lint` cover every language, including Markdown.
+Generated code is never linted or formatted: Go SDKs (ogen) and sqlc store code
+are skipped via `exclusions.generated` in `.golangci.yml` (both `golangci-lint
+run` and `golangci-lint fmt`), the TS SDKs and admin `_generated/` via
+`biome.json`, and rumdl via `.rumdl.toml`.
 Markdown is governed by **rumdl** (`.rumdl.toml`), the single source of truth for
 both linting and formatting. `mise run format:md` (`rumdl fmt`) auto-fixes most
 rules and runs on staged `.md` files via the lefthook pre-commit hook. For inline

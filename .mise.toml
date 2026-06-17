@@ -34,7 +34,6 @@ lefthook = "2.1.8"
 cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "v2.12.2"
-gofumpt = "0.10.0"
 rumdl = "0.2.6"
 
 [env]
@@ -141,7 +140,7 @@ run = "mise run gen:all && git diff --exit-code"
 depends = ["format:go", "format:ts", "format:md"]
 
 [tasks."format:go"]
-run = "gofumpt -w ."
+run = "golangci-lint fmt ./..."
 
 [tasks."format:ts"]
 run = "biome format --write ."
