@@ -1,21 +1,33 @@
-# Inner dev loop (ADR-0003): build service images, deploy them + lightweight deps
-# into the local k3d cluster, and live-rebuild on change.
-#   mise run cluster:up      # create the k3d cluster (once)
-#   skaffold dev         # build + deploy + watch   (or: mise run dev)
-#   skaffold debug       # same, with Delve attached (for cluster-only debugging)
+# Inner dev loop (ADR-0003): build service images, deploy them into the local
+# k3d cluster, and live-rebuild on change.
+#   mise run cluster:up               # create the k3d cluster + deps (once)
+#   skaffold dev                      # build + deploy + watch ALL services
+#   skaffold dev -m orders            # only one service (others keep running)
+#   skaffold dev -m orders -m catalog # a subset
+#   skaffold dev -m orders -m platform# add the deps port-forwards (temporal/db)
+#
+# This file holds one `Config` module per service plus a `platform` module for
+# the dependency port-forwards. `skaffold dev` (no -m) runs every module; `-m
+# <name>` filters to the module(s) whose metadata.name matches. Each service is
+# isolated, so editing one only rebuilds that service's images — reinforced by
+# the per-service `COPY` in each Dockerfile and the root .dockerignore.
 #
 # Same service chart as prod (infra/helm/service); only laptop knobs differ
-# (infra/helm/values/local-service.yaml). Adding a service = copy an artifact +
-# a release block. If `skaffold` is newer than this schema, run `skaffold fix`.
+# (infra/helm/values/local-service.yaml). Adding a service = copy a module
+# block below + its Dockerfile artifacts. If `skaffold` is newer than this
+# schema, run `skaffold fix`.
+#
+# Lightweight deps (Postgres, Temporal, SpiceDB) are owned solely by
+# `mise run cluster:up` (kubectl apply infra/local/deps.yaml); no module
+# deploys them, so a single-service run still talks to the running deps over
+# in-cluster DNS. The `platform` module only port-forwards them for local tools.
+
 apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
-  name: services
-
+  name: orders
 build:
-  local:
-    push: false          # load images straight into k3d, no registry round-trip
-    useBuildkit: true
+  local: { push: false, useBuildkit: true }
   artifacts:
     - image: orders-server
       context: .
@@ -23,25 +35,7 @@ build:
     - image: orders-worker
       context: .
       docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, CMD: worker } }
-    - image: catalog-server
-      context: .
-      docker: { dockerfile: services/catalog/Dockerfile, buildArgs: { SERVICE: catalog, CMD: server } }
-    - image: orgs-server
-      context: .
-      docker: { dockerfile: services/orgs/Dockerfile, buildArgs: { SERVICE: orgs, CMD: server } }
-    - image: payment-server
-      context: .
-      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: server } }
-    - image: payment-worker
-      context: .
-      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: worker } }
-
 manifests:
-  # Lightweight deps (Postgres, Temporal, SpiceDB) are owned solely by
-  # `mise run cluster:up` (kubectl apply infra/local/deps.yaml). Re-applying
-  # them here too made skaffold re-roll those deployments on every `skaffold
-  # dev`, needlessly restarting Postgres and briefly knocking the Temporal
-  # workers offline. Skaffold owns only the service charts below.
   helm:
     releases:
       - name: orders
@@ -55,25 +49,89 @@ manifests:
           image.tag: "{{.IMAGE_TAG_orders_server}}"
           worker.image.repository: "{{.IMAGE_REPO_orders_worker}}"
           worker.image.tag: "{{.IMAGE_TAG_orders_worker}}"
+deploy:
+  kubeContext: k3d-platform-dev
+  helm: {}
+portForward:
+  # The service chart names the Service `<name>-server` and exposes port 80
+  # (see infra/helm/service/templates/service.yaml).
+  - { resourceType: service, resourceName: orders-server, namespace: platform, port: 80, localPort: 8080 }
+
+---
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: catalog
+build:
+  local: { push: false, useBuildkit: true }
+  artifacts:
+    - image: catalog-server
+      context: .
+      docker: { dockerfile: services/catalog/Dockerfile, buildArgs: { SERVICE: catalog, CMD: server } }
+manifests:
+  helm:
+    releases:
       - name: catalog
         chartPath: infra/helm/service
         namespace: platform
+        createNamespace: true
         valuesFiles: [infra/helm/values/local-service.yaml]
         setValues: { name: catalog, "secrets.envFrom": "{catalog-db}" }
         setValueTemplates:
           image.repository: "{{.IMAGE_REPO_catalog_server}}"
           image.tag: "{{.IMAGE_TAG_catalog_server}}"
+deploy:
+  kubeContext: k3d-platform-dev
+  helm: {}
+
+---
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: orgs
+build:
+  local: { push: false, useBuildkit: true }
+  artifacts:
+    - image: orgs-server
+      context: .
+      docker: { dockerfile: services/orgs/Dockerfile, buildArgs: { SERVICE: orgs, CMD: server } }
+manifests:
+  helm:
+    releases:
       - name: orgs
         chartPath: infra/helm/service
         namespace: platform
+        createNamespace: true
         valuesFiles: [infra/helm/values/local-service.yaml]
         setValues: { name: orgs, "secrets.envFrom": "{orgs-db}" }
         setValueTemplates:
           image.repository: "{{.IMAGE_REPO_orgs_server}}"
           image.tag: "{{.IMAGE_TAG_orgs_server}}"
+deploy:
+  kubeContext: k3d-platform-dev
+  helm: {}
+
+---
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: payment
+build:
+  local: { push: false, useBuildkit: true }
+  artifacts:
+    - image: payment-server
+      context: .
+      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: server } }
+    - image: payment-worker
+      context: .
+      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: worker } }
+manifests:
+  helm:
+    releases:
       - name: payment
         chartPath: infra/helm/service
         namespace: platform
+        createNamespace: true
         valuesFiles: [infra/helm/values/local-service.yaml]
         setValues: { name: payment, worker.enabled: true, "secrets.envFrom": "{payment-db}" }
         setValueTemplates:
@@ -81,15 +139,20 @@ manifests:
           image.tag: "{{.IMAGE_TAG_payment_server}}"
           worker.image.repository: "{{.IMAGE_REPO_payment_worker}}"
           worker.image.tag: "{{.IMAGE_TAG_payment_worker}}"
-
 deploy:
   kubeContext: k3d-platform-dev
   helm: {}
 
+---
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: platform
+# No artifacts/releases: deps are owned by `mise run cluster:up`. This module
+# only port-forwards them so local tools (psql, Temporal UI) can reach them.
+# Included by a bare `skaffold dev`; add `-m platform` to a single-service run.
+deploy:
+  kubeContext: k3d-platform-dev
 portForward:
-  # The service chart names the Service `<name>-server` and exposes port 80
-  # (see infra/helm/service/templates/service.yaml), so the orders forward must
-  # target orders-server:80, not orders:8080.
-  - { resourceType: service, resourceName: orders-server, namespace: platform, port: 80,   localPort: 8080 }
-  - { resourceType: service, resourceName: temporal,      namespace: platform, port: 8233, localPort: 8233 }
-  - { resourceType: service, resourceName: postgres,      namespace: platform, port: 5432, localPort: 5432 }
+  - { resourceType: service, resourceName: temporal, namespace: platform, port: 8233, localPort: 8233 }
+  - { resourceType: service, resourceName: postgres, namespace: platform, port: 5432, localPort: 5432 }

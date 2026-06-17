@@ -168,14 +168,17 @@ against lightweight dependency stand-ins.
 |--------------|-----------------------------------------|------------------------------------------------------------------------------------------------------|
 | Cluster+deps | `mise run cluster:up`                       | k3d cluster + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
 | Inner loop   | `mise run dev` (`skaffold dev`)         | builds each service image, deploys it via `infra/helm/service`, watches sources and live-rebuilds    |
+| One service  | `mise run dev -m <svc>`                  | same, scoped to one service module so the others keep their last deploy and don't rebuild            |
 | Debug        | `skaffold debug`                        | Delve attached, for cluster-only bugs; prefer native local debug of one service                     |
 | Migrations   | `mise run db:migrate`                  | applies each service's migrations to the local Postgres                                              |
 | Teardown     | `mise run cluster:down`                     | deletes the cluster                                                                                  |
 
 **Same chart, laptop knobs only.** Skaffold deploys the production `infra/helm/service` chart; the only overrides live
 in `infra/helm/values/local-service.yaml` (ingress off, single replica, migrations run separately, endpoints pointed at
-the local deps). Per-service `name`, image, and `DATABASE_URL` are injected by Skaffold. Adding a service to the loop is
-one artifact + one release block in `skaffold.yaml`.
+the local deps). Per-service `name`, image, and `DATABASE_URL` are injected by Skaffold. Each service is its own
+Skaffold `Config` module in `skaffold.yaml` (selectable with `skaffold dev -m <svc>`); adding a service to the loop is
+one module block there. Each service's `Dockerfile` copies only `libs/go` + its own tree (and the root `.dockerignore`
+trims the build context), so editing one service rebuilds only that service's images.
 
 **Lightweight deps, not prod components.** `infra/local/deps.yaml` ships throwaway Postgres / Temporal-dev / in-memory
 SpiceDB so a service has something to talk to. Their production counterparts (CNPG, the Temporal Helm chart,

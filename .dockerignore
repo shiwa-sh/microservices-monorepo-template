@@ -1,0 +1,27 @@
+# Service images build only Go sources (ADR-0003 inner loop). Everything the
+# Dockerfiles don't COPY is excluded so it never enters the build context nor
+# skaffold's file-watch set. Kept: go.mod, go.sum, libs/go, services/*.
+**/.git
+**/.DS_Store
+**/node_modules
+
+# Non-Go workspaces and assets.
+apps/
+libs/ts/
+
+# Repo plumbing not needed to compile a service.
+docs/
+infra/
+scripts/
+tools/
+.github/
+
+# Root tooling/config files.
+*.md
+biome.json
+package.json
+cog.toml
+skaffold.yaml
+
+# Per-service files irrelevant to the binary build.
+**/*.md

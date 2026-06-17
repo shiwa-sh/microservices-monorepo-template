@@ -11,11 +11,13 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/go/pkg/mod go mod download
 
-# Source.
-COPY . .
+# Source: shared libs + only this service's tree, so editing one service doesn't
+# invalidate the others' build/watch sets (skaffold rebuilds per artifact).
+COPY libs/go ./libs/go
 
 ARG CMD=server
 ARG SERVICE=_template
+COPY services/${SERVICE} ./services/${SERVICE}
 RUN --mount=type=cache,target=/root/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build \

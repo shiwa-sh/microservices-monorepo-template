@@ -58,6 +58,10 @@ run = "bash scripts/cluster-down.sh"
 
 [tasks.dev]
 # Inner loop: build, deploy and live-reload services in k3d (ADR-0003).
+# Trailing args are forwarded to skaffold, so you can scope to one service:
+#   mise run dev                 # all services + deps port-forwards
+#   mise run dev -m orders       # just orders (others keep their last deploy)
+#   mise run dev -m orders -m payment
 depends = ["cluster:up"]
 run = "skaffold dev"
 
