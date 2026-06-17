@@ -57,19 +57,19 @@ components:
       description: RFC 7807 problem document.
       required: [code, message]
       properties:
-        code:    { type: string, example: "not_found" }
-        message: { type: string, example: "item not found" }
-        details: { type: object, additionalProperties: true, example: { field: "name" } }
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     Item:
       type: object
       description: A template item.
       required: [id, name]
       properties:
-        id:   { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        name: { type: string, minLength: 1, example: "Widget" }
+        id:   { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
     ItemInput:
       type: object
       description: Request body to create an item.
       required: [name]
       properties:
-        name: { type: string, minLength: 1, example: "Widget" }
+        name: { type: string, minLength: 1 }

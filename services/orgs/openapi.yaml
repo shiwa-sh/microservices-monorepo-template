@@ -38,8 +38,8 @@ paths:
               type: object
               description: Kratos identity-created payload.
               properties:
-                identity_id: { type: string, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-                email:       { type: string, example: "ada@example.com" }
+                identity_id: { type: string }
+                email:       { type: string }
       responses:
         "204": { description: Ack }
         default: { $ref: "#/components/responses/Error" }
@@ -56,19 +56,19 @@ components:
       description: RFC 7807 problem document.
       required: [code, message]
       properties:
-        code:    { type: string, example: "not_found" }
-        message: { type: string, example: "organization not found" }
-        details: { type: object, additionalProperties: true, example: { field: "name" } }
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     Org:
       type: object
       description: An organization.
       required: [id, name]
       properties:
-        id:   { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        name: { type: string, example: "Acme Inc" }
+        id:   { type: string, format: uuid }
+        name: { type: string }
     OrgInput:
       type: object
       description: Request body to create an organization.
       required: [name]
       properties:
-        name: { type: string, minLength: 1, example: "Acme Inc" }
+        name: { type: string, minLength: 1 }

@@ -28,32 +28,20 @@ export interface components {
     schemas: {
         /** @description RFC 7807 problem document. */
         Problem: {
-            /** @example not_found */
             code: string;
-            /** @example item not found */
             message: string;
-            /**
-             * @example {
-             *       "field": "name"
-             *     }
-             */
             details?: {
                 [key: string]: unknown;
             };
         };
         /** @description A template item. */
         Item: {
-            /**
-             * Format: uuid
-             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
-             */
+            /** Format: uuid */
             id: string;
-            /** @example Widget */
             name: string;
         };
         /** @description Request body to create an item. */
         ItemInput: {
-            /** @example Widget */
             name: string;
         };
     };

@@ -45,36 +45,22 @@ export interface components {
     schemas: {
         /** @description RFC 7807 problem document. */
         Problem: {
-            /** @example not_found */
             code: string;
-            /** @example product not found */
             message: string;
-            /**
-             * @example {
-             *       "field": "name"
-             *     }
-             */
             details?: {
                 [key: string]: unknown;
             };
         };
         /** @description A catalog product. */
         Product: {
-            /**
-             * Format: uuid
-             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
-             */
+            /** Format: uuid */
             id: string;
-            /** @example Aeron Chair */
             name: string;
-            /** @example 149900 */
             price_cents: number;
         };
         /** @description Request body to create a product. */
         ProductInput: {
-            /** @example Aeron Chair */
             name: string;
-            /** @example 149900 */
             price_cents: number;
         };
     };

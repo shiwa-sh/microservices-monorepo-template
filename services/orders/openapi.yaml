@@ -43,32 +43,32 @@ components:
       description: RFC 7807 problem document.
       required: [code, message]
       properties:
-        code:    { type: string, example: "not_found" }
-        message: { type: string, example: "order not found" }
-        details: { type: object, additionalProperties: true, example: { field: "product_id" } }
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     WorkflowHandle:
       type: object
       description: Handle to an async Temporal workflow run.
       required: [id, run_id, status]
       properties:
-        id:     { type: string, example: "checkout-7f3a" }
-        run_id: { type: string, example: "9b1c2d3e-4f56-7890-abcd-ef0123456789" }
-        status: { type: string, enum: [running, completed, failed, cancelled], example: running }
-        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result", example: "/api/orders/orders/7f3a" }
+        id:     { type: string }
+        run_id: { type: string }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
+        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
     CheckoutInput:
       type: object
       description: Request body to start a checkout.
       required: [product_id, quantity]
       properties:
-        product_id: { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        quantity:   { type: integer, minimum: 1, example: 2 }
+        product_id: { type: string, format: uuid }
+        quantity:   { type: integer, minimum: 1 }
     Order:
       type: object
       description: A customer order.
       required: [id, product_id, quantity, total_cents, status]
       properties:
-        id:          { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        product_id:  { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        quantity:    { type: integer, example: 2 }
-        total_cents: { type: integer, example: 3998 }
-        status:      { type: string, enum: [pending, confirmed, failed], example: confirmed }
+        id:          { type: string, format: uuid }
+        product_id:  { type: string, format: uuid }
+        quantity:    { type: integer }
+        total_cents: { type: integer }
+        status:      { type: string, enum: [pending, confirmed, failed] }

@@ -47,31 +47,31 @@ components:
       description: RFC 7807 problem document.
       required: [code, message]
       properties:
-        code:    { type: string, example: "not_found" }
-        message: { type: string, example: "charge not found" }
-        details: { type: object, additionalProperties: true, example: { field: "order_id" } }
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     WorkflowHandle:
       type: object
       description: Handle to an async Temporal workflow run.
       required: [id, run_id, status]
       properties:
-        id:     { type: string, example: "charge-7f3a" }
-        run_id: { type: string, example: "9b1c2d3e-4f56-7890-abcd-ef0123456789" }
-        status: { type: string, enum: [running, completed, failed, cancelled], example: running }
-        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result", example: "/api/payment/charges/charge-7f3a" }
+        id:     { type: string }
+        run_id: { type: string }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
+        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
     ChargeInput:
       type: object
       description: Request body to create a charge.
       required: [order_id, amount_cents]
       properties:
-        order_id:     { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        amount_cents: { type: integer, minimum: 1, example: 1999 }
+        order_id:     { type: string, format: uuid }
+        amount_cents: { type: integer, minimum: 1 }
     Charge:
       type: object
       description: A payment charge against an order.
       required: [id, order_id, amount_cents, status]
       properties:
-        id:           { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        order_id:     { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        amount_cents: { type: integer, example: 1999 }
-        status:       { type: string, enum: [pending, settled, failed, refunded], example: settled }
+        id:           { type: string, format: uuid }
+        order_id:     { type: string, format: uuid }
+        amount_cents: { type: integer }
+        status:       { type: string, enum: [pending, settled, failed, refunded] }

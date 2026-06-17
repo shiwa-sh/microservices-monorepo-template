@@ -61,32 +61,20 @@ export interface components {
     schemas: {
         /** @description RFC 7807 problem document. */
         Problem: {
-            /** @example not_found */
             code: string;
-            /** @example organization not found */
             message: string;
-            /**
-             * @example {
-             *       "field": "name"
-             *     }
-             */
             details?: {
                 [key: string]: unknown;
             };
         };
         /** @description An organization. */
         Org: {
-            /**
-             * Format: uuid
-             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
-             */
+            /** Format: uuid */
             id: string;
-            /** @example Acme Inc */
             name: string;
         };
         /** @description Request body to create an organization. */
         OrgInput: {
-            /** @example Acme Inc */
             name: string;
         };
     };
@@ -169,9 +157,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
                     identity_id?: string;
-                    /** @example ada@example.com */
                     email?: string;
                 };
             };

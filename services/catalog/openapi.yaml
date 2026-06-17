@@ -44,21 +44,21 @@ components:
       description: RFC 7807 problem document.
       required: [code, message]
       properties:
-        code:    { type: string, example: "not_found" }
-        message: { type: string, example: "product not found" }
-        details: { type: object, additionalProperties: true, example: { field: "name" } }
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     Product:
       type: object
       description: A catalog product.
       required: [id, name, price_cents]
       properties:
-        id:          { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
-        name:        { type: string, example: "Aeron Chair" }
-        price_cents: { type: integer, minimum: 0, example: 149900 }
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        price_cents: { type: integer, minimum: 0 }
     ProductInput:
       type: object
       description: Request body to create a product.
       required: [name, price_cents]
       properties:
-        name:        { type: string, minLength: 1, example: "Aeron Chair" }
-        price_cents: { type: integer, minimum: 0, example: 149900 }
+        name:        { type: string, minLength: 1 }
+        price_cents: { type: integer, minimum: 0 }

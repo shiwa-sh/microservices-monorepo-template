@@ -47,65 +47,38 @@ export interface components {
     schemas: {
         /** @description RFC 7807 problem document. */
         Problem: {
-            /** @example not_found */
             code: string;
-            /** @example charge not found */
             message: string;
-            /**
-             * @example {
-             *       "field": "order_id"
-             *     }
-             */
             details?: {
                 [key: string]: unknown;
             };
         };
         /** @description Handle to an async Temporal workflow run. */
         WorkflowHandle: {
-            /** @example charge-7f3a */
             id: string;
-            /** @example 9b1c2d3e-4f56-7890-abcd-ef0123456789 */
             run_id: string;
-            /**
-             * @example running
-             * @enum {string}
-             */
+            /** @enum {string} */
             status: "running" | "completed" | "failed" | "cancelled";
             /**
              * Format: uri
              * @description GET to fetch terminal status + result
-             * @example /api/payment/charges/charge-7f3a
              */
             result_url?: string;
         };
         /** @description Request body to create a charge. */
         ChargeInput: {
-            /**
-             * Format: uuid
-             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
-             */
+            /** Format: uuid */
             order_id: string;
-            /** @example 1999 */
             amount_cents: number;
         };
         /** @description A payment charge against an order. */
         Charge: {
-            /**
-             * Format: uuid
-             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
-             */
+            /** Format: uuid */
             id: string;
-            /**
-             * Format: uuid
-             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
-             */
+            /** Format: uuid */
             order_id: string;
-            /** @example 1999 */
             amount_cents: number;
-            /**
-             * @example settled
-             * @enum {string}
-             */
+            /** @enum {string} */
             status: "pending" | "settled" | "failed" | "refunded";
         };
     };
