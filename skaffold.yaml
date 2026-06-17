@@ -31,10 +31,10 @@ build:
   artifacts:
     - image: orders-server
       context: .
-      docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, CMD: server } }
+      docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, APP_CMD: server } }
     - image: orders-worker
       context: .
-      docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, CMD: worker } }
+      docker: { dockerfile: services/orders/Dockerfile, buildArgs: { SERVICE: orders, APP_CMD: worker } }
 manifests:
   helm:
     releases:
@@ -67,7 +67,7 @@ build:
   artifacts:
     - image: catalog-server
       context: .
-      docker: { dockerfile: services/catalog/Dockerfile, buildArgs: { SERVICE: catalog, CMD: server } }
+      docker: { dockerfile: services/catalog/Dockerfile, buildArgs: { SERVICE: catalog, APP_CMD: server } }
 manifests:
   helm:
     releases:
@@ -94,7 +94,7 @@ build:
   artifacts:
     - image: orgs-server
       context: .
-      docker: { dockerfile: services/orgs/Dockerfile, buildArgs: { SERVICE: orgs, CMD: server } }
+      docker: { dockerfile: services/orgs/Dockerfile, buildArgs: { SERVICE: orgs, APP_CMD: server } }
 manifests:
   helm:
     releases:
@@ -121,10 +121,10 @@ build:
   artifacts:
     - image: payment-server
       context: .
-      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: server } }
+      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, APP_CMD: server } }
     - image: payment-worker
       context: .
-      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: worker } }
+      docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, APP_CMD: worker } }
 manifests:
   helm:
     releases:
