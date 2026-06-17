@@ -82,12 +82,10 @@ Internet
 Provider Load Balancer  (provider L4 LB, one stable public IP per env)
   │
 Traefik (k3s default)  (TLS termination via cert-manager + Let's Encrypt, L7 routing)
-  ├── /api/*       ─▶ Tyk Gateway  ─▶ backend service (per ADR-0009)
-  ├── /panel/*     ─▶ Next.js pod
-  ├── /landing/*   ─▶ Next.js pod
-  ├── /admin/*     ─▶ Next.js pod
-  ├── /devportal/* ─▶ Next.js pod
-  └── /grafana/*   ─▶ Grafana (auth-gated)
+  ├── /api/*            ─▶ Tyk Gateway ─▶ backend service (per ADR-0009)
+  ├── /internal/admin/* ─▶ Tyk Gateway ─▶ Lowdefy pod (internal admin, per ADR-0012)
+  ├── /(landing|panel|admin|devportal)/* ─▶ Next.js frontend pod (one app, route groups per ADR-0014)
+  └── /grafana/*        ─▶ Grafana (auth-gated)
 ```
 
 **Traefik fronts Tyk, not the other way around.** Tyk is an API gateway: OpenAPI validation, JWT, rate limits. Traefik

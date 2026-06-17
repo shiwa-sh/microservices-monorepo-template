@@ -114,7 +114,7 @@ Biome is the single lint+format tool for the frontend.
 
 The browser side of [ADR-0011](0011-observability.md) is wired here.
 
-- `@opentelemetry/sdk-trace-web` + `@opentelemetry/instrumentation-fetch` initialised in a client-only entry at `apps/frontend/src/observability/client.ts`. Trace IDs propagate via `traceparent` on outbound fetches, joining the same trace as the upstream services.
+- `@opentelemetry/sdk-trace-web` + `@opentelemetry/instrumentation-fetch` live in `libs/ts/observability/client.ts` and are initialised from a client-only entry at `apps/frontend/src/app/observability-init.tsx`. Trace IDs propagate via `traceparent` on outbound fetches, joining the same trace as the upstream services.
 - **Grafana Faro** is the browser RUM agent. Web Vitals (LCP, INP, CLS), JS errors, and session traces forward through a Tyk-fronted ingest route to the cluster's OTel Collector gateway, landing in the same Loki/Tempo backends as services.
 - Next.js server logs are structured JSON via **`pino`**, stdout-only, enriched with `trace_id` from the active span. `console.log` is Biome-forbidden.
 - Build embeds `SERVICE_VERSION` from the git SHA so traces and errors are version-attributable.
@@ -172,7 +172,7 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 - `biome.json` at repo root with the strict ruleset above.
 - `apps/frontend/perf-budget.json` and `apps/frontend/lighthouserc.json`.
 - `apps/frontend/Dockerfile` (Bun-only, standalone output).
-- `apps/frontend/src/observability/{client,server}.ts` wiring OTel-JS, Faro, and `pino`.
+- `libs/ts/observability/{client,server}.ts` wiring OTel-JS, Faro, and `pino`, initialised from `apps/frontend/src/app/observability-init.tsx`.
 - `infra/gateway/apis/frontend-observability.yaml` ingest route for OTel + Faro from the browser.
 - `docs/frontend/conventions.md` short pointer file linking back to this ADR.
 
