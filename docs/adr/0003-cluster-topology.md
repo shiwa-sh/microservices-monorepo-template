@@ -29,18 +29,15 @@ We need a single answer to:
 
 ## Decisions
 
-### Hosting: Hetzner Cloud
+### Hosting: VPS provider, chosen per project
 
-Production runs on **Hetzner Cloud VPS instances**, provisioned by Terraform under `infra/terraform/`. Hetzner is chosen
-for cost per core and integration via `hcloud-cloud-controller-manager`. The Terraform module isolates the provider;
-switching to an equivalent (OVH, Latitude.sh) is a module swap.
+Production runs on **VPS instances from a cost-per-core VPS provider**, provisioned by Terraform under
+`infra/terraform/`. The Terraform module isolates the provider behind a stable interface (instances, network, LB, DNS,
+firewall, bucket); swapping to another VPS provider is a module swap, not a topology change.
 
 The cost of self-hosting is operational. Ansible roles under `infra/ansible/` are the codified operational knowledge:
 new clusters are produced by `terraform apply` + `ansible-playbook bootstrap.yml` + `kubectl apply` of the ArgoCD root
 Application ([ADR-0004](0004-gitops.md)).
-
-The template can target **another cloud provider** when a project requires it; the Terraform module swap above covers
-the provider, and instance/resource names follow [ADR-0015](0015-naming-and-identifiers.md) regardless of cloud.
 
 ### Distribution: k3s in production, k3d locally
 
@@ -82,7 +79,7 @@ Triggers are documented in `docs/cluster/growth-plan.md` so growth happens on da
 ```text
 Internet
   │
-Hetzner Load Balancer  (provider L4 LB, one stable public IP per env)
+Provider Load Balancer  (provider L4 LB, one stable public IP per env)
   │
 Traefik (k3s default)  (TLS termination via cert-manager + Let's Encrypt, L7 routing)
   ├── /api/*       ─▶ Tyk Gateway  ─▶ backend service (per ADR-0009)
@@ -99,7 +96,7 @@ is a cluster ingress: TLS, hostname routing, static assets. Mixing the roles cou
 **DNS:**
 
 - One wildcard `*.<env>.example.com` `A` record per environment, pointing at the LB IP.
-- `cert-manager` requests one wildcard certificate per environment via DNS-01 (Cloudflare).
+- `cert-manager` requests one wildcard certificate per environment via DNS-01 against the project's DNS provider.
 - `external-dns` is not used. The wildcard absorbs new services.
 
 **Cluster networking:** Cilium. Network policies are enabled cluster-wide with permissive defaults; per-service
@@ -112,9 +109,9 @@ ArgoCD is started, then adopted by ArgoCD for upgrades.
 **Day one:**
 
 - **Block storage:** k3s `local-path` provisioner. PVCs are node-local NVMe directories.
-- **Object storage in production:** external S3-compatible bucket (Cloudflare R2 or AWS S3 — chosen per environment in
-  Terraform). Loki, Mimir, Tempo, Pyroscope, and CNPG backups all write here. **No MinIO in production**; offloading
-  durability to a managed bucket eliminates an entire stateful component.
+- **Object storage in production:** external S3-compatible bucket, chosen per environment in Terraform. Loki, Mimir,
+  Tempo, Pyroscope, and CNPG backups all write here. **No MinIO in production**; offloading durability to a managed
+  bucket eliminates an entire stateful component.
 - **Object storage locally:** not installed by default; add a small MinIO manifest to `infra/local/deps.yaml` when a
   service under test needs object storage. Local-only.
 
@@ -127,7 +124,7 @@ unchanged.
   days non-prod.
 - **Temporal history** lives on Postgres; covered by CNPG backups.
 - **Observability long-term data** is already in the external bucket; the cluster PV holds hot cache only.
-- **Node-level snapshots** via Hetzner are taken daily as a catastrophic-recovery fallback.
+- **Node-level snapshots** via the VPS provider are taken daily as a catastrophic-recovery fallback.
 - Backup restore is rehearsed quarterly as a Temporal `Schedule` ([ADR-0006](0006-temporal.md)) that opens a tracking
   issue.
 
@@ -147,17 +144,17 @@ state locking).
 
 Parity is at the manifest, chart, and API level. Topology differences are explicit:
 
-| Layer          | Local (k3d)     | Prod (k3s on Hetzner) | Same?         |
-|----------------|-----------------|-----------------------|---------------|
-| Kubernetes API | k3s             | k3s                   | yes           |
-| Helm charts    | `infra/helm/`   | `infra/helm/`         | yes           |
-| Service code   | identical image | identical image       | yes           |
-| Ingress        | n/a (direct)    | Traefik               | no, by design |
-| TLS issuer     | n/a             | Let's Encrypt         | no            |
-| LB driver      | klipper-lb      | hcloud-ccm            | no            |
-| Object storage | n/a (opt-in)    | external S3 bucket    | no, by design |
-| GitOps         | not used        | ArgoCD                | no, by design |
-| Sizing         | tiny            | sized for traffic     | no            |
+| Layer          | Local (k3d)     | Prod (k3s on VPS)                 | Same?         |
+|----------------|-----------------|-----------------------------------|---------------|
+| Kubernetes API | k3s             | k3s                               | yes           |
+| Helm charts    | `infra/helm/`   | `infra/helm/`                     | yes           |
+| Service code   | identical image | identical image                   | yes           |
+| Ingress        | n/a (direct)    | Traefik                           | no, by design |
+| TLS issuer     | n/a             | Let's Encrypt                     | no            |
+| LB driver      | klipper-lb      | provider cloud-controller-manager | no            |
+| Object storage | n/a (opt-in)    | external S3 bucket                | no, by design |
+| GitOps         | not used        | ArgoCD                            | no, by design |
+| Sizing         | tiny            | sized for traffic                 | no            |
 
 `mise run dev:up` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then driven by
 Skaffold (`mise run dev`) — see *Local development* below. There is no docker-compose path: k3d is the single local
@@ -194,7 +191,7 @@ staging and prod. Skaffold loads images into k3d (no registry round-trip) and ma
 
 ### Service mesh
 
-No dedicated service mesh (Istio, Linkerd, Consul Connect, AWS App Mesh) is deployed. Sidecar meshes inject a proxy
+No dedicated service mesh (Istio, Linkerd, Consul Connect) is deployed. Sidecar meshes inject a proxy
 container per pod — at 100 services that's 100+ extra containers on the hot path, against ADR-0000's per-service cost
 principle — and the heavier ones (Istio, Consul Connect) add a CRD surface or a mandatory dependency the team size
 cannot absorb.
@@ -222,7 +219,7 @@ alongside the backup restore drill above.
 
 ### Negative / Risks
 
-- Three Hetzner nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we
+- Three VPS nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we
   never want to plan.
 - k3s on bare metal is more ops than managed K8s. Mitigated by Ansible roles as the codified operational knowledge.
 - Cilium is more complex to debug than Flannel (eBPF programs, `cilium status`, Hubble CLI). Mitigated by the Helm
@@ -232,7 +229,7 @@ alongside the backup restore drill above.
 
 ### Follow-ups
 
-- `infra/terraform/modules/hetzner/` for VPS, network, LB, DNS, firewall, bucket.
+- `infra/terraform/modules/vps-provider/` for VPS, network, LB, DNS, firewall, bucket.
 - `infra/ansible/roles/` for `k3s_server`, `cilium`, `hardening`, `unattended_upgrades`, `node_exporter`.
 - `infra/helm/platform/{cilium,traefik,cert-manager,minio}/` with local and prod values.
 - `docs/cluster/growth-plan.md` (triggers and responses).
@@ -242,7 +239,8 @@ alongside the backup restore drill above.
 
 ## Rules
 
-- Production runs on Hetzner Cloud VPS instances; provisioning is Terraform under `infra/terraform/`.
+- Production runs on VPS instances from a cost-per-core VPS provider; provisioning is Terraform under
+  `infra/terraform/`.
 - Every environment runs k3s with three control-plane nodes (embedded etcd). Adding workers follows the
   resource-pressure trigger.
 - Local development runs on k3d. The inner loop is Skaffold deploying the same `infra/helm/service` chart as production
