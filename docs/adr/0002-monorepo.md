@@ -98,8 +98,8 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
 - Tasks are defined in `.mise.toml` files: a root file declares repo-wide tasks; each service has its own with
   service-local tasks.
 - **Standard task names** at every service: `build`, `test`, `lint`, `generate`, `migrate`, `run`, `worker`.
-- **Standard task names** at repo root: `dev:up`, `dev:down`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
-  `gen:all`, `dev:migrate`.
+- **Standard task names** at repo root: `cluster:up`, `cluster:down`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
+  `gen:all`, `db:migrate`.
 - `mise tasks --list` is the discoverable interface.
 
 ### Tool versioning: pinned in mise or in a container tag

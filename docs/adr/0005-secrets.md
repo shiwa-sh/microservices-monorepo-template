@@ -51,7 +51,7 @@ Service authors reference secrets by name in the service's Helm values, exactly 
 
 ### Local decryption
 
-`age-keygen` once, after which `mise run dev:up` and any `sops decrypt` invocation works without further configuration.
+`age-keygen` once, after which `mise run cluster:up` and any `sops decrypt` invocation works without further configuration.
 
 Engineers run services locally against decrypted secrets via:
 

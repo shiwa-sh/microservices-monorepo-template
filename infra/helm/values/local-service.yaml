@@ -13,7 +13,7 @@ networkPolicy:
   enabled: false          # skip policy enforcement locally
 
 migrations:
-  enabled: false          # apply via `mise run dev:migrate` against the local DB
+  enabled: false          # apply via `mise run db:migrate` against the local DB
 
 otel:
   endpoint: ""            # no collector locally

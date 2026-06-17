@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Apply each service's migrations to the local Postgres (ADR-0007).
-# Run after `dev:up` (and `skaffold dev` need not be running — this opens its own
+# Run after `cluster:up` (and `skaffold dev` need not be running — this opens its own
 # port-forward). Schema migrations are intentionally not run by the chart locally
 # (migrations.enabled=false in local-service.yaml).
 set -euo pipefail

@@ -4,4 +4,4 @@
 set -euo pipefail
 
 k3d cluster delete platform-dev || true
-echo "✓ dev:down complete"
+echo "✓ cluster:down complete"

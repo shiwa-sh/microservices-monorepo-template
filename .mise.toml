@@ -48,22 +48,22 @@ run = "lefthook install"
 # Usage: mise run tools:upgrade [-- --dry-run] [-- --yes]
 run = "bash scripts/upgrade-tools.sh"
 
-[tasks."dev:up"]
+[tasks."cluster:up"]
 # Create the local k3d cluster + lightweight deps (Postgres, Temporal, SpiceDB).
-run = "bash scripts/dev-up.sh"
+run = "bash scripts/cluster-up.sh"
 
-[tasks."dev:down"]
+[tasks."cluster:down"]
 # Delete the local k3d cluster.
-run = "bash scripts/dev-down.sh"
+run = "bash scripts/cluster-down.sh"
 
 [tasks.dev]
 # Inner loop: build, deploy and live-reload services in k3d (ADR-0003).
-depends = ["dev:up"]
+depends = ["cluster:up"]
 run = "skaffold dev"
 
-[tasks."dev:migrate"]
+[tasks."db:migrate"]
 # Apply each service's migrations to the local Postgres (ADR-0007).
-run = "bash scripts/dev-migrate.sh"
+run = "bash scripts/db-migrate.sh"
 
 [tasks."secrets:age"]
 # Generate the SOPS age key (idempotent) and write .sops.yaml (ADR-0005).

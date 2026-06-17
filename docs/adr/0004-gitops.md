@@ -131,7 +131,7 @@ Secret values are not in git. Encrypted SOPS files in the repo are decrypted by 
 
 ### Local development
 
-GitOps is **not used locally.** `mise run dev:up` runs `helm install` directly against k3d:
+GitOps is **not used locally.** `mise run cluster:up` runs `helm install` directly against k3d:
 
 - Engineers iterate on Helm chart changes without committing.
 - ArgoCD itself is a component under test in some workflows; running it locally adds startup time without value.

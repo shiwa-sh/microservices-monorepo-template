@@ -154,7 +154,7 @@ Parity is at the manifest, chart, and API level. Topology differences are explic
 | GitOps         | not used        | ArgoCD                            | no, by design |
 | Sizing         | tiny            | sized for traffic                 | no            |
 
-`mise run dev:up` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then driven by
+`mise run cluster:up` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then driven by
 Skaffold (`mise run dev`) — see *Local development* below. There is no docker-compose path: k3d is the single local
 runtime, keeping local and prod on the same manifests.
 
@@ -166,11 +166,11 @@ against lightweight dependency stand-ins.
 
 | Step         | Command                                 | Brings up                                                                                            |
 |--------------|-----------------------------------------|------------------------------------------------------------------------------------------------------|
-| Cluster+deps | `mise run dev:up`                       | k3d cluster + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
+| Cluster+deps | `mise run cluster:up`                       | k3d cluster + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
 | Inner loop   | `mise run dev` (`skaffold dev`)         | builds each service image, deploys it via `infra/helm/service`, watches sources and live-rebuilds    |
 | Debug        | `skaffold debug`                        | Delve attached, for cluster-only bugs; prefer native local debug of one service                     |
-| Migrations   | `mise run dev:migrate`                  | applies each service's migrations to the local Postgres                                              |
-| Teardown     | `mise run dev:down`                     | deletes the cluster                                                                                  |
+| Migrations   | `mise run db:migrate`                  | applies each service's migrations to the local Postgres                                              |
+| Teardown     | `mise run cluster:down`                     | deletes the cluster                                                                                  |
 
 **Same chart, laptop knobs only.** Skaffold deploys the production `infra/helm/service` chart; the only overrides live
 in `infra/helm/values/local-service.yaml` (ingress off, single replica, migrations run separately, endpoints pointed at

@@ -19,7 +19,7 @@ cp services/catalog/.env.example services/catalog/.env
 ## Inner loop
 
 ```sh
-mise run dev:up -- --minimal         # k3d + port-forwards (5432, 7233, 4317, 3000, 9000/9001)
+mise run cluster:up -- --minimal         # k3d + port-forwards (5432, 7233, 4317, 3000, 9000/9001)
 mise run -C services/catalog migrate # dbmate up
 mise run -C services/catalog run     # go run ./cmd/server  → http://localhost:8080
 ```
@@ -34,7 +34,7 @@ Observability UI: <http://localhost:3000> (Grafana, no auth in dev).
 ## Teardown
 
 ```sh
-mise run dev:down                    # stops port-forwards + deletes the k3d cluster
+mise run cluster:down                    # stops port-forwards + deletes the k3d cluster
 ```
 
 ## Formatting & linting
@@ -55,7 +55,7 @@ does). Outside JetBrains, align the columns by hand to satisfy CI.
 
 ## When to use the **full** profile instead
 
-`mise run dev:up` (no flag) brings up the gateway, auth stack, ArgoCD, and every
+`mise run cluster:up` (no flag) brings up the gateway, auth stack, ArgoCD, and every
 other chart. Use it when the bug only reproduces with Tyk, Kratos, SpiceDB, or
 GitOps in the path. The inner-loop pattern above does not apply — services run
 in-cluster via `mise run dev:build <service>` (build image + `k3d image import`

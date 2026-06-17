@@ -1,6 +1,6 @@
 # Inner dev loop (ADR-0003): build service images, deploy them + lightweight deps
 # into the local k3d cluster, and live-rebuild on change.
-#   mise run dev:up      # create the k3d cluster (once)
+#   mise run cluster:up      # create the k3d cluster (once)
 #   skaffold dev         # build + deploy + watch   (or: mise run dev)
 #   skaffold debug       # same, with Delve attached (for cluster-only debugging)
 #

@@ -106,7 +106,7 @@ Biome is the single lint+format tool for the frontend.
 ### Testing
 
 - **`bun test`** for unit and component tests — Bun's built-in Jest-compatible runner. No Vitest, no Jest: Bun is the only JS runtime ([ADR-0001](0001-language-and-runtime.md)), and shipping a third-party runner duplicates what's already in the toolchain. Component tests use Testing Library with `happy-dom` registered via `bunfig.toml` `preload`.
-- **Playwright** for end-to-end tests, one suite per route group under `apps/frontend/e2e/(landing|panel|admin|devportal)/`. Suites run against `mise run dev:up` plus the route group's owning services.
+- **Playwright** for end-to-end tests, one suite per route group under `apps/frontend/e2e/(landing|panel|admin|devportal)/`. Suites run against `mise run cluster:up` plus the route group's owning services.
 - **MSW** for mocking SDK calls in unit/component tests. MSW is forbidden in e2e: e2e runs against real services.
 - Coverage thresholds per route group in `bunfig.toml`; CI fails below threshold.
 
@@ -141,7 +141,7 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 
 ### Local development
 
-- `mise run -C apps/frontend dev` runs `bun run dev` against `mise run dev:up`. SDK requests target services on `localhost` ports established by the dev-up port-forwards ([ADR-0003](0003-cluster-topology.md)).
+- `mise run -C apps/frontend dev` runs `bun run dev` against `mise run cluster:up`. SDK requests target services on `localhost` ports established by the cluster:up port-forwards ([ADR-0003](0003-cluster-topology.md)).
 - HMR is left to Next.js defaults; no custom dev server.
 
 ## Consequences

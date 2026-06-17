@@ -20,4 +20,4 @@ echo "→ applying lightweight dev dependencies (Postgres, Temporal, SpiceDB)"
 kubectl apply -f infra/local/deps.yaml
 kubectl -n platform rollout status deploy/postgres --timeout=120s
 
-echo "✓ dev:up complete — now run 'mise run dev' (skaffold dev) to build & run services"
+echo "✓ cluster:up complete — now run 'mise run dev' (skaffold dev) to build & run services"
