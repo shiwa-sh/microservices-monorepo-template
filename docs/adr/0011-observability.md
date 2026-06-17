@@ -130,7 +130,7 @@ High-cardinality labels (`user_id`, `request_id` as metric labels) destroy Mimir
 
 ### Local development
 
-A `grafana/otel-lgtm` single-image bundle runs in k3d as part of `mise run dev:up` (and `mise run dev:up --minimal`). It accepts OTLP on `localhost:4317` and exposes Grafana on `localhost:3000` with Loki/Mimir/Tempo/Pyroscope pre-wired.
+A `grafana/otel-lgtm` single-image bundle runs in k3d as part of `mise run dev:up`. It accepts OTLP on `localhost:4317` and exposes Grafana on `localhost:3000` with Loki/Mimir/Tempo/Pyroscope pre-wired.
 
 Service code is unchanged between local and prod. The same `obs.Init` call works against the local bundle and the production stack.
 

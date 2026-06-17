@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-19
-- **Amended:** 2026-06-02 — added service mesh decision
 - **Deciders:** Platform team
 - **Related:
   ** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
@@ -170,13 +169,6 @@ The local runtime is **k3d**; the inner loop is driven by **Skaffold**. The full
 that is ArgoCD's job in staging/prod ([ADR-0004](0004-gitops.md)). Locally you run the service(s) you are changing
 against lightweight dependency stand-ins.
 
-> **Amended 2026-06-01.** The earlier full/minimal Helm-umbrella profiles (`dev:up` / `dev:up --minimal`) are retired.
-> Installing every operator-backed component on a laptop proved slow and fragile (operator/CRD/admission-webhook
-> ordering
-> the umbrella cannot express), and tests rarely need more than a few services. Skaffold deploys the *same* service
-> chart
-> used in prod, so chart-level parity is preserved; ArgoCD remains a staging/prod-only concern.
-
 | Step         | Command                                 | Brings up                                                                                            |
 |--------------|-----------------------------------------|------------------------------------------------------------------------------------------------------|
 | Cluster+deps | `mise run dev:up`                       | k3d cluster + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
@@ -202,61 +194,21 @@ staging and prod. Skaffold loads images into k3d (no registry round-trip) and ma
 
 ### Service mesh
 
-A service mesh adds mTLS, L7 traffic policies, and per-route observability without application code changes. Several
-families were evaluated.
+No dedicated service mesh (Istio, Linkerd, Consul Connect, AWS App Mesh) is deployed. Sidecar meshes inject a proxy
+container per pod — at 100 services that's 100+ extra containers on the hot path, against ADR-0000's per-service cost
+principle — and the heavier ones (Istio, Consul Connect) add a CRD surface or a mandatory dependency the team size
+cannot absorb.
 
-#### Sidecar meshes — rejected (Istio, Linkerd, Consul Connect, AWS App Mesh)
-
-Every sidecar mesh injects a proxy container into each pod. At 100 services that means 100+ extra containers, each
-carrying ~20–50 MB RAM and CPU on the hot path — a direct violation of ADR-0000's "per-service cost dominates"
-principle.
-
-Beyond cost:
-
-- **Istio** is the most capable option but the most operationally expensive: large CRD surface, upgrade complexity, and
-  the ambient-vs-sidecar split add permanent toil that the 3–8-engineer team size cannot absorb. The control-plane
-  components (istiod, ingress gateway) are substantial standalone systems.
-- **Linkerd** is the lightest sidecar mesh and the most operationally pleasant of the group. However it is not a CNI —
-  it requires Flannel or another CNI underneath, adding a second networking component rather than replacing one.
-- **Consul Connect** is the service-mesh face of a larger HashiCorp platform; it pulls in Consul as a mandatory
-  dependency, adding a distributed key-value store solely for mesh config.
-- **AWS App Mesh / Google Traffic Director** are managed offerings that tie durably to a cloud provider, contradicting
-  the self-host and cloud-agnostic stance from ADR-0000.
-
-#### Cilium as the single component covering CNI + mesh — accepted, from day one
-
-Cilium is the CNI from day one. Its sidecarless mesh mode (eBPF, no injected proxy) covers every mesh concern at the
-kernel level without adding a second component or per-pod overhead:
-
-- **mTLS / transparent encryption:** WireGuard node-to-node encryption; SPIFFE/SPIRE layerable on top for mutual
-  workload identity when needed.
-- **L7 network policies:** HTTP-aware allow/deny rules enforced in eBPF, not in a sidecar.
-- **Network observability:** Hubble (bundled) provides per-flow visibility and a service map comparable to
-  Linkerd's dashboard — no sidecar tax.
-
-Installing Cilium from day one avoids the only painful part: migrating a live cluster's CNI. CNI pod-network CIDRs
-are baked in at cluster creation time; a hot-swap is not possible. Starting with Cilium eliminates that migration
-entirely. The operational overhead over Flannel is small (one Helm chart, one DaemonSet) and the kernel compatibility
-on Ubuntu LTS (kernel ≥ 5.15 on 22.04, ≥ 6.8 on 24.04) is solid.
-
-**No dedicated service mesh is deployed.** Sidecar meshes (Istio, Linkerd, Consul Connect) are ruled out by
-per-service resource cost and component count. Cilium's built-in capabilities are the sufficient and complete answer.
+**Cilium covers CNI + mesh as one component.** Its sidecarless eBPF mode provides mTLS (WireGuard node-to-node
+encryption), L7 network policies, and per-flow observability (Hubble) without an injected proxy or a second
+component. Cilium is installed from day one because CNI cannot be hot-swapped on a live cluster.
 
 ### Disaster recovery
 
-Three-node HA tolerates single-node failure with no downtime; etcd quorum survives. A full-cluster loss is the disaster
-case:
-
-1. **Detection** within 1–2 minutes via Uptime Kuma (self-hosted) paging on-call.
-2. **Recovery (target <30 min):**
-
-- `terraform apply` provisions a new node set.
-- `ansible-playbook bootstrap` installs k3s.
-- ArgoCD root Application reconciles every component from git.
-- CNPG restores Postgres from PITR in the external bucket.
-
-1. **RPO ≈ WAL archive interval** (minutes). In-flight requests at the moment of failure are lost.
-2. **Rehearsed quarterly** against a staging rebuild, tracked as a Temporal `Schedule`.
+Three-node HA tolerates single-node failure with no downtime; etcd quorum survives. A full-cluster loss recovers via
+`terraform apply` → `ansible-playbook bootstrap` → ArgoCD reconciling from git → CNPG restoring Postgres from PITR.
+Detection target <2 min (Uptime Kuma); recovery target <30 min; RPO ≈ WAL archive interval. Rehearsed quarterly
+alongside the backup restore drill above.
 
 ## Consequences
 

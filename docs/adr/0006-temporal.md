@@ -150,10 +150,9 @@ Liberal use of workflows for multi-step / compensable / cross-system operations;
 
 ### Cross-cutting integrations
 
-- **Authz-relevant mutations** ([ADR-0010](0010-auth.md)): the app-DB write and the authz-store write are activities in the same workflow. Direct DB writes that mutate authz-relevant tables outside a workflow are a review-blocker.
-- **OpenAPI** ([ADR-0008](0008-api-contracts.md)): handlers that start workflows return `202 Accepted` with a workflow-run reference in the body conforming to the `WorkflowHandle` schema declared in each service's OpenAPI spec.
-- **Auth** ([ADR-0010](0010-auth.md)): activities that call other services attach a service-to-service JWT minted at activity start. Tokens do not span activity boundaries.
-- **Observability** ([ADR-0011](0011-observability.md)): every workflow carries a W3C trace context; activities propagate it.
+Authz dual-write discipline is [ADR-0010](0010-auth.md)'s; the `WorkflowHandle` response shape is [ADR-0008](0008-api-contracts.md)'s;
+service-to-service JWTs on activity calls are [ADR-0010](0010-auth.md)'s; trace propagation through workflows and
+activities is [ADR-0011](0011-observability.md)'s default. Nothing here overrides those.
 
 ## Consequences
 

@@ -118,14 +118,9 @@ The task:
 4. Commits with `chore(<scope>): release v<X.Y.Z>` and creates the prefixed tag.
 5. Pushes the commit and tag.
 
-The release commit goes through the standard build path on `master`, producing `<service>:<sha>`. The tag-push workflow
-(`.github/workflows/promote-on-release.yml`) then:
-
-- Re-tags the image with `<service>:v<X.Y.Z>` as a semver label.
-- Opens (and auto-merges) a PR bumping `infra/gitops/services/prod/values/<svc>.yaml` to the release SHA.
-- Creates a GitHub Release with the cocogitto-generated changelog as the release body.
-
-ArgoCD prod auto-syncs services, so the release is live shortly after the prod-values PR merges.
+The release commit goes through the standard build path on `master`, producing `<service>:<sha>`. The tag push then
+triggers the prod promotion workflow described in [ADR-0004](0004-gitops.md)'s Image promotion section, which also
+attaches the semver label and creates the GitHub Release from the cocogitto changelog.
 
 ### Changelog: per released component, generated, committed
 
