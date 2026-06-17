@@ -103,7 +103,7 @@ OpenAPI YAML is hand-written. **TypeSpec is not used.** If a service's spec grow
 
 ### Follow-ups
 
-- `tools/codegen/generate.sh` (and the `mise run gen:*` task family).
+- The `mise run gen:*` task family (wrapping the `scripts/gen-*.sh` generators).
 - `tools/codegen/openapi-ruleset.yaml` ruleset.
 - `tools/codegen/tyk-gen` for Tyk API definition emission.
 - Shared shapes (error envelope, workflow handle) declared inline in each `services/<service>/openapi.yaml` `components` block.

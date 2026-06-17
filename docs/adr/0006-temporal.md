@@ -174,8 +174,8 @@ activities is [ADR-0011](0011-observability.md)'s default. Nothing here override
 ### Follow-ups
 
 - `infra/helm/platform/temporal/` deployment with Postgres backing.
-- `libs/go/temporal/` shared client config, default retry policies, tracing middleware, replay-test scaffolding.
-- `tools/scripts/dev-up.sh` brings up `temporal server start-dev` alongside other local infra.
+- `libs/go/temporalmw/` shared client config, default retry policies, tracing middleware, replay-test scaffolding.
+- `scripts/dev-up.sh` brings up `temporal server start-dev` alongside other local infra.
 - `golangci-lint` config including `workflowcheck`.
 - `docs/temporal/long-running.md` registry (initially empty).
 - Standard `202 Accepted` workflow-handle shape, declared inline as the `WorkflowHandle` schema in each service's `openapi.yaml` `components`.

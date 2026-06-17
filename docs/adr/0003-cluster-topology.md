@@ -3,8 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-05-19
 - **Deciders:** Platform team
-- **Related:
-  ** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
 
 ## Context
 
@@ -29,11 +28,12 @@ We need a single answer to:
 
 ## Decisions
 
-### Hosting: VPS provider, chosen per project
+### Hosting: cloud provider, chosen per project
 
-Production runs on **VPS instances from a cost-per-core VPS provider**, provisioned by Terraform under
+Production runs on **compute instances from a cloud provider chosen per project** (e.g. Hetzner, GCP, or AWS — we run
+k3s on plain compute instances, never the provider's managed Kubernetes), provisioned by Terraform under
 `infra/terraform/`. The Terraform module isolates the provider behind a stable interface (instances, network, LB, DNS,
-firewall, bucket); swapping to another VPS provider is a module swap, not a topology change.
+firewall, bucket); swapping to another provider is a module swap, not a topology change.
 
 The cost of self-hosting is operational. Ansible roles under `infra/ansible/` are the codified operational knowledge:
 new clusters are produced by `terraform apply` + `ansible-playbook bootstrap.yml` + `kubectl apply` of the ArgoCD root
@@ -53,7 +53,7 @@ an explicit Ansible run with a cordoned reboot.
 
 ### Topology and growth triggers
 
-**Day one (per environment):** three VPS nodes running k3s with embedded etcd. All workloads — application services,
+**Day one (per environment):** three compute nodes running k3s with embedded etcd. All workloads — application services,
 Postgres (via CNPG), Temporal, identity, observability — run on this 3-node set, sized for many cores and generous NVMe.
 
 Three nodes from day one (not one) because:
@@ -122,14 +122,14 @@ unchanged.
   days non-prod.
 - **Temporal history** lives on Postgres; covered by CNPG backups.
 - **Observability long-term data** is already in the external bucket; the cluster PV holds hot cache only.
-- **Node-level snapshots** via the VPS provider are taken daily as a catastrophic-recovery fallback.
+- **Node-level snapshots** via the cloud provider are taken daily as a catastrophic-recovery fallback.
 - Backup restore is rehearsed quarterly as a Temporal `Schedule` ([ADR-0006](0006-temporal.md)) that opens a tracking
   issue.
 
 ### Provisioning order
 
 ```text
-1. terraform apply              # VPS instances, network, LB, DNS, firewall, bucket
+1. terraform apply              # compute instances, network, LB, DNS, firewall, bucket
 2. ansible-playbook bootstrap   # OS hardening, kernel params, k3s install
 3. kubectl apply -f infra/gitops/bootstrap/root-application.yaml
                                 # ArgoCD reconciles the rest
@@ -142,7 +142,7 @@ state locking).
 
 Parity is at the manifest, chart, and API level. Topology differences are explicit:
 
-| Layer          | Local (k3d)     | Prod (k3s on VPS)                 | Same?         |
+| Layer          | Local (k3d)     | Prod (k3s on cloud VMs)           | Same?         |
 |----------------|-----------------|-----------------------------------|---------------|
 | Kubernetes API | k3s             | k3s                               | yes           |
 | Helm charts    | `infra/helm/`   | `infra/helm/`                     | yes           |
@@ -217,7 +217,7 @@ alongside the backup restore drill above.
 
 ### Negative / Risks
 
-- Three VPS nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we
+- Three compute nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we
   never want to plan.
 - k3s on bare metal is more ops than managed K8s. Mitigated by Ansible roles as the codified operational knowledge.
 - Cilium is more complex to debug than Flannel (eBPF programs, `cilium status`, Hubble CLI). Mitigated by the Helm
@@ -227,7 +227,7 @@ alongside the backup restore drill above.
 
 ### Follow-ups
 
-- `infra/terraform/modules/vps-provider/` for VPS, network, LB, DNS, firewall, bucket.
+- `infra/terraform/modules/<provider>/` (e.g. `hetzner`) for compute instances, network, LB, DNS, firewall, bucket.
 - `infra/ansible/roles/` for `k3s_server`, `cilium`, `hardening`, `unattended_upgrades`, `node_exporter`.
 - `infra/helm/platform/{cilium,traefik,cert-manager,minio}/` with local and prod values.
 - `docs/cluster/growth-plan.md` (triggers and responses).
@@ -237,7 +237,7 @@ alongside the backup restore drill above.
 
 ## Rules
 
-- Production runs on VPS instances from a cost-per-core VPS provider; provisioning is Terraform under
+- Production runs on compute instances from a cloud provider chosen per project; provisioning is Terraform under
   `infra/terraform/`.
 - Every environment runs k3s with three control-plane nodes (embedded etcd). Adding workers follows the
   resource-pressure trigger.

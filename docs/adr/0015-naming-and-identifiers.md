@@ -3,8 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-05-26
 - **Deciders:** Platform team
-- **Related:
-  ** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-cluster-topology.md), [ADR-0005](0005-secrets.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-cluster-topology.md), [ADR-0005](0005-secrets.md)
 
 ## Context
 

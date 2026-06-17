@@ -88,7 +88,7 @@ The encrypted files are in git and inherit git's distribution. The age private k
 
 ### Negative / Risks
 
-- **Offboarding requires re-encryption of every file and rotation of every secret.** Mitigated by automating both with `tools/scripts/secrets-rotate.sh`.
+- **Offboarding requires re-encryption of every file and rotation of every secret.** Mitigated by automating both with `scripts/secrets-rotate.sh`.
 - **Lost engineer private key without backup means lost decrypt access for that engineer.** Acceptable; the engineer regenerates a key, PRs the new public key, gets re-onboarded.
 - **A compromised cluster key exposes that environment's secrets in any subsequent git access.** Mitigated by the cluster-key-rotation procedure and by limiting cluster keys' recipient scope to env-scoped files.
 - **The ops-recovery key is a high-value target.** Mitigated by offline storage with hardware tokens and an annual rotation.
@@ -97,8 +97,8 @@ The encrypted files are in git and inherit git's distribution. The age private k
 
 - `infra/helm/platform/sops-operator/` Helm chart.
 - `.sops.yaml` at repo root with creation rules and the initial recipient list.
-- `tools/scripts/secrets-rotate.sh` for offboarding and bulk rotation.
-- `tools/scripts/bootstrap-cluster-sops-key.sh` (called from the Ansible bootstrap role).
+- `scripts/secrets-rotate.sh` for offboarding and bulk rotation.
+- `scripts/bootstrap-cluster-sops-key.sh` (called from the Ansible bootstrap role).
 - `docs/secrets/runbook.md` covering onboarding, offboarding, cluster-key rotation, and ops-recovery procedures.
 
 ## Rules

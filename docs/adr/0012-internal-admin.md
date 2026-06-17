@@ -79,7 +79,7 @@ Alternatives considered and rejected:
 
 Lowdefy runs in-cluster:
 
-- Helm chart under `infra/helm/lowdefy/`, deployed by ArgoCD per [ADR-0004](0004-gitops.md).
+- Helm chart under `infra/helm/platform/lowdefy/`, deployed by ArgoCD per [ADR-0004](0004-gitops.md).
 - A single `lowdefy-server` container. Stateless. No persistent volume.
 - **No MongoDB.** Lowdefy's built-in auth providers require a session store; we do not configure
   them, so the session store is not needed.
@@ -111,7 +111,7 @@ apps/admin/
 
 `apps/admin/` is the second application under `apps/` and is therefore the kind of decision
 [ADR-0002](0002-monorepo.md) requires its own ADR for — this document is that ADR. Lowdefy server
-itself is deployed from `infra/helm/lowdefy/`; `apps/admin/` contains only the YAML configuration
+itself is deployed from `infra/helm/platform/lowdefy/`; `apps/admin/` contains only the YAML configuration
 mounted into it.
 
 ### Codegen: `tools/admin-gen/`
@@ -188,14 +188,14 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
 
 ### Follow-ups
 
-- `infra/helm/lowdefy/` chart values (image tag, REST/Postgres connection config from secrets).
+- `infra/helm/platform/lowdefy/` chart values (image tag, REST/Postgres connection config from secrets).
 - `apps/admin/lowdefy.yaml` root config, with menu structure and global theme.
 - `tools/admin-gen/` Go program with unit tests. Generates `_generated/` from
   `services/*/openapi.yaml`.
 - `mise run gen:admin` task; inclusion in `mise run gen:all` and `ci-drift.yml`.
 - vacuum ruleset rule (or `tools/admin-gen/` lint pass) enforcing valid `admin:crud` / `admin:action`
   tags on OpenAPI operations.
-- Postgres read-only role provisioning template in `infra/helm/cnpg/`, referenced by per-service
+- Postgres read-only role provisioning template in `infra/helm/platform/postgres/`, referenced by per-service
   Helm values.
 - Tyk route definition for `/internal/admin/*` in `infra/gateway/`, including the Kratos session
   check and identity header forwarding.
@@ -204,7 +204,7 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
 ## Rules
 
 - The internal admin tool is Lowdefy, self-hosted, deployed via Helm + ArgoCD under
-  `infra/helm/lowdefy/`.
+  `infra/helm/platform/lowdefy/`.
 - Admin pages live as YAML in `apps/admin/`. `_generated/` is codegen output, committed and
   drift-checked. `custom/` is hand-written or LLM-written.
 - Admin actions go through service REST APIs by default. Direct Postgres connections are

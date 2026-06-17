@@ -99,7 +99,7 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
   service-local tasks.
 - **Standard task names** at every service: `build`, `test`, `lint`, `generate`, `migrate`, `run`, `worker`.
 - **Standard task names** at repo root: `dev:up`, `dev:down`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
-  `gen:all`, `db:migrate`.
+  `gen:all`, `dev:migrate`.
 - `mise tasks --list` is the discoverable interface.
 
 ### Tool versioning: pinned in mise or in a container tag
