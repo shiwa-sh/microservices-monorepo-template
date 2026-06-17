@@ -37,8 +37,11 @@ build:
       docker: { dockerfile: services/payment/Dockerfile, buildArgs: { SERVICE: payment, CMD: worker } }
 
 manifests:
-  rawYaml:
-    - infra/local/deps.yaml
+  # Lightweight deps (Postgres, Temporal, SpiceDB) are owned solely by
+  # `mise run cluster:up` (kubectl apply infra/local/deps.yaml). Re-applying
+  # them here too made skaffold re-roll those deployments on every `skaffold
+  # dev`, needlessly restarting Postgres and briefly knocking the Temporal
+  # workers offline. Skaffold owns only the service charts below.
   helm:
     releases:
       - name: orders
@@ -82,9 +85,11 @@ manifests:
 deploy:
   kubeContext: k3d-platform-dev
   helm: {}
-  kubectl: {}
 
 portForward:
-  - { resourceType: service, resourceName: orders,   namespace: platform, port: 8080, localPort: 8080 }
-  - { resourceType: service, resourceName: temporal, namespace: platform, port: 8233, localPort: 8233 }
-  - { resourceType: service, resourceName: postgres, namespace: platform, port: 5432, localPort: 5432 }
+  # The service chart names the Service `<name>-server` and exposes port 80
+  # (see infra/helm/service/templates/service.yaml), so the orders forward must
+  # target orders-server:80, not orders:8080.
+  - { resourceType: service, resourceName: orders-server, namespace: platform, port: 80,   localPort: 8080 }
+  - { resourceType: service, resourceName: temporal,      namespace: platform, port: 8233, localPort: 8233 }
+  - { resourceType: service, resourceName: postgres,      namespace: platform, port: 5432, localPort: 5432 }
