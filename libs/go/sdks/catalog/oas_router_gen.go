@@ -10,9 +10,11 @@ import (
 	"github.com/ogen-go/ogen/uri"
 )
 
-var rn1AllowedHeaders = map[string]string{
-	"POST": "Content-Type",
-}
+var (
+	rn1AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+)
 
 func (s *Server) cutPrefix(path string) (string, bool) {
 	prefix := s.cfg.Prefix
@@ -114,7 +116,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					return
 				}
+
 			}
+
 		}
 	}
 	s.notFound(w, r)
@@ -267,7 +271,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						return
 					}
 				}
+
 			}
+
 		}
 	}
 	return r, false

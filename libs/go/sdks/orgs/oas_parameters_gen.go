@@ -17,6 +17,7 @@ import (
 
 // GetOrgParams is parameters of getOrg operation.
 type GetOrgParams struct {
+	// Organization id.
 	ID uuid.UUID
 }
 

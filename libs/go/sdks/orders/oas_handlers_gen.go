@@ -50,8 +50,7 @@ func (s *Server) handleCheckoutRequest(args [0]string, argsEscaped bool, w http.
 	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(
-		r.Context(), CheckoutOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), CheckoutOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -205,8 +204,7 @@ func (s *Server) handleGetOrderRequest(args [1]string, argsEscaped bool, w http.
 	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(
-		r.Context(), GetOrderOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetOrderOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)

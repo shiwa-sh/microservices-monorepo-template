@@ -50,8 +50,7 @@ func (s *Server) handleCreateItemRequest(args [0]string, argsEscaped bool, w htt
 	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(
-		r.Context(), CreateItemOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateItemOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -205,8 +204,7 @@ func (s *Server) handleListItemsRequest(args [0]string, argsEscaped bool, w http
 	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(
-		r.Context(), ListItemsOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ListItemsOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)

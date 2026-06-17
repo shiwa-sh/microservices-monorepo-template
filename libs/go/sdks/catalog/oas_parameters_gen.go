@@ -17,6 +17,7 @@ import (
 
 // GetProductParams is parameters of getProduct operation.
 type GetProductParams struct {
+	// Product id.
 	ID uuid.UUID
 }
 

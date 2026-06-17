@@ -110,8 +110,7 @@ func (c *Client) sendCheckout(ctx context.Context, request *CheckoutInput) (res 
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, CheckoutOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, CheckoutOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -188,8 +187,7 @@ func (c *Client) sendGetOrder(ctx context.Context, params GetOrderParams) (res *
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, GetOrderOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOrderOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)

@@ -24,6 +24,20 @@ rules:
       functionOptions:
         match: "^[a-z][a-zA-Z0-9]+$"
 
+  # Enforce snake_case property names (this project's wire-format convention).
+  # Disable the built-in camelCase rule and replace it with the snake_case
+  # variant of the same function, so non-snake_case names still warn.
+  camel-case-properties: off
+  snake-case-properties:
+    description: schema property names must be snake_case
+    given: "$"
+    resolved: true
+    severity: warn
+    then:
+      function: oasCamelCaseProperties
+      functionOptions:
+        type: snake
+
   # Every path must have a tag for grouping
   must-have-tag:
     description: every operation must have at least one tag

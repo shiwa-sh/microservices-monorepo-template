@@ -45,29 +45,67 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description RFC 7807 problem document. */
+        Problem: {
+            /** @example not_found */
+            code: string;
+            /** @example charge not found */
+            message: string;
+            /**
+             * @example {
+             *       "field": "order_id"
+             *     }
+             */
+            details?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description Handle to an async Temporal workflow run. */
         WorkflowHandle: {
+            /** @example charge-7f3a */
             id: string;
+            /** @example 9b1c2d3e-4f56-7890-abcd-ef0123456789 */
             run_id: string;
-            /** @enum {string} */
+            /**
+             * @example running
+             * @enum {string}
+             */
             status: "running" | "completed" | "failed" | "cancelled";
             /**
              * Format: uri
              * @description GET to fetch terminal status + result
+             * @example /api/payment/charges/charge-7f3a
              */
             result_url?: string;
         };
+        /** @description Request body to create a charge. */
         ChargeInput: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             order_id: string;
+            /** @example 1999 */
             amount_cents: number;
         };
+        /** @description A payment charge against an order. */
         Charge: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             order_id: string;
+            /** @example 1999 */
             amount_cents: number;
-            /** @enum {string} */
+            /**
+             * @example settled
+             * @enum {string}
+             */
             status: "pending" | "settled" | "failed" | "refunded";
         };
     };
@@ -78,14 +116,7 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
-                "application/problem+json": {
-                    /** @example not_found */
-                    code: string;
-                    message: string;
-                    details?: {
-                        [key: string]: unknown;
-                    };
-                };
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
     };
@@ -100,11 +131,13 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Client-generated key that makes the charge request idempotent. */
                 "Idempotency-Key": string;
             };
             path?: never;
             cookie?: never;
         };
+        /** @description The charge to create. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ChargeInput"];
@@ -128,6 +161,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Charge id. */
                 id: string;
             };
             cookie?: never;

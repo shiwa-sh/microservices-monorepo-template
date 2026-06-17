@@ -17,6 +17,7 @@ import (
 
 // GetOrderParams is parameters of getOrder operation.
 type GetOrderParams struct {
+	// Order id.
 	ID uuid.UUID
 }
 

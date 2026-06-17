@@ -15,6 +15,7 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// A payment charge against an order.
 // Ref: #/components/schemas/Charge
 type Charge struct {
 	ID          uuid.UUID    `json:"id"`
@@ -63,6 +64,7 @@ func (s *Charge) SetStatus(val ChargeStatus) {
 	s.Status = val
 }
 
+// Request body to create a charge.
 // Ref: #/components/schemas/ChargeInput
 type ChargeInput struct {
 	OrderID     uuid.UUID `json:"order_id"`
@@ -144,57 +146,10 @@ func (s *ChargeStatus) UnmarshalText(data []byte) error {
 	}
 }
 
-type Error struct {
-	Code    string          `json:"code"`
-	Message string          `json:"message"`
-	Details OptErrorDetails `json:"details"`
-}
-
-// GetCode returns the value of Code.
-func (s *Error) GetCode() string {
-	return s.Code
-}
-
-// GetMessage returns the value of Message.
-func (s *Error) GetMessage() string {
-	return s.Message
-}
-
-// GetDetails returns the value of Details.
-func (s *Error) GetDetails() OptErrorDetails {
-	return s.Details
-}
-
-// SetCode sets the value of Code.
-func (s *Error) SetCode(val string) {
-	s.Code = val
-}
-
-// SetMessage sets the value of Message.
-func (s *Error) SetMessage(val string) {
-	s.Message = val
-}
-
-// SetDetails sets the value of Details.
-func (s *Error) SetDetails(val OptErrorDetails) {
-	s.Details = val
-}
-
-type ErrorDetails map[string]jx.Raw
-
-func (s *ErrorDetails) init() ErrorDetails {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
-
-// ErrorStatusCode wraps Error with StatusCode.
+// ErrorStatusCode wraps Problem with StatusCode.
 type ErrorStatusCode struct {
 	StatusCode int
-	Response   Error
+	Response   Problem
 }
 
 // GetStatusCode returns the value of StatusCode.
@@ -203,7 +158,7 @@ func (s *ErrorStatusCode) GetStatusCode() int {
 }
 
 // GetResponse returns the value of Response.
-func (s *ErrorStatusCode) GetResponse() Error {
+func (s *ErrorStatusCode) GetResponse() Problem {
 	return s.Response
 }
 
@@ -213,42 +168,42 @@ func (s *ErrorStatusCode) SetStatusCode(val int) {
 }
 
 // SetResponse sets the value of Response.
-func (s *ErrorStatusCode) SetResponse(val Error) {
+func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
 }
 
-// NewOptErrorDetails returns new OptErrorDetails with value set to v.
-func NewOptErrorDetails(v ErrorDetails) OptErrorDetails {
-	return OptErrorDetails{
+// NewOptProblemDetails returns new OptProblemDetails with value set to v.
+func NewOptProblemDetails(v ProblemDetails) OptProblemDetails {
+	return OptProblemDetails{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptErrorDetails is optional ErrorDetails.
-type OptErrorDetails struct {
-	Value ErrorDetails
+// OptProblemDetails is optional ProblemDetails.
+type OptProblemDetails struct {
+	Value ProblemDetails
 	Set   bool
 }
 
-// IsSet returns true if OptErrorDetails was set.
-func (o OptErrorDetails) IsSet() bool { return o.Set }
+// IsSet returns true if OptProblemDetails was set.
+func (o OptProblemDetails) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptErrorDetails) Reset() {
-	var v ErrorDetails
+func (o *OptProblemDetails) Reset() {
+	var v ProblemDetails
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptErrorDetails) SetTo(v ErrorDetails) {
+func (o *OptProblemDetails) SetTo(v ProblemDetails) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptErrorDetails) Get() (v ErrorDetails, ok bool) {
+func (o OptProblemDetails) Get() (v ProblemDetails, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -256,7 +211,7 @@ func (o OptErrorDetails) Get() (v ErrorDetails, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptErrorDetails) Or(d ErrorDetails) ErrorDetails {
+func (o OptProblemDetails) Or(d ProblemDetails) ProblemDetails {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -309,6 +264,56 @@ func (o OptURI) Or(d url.URL) url.URL {
 	return d
 }
 
+// RFC 7807 problem document.
+// Ref: #/components/schemas/Problem
+type Problem struct {
+	Code    string            `json:"code"`
+	Message string            `json:"message"`
+	Details OptProblemDetails `json:"details"`
+}
+
+// GetCode returns the value of Code.
+func (s *Problem) GetCode() string {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *Problem) GetMessage() string {
+	return s.Message
+}
+
+// GetDetails returns the value of Details.
+func (s *Problem) GetDetails() OptProblemDetails {
+	return s.Details
+}
+
+// SetCode sets the value of Code.
+func (s *Problem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *Problem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetDetails sets the value of Details.
+func (s *Problem) SetDetails(val OptProblemDetails) {
+	s.Details = val
+}
+
+type ProblemDetails map[string]jx.Raw
+
+func (s *ProblemDetails) init() ProblemDetails {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Handle to an async Temporal workflow run.
 // Ref: #/components/schemas/WorkflowHandle
 type WorkflowHandle struct {
 	ID     string               `json:"id"`

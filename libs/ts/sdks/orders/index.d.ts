@@ -42,30 +42,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description RFC 7807 problem document. */
+        Problem: {
+            /** @example not_found */
+            code: string;
+            /** @example order not found */
+            message: string;
+            /**
+             * @example {
+             *       "field": "product_id"
+             *     }
+             */
+            details?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description Handle to an async Temporal workflow run. */
         WorkflowHandle: {
+            /** @example checkout-7f3a */
             id: string;
+            /** @example 9b1c2d3e-4f56-7890-abcd-ef0123456789 */
             run_id: string;
-            /** @enum {string} */
+            /**
+             * @example running
+             * @enum {string}
+             */
             status: "running" | "completed" | "failed" | "cancelled";
             /**
              * Format: uri
              * @description GET to fetch terminal status + result
+             * @example /api/orders/orders/7f3a
              */
             result_url?: string;
         };
+        /** @description Request body to start a checkout. */
         CheckoutInput: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             product_id: string;
+            /** @example 2 */
             quantity: number;
         };
+        /** @description A customer order. */
         Order: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             product_id: string;
+            /** @example 2 */
             quantity: number;
+            /** @example 3998 */
             total_cents: number;
-            /** @enum {string} */
+            /**
+             * @example confirmed
+             * @enum {string}
+             */
             status: "pending" | "confirmed" | "failed";
         };
     };
@@ -76,14 +115,7 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
-                "application/problem+json": {
-                    /** @example not_found */
-                    code: string;
-                    message: string;
-                    details?: {
-                        [key: string]: unknown;
-                    };
-                };
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
     };
@@ -101,6 +133,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description The checkout to start. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CheckoutInput"];
@@ -124,6 +157,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Order id. */
                 id: string;
             };
             cookie?: never;

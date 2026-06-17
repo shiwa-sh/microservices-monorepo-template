@@ -59,12 +59,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description RFC 7807 problem document. */
+        Problem: {
+            /** @example not_found */
+            code: string;
+            /** @example organization not found */
+            message: string;
+            /**
+             * @example {
+             *       "field": "name"
+             *     }
+             */
+            details?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description An organization. */
         Org: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
+            /** @example Acme Inc */
             name: string;
         };
+        /** @description Request body to create an organization. */
         OrgInput: {
+            /** @example Acme Inc */
             name: string;
         };
     };
@@ -75,14 +97,7 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
-                "application/problem+json": {
-                    /** @example not_found */
-                    code: string;
-                    message: string;
-                    details?: {
-                        [key: string]: unknown;
-                    };
-                };
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
     };
@@ -100,6 +115,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description The organization to create. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OrgInput"];
@@ -123,6 +139,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Organization id. */
                 id: string;
             };
             cookie?: never;
@@ -148,10 +165,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description The newly created identity. */
         requestBody: {
             content: {
                 "application/json": {
+                    /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
                     identity_id?: string;
+                    /** @example ada@example.com */
                     email?: string;
                 };
             };

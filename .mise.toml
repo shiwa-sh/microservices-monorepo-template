@@ -85,6 +85,14 @@ run = "bash scripts/gen-sqlc.sh"
 [tasks."gen:tyk"]
 run = "go run ./tools/codegen/tyk-gen"
 
+[tasks."gen:clean"]
+# Wipe generated SDKs/gateway CRs and regenerate, pruning orphans. (sqlc untouched.)
+run = """
+rm -rf libs/go/sdks/* libs/ts/sdks/*
+find infra/gateway/apis -name '*.yaml' -delete
+mise run gen:all
+"""
+
 [tasks.lint]
 depends = ["lint:go", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md"]
 

@@ -75,7 +75,7 @@ func decodeCreateItemResponse(resp *http.Response) (res *Item, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -192,7 +192,7 @@ func decodeListItemsResponse(resp *http.Response) (res []Item, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err

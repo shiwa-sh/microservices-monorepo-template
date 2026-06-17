@@ -116,8 +116,7 @@ func (c *Client) sendCreateProduct(ctx context.Context, request *ProductInput) (
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, CreateProductOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, CreateProductOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -194,8 +193,7 @@ func (c *Client) sendGetProduct(ctx context.Context, params GetProductParams) (r
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, GetProductOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetProductOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -287,8 +285,7 @@ func (c *Client) sendListProducts(ctx context.Context) (res []Product, err error
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, ListProductsOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, ListProductsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)

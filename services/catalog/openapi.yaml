@@ -9,7 +9,7 @@ paths:
       description: List all products.
       tags: [products]
       responses:
-        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Product" } } } } }
+        "200": { description: The product list, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Product" } } } } }
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createProduct
@@ -17,6 +17,7 @@ paths:
       tags: [products]
       requestBody:
         required: true
+        description: The product to create.
         content: { application/json: { schema: { $ref: "#/components/schemas/ProductInput" } } }
       responses:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
@@ -26,9 +27,9 @@ paths:
       operationId: getProduct
       description: Fetch a product by id.
       tags: [products]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Product id., schema: { type: string, format: uuid } }]
       responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        "200": { description: The requested product, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -36,24 +37,28 @@ components:
       description: Error response
       content:
         application/problem+json:
-          schema:
-            type: object
-            required: [code, message]
-            properties:
-              code:    { type: string, example: "not_found" }
-              message: { type: string }
-              details: { type: object, additionalProperties: true }
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [code, message]
+      properties:
+        code:    { type: string, example: "not_found" }
+        message: { type: string, example: "product not found" }
+        details: { type: object, additionalProperties: true, example: { field: "name" } }
     Product:
       type: object
+      description: A catalog product.
       required: [id, name, price_cents]
       properties:
-        id:          { type: string, format: uuid }
-        name:        { type: string }
-        price_cents: { type: integer, minimum: 0 }
+        id:          { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
+        name:        { type: string, example: "Aeron Chair" }
+        price_cents: { type: integer, minimum: 0, example: 149900 }
     ProductInput:
       type: object
+      description: Request body to create a product.
       required: [name, price_cents]
       properties:
-        name:        { type: string, minLength: 1 }
-        price_cents: { type: integer, minimum: 0 }
+        name:        { type: string, minLength: 1, example: "Aeron Chair" }
+        price_cents: { type: integer, minimum: 0, example: 149900 }

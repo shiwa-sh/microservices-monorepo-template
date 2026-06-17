@@ -51,8 +51,7 @@ func (s *Server) handleCreateChargeRequest(args [0]string, argsEscaped bool, w h
 	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(
-		r.Context(), CreateChargeOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateChargeOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -221,8 +220,7 @@ func (s *Server) handleGetChargeRequest(args [1]string, argsEscaped bool, w http
 	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(
-		r.Context(), GetChargeOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetChargeOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)

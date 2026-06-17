@@ -65,7 +65,7 @@ func decodeCreateOrgResponse(resp *http.Response) (res *Org, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -148,7 +148,7 @@ func decodeGetOrgResponse(resp *http.Response) (res *Org, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -199,7 +199,7 @@ func decodeOnIdentityCreatedResponse(resp *http.Response) (res *OnIdentityCreate
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err

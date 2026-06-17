@@ -112,8 +112,7 @@ func (c *Client) sendCreateCharge(ctx context.Context, request *ChargeInput, par
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, CreateChargeOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, CreateChargeOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -204,8 +203,7 @@ func (c *Client) sendGetCharge(ctx context.Context, params GetChargeParams) (res
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(
-		ctx, GetChargeOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetChargeOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)

@@ -11,9 +11,10 @@ paths:
         Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
         Returns a workflow handle (ADR-0006).
       parameters:
-        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, description: Client-generated key that makes the charge request idempotent., schema: { type: string } }
       requestBody:
         required: true
+        description: The charge to create.
         content:
           application/json:
             schema: { $ref: "#/components/schemas/ChargeInput" }
@@ -29,7 +30,7 @@ paths:
       operationId: getCharge
       description: Fetch a charge by id.
       tags: [charges]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters: [{ name: id, in: path, required: true, description: Charge id., schema: { type: string } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Charge" } } } }
         default: { $ref: "#/components/responses/Error" }
@@ -39,33 +40,38 @@ components:
       description: Error response
       content:
         application/problem+json:
-          schema:
-            type: object
-            required: [code, message]
-            properties:
-              code:    { type: string, example: "not_found" }
-              message: { type: string }
-              details: { type: object, additionalProperties: true }
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [code, message]
+      properties:
+        code:    { type: string, example: "not_found" }
+        message: { type: string, example: "charge not found" }
+        details: { type: object, additionalProperties: true, example: { field: "order_id" } }
     WorkflowHandle:
       type: object
+      description: Handle to an async Temporal workflow run.
       required: [id, run_id, status]
       properties:
-        id:     { type: string }
-        run_id: { type: string }
-        status: { type: string, enum: [running, completed, failed, cancelled] }
-        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
+        id:     { type: string, example: "charge-7f3a" }
+        run_id: { type: string, example: "9b1c2d3e-4f56-7890-abcd-ef0123456789" }
+        status: { type: string, enum: [running, completed, failed, cancelled], example: running }
+        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result", example: "/api/payment/charges/charge-7f3a" }
     ChargeInput:
       type: object
+      description: Request body to create a charge.
       required: [order_id, amount_cents]
       properties:
-        order_id:     { type: string, format: uuid }
-        amount_cents: { type: integer, minimum: 1 }
+        order_id:     { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
+        amount_cents: { type: integer, minimum: 1, example: 1999 }
     Charge:
       type: object
+      description: A payment charge against an order.
       required: [id, order_id, amount_cents, status]
       properties:
-        id:           { type: string, format: uuid }
-        order_id:     { type: string, format: uuid }
-        amount_cents: { type: integer }
-        status:       { type: string, enum: [pending, settled, failed, refunded] }
+        id:           { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
+        order_id:     { type: string, format: uuid, example: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
+        amount_cents: { type: integer, example: 1999 }
+        status:       { type: string, enum: [pending, settled, failed, refunded], example: settled }

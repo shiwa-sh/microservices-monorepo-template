@@ -75,7 +75,7 @@ func decodeCreateProductResponse(resp *http.Response) (res *Product, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -167,7 +167,7 @@ func decodeGetProductResponse(resp *http.Response) (res *Product, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -284,7 +284,7 @@ func decodeListProductsResponse(resp *http.Response) (res []Product, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err

@@ -74,7 +74,7 @@ func decodeCheckoutResponse(resp *http.Response) (res *WorkflowHandle, _ error) 
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -166,7 +166,7 @@ func decodeGetOrderResponse(resp *http.Response) (res *Order, _ error) {
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Error
+			var response Problem
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err

@@ -16,6 +16,7 @@ import (
 
 // CreateChargeParams is parameters of createCharge operation.
 type CreateChargeParams struct {
+	// Client-generated key that makes the charge request idempotent.
 	IdempotencyKey string
 }
 
@@ -71,6 +72,7 @@ func decodeCreateChargeParams(args [0]string, argsEscaped bool, r *http.Request)
 
 // GetChargeParams is parameters of getCharge operation.
 type GetChargeParams struct {
+	// Charge id.
 	ID string
 }
 
