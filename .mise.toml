@@ -61,11 +61,6 @@ run = "bash scripts/dev-down.sh"
 depends = ["dev:up"]
 run = "skaffold dev"
 
-[tasks."dev:debug"]
-# Same as dev, with Delve attached for IDE remote-debugging.
-depends = ["dev:up"]
-run = "skaffold debug"
-
 [tasks."dev:migrate"]
 # Apply each service's migrations to the local Postgres (ADR-0007).
 run = "bash scripts/dev-migrate.sh"

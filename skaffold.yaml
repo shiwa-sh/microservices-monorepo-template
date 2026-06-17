@@ -2,7 +2,7 @@
 # into the local k3d cluster, and live-rebuild on change.
 #   mise run dev:up      # create the k3d cluster (once)
 #   skaffold dev         # build + deploy + watch   (or: mise run dev)
-#   skaffold debug       # same, with Delve attached (or: mise run dev:debug)
+#   skaffold debug       # same, with Delve attached (for cluster-only debugging)
 #
 # Same service chart as prod (infra/helm/service); only laptop knobs differ
 # (infra/helm/values/local-service.yaml). Adding a service = copy an artifact +

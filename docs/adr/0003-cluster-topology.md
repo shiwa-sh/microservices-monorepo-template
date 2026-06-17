@@ -168,7 +168,7 @@ against lightweight dependency stand-ins.
 |--------------|-----------------------------------------|------------------------------------------------------------------------------------------------------|
 | Cluster+deps | `mise run dev:up`                       | k3d cluster + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
 | Inner loop   | `mise run dev` (`skaffold dev`)         | builds each service image, deploys it via `infra/helm/service`, watches sources and live-rebuilds    |
-| Debug        | `mise run dev:debug` (`skaffold debug`) | same, with Delve attached for IDE remote debugging                                                   |
+| Debug        | `skaffold debug`                        | Delve attached, for cluster-only bugs; prefer native local debug of one service                     |
 | Migrations   | `mise run dev:migrate`                  | applies each service's migrations to the local Postgres                                              |
 | Teardown     | `mise run dev:down`                     | deletes the cluster                                                                                  |
 
