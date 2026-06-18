@@ -7,8 +7,8 @@
 
 ## Context
 
-The monorepo hosts ~100 backend services, one frontend application, shared Go/TS libraries, generated API clients,
-infrastructure-as-code, and tooling. Every engineer on the team touches it. The naive "every PR runs every test in every
+At the target scale ([ADR-0000](0000-platform-foundations.md)), the monorepo hosts the full fleet of backend services, one
+frontend application, shared Go/TS libraries, generated API clients, infrastructure-as-code, and tooling. Every engineer on the team touches it. The naive "every PR runs every test in every
 package" approach does not survive past ~20 services.
 
 We need a single answer to:

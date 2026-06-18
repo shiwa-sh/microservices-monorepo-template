@@ -7,7 +7,7 @@
 
 ## Context
 
-Three environments — **dev**, **staging**, **prod** — each on a k3s cluster ([ADR-0003](0003-cluster-topology.md)). Deploys cover ~100 backend services, the frontend, and platform components (Postgres via CNPG, Temporal, Kratos/Hydra, SpiceDB, Tyk, the observability stack, ArgoCD itself).
+Three environments — **dev**, **staging**, **prod** — each on a k3s cluster ([ADR-0003](0003-cluster-topology.md)). Deploys cover the full service fleet (the target scale, [ADR-0000](0000-platform-foundations.md)), the frontend, and platform components (Postgres via CNPG, Temporal, Kratos/Hydra, SpiceDB, Tyk, the observability stack, ArgoCD itself).
 
 We need a single answer to:
 

@@ -31,7 +31,7 @@ This shapes every later trade-off:
 Every later ADR is checked against these. If a decision violates a principle, the principle wins or the principle is changed in this document — never silently waived.
 
 1. **Single primary language, single primary stack.** Polyglot is allowed only via explicitly sanctioned escape hatches with per-service justification.
-2. **Self-host by default.** Managed services are not assumed. Cost predictability and data control win over operational convenience at this team size.
+2. **Self-host by default.** Managed services are not assumed. Cost predictability and data control win over operational convenience at the target scale. *Soft exit:* this is the principle most sensitive to team size, not service count — the self-host cost-benefit holds while the team can absorb the operational surface of the platform components. If a project adopts this template with a materially smaller team, or operating the platform stack consistently crowds out feature work, reconsider per-component (managed K8s/Postgres/Temporal/auth/observability) in a new ADR. This is a judgement call, not a measured trigger; the default stays self-host.
 3. **Configuration as files in this repo.** GitOps-able, code-reviewed, testable in CI. No clicking in UIs to persist state.
 4. **Local–prod parity at the manifest and API layer.** Topology may differ; charts, code, and commands do not.
 5. **Generated code is committed.** Drift is caught in CI, not at runtime.
@@ -86,6 +86,7 @@ The platform team. One reviewer with platform-team approval is sufficient for an
 
 Used consistently across all ADRs. If a term is ambiguous in a later ADR, this glossary wins.
 
+- **Target scale** — the platform's load-bearing assumption, defined once here: **~100 services, a small team (3–8 engineers), self-hosted Kubernetes.** Later ADRs cite "the target scale" rather than restating these numbers; if the assumption ever changes, it changes in this one place. Domain-specific quantifications of it (e.g. "100+ sidecars on the hot path") stay in the ADR that makes the argument.
 - **Service** — a deployable unit under `services/<name>/` owning a slice of business state and an OpenAPI surface. May include HTTP server, Temporal worker, and migrations.
 - **Frontend app** — the single Next.js application under `apps/frontend/`. Route groups separate audiences; the deploy unit is one app.
 - **Platform component** — infrastructure software the services depend on (Postgres, Temporal server, gateway, IdP, observability stack). Lives under `infra/helm/platform/`.

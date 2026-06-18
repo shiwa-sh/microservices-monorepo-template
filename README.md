@@ -30,6 +30,68 @@ in the [ADRs](docs/adr) so a new project starts at "build features" rather than 
 | Internal admin       | Lowdefy (YAML pages)                              | [0012](docs/adr/0012-internal-admin.md)                                          |
 | Release / versioning | Conventional Commits + cocogitto, tag per product | [0013](docs/adr/0013-release-and-versioning.md)                                  |
 
+## Why these choices — and how to adapt them
+
+Every decision above is tuned for one **target scale** ([ADR-0000](docs/adr/0000-platform-foundations.md)):
+**~100 services, a small team (3–8 engineers), self-hosted Kubernetes.** That thesis is the
+load-bearing assumption — if you adopt this template under different conditions, some ADRs should
+move. The thesis bundles two *independent* levers that pull different decisions:
+
+- **Number of services (N)** sets **how much machinery you build.** Per-service cost, affected
+  detection, the single `go.mod`, ApplicationSet fan-out, the shared service chart, codegen, and
+  naming discipline all scale with N. More services → more automation and standardization; fewer →
+  strip it.
+- **Team size (T)** sets your **operational-surface budget and isolation needs.** Self-host vs
+  managed, how many distinct tools you can run, "one way to do things," module/repo isolation,
+  ArgoCD RBAC, and governance formality all scale with T. Smaller team → fewer moving parts,
+  managed-by-default, standardization by necessity; larger team → more components and specialists
+  affordable, but you need isolation and heavier governance.
+
+The single most useful number is the **ratio N/T (services per engineer).** This template targets
+~12–30 services/engineer, which is very high — that ratio, not the absolute 100, is what justifies
+the "platform as a product, automate and standardize everything" stance. (Service count tracks the
+number of independent *teams*, not features — Conway's law — so a small team running many services is
+deliberately compensating for an abnormally high N/T with tooling.)
+
+### If your conditions differ
+
+| You have…                     | Move toward…                                                                                                              |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| **Fewer services** (5–20)     | Drop `tools/affected/` (run everything), relax codegen/fan-out, reconsider Go vs a velocity-first language.               |
+| **Many more services** (300+) | Split the `go.mod`, adopt Bazel/Nx + remote build cache, shard ArgoCD, multiple DB clusters, revisit a mesh.              |
+| **A smaller team** (1–2)      | Trade money for time: managed K8s/Postgres/Temporal/auth/observability. Keep standardization *tighter*.                   |
+| **A bigger team** (20–50+)    | Loosen "one way" toward a golden path, add module/repo isolation, ArgoCD RBAC, RFC governance, maybe an event bus / mesh. |
+
+The 2×2 of these (small-vs-big team × few-vs-many services) gives four distinct cultures. The hardest
+and the one this template is built for is **small team + many services**: you must *simultaneously*
+maximize automation and minimize operational surface. The opposite corner, **big team + few
+services**, optimizes for depth and autonomy per service instead, and can afford polyglot and
+per-service infra.
+
+### On self-hosting
+
+Self-host is a **firm choice** for this template, not a default we expect everyone to flip — many
+platforms need infrastructure they fully own and control (data residency, internal-infra
+requirements, cost predictability at scale). It is, however, the decision most sensitive to **team
+size**: the per-service-cost math makes self-host *cheaper* as N grows, but operating ~15 stateful
+components is what a 3–8 person team can absorb and a 1–2 person team cannot. If you adopt this
+template with a very small team and no infra appetite, self-host is the first thing to reconsider —
+swapping to managed K8s/Postgres/Temporal/auth/observability reclaims the operational budget those
+people don't have. Everything else in the ADRs survives that swap.
+
+### Building it solo, with LLMs
+
+If a single person builds a platform like this with heavy LLM assistance, the binding constraint
+shifts. LLMs make *authoring* cheap — boilerplate, committed codegen, verbose Go, repetitive values
+files all stop mattering — so those costs the ADRs guard against largely dissolve. What LLMs do *not*
+cheapen is **operational surface** (a solo operator still carries the pager) and **coherent review at
+volume**. So solo + LLM pushes three ways: standardization and machine-checkable guardrails (the
+ADR **Rules** sections, strong typing, drift-checked codegen) become *more* valuable as the agent
+control plane; self-host should flip to managed; and you'd likely build a **modular monolith or a
+handful of services** rather than 100, since service count buys team autonomy a solo dev doesn't
+need. Pick tools by training-data density and verifiability — a criterion these ADRs already lean on
+(OpenAPI as source of truth, Lowdefy chosen partly as "LLM-friendly").
+
 ## Getting started
 
 ```sh

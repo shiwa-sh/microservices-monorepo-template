@@ -7,7 +7,7 @@
 
 ## Context
 
-Per [ADR-0000](0000-platform-foundations.md), we run ~100 services with a 3–8 person team on self-hosted Kubernetes. Workloads span CRUD APIs, payments (financial-grade correctness), blockchain integration, and occasional high-throughput paths. The frontend is Next.js.
+At the target scale ([ADR-0000](0000-platform-foundations.md)), workloads span CRUD APIs, payments (financial-grade correctness), blockchain integration, and occasional high-throughput paths. The frontend is Next.js.
 
 We pick:
 
