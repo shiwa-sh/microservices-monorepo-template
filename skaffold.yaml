@@ -149,10 +149,12 @@ kind: Config
 metadata:
   name: platform
 # No artifacts/releases: deps are owned by `mise run cluster:up`. This module
-# only port-forwards them so local tools (psql, Temporal UI) can reach them.
+# only port-forwards them so local tools (psql, Temporal UI) and host-run
+# services (Temporal gRPC on 7233) can reach them.
 # Included by a bare `skaffold dev`; add `-m platform` to a single-service run.
 deploy:
   kubeContext: k3d-platform-dev
 portForward:
+  - { resourceType: service, resourceName: temporal, namespace: platform, port: 7233, localPort: 7233 }
   - { resourceType: service, resourceName: temporal, namespace: platform, port: 8233, localPort: 8233 }
   - { resourceType: service, resourceName: postgres, namespace: platform, port: 5432, localPort: 5432 }

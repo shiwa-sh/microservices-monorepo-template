@@ -81,7 +81,10 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExp)),
 		sdklog.WithResource(res),
 	)
-	slog.SetDefault(slog.New(otelslog.NewHandler(cfg.ServiceName, otelslog.WithLoggerProvider(lp))))
+	slog.SetDefault(slog.New(fanout{
+		slog.NewJSONHandler(os.Stdout, nil),
+		otelslog.NewHandler(cfg.ServiceName, otelslog.WithLoggerProvider(lp)),
+	}))
 
 	go serveAdmin(cfg.AdminAddr)
 
@@ -92,6 +95,47 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return nil
 	}
 	return shutdown, nil
+}
+
+// fanout is a slog.Handler that dispatches every record to all wrapped handlers,
+// so logs reach both stdout (visible in local runs) and the OTLP pipeline.
+type fanout []slog.Handler
+
+func (f fanout) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range f {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (f fanout) Handle(ctx context.Context, r slog.Record) error {
+	var err error
+	for _, h := range f {
+		if h.Enabled(ctx, r.Level) {
+			if e := h.Handle(ctx, r.Clone()); e != nil {
+				err = e
+			}
+		}
+	}
+	return err
+}
+
+func (f fanout) WithAttrs(attrs []slog.Attr) slog.Handler {
+	next := make(fanout, len(f))
+	for i, h := range f {
+		next[i] = h.WithAttrs(attrs)
+	}
+	return next
+}
+
+func (f fanout) WithGroup(name string) slog.Handler {
+	next := make(fanout, len(f))
+	for i, h := range f {
+		next[i] = h.WithGroup(name)
+	}
+	return next
 }
 
 // StartSpan wraps otel.Tracer().Start so service code never imports otel directly.
