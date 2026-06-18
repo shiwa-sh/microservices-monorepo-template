@@ -17,6 +17,7 @@ migrations:
 
 otel:
   endpoint: ""            # no collector locally
+  deployEnv: "local"      # mirror logs to stdout so they show in the dev console
 
 # Endpoints point at the lightweight deps in infra/local/deps.yaml.
 env:

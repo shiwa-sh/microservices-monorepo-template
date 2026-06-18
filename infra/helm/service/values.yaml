@@ -41,6 +41,10 @@ migrations:
 otel:
   endpoint: "http://otel-collector.platform.svc.cluster.local:4317"
   sampling: "parentbased_traceidratio=0.1"
+  # Deployment environment. Anything other than "" / "dev" / "local" makes the
+  # shared library ship logs to OTLP only (no stdout), avoiding double-collection.
+  # Per-env GitOps values may override (e.g. "staging"); local flips it to "local".
+  deployEnv: "prod"
 
 # Ingress through Traefik (ADR-0003). API traffic is path-routed under /api/<name>/.
 ingress:

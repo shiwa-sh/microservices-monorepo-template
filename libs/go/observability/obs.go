@@ -81,10 +81,12 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExp)),
 		sdklog.WithResource(res),
 	)
-	slog.SetDefault(slog.New(fanout{
-		slog.NewJSONHandler(os.Stdout, nil),
-		otelslog.NewHandler(cfg.ServiceName, otelslog.WithLoggerProvider(lp)),
-	}))
+	handlers := fanout{otelslog.NewHandler(cfg.ServiceName, otelslog.WithLoggerProvider(lp))}
+	switch os.Getenv("DEPLOY_ENV") {
+	case "", "dev", "local":
+		handlers = append(fanout{slog.NewTextHandler(os.Stdout, nil)}, handlers...)
+	}
+	slog.SetDefault(slog.New(handlers))
 
 	go serveAdmin(cfg.AdminAddr)
 

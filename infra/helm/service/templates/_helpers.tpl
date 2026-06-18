@@ -37,6 +37,8 @@ app.kubernetes.io/name: {{ include "service.name" . }}
 {{- end -}}
 
 {{- define "service.otelEnv" -}}
+- name: DEPLOY_ENV
+  value: {{ .Values.otel.deployEnv | quote }}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: {{ .Values.otel.endpoint | quote }}
 - name: OTEL_TRACES_SAMPLER_ARG
