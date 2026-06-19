@@ -33,7 +33,7 @@ linters:
         - ruleguard
       settings:
         ruleguard:
-          rules: '${base-path}/gorules/rules.go'
+          rules: '${base-path}/tools/gorules/rules.go'
     depguard:
       rules:
         no-deep-imports:
