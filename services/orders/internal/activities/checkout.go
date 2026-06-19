@@ -33,7 +33,8 @@ func New(db *pgxpool.Pool) *Activities {
 }
 
 func env(k, def string) string {
-	if v := os.Getenv(k); v != "" {
+	v := os.Getenv(k)
+	if v != "" {
 		return v
 	}
 	return def
@@ -53,7 +54,8 @@ func (a *Activities) LookupProductActivity(ctx context.Context, productID string
 	var out struct {
 		PriceCents int32 `json:"price_cents"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&out)
+	if err != nil {
 		return 0, err
 	}
 	return out.PriceCents, nil
@@ -77,7 +79,8 @@ func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCe
 	var out struct {
 		ID string `json:"id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&out)
+	if err != nil {
 		return "", err
 	}
 	return out.ID, nil

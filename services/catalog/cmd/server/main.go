@@ -33,7 +33,8 @@ type Product struct {
 }
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	if err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -60,7 +61,8 @@ func run() error {
 	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(mux, serviceName), ReadHeaderTimeout: 5 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- fmt.Errorf("http server: %w", err)
 		}
 	}()
@@ -87,7 +89,8 @@ func listProducts(db *pgxpool.Pool) http.HandlerFunc {
 		out := []Product{}
 		for rows.Next() {
 			var p Product
-			if err := rows.Scan(&p.ID, &p.Name, &p.PriceCents); err != nil {
+			err = rows.Scan(&p.ID, &p.Name, &p.PriceCents)
+			if err != nil {
 				apierr.Internal(err.Error()).Write(w)
 				return
 			}
@@ -125,7 +128,8 @@ func createProduct(db *pgxpool.Pool) http.HandlerFunc {
 			Name       string `json:"name"`
 			PriceCents int32  `json:"price_cents"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		err := json.NewDecoder(r.Body).Decode(&in)
+		if err != nil {
 			apierr.BadRequest(err.Error()).Write(w)
 			return
 		}
@@ -134,7 +138,7 @@ func createProduct(db *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 		var p Product
-		err := db.QueryRow(r.Context(),
+		err = db.QueryRow(r.Context(),
 			`insert into products (name, price_cents) values ($1, $2) returning id, name, price_cents`,
 			in.Name, in.PriceCents).Scan(&p.ID, &p.Name, &p.PriceCents)
 		if err != nil {

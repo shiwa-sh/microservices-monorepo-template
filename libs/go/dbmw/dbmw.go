@@ -24,7 +24,8 @@ func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	if err != nil {
 		panic(err)
 	}
-	if err := pool.Ping(ctx); err != nil {
+	err = pool.Ping(ctx)
+	if err != nil {
 		panic(err)
 	}
 	return pool

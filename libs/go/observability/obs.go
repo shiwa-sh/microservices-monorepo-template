@@ -47,7 +47,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	// OTEL_SDK_DISABLED=true (OTel spec env) makes Init a no-op for exporters:
 	// no OTLP connections are opened, so a service can run locally without the
 	// Collector stack. Logs still go to stdout and pprof is still served.
-	if disabled, _ := strconv.ParseBool(os.Getenv("OTEL_SDK_DISABLED")); disabled {
+	disabled, _ := strconv.ParseBool(os.Getenv("OTEL_SDK_DISABLED"))
+	if disabled {
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
 		go serveAdmin(cfg.AdminAddr)
 		return func(context.Context) error { return nil }, nil
@@ -142,7 +143,8 @@ func (f fanout) Handle(ctx context.Context, r slog.Record) error {
 	var err error
 	for _, h := range f {
 		if h.Enabled(ctx, r.Level) {
-			if e := h.Handle(ctx, r.Clone()); e != nil {
+			e := h.Handle(ctx, r.Clone())
+			if e != nil {
 				err = e
 			}
 		}
@@ -190,7 +192,8 @@ func serveAdmin(addr string) {
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	srv := &http.Server{Addr: addr, Handler: mux}
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	err := srv.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
 		fmt.Fprintln(os.Stderr, "admin server:", err)
 	}
 }

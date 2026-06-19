@@ -14,7 +14,8 @@ import (
 
 // Address resolves the Temporal frontend host from $TEMPORAL_HOST_PORT.
 func Address() string {
-	if v := os.Getenv("TEMPORAL_HOST_PORT"); v != "" {
+	v := os.Getenv("TEMPORAL_HOST_PORT")
+	if v != "" {
 		return v
 	}
 	return "temporal-frontend.platform.svc.cluster.local:7233"
@@ -22,7 +23,8 @@ func Address() string {
 
 // Namespace resolves $TEMPORAL_NAMESPACE, defaulting to "default".
 func Namespace() string {
-	if v := os.Getenv("TEMPORAL_NAMESPACE"); v != "" {
+	v := os.Getenv("TEMPORAL_NAMESPACE")
+	if v != "" {
 		return v
 	}
 	return "default"

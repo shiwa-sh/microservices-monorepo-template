@@ -21,6 +21,12 @@ linters:
     - unconvert
     - unused
   settings:
+    gocritic:
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          rules: '${base-path}/gorules/rules.go'
     depguard:
       rules:
         no-deep-imports:

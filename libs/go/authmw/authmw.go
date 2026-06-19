@@ -61,16 +61,21 @@ func Verify() func(http.Handler) http.Handler {
 				return
 			}
 			c := &Claims{Subject: tok.Subject()}
-			if v, ok := tok.Get("user_id"); ok {
+			v, ok := tok.Get("user_id")
+			if ok {
 				c.UserID, _ = v.(string)
 			}
-			if v, ok := tok.Get("org_id"); ok {
+			v, ok = tok.Get("org_id")
+			if ok {
 				c.OrgID, _ = v.(string)
 			}
-			if v, ok := tok.Get("roles"); ok {
-				if arr, ok := v.([]any); ok {
+			v, ok = tok.Get("roles")
+			if ok {
+				arr, ok := v.([]any)
+				if ok {
 					for _, x := range arr {
-						if s, ok := x.(string); ok {
+						s, ok := x.(string)
+						if ok {
 							c.Roles = append(c.Roles, s)
 						}
 					}

@@ -29,11 +29,13 @@ func Charge(ctx workflow.Context, in ChargeInput) (ChargeResult, error) {
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	if err := workflow.ExecuteActivity(ctx, "SettleActivity", in).Get(ctx, nil); err != nil {
+	err := workflow.ExecuteActivity(ctx, "SettleActivity", in).Get(ctx, nil)
+	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "failed").Get(ctx, nil)
 		return ChargeResult{Status: "failed"}, err
 	}
-	if err := workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "settled").Get(ctx, nil); err != nil {
+	err = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "settled").Get(ctx, nil)
+	if err != nil {
 		return ChargeResult{Status: "settled"}, err
 	}
 	return ChargeResult{Status: "settled"}, nil

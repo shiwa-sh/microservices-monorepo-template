@@ -29,7 +29,8 @@ import (
 const serviceName = "payment"
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	if err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -86,14 +87,15 @@ func createCharge(db *pgxpool.Pool, tc client.Client) http.HandlerFunc {
 			OrderID     uuid.UUID `json:"order_id"`
 			AmountCents int32     `json:"amount_cents"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		err := json.NewDecoder(r.Body).Decode(&in)
+		if err != nil {
 			apierr.BadRequest(err.Error()).Write(w)
 			return
 		}
 
 		// Idempotency lookup before anything else.
 		var existing chargeRow
-		err := db.QueryRow(r.Context(),
+		err = db.QueryRow(r.Context(),
 			`select id, order_id, amount_cents, status from charges where idempotency_key = $1`, idemKey).
 			Scan(&existing.ID, &existing.OrderID, &existing.AmountCents, &existing.Status)
 		if err == nil {

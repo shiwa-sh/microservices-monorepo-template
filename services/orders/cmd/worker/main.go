@@ -19,7 +19,8 @@ import (
 const serviceName = "orders"
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	if err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -54,7 +55,8 @@ func run() error {
 
 	interrupt := make(chan interface{}, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()
-	if err := w.Run(interrupt); err != nil {
+	err = w.Run(interrupt)
+	if err != nil {
 		return fmt.Errorf("worker: %w", err)
 	}
 	return nil

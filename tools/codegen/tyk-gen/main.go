@@ -38,7 +38,8 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	if err := os.MkdirAll("infra/gateway/apis", 0o755); err != nil {
+	err = os.MkdirAll("infra/gateway/apis", 0o755)
+	if err != nil {
 		fatal(err)
 	}
 
@@ -46,7 +47,8 @@ func main() {
 		svc := filepath.Base(filepath.Dir(spec))
 		out := filepath.Join("infra/gateway/apis", svc+".yaml")
 		body := fmt.Sprintf(tmpl, svc, svc, svc, svc, svc)
-		if err := os.WriteFile(out, []byte(body), 0o644); err != nil {
+		err = os.WriteFile(out, []byte(body), 0o644)
+		if err != nil {
 			fatal(err)
 		}
 		fmt.Println("→", out)

@@ -38,19 +38,22 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	var price int32
-	if err := workflow.ExecuteActivity(ctx, "LookupProductActivity", in.ProductID).Get(ctx, &price); err != nil {
+	err := workflow.ExecuteActivity(ctx, "LookupProductActivity", in.ProductID).Get(ctx, &price)
+	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "failed").Get(ctx, nil)
 		return CheckoutResult{Status: "failed"}, err
 	}
 	total := price * in.Quantity
 
 	var chargeID string
-	if err := workflow.ExecuteActivity(ctx, "ChargeActivity", in.OrderID, total).Get(ctx, &chargeID); err != nil {
+	err = workflow.ExecuteActivity(ctx, "ChargeActivity", in.OrderID, total).Get(ctx, &chargeID)
+	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "failed").Get(ctx, nil)
 		return CheckoutResult{Status: "failed", TotalCents: total}, err
 	}
 
-	if err := workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "confirmed").Get(ctx, nil); err != nil {
+	err = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "confirmed").Get(ctx, nil)
+	if err != nil {
 		return CheckoutResult{Status: "confirmed", TotalCents: total, ChargeID: chargeID}, err
 	}
 	return CheckoutResult{Status: "confirmed", TotalCents: total, ChargeID: chargeID}, nil

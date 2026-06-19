@@ -37,7 +37,8 @@ type Order struct {
 }
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	if err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -69,7 +70,8 @@ func run() error {
 	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(mux, serviceName), ReadHeaderTimeout: 5 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- fmt.Errorf("http server: %w", err)
 		}
 	}()
@@ -91,12 +93,13 @@ func checkout(db *pgxpool.Pool, tc client.Client) http.HandlerFunc {
 			ProductID uuid.UUID `json:"product_id"`
 			Quantity  int32     `json:"quantity"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Quantity <= 0 {
+		err := json.NewDecoder(r.Body).Decode(&in)
+		if err != nil || in.Quantity <= 0 {
 			apierr.BadRequest("product_id and quantity required").Write(w)
 			return
 		}
 		var o Order
-		err := db.QueryRow(r.Context(),
+		err = db.QueryRow(r.Context(),
 			`insert into orders (product_id, quantity, total_cents, status)
 			 values ($1, $2, 0, 'pending')
 			 returning id, product_id, quantity, total_cents, status`,

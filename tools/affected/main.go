@@ -35,7 +35,8 @@ func main() {
 	m := classify(files, *all)
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(m); err != nil {
+	err = enc.Encode(m)
+	if err != nil {
 		fail("encode: %v", err)
 	}
 }
@@ -85,12 +86,14 @@ func classify(files []string, forceAll bool) Manifest {
 			return Manifest{Global: true, Reason: m.Reason, Services: []string{}, Apps: []string{}, Libs: []string{}}
 
 		case strings.HasPrefix(f, "services/"):
-			if p := segment(f, 1); p != "" {
+			p := segment(f, 1)
+			if p != "" {
 				svcSet[p] = struct{}{}
 			}
 
 		case strings.HasPrefix(f, "apps/"):
-			if p := segment(f, 1); p != "" {
+			p := segment(f, 1)
+			if p != "" {
 				appSet[p] = struct{}{}
 			}
 
@@ -98,12 +101,14 @@ func classify(files []string, forceAll bool) Manifest {
 			// A change under libs/{go,ts}/sdks/<service>/ affects consumers of that service's client.
 			// We mark the underlying service as affected; downstream consumers are handled by
 			// `go list -deps` in CI when this turns out to be insufficient.
-			if p := segment(f, 3); p != "" {
+			p := segment(f, 3)
+			if p != "" {
 				svcSet[p] = struct{}{}
 			}
 
 		case strings.HasPrefix(f, "libs/go/") || strings.HasPrefix(f, "libs/ts/"):
-			if p := segment(f, 2); p != "" {
+			p := segment(f, 2)
+			if p != "" {
 				libSet[p] = struct{}{}
 			}
 		}

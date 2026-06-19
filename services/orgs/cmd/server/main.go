@@ -33,7 +33,8 @@ type Org struct {
 }
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	if err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
 	}
@@ -60,7 +61,8 @@ func run() error {
 	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(mux, serviceName), ReadHeaderTimeout: 5 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- fmt.Errorf("http server: %w", err)
 		}
 	}()
@@ -81,13 +83,15 @@ func createOrg(db *pgxpool.Pool) http.HandlerFunc {
 		var in struct {
 			Name string `json:"name"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Name == "" {
+		err := json.NewDecoder(r.Body).Decode(&in)
+		if err != nil || in.Name == "" {
 			apierr.BadRequest("name required").Write(w)
 			return
 		}
 		var o Org
-		if err := db.QueryRow(r.Context(), `insert into orgs (name) values ($1) returning id, name`, in.Name).
-			Scan(&o.ID, &o.Name); err != nil {
+		err = db.QueryRow(r.Context(), `insert into orgs (name) values ($1) returning id, name`, in.Name).
+			Scan(&o.ID, &o.Name)
+		if err != nil {
 			apierr.Internal(err.Error()).Write(w)
 			return
 		}
@@ -122,7 +126,8 @@ func getOrg(db *pgxpool.Pool) http.HandlerFunc {
 func onIdentityCreated(db *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ IdentityID, Email string }
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.IdentityID == "" {
+		err := json.NewDecoder(r.Body).Decode(&in)
+		if err != nil || in.IdentityID == "" {
 			apierr.BadRequest("identity_id required").Write(w)
 			return
 		}
@@ -133,16 +138,19 @@ func onIdentityCreated(db *pgxpool.Pool) http.HandlerFunc {
 		}
 		defer func() { _ = tx.Rollback(r.Context()) }()
 		var orgID uuid.UUID
-		if err := tx.QueryRow(r.Context(), `insert into orgs (name) values ($1) returning id`, in.Email).Scan(&orgID); err != nil {
+		err = tx.QueryRow(r.Context(), `insert into orgs (name) values ($1) returning id`, in.Email).Scan(&orgID)
+		if err != nil {
 			apierr.Internal(err.Error()).Write(w)
 			return
 		}
-		if _, err := tx.Exec(r.Context(),
-			`insert into org_members (org_id, user_id, role) values ($1, $2, 'admin')`, orgID, in.IdentityID); err != nil {
+		_, err = tx.Exec(r.Context(),
+			`insert into org_members (org_id, user_id, role) values ($1, $2, 'admin')`, orgID, in.IdentityID)
+		if err != nil {
 			apierr.Internal(err.Error()).Write(w)
 			return
 		}
-		if err := tx.Commit(r.Context()); err != nil {
+		err = tx.Commit(r.Context())
+		if err != nil {
 			apierr.Internal(err.Error()).Write(w)
 			return
 		}
