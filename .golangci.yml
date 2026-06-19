@@ -21,6 +21,13 @@ linters:
     - unconvert
     - unused
   settings:
+    errorlint:
+      # Error == / != comparisons (and switch-on-error) are owned by the custom
+      # ruleguard `errCompare` rule in gorules/rules.go, which has no blind spot
+      # for `err := method(); if err != Sentinel` (errorlint silently misses that
+      # single-value short-decl-from-method form). Disabling comparison here keeps
+      # the two from double-reporting; errorlint still owns asserts and %w/errorf.
+      comparison: false
     gocritic:
       enabled-checks:
         - ruleguard

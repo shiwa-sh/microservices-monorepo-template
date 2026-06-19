@@ -5,6 +5,7 @@ package observability
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -193,7 +194,7 @@ func serveAdmin(addr string) {
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	srv := &http.Server{Addr: addr, Handler: mux}
 	err := srv.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintln(os.Stderr, "admin server:", err)
 	}
 }
