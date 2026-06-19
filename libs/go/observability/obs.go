@@ -195,6 +195,7 @@ func serveAdmin(addr string) {
 	srv := &http.Server{Addr: addr, Handler: mux}
 	err := srv.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		fmt.Fprintln(os.Stderr, "admin server:", err)
+		// Runs in a goroutine, so the error can't be returned
+		slog.Error("admin server failed", "error", err)
 	}
 }

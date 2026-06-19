@@ -1,4 +1,4 @@
-// Activities for the Checkout saga (ADR-0006).
+// Package activities for the Checkout saga (ADR-0006).
 // All cross-service calls go through HTTP via the generated client surface
 // (here: raw http.Client — replace with the ogen client in libs/go/sdks/<service>
 // when `mise run gen:all` produces the typed clients).
@@ -47,7 +47,7 @@ func (a *Activities) LookupProductActivity(ctx context.Context, productID string
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		return 0, fmt.Errorf("catalog status %d", resp.StatusCode)
 	}
@@ -72,7 +72,7 @@ func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCe
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 202 {
 		return "", fmt.Errorf("payment status %d", resp.StatusCode)
 	}

@@ -21,6 +21,14 @@ linters:
     - unconvert
     - unused
   settings:
+    errcheck:
+      # Drop errcheck's built-in ignore list (fmt.Print*/Fprint* family,
+      # bytes.Buffer.Write, hash.Write, ...) so unchecked errors are flagged the
+      # same way the IDE's "unhandled error" inspection does. The std-error-handling
+      # exclusion preset is also removed below, since its EXC0001 regex re-suppresses
+      # the same print family plus *.Close/*.Flush. Genuinely ignorable errors must
+      # be discarded explicitly with `_ =` (check-blank stays off, the escape hatch).
+      disable-default-exclusions: true
     errorlint:
       # Error == / != comparisons (and switch-on-error) are owned by the custom
       # ruleguard `errCompare` rule in gorules/rules.go, which has no blind spot
@@ -64,7 +72,6 @@ linters:
       - comments
       - common-false-positives
       - legacy
-      - std-error-handling
     rules:
       - linters:
           - errcheck

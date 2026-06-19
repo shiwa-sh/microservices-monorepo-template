@@ -51,15 +51,15 @@ func main() {
 		if err != nil {
 			fatal(err)
 		}
-		fmt.Println("→", out)
+		_, _ = fmt.Println("→", out)
 	}
 
 	if len(matches) == 0 {
-		fmt.Println("(no services with openapi.yaml yet)")
+		_, _ = fmt.Println("(no services with openapi.yaml yet)")
 	}
 }
 
 func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "tyk-gen:", strings.TrimSpace(err.Error()))
+	_, _ = fmt.Fprintln(os.Stderr, "tyk-gen:", strings.TrimSpace(err.Error()))
 	os.Exit(1)
 }
