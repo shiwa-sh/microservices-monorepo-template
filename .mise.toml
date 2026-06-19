@@ -50,7 +50,7 @@ depends = ["upgrade:tools", "upgrade:js", "upgrade:go"]
 run = "bash scripts/upgrade-tools.sh"
 
 [tasks."upgrade:js"]
-run = "bun update --latest"
+run = "bun update --latest --recursive"
 
 [tasks."upgrade:go"]
 # GOFLAGS override: go get must write go.mod (env pins -mod=readonly).

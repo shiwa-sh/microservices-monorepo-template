@@ -1,4 +1,11 @@
-[tasks.run]   run = "bun run dev"
-[tasks.build] run = "bun run build"
-[tasks.lint]  run = "biome ci ."
-[tasks.test]  run = "bun run test"
+[tasks.run]
+run = "bun run dev"
+
+[tasks.build]
+run = "bun run build"
+
+[tasks.lint]
+run = "biome ci ."
+
+[tasks.test]
+run = "bun run test"
