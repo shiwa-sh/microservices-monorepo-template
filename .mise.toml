@@ -1,40 +1,40 @@
 [tools]
 # Languages & runtimes
-go = "1.26.3"
+go = "1.26.4"
 bun = "1.3.14"
 
 # Database tooling
-dbmate = "v2.33.0"
-sqlc = "v1.31.1"
+dbmate = "2.33.0"
+sqlc = "1.31.1"
 "github:quarylabs/sqruff" = "0.38.0"
 
 # API contracts & codegen
-"go:github.com/ogen-go/ogen/cmd/ogen" = "v1.20.3"
-vacuum = "0.28.4"
+"go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
+vacuum = "0.29.2"
 
 # Frontend toolchain
-biome = "2.4.16"
+biome = "2.5.0"
 
 # Kubernetes & infra
-helm = "4.2.0"
-kubectl = "1.36.1"
-cilium-cli = "0.18.4"
+helm = "4.2.2"
+kubectl = "1.36.2"
+cilium-cli = "0.19.4"
 kustomize = "5.8.1"
-terraform = "1.15.3"
-k3d = "v5.8.3"
-skaffold = "2.21.0"
-ansible = "13.6.0"
+terraform = "1.15.6"
+k3d = "5.9.0"
+skaffold = "2.22.0"
+ansible = "14.0.0"
 
 # Secrets
-age = "v1.3.1"
-sops = "v3.13.1"
+age = "1.3.1"
+sops = "3.13.1"
 
 # Repo hygiene
-lefthook = "2.1.8"
+lefthook = "2.1.9"
 cocogitto = "7.0.0"
 act = "0.2.89"
-golangci-lint = "v2.12.2"
-rumdl = "0.2.6"
+golangci-lint = "2.12.2"
+rumdl = "0.2.18"
 
 [env]
 GOFLAGS = "-mod=readonly"
@@ -54,8 +54,9 @@ run = "bun update --latest"
 
 [tasks."upgrade:go"]
 # GOFLAGS override: go get must write go.mod (env pins -mod=readonly).
+# Scope to Go roots so go get skips node_modules (bun symlinks → "ignoring symlink" noise).
 run = """
-GOFLAGS= go get -u ./...
+GOFLAGS= go get -u ./libs/... ./services/... ./tools/...
 GOFLAGS= go mod tidy
 """
 

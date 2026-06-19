@@ -58,7 +58,9 @@ if $DRY_RUN; then
   exit 0
 fi
 
-if ! $YES; then
+# `mise run upgrade` runs tasks in parallel, so this script has no TTY on stdin.
+# Only prompt when interactive; otherwise the explicit task invocation is consent.
+if ! $YES && [[ -t 0 ]]; then
   read -rp "Upgrade all outdated tools and update .mise.toml? [y/N] " confirm
   [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
 fi
