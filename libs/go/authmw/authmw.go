@@ -1,97 +1,110 @@
-// Package authmw verifies JWTs forwarded by the gateway (ADR-0009, ADR-0010).
-// The gateway has already validated the token; the service re-checks the
-// signature against Hydra's JWKS as a defense-in-depth measure.
+// Package authmw reads the trusted identity headers injected by the edge
+// (Oathkeeper — ADR-0009, ADR-0010): X-User-Id, X-Org-Id, X-Roles. Token
+// validation happens once at the edge; services never parse a JWT. authmw turns
+// those headers into a typed Principal on the request context. Service-to-service
+// calls forward the same headers, so handlers read identity one way regardless
+// of origin. Authorisation is a separate concern (libs/go/authz Checker).
 package authmw
 
 import (
 	"context"
 	"net/http"
-	"os"
+	"strings"
+)
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+// Canonical identity header names. The edge is the only authority that sets
+// them; any client-supplied copies are stripped before the request arrives.
+const (
+	HeaderUserID = "X-User-Id"
+	HeaderOrgID  = "X-Org-Id"
+	HeaderRoles  = "X-Roles"
 )
 
 type ctxKey int
 
-const claimsKey ctxKey = 1
+const principalKey ctxKey = 1
 
-// Claims is the subset of JWT claims services consume.
-type Claims struct {
-	UserID  string
-	OrgID   string
-	Roles   []string
-	Subject string
+// Principal is the identity of the caller, as forwarded by the edge.
+type Principal struct {
+	UserID string
+	OrgID  string
+	Roles  []string
 }
 
-// FromContext returns the claims attached by Verify, or nil if absent.
-func FromContext(ctx context.Context) (*Claims, bool) {
-	c, ok := ctx.Value(claimsKey).(*Claims)
-	return c, ok
-}
+// Authenticated reports whether the edge resolved a real user (vs. anonymous).
+func (p *Principal) Authenticated() bool { return p != nil && p.UserID != "" }
 
-// Verify returns middleware that requires a valid JWT on every request.
-// The JWKS URL is read from $HYDRA_JWKS_URL; absent it defaults to Hydra's
-// in-cluster public endpoint.
-func Verify() func(http.Handler) http.Handler {
-	jwksURL := os.Getenv("HYDRA_JWKS_URL")
-	if jwksURL == "" {
-		jwksURL = "http://hydra-public.platform.svc.cluster.local/.well-known/jwks.json"
+// HasRole reports whether the principal carries role.
+func (p *Principal) HasRole(role string) bool {
+	if p == nil {
+		return false
 	}
-	cache := jwk.NewCache(context.Background())
-	_ = cache.Register(jwksURL)
+	for _, r := range p.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
 
+// Subject renders the principal as a SpiceDB subject ("user:<id>") for the
+// authz Checker (ADR-0010).
+func (p *Principal) Subject() string {
+	if !p.Authenticated() {
+		return ""
+	}
+	return "user:" + p.UserID
+}
+
+// Read parses the trusted identity headers from h into a Principal. An absent
+// user id yields an unauthenticated (guest) principal — the edge admits guests
+// and each service decides per route whether a real principal is required.
+func Read(h http.Header) *Principal {
+	return &Principal{
+		UserID: h.Get(HeaderUserID),
+		OrgID:  h.Get(HeaderOrgID),
+		Roles:  ParseRoles(h.Get(HeaderRoles)),
+	}
+}
+
+// FromContext returns the principal attached by Middleware, or nil if absent.
+func FromContext(ctx context.Context) (*Principal, bool) {
+	p, ok := ctx.Value(principalKey).(*Principal)
+	return p, ok
+}
+
+// Middleware attaches the parsed principal to the request context. It never
+// rejects: validation already happened at the edge, and authorisation is the
+// handler's job via the authz Checker.
+func Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			raw := bearer(r)
-			if raw == "" {
-				apierr.Unauthorized().Write(w)
-				return
-			}
-			set, err := cache.Get(r.Context(), jwksURL)
-			if err != nil {
-				apierr.Internal("jwks fetch").Write(w)
-				return
-			}
-			tok, err := jwt.Parse([]byte(raw), jwt.WithKeySet(set), jwt.WithValidate(true))
-			if err != nil {
-				apierr.Unauthorized().Write(w)
-				return
-			}
-			c := &Claims{Subject: tok.Subject()}
-			v, ok := tok.Get("user_id")
-			if ok {
-				c.UserID, _ = v.(string)
-			}
-			v, ok = tok.Get("org_id")
-			if ok {
-				c.OrgID, _ = v.(string)
-			}
-			v, ok = tok.Get("roles")
-			if ok {
-				arr, ok := v.([]any)
-				if ok {
-					for _, x := range arr {
-						s, ok := x.(string)
-						if ok {
-							c.Roles = append(c.Roles, s)
-						}
-					}
-				}
-			}
-			ctx := context.WithValue(r.Context(), claimsKey, c)
+			ctx := context.WithValue(r.Context(), principalKey, Read(r.Header))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-func bearer(r *http.Request) string {
-	h := r.Header.Get("Authorization")
-	const p = "Bearer "
-	if len(h) > len(p) && h[:len(p)] == p {
-		return h[len(p):]
+// ParseRoles splits the X-Roles header into roles. It tolerates both the
+// comma-separated form and Go's bracketed slice rendering ("[admin member]"),
+// so it survives however the edge mutator stringifies the roles claim.
+func ParseRoles(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	raw = strings.TrimPrefix(raw, "[")
+	raw = strings.TrimSuffix(raw, "]")
+	if raw == "" {
+		return nil
 	}
-	return ""
+	fields := strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ' ' })
+	roles := make([]string, 0, len(fields))
+	for _, f := range fields {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			roles = append(roles, f)
+		}
+	}
+	if len(roles) == 0 {
+		return nil
+	}
+	return roles
 }

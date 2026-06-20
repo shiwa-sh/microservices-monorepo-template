@@ -1,5 +1,10 @@
-# Cluster bootstrap playbook (ADR-0003). Run after `terraform apply`:
+# Cluster bootstrap playbook (ADR-0003). Day-one path: run against a committed
+# inventory of pre-provided hosts — no Terraform in the default bootstrap.
 #   ansible-playbook -i inventory/<env> bootstrap.yml
+#
+# A project that provisions its own infrastructure adds infra/terraform/modules/
+# <provider>/, applies it, and fills the inventory from its output. See
+# infra/terraform/README.md.
 #
 # Idempotent. Each role's tasks/main.yml documents what it owns.
 - name: Bootstrap a k3s cluster

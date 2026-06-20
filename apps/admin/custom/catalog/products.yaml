@@ -1,0 +1,24 @@
+# Hand-written admin page (ADR-0012). Day one, admin pages live under custom/;
+# the OpenAPI-driven generator (tools/admin-gen + _generated/) is added only
+# when the page count justifies it.
+id: products
+type: PageHeaderMenu
+properties:
+  title: Products
+requests:
+  - id: list
+    type: AxiosHttp
+    connectionId: catalog
+    properties:
+      url: /products
+      method: GET
+blocks:
+  - id: table
+    type: AntdTable
+    properties:
+      columns:
+        - { key: id,          title: ID }
+        - { key: name,        title: Name }
+        - { key: price_cents, title: Price (cents) }
+      dataSource:
+        _request: list

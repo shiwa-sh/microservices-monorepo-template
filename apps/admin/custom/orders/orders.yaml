@@ -1,0 +1,17 @@
+# Hand-written admin page (ADR-0012). Day one, admin pages live under custom/;
+# the OpenAPI-driven generator (tools/admin-gen + _generated/) is added only
+# when the page count justifies it.
+id: orders
+type: PageHeaderMenu
+properties:
+  title: Orders
+blocks:
+  - id: lookup
+    type: Input
+    properties: { label: "Order ID" }
+  - id: detail
+    type: AxiosHttp
+    connectionId: orders
+    properties:
+      url: { _string_concat: ["/orders/", { _state: lookup }] }
+      method: GET

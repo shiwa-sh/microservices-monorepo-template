@@ -7,11 +7,14 @@ cilium:
   ipam:
     mode: kubernetes
 
-  # Hubble gives per-flow network visibility without a sidecar (ADR-0003).
+  # Hubble gives per-flow network visibility without a sidecar (ADR-0003). It is
+  # the audit surface for internal header-trust (ADR-0009). The UI is deployed
+  # and exposed auth-gated at /hubble/* via the gateway IngressRoute (infra/gateway).
   hubble:
     enabled: true
     relay:
       enabled: true
     ui:
-      # UI is off by default; enable per-env in gitops/platform/<env>/values.yaml.
-      enabled: false
+      enabled: true
+      # Served under /hubble; Traefik strips nothing, so set the UI base path.
+      baseUrl: /hubble

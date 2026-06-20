@@ -24,9 +24,9 @@ in the [ADRs](docs/adr) so a new project starts at "build features" rather than 
 | Workflows            | Self-hosted Temporal                                      | [0006](docs/adr/0006-temporal.md)                                                |
 | Database             | PostgreSQL via CNPG, sqlc, dbmate, sqruff                 | [0007](docs/adr/0007-data.md)                                                    |
 | API contract         | OpenAPI 3.1 (ogen + openapi-typescript)                   | [0008](docs/adr/0008-api-contracts.md)                                           |
-| API gateway          | Tyk Gateway OSS                                           | [0009](docs/adr/0009-api-gateway.md)                                             |
-| Auth                 | Ory Kratos + Hydra + SpiceDB                              | [0010](docs/adr/0010-auth.md)                                                    |
-| Observability        | OpenTelemetry → Grafana LGTM + Pyroscope                  | [0011](docs/adr/0011-observability.md)                                           |
+| Edge                 | Traefik + Ory Oathkeeper                                  | [0009](docs/adr/0009-api-gateway.md)                                             |
+| Auth                 | Ory Kratos + Oathkeeper + SpiceDB (Hydra per-flag)        | [0010](docs/adr/0010-auth.md)                                                    |
+| Observability        | OpenTelemetry → Grafana LGTM (monolithic)                 | [0011](docs/adr/0011-observability.md)                                           |
 | Internal admin       | Lowdefy (YAML pages)                                      | [0012](docs/adr/0012-internal-admin.md)                                          |
 | Release / versioning | Conventional Commits + cocogitto, tag per product         | [0013](docs/adr/0013-release-and-versioning.md)                                  |
 
@@ -123,7 +123,7 @@ libs/go/<name>/     — shared Go packages
 libs/ts/<name>/     — shared TS packages
 libs/{go,ts}/sdks/  — generated OpenAPI clients (committed, drift-checked)
 infra/              — terraform, helm, gitops, ansible, gateway, observability, auth
-tools/              — repo-local Go programs (affected detection, tyk-gen, …)
+tools/              — repo-local Go programs (affected detection, auth-conformance, …)
 docs/adr/           — architectural decisions
 ```
 

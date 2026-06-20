@@ -1,0 +1,79 @@
+# Ory Oathkeeper server config (ADR-0009). Canonical source — inlined into
+# infra/helm/platform/ory/values.yaml under `oathkeeper.oathkeeper.config`
+# (Helm cannot read files outside a chart, so keep the two in sync).
+#
+# Oathkeeper sits behind Traefik as a ForwardAuth target: Traefik calls the
+# decisions API (:4456/decisions), Oathkeeper validates the Kratos session
+# (browser) or Hydra JWT (machine), strips client-supplied identity headers,
+# and returns authoritative X-User-Id / X-Org-Id / X-Roles. It never calls the
+# authz engine — services do that (ADR-0010).
+serve:
+  proxy:
+    port: 4455
+  api:
+    port: 4456
+
+access_rules:
+  matching_strategy: glob
+  repositories:
+    # The oathkeeper Helm chart materialises `oathkeeper.accessRules` here.
+    - file:///etc/rules/access-rules.json
+
+authenticators:
+  # Browser traffic: validate the Kratos session cookie.
+  cookie_session:
+    enabled: true
+    config:
+      check_session_url: http://kratos-public.platform.svc.cluster.local/sessions/whoami
+      preserve_path: true
+      preserve_query: true
+      only:
+        - ory_kratos_session
+  # Machine / third-party traffic: validate Hydra-issued JWTs. Only reachable
+  # when hydra_thirdparty is on (Hydra is otherwise not deployed — ADR-0009).
+  jwt:
+    enabled: true
+    config:
+      jwks_urls:
+        - http://hydra-public.platform.svc.cluster.local/.well-known/jwks.json
+  anonymous:
+    enabled: true
+    config:
+      subject: guest
+
+# Authorization is a service concern (ADR-0010 Checker); the edge allows and
+# forwards identity. SpiceDB is never called here.
+authorizers:
+  allow:
+    enabled: true
+
+mutators:
+  # Strip any client-supplied identity headers and set authoritative ones.
+  header:
+    enabled: true
+    config:
+      headers:
+        X-User-Id: "{{ print .Subject }}"
+        X-Org-Id: "{{ print .Extra.identity.metadata_public.org_id }}"
+        X-Roles: "{{ print .Extra.identity.metadata_public.roles }}"
+  noop:
+    enabled: true
+
+errors:
+  fallback:
+    - json
+  handlers:
+    json:
+      enabled: true
+      config:
+        verbose: false
+    redirect:
+      enabled: true
+      config:
+        to: https://dev.example.com/auth/login
+        when:
+          - error: [unauthorized, forbidden]
+            request:
+              header:
+                accept:
+                  - text/html

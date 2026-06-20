@@ -1,7 +1,8 @@
 //go:build _template
 
-// Server entry point for the template service. Copy this file when scaffolding
-// a new service (see scripts/new-service.sh) and strip the build tag.
+// Server entry point for the template service. new-service.sh copies this file
+// when scaffolding a new service and strips the build tag. It registers the
+// ogen-generated server backed by the handlers package (ADR-0008).
 package main
 
 import (
@@ -19,47 +20,43 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
+	tmpl "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/_template"
+	"github.com/tabmadi/microservices-monorepo-template/services/_template/internal/handlers"
 )
 
 const serviceName = "_template"
 
 func main() {
+	err := run()
+	if err != nil {
+		slog.Error("fatal", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	shutdown, err := observability.Init(ctx, observability.Config{ServiceName: serviceName})
 	if err != nil {
-		slog.Error("obs init", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("obs init: %w", err)
 	}
-	defer shutdown(context.Background())
+	defer func() { _ = shutdown(context.Background()) }()
 
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	tc, err := temporalmw.NewClient(serviceName)
+	api, err := tmpl.NewServer(handlers.New(db))
 	if err != nil {
-		slog.Error("temporal", "err", err)
-		os.Exit(1)
-	}
-	defer tc.Close()
-
-	mux := http.NewServeMux()
-	// Wire generated server stubs here:
-	// _template.RegisterHandlers(mux, handlers.New(db, tc))
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) })
-
-	verify := authmw.Verify()
-	srv := &http.Server{
-		Addr:              ":8080",
-		Handler:           httpmw.Chain(verify(mux), serviceName),
-		ReadHeaderTimeout: 5 * time.Second,
+		return fmt.Errorf("ogen server: %w", err)
 	}
 
+	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(authmw.Middleware()(api), serviceName), ReadHeaderTimeout: 5 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- fmt.Errorf("http server: %w", err)
 		}
 	}()
@@ -67,12 +64,10 @@ func main() {
 
 	select {
 	case err := <-serveErr:
-		slog.Error("server failed", "err", err)
-		os.Exit(1)
+		return err
 	case <-ctx.Done():
 	}
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutdownCtx)
+	return srv.Shutdown(shutdownCtx)
 }

@@ -1,0 +1,46 @@
+[
+  {
+    "name": "admin user, full headers",
+    "headers": {
+      "X-User-Id": "u-1",
+      "X-Org-Id": "org-1",
+      "X-Roles": "admin,member"
+    },
+    "want": { "user_id": "u-1", "org_id": "org-1", "roles": ["admin", "member"] },
+    "subject": "user:u-1",
+    "require_role": "admin",
+    "want_allowed": true
+  },
+  {
+    "name": "member user lacks admin role",
+    "headers": {
+      "X-User-Id": "u-2",
+      "X-Org-Id": "org-1",
+      "X-Roles": "member"
+    },
+    "want": { "user_id": "u-2", "org_id": "org-1", "roles": ["member"] },
+    "subject": "user:u-2",
+    "require_role": "admin",
+    "want_allowed": false
+  },
+  {
+    "name": "roles rendered as a bracketed slice",
+    "headers": {
+      "X-User-Id": "u-3",
+      "X-Org-Id": "org-2",
+      "X-Roles": "[admin member]"
+    },
+    "want": { "user_id": "u-3", "org_id": "org-2", "roles": ["admin", "member"] },
+    "subject": "user:u-3",
+    "require_role": "member",
+    "want_allowed": true
+  },
+  {
+    "name": "anonymous guest, no identity headers",
+    "headers": {},
+    "want": { "user_id": "", "org_id": "", "roles": null },
+    "subject": "",
+    "require_role": "member",
+    "want_allowed": false
+  }
+]

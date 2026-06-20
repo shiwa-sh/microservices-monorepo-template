@@ -1,0 +1,76 @@
+# Monolithic Mimir (ADR-0011): a single grafana/mimir process running -target=all,
+# backed by the off-cluster bucket (ADR-0003). One Deployment, mirroring Loki
+# (SingleBinary) and Tempo. The distributed chart's 6+ components are not used.
+{{- $m := .Values.mimir }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mimir
+  labels: { app.kubernetes.io/name: mimir, app.kubernetes.io/part-of: observability }
+data:
+  mimir.yaml: |
+    multitenancy_enabled: false
+    server:
+      http_listen_port: {{ $m.httpPort }}
+    common:
+      storage:
+        backend: s3
+        s3:
+          endpoint: {{ $m.storage.endpoint }}
+          region: {{ $m.storage.region }}
+          access_key_id: ${AWS_ACCESS_KEY_ID}
+          secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+    blocks_storage:
+      s3: { bucket_name: {{ $m.storage.buckets.blocks }} }
+    ruler_storage:
+      s3: { bucket_name: {{ $m.storage.buckets.ruler }} }
+    alertmanager_storage:
+      s3: { bucket_name: {{ $m.storage.buckets.alertmanager }} }
+    ingester:
+      ring:
+        replication_factor: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mimir
+  labels: { app.kubernetes.io/name: mimir, app.kubernetes.io/part-of: observability }
+spec:
+  replicas: {{ $m.replicas }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: mimir }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: mimir }
+    spec:
+      containers:
+        - name: mimir
+          image: {{ $m.image }}
+          # -config.expand-env lets ${AWS_*} in mimir.yaml resolve from envFrom.
+          args: ["-target=all", "-config.file=/etc/mimir/mimir.yaml", "-config.expand-env=true"]
+          ports:
+            - { name: http, containerPort: {{ $m.httpPort }} }
+          envFrom:
+            - secretRef: { name: {{ $m.secretName }} }
+          readinessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 15 }
+          livenessProbe:  { httpGet: { path: /ready, port: http }, initialDelaySeconds: 30, periodSeconds: 30 }
+          resources: {{- toYaml $m.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/mimir }
+            - { name: data,   mountPath: /data }
+      volumes:
+        - name: config
+          configMap: { name: mimir }
+        # TSDB head + WAL; blocks are flushed to object storage (ADR-0003).
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mimir
+  labels: { app.kubernetes.io/name: mimir, app.kubernetes.io/part-of: observability }
+spec:
+  selector: { app.kubernetes.io/name: mimir }
+  ports:
+    - { name: http, port: {{ $m.httpPort }}, targetPort: http }

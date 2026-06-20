@@ -67,6 +67,14 @@ run = "bash scripts/cluster-up.sh"
 [tasks."cluster:down"]
 run = "bash scripts/cluster-down.sh"
 
+[tasks."cluster:full:up"]
+# Heavy local platform: Cilium CNI, edge (Traefik + Oathkeeper), Kratos, SpiceDB,
+# MinIO-backed Grafana LGTM, and the services. ~16GB RAM. See docs/dev-loop.md.
+run = "bash scripts/cluster-full.sh"
+
+[tasks."cluster:full:down"]
+run = "bash scripts/cluster-full-down.sh"
+
 [tasks.dev]
 # Trailing args forward to skaffold; -m scopes to one service (ADR-0003).
 depends = ["cluster:up"]
@@ -80,7 +88,9 @@ run = "bash scripts/db-migrate.sh"
 run = "bash scripts/gen-age.sh"
 
 [tasks.gen]
-depends = ["gen:openapi", "gen:sqlc", "gen:tyk"]
+# No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
+# OpenAPI spec; ogen + sqlc are the only generators (ADR-0008, ADR-0009).
+depends = ["gen:openapi", "gen:sqlc"]
 
 [tasks."gen:openapi"]
 run = "bash scripts/gen-openapi.sh"
@@ -88,14 +98,10 @@ run = "bash scripts/gen-openapi.sh"
 [tasks."gen:sqlc"]
 run = "bash scripts/gen-sqlc.sh"
 
-[tasks."gen:tyk"]
-run = "go run ./tools/codegen/tyk-gen"
-
 [tasks."gen:clean"]
-# Wipe generated SDKs/gateway CRs and regenerate, pruning orphans. (sqlc untouched.)
+# Wipe generated SDKs and regenerate, pruning orphans. (sqlc untouched.)
 run = """
 rm -rf libs/go/sdks/* libs/ts/sdks/*
-find infra/gateway/apis -name '*.yaml' -delete
 mise run gen
 """
 

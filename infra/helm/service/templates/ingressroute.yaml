@@ -1,7 +1,8 @@
 {{- if .Values.ingress.enabled }}
-# Traefik IngressRoute (ADR-0003). Traefik fronts the gateway; for internal
-# routes that bypass Tyk (rare — typically admin endpoints), route directly here.
-# Most API traffic goes /api/* → Tyk → service via this IngressRoute's host name.
+# Traefik IngressRoute (ADR-0003, ADR-0009). Traefik fronts the edge: /api/<svc>
+# traffic passes through the Oathkeeper ForwardAuth middleware, which validates
+# the Kratos session / Hydra JWT and injects the trusted identity headers the
+# service reads. Static browser-security headers are stamped on every response.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -12,6 +13,11 @@ spec:
   routes:
     - kind: Rule
       match: Host(`{{ required ".Values.ingress.host is required when ingress.enabled" .Values.ingress.host }}`) && PathPrefix(`{{ include "service.ingressPath" . }}`)
+      middlewares:
+        - name: oathkeeper-forward-auth
+          namespace: platform
+        - name: security-headers
+          namespace: platform
       services:
         - name: {{ include "service.fullname" . }}-server
           port: 80

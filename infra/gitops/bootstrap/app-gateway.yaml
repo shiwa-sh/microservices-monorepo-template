@@ -1,0 +1,23 @@
+# Gateway Application (ADR-0009). Applies the Traefik edge config (middlewares +
+# cross-cutting IngressRoutes) from infra/gateway. Picked up by the root
+# app-of-apps, which recurses infra/gitops/bootstrap.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway
+  namespace: argocd
+  annotations:
+    # CRDs (middlewares) before the per-service IngressRoutes that reference them.
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    targetRevision: master
+    path: infra/gateway
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]

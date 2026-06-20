@@ -1,7 +1,0 @@
-#cloud-config
-# Minimal cloud-init — Ansible handles the rest at bootstrap (ADR-0003).
-package_update: true
-package_upgrade: false
-packages: [curl, ca-certificates, fail2ban, unattended-upgrades]
-runcmd:
-  - systemctl enable --now unattended-upgrades

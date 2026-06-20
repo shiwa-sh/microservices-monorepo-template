@@ -1,0 +1,55 @@
+# Traefik middlewares (ADR-0009). These replace the deleted Tyk
+# SecurityPolicies (infra/gateway/policies/): the edge validates identity via
+# Oathkeeper ForwardAuth, throttles auth-sensitive routes, and stamps static
+# browser-security headers on every response.
+---
+# ForwardAuth → Oathkeeper decisions API. Oathkeeper validates the Kratos
+# session / Hydra JWT, strips client-supplied identity headers, and returns the
+# authoritative ones; authResponseHeaders is what Traefik copies onto the
+# upstream request, so a client cannot spoof them.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: oathkeeper-forward-auth
+  namespace: platform
+spec:
+  forwardAuth:
+    address: http://oathkeeper-api.platform.svc.cluster.local:4456/decisions
+    authResponseHeaders:
+      - X-User-Id
+      - X-Org-Id
+      - X-Roles
+      - X-User-Email
+---
+# Rate limit for auth-sensitive routes (login, signup, recovery). Per source IP.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-ratelimit
+  namespace: platform
+spec:
+  rateLimit:
+    average: 10
+    burst: 20
+    period: 1m
+    sourceCriterion:
+      ipStrategy:
+        depth: 1
+---
+# Static browser-security headers applied to all responses (ADR-0009, ADR-0014).
+# The per-request CSP nonce (script-src) is set by the frontend; here we set
+# only the directives that never vary per request.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: platform
+spec:
+  headers:
+    contentTypeNosniff: true
+    referrerPolicy: strict-origin-when-cross-origin
+    stsSeconds: 63072000
+    stsIncludeSubdomains: true
+    stsPreload: true
+    customResponseHeaders:
+      Content-Security-Policy: "frame-ancestors 'none'"

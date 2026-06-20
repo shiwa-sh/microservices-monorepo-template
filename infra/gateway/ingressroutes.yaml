@@ -1,0 +1,46 @@
+# Shared Traefik IngressRoutes (ADR-0009). Per-service /api/<svc> routes are
+# emitted by the service Helm chart (infra/helm/service/templates/ingressroute.yaml).
+# These are the cross-cutting routes that don't belong to a single service.
+---
+# Internal admin (Lowdefy, ADR-0012). Oathkeeper validates the Kratos session
+# and injects X-User-Email, which Lowdefy keys off.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: internal-admin
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: PathPrefix(`/internal/admin`)
+      middlewares:
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: lowdefy
+          port: 80
+  tls:
+    secretName: wildcard-tls
+---
+# Hubble UI (ADR-0003). Network-flow visibility, auth-gated to a logged-in
+# operator. The Cilium Hubble UI service lives in kube-system.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hubble
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: PathPrefix(`/hubble`)
+      middlewares:
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: hubble-ui
+          namespace: kube-system
+          port: 80
+  tls:
+    secretName: wildcard-tls

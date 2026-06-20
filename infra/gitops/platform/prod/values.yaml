@@ -5,3 +5,14 @@ postgres:
     backup:
       retentionPolicy: "30d"
       s3: { destinationPath: "s3://platform-prod-backups/postgres" }
+
+# Observability backends run 2 replicas in prod for availability (ADR-0011);
+# dev/staging keep the single-replica chart defaults.
+loki:
+  singleBinary: { replicas: 2 }
+tempo:
+  replicas: 2
+grafana:
+  replicas: 2
+mimir:
+  replicas: 2

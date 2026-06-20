@@ -1,0 +1,8 @@
+# Traefik edge config (ADR-0009): shared middlewares + cross-cutting routes.
+# Applied by the ArgoCD Application in infra/gitops/bootstrap/app-gateway.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: platform
+resources:
+  - middlewares.yaml
+  - ingressroutes.yaml

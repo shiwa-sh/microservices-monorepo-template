@@ -45,7 +45,100 @@ kratos:
           }
         }
 
+# Edge identity/access proxy (ADR-0009). Traefik ForwardAuth calls the decisions
+# API; Oathkeeper validates the Kratos session / Hydra JWT, strips client-supplied
+# identity headers, and injects X-User-Id / X-Org-Id / X-Roles.
+oathkeeper:
+  enabled: true
+  oathkeeper:
+    # Inlined from infra/auth/oathkeeper/oathkeeper.yaml (canonical source).
+    # Helm cannot read files outside a chart, so keep the two in sync.
+    config:
+      serve:
+        proxy: { port: 4455 }
+        api: { port: 4456 }
+      access_rules:
+        matching_strategy: glob
+        repositories:
+          - file:///etc/rules/access-rules.json
+      authenticators:
+        cookie_session:
+          enabled: true
+          config:
+            check_session_url: http://kratos-public.platform.svc.cluster.local/sessions/whoami
+            preserve_path: true
+            preserve_query: true
+            only: [ory_kratos_session]
+        jwt:
+          enabled: true
+          config:
+            jwks_urls:
+              - http://hydra-public.platform.svc.cluster.local/.well-known/jwks.json
+        anonymous:
+          enabled: true
+          config: { subject: guest }
+      authorizers:
+        allow: { enabled: true }
+      mutators:
+        header:
+          enabled: true
+          config:
+            headers:
+              X-User-Id: "{{ print .Subject }}"
+              X-Org-Id: "{{ print .Extra.identity.metadata_public.org_id }}"
+              X-Roles: "{{ print .Extra.identity.metadata_public.roles }}"
+        noop: { enabled: true }
+      errors:
+        fallback: [json]
+        handlers:
+          json: { enabled: true, config: { verbose: false } }
+          redirect:
+            enabled: true
+            config:
+              to: https://dev.example.com/auth/login
+              when:
+                - error: [unauthorized, forbidden]
+                  request: { header: { accept: ["text/html"] } }
+    # Inlined from infra/auth/oathkeeper/access-rules.yaml (canonical source).
+    accessRules:
+      - id: api-services
+        match:
+          url: "http://<**>/api/<{catalog,orders,orgs,payment}>/<**>"
+          methods: [GET, POST, PUT, PATCH, DELETE]
+        authenticators:
+          - handler: cookie_session
+          - handler: jwt
+          - handler: anonymous
+        authorizer: { handler: allow }
+        mutators: [{ handler: header }]
+        errors: [{ handler: json }]
+      - id: internal-admin
+        match:
+          url: "http://<**>/internal/admin/<**>"
+          methods: [GET, POST, PUT, PATCH, DELETE]
+        authenticators: [{ handler: cookie_session }]
+        authorizer: { handler: allow }
+        mutators:
+          - handler: header
+            config:
+              headers:
+                X-User-Id: "{{ print .Subject }}"
+                X-User-Email: "{{ print .Extra.identity.traits.email }}"
+        errors: [{ handler: redirect }]
+      - id: hubble-ui
+        match:
+          url: "http://<**>/hubble/<**>"
+          methods: [GET, POST]
+        authenticators: [{ handler: cookie_session }]
+        authorizer: { handler: allow }
+        mutators: [{ handler: noop }]
+        errors: [{ handler: redirect }]
+
+# Hydra is a public-API add-on (ADR-0009). Off by default — internal-only
+# projects run Kratos + Oathkeeper + SpiceDB. The `hydra_thirdparty` flag flips
+# `hydra.enabled` on in the per-env GitOps values.
 hydra:
+  enabled: false
   hydra:
     config:
       dsn: "postgres://hydra@postgres-rw.platform.svc.cluster.local:5432/hydra?sslmode=disable"

@@ -1,7 +1,7 @@
 // Browser observability init (ADR-0011, ADR-0014). OpenTelemetry-JS web SDK
 // for traces (joining the upstream trace via traceparent) plus Grafana Faro
 // for RUM, errors, and Web Vitals. Both ship to the cluster's OTel Collector
-// gateway via a Tyk-fronted ingest route at /api/observability/*.
+// via a Traefik-fronted ingest route at /api/observability/*.
 "use client";
 
 import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";

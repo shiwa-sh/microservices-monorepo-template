@@ -1,0 +1,69 @@
+# Oathkeeper access rules (ADR-0009). Canonical source — inlined into
+# infra/helm/platform/ory/values.yaml under `oathkeeper.oathkeeper.accessRules`.
+# Glob matching strategy (see oathkeeper.yaml). These rules replace the former
+# Tyk ApiDefinitions (infra/gateway/apis/) and SecurityPolicies
+# (infra/gateway/policies/): one rule per route group, validating identity and
+# injecting the trusted header shape every service reads.
+
+# CSRF Origin policy (ADR-0009). For cookie-authenticated state-changing
+# requests, the project's own domain is the only allowed Origin. Oathkeeper OSS
+# has no native Origin authorizer (rules match URL+method only), so the check is
+# enforced by the layers that can: the Kratos session cookie is SameSite=Lax
+# (a cross-site POST/fetch never carries it — infra/auth/kratos/kratos.yaml) and
+# Next.js Server Actions check the Origin against serverActions.allowedOrigins
+# (apps/frontend/next.config.mjs). Bearer-token (Hydra) traffic is not
+# browser-attached and is exempt. Adopt a remote_json Origin authorizer here
+# only if a project needs edge-level enforcement beyond those backstops.
+
+# Public + authenticated API surface. Every shop service is reached the same
+# way: validate session or JWT, inject identity headers, let the service
+# authorise. Anonymous is accepted at the edge (a service decides per route
+# whether a principal is required) so guest reads stay possible.
+- id: api-services
+  match:
+    url: "http://<**>/api/<{catalog,orders,orgs,payment}>/<**>"
+    methods: [GET, POST, PUT, PATCH, DELETE]
+  authenticators:
+    - handler: cookie_session
+    - handler: jwt
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+  errors:
+    - handler: json
+
+# Internal admin (Lowdefy, ADR-0012). Browser-only, Kratos session required;
+# identity forwarded as X-User-Email (the admin app keys off it).
+- id: internal-admin
+  match:
+    url: "http://<**>/internal/admin/<**>"
+    methods: [GET, POST, PUT, PATCH, DELETE]
+  authenticators:
+    - handler: cookie_session
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-User-Id: "{{ print .Subject }}"
+          X-User-Email: "{{ print .Extra.identity.traits.email }}"
+  errors:
+    - handler: redirect
+
+# Hubble UI (ADR-0003). Network-flow visibility, auth-gated to a logged-in
+# operator; no identity headers needed downstream.
+- id: hubble-ui
+  match:
+    url: "http://<**>/hubble/<**>"
+    methods: [GET, POST]
+  authenticators:
+    - handler: cookie_session
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  errors:
+    - handler: redirect

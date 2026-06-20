@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,28 +12,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"go.temporal.io/sdk/client"
-
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
+	orders "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orders"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
-	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/workflows"
+	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/handlers"
 )
 
 const serviceName = "orders"
-
-type Order struct {
-	ID         uuid.UUID `json:"id"`
-	ProductID  uuid.UUID `json:"product_id"`
-	Quantity   int32     `json:"quantity"`
-	TotalCents int32     `json:"total_cents"`
-	Status     string    `json:"status"`
-}
 
 func main() {
 	err := run()
@@ -63,11 +50,12 @@ func run() error {
 	}
 	defer tc.Close()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /orders", checkout(db, tc))
-	mux.HandleFunc("GET /orders/{id}", getOrder(db))
+	api, err := orders.NewServer(handlers.New(db, tc))
+	if err != nil {
+		return fmt.Errorf("ogen server: %w", err)
+	}
 
-	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(mux, serviceName), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(authmw.Middleware()(api), serviceName), ReadHeaderTimeout: 5 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() {
 		err := srv.ListenAndServe()
@@ -82,76 +70,7 @@ func run() error {
 		return err
 	case <-ctx.Done():
 	}
-	c, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return srv.Shutdown(c)
-}
-
-func checkout(db *pgxpool.Pool, tc client.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			ProductID uuid.UUID `json:"product_id"`
-			Quantity  int32     `json:"quantity"`
-		}
-		err := json.NewDecoder(r.Body).Decode(&in)
-		if err != nil || in.Quantity <= 0 {
-			apierr.BadRequest("product_id and quantity required").Write(w)
-			return
-		}
-		var o Order
-		err = db.QueryRow(r.Context(),
-			`insert into orders (product_id, quantity, total_cents, status)
-			 values ($1, $2, 0, 'pending')
-			 returning id, product_id, quantity, total_cents, status`,
-			in.ProductID, in.Quantity).
-			Scan(&o.ID, &o.ProductID, &o.Quantity, &o.TotalCents, &o.Status)
-		if err != nil {
-			apierr.Internal(err.Error()).Write(w)
-			return
-		}
-
-		_, err = tc.ExecuteWorkflow(r.Context(), client.StartWorkflowOptions{
-			ID:        "checkout-" + o.ID.String(),
-			TaskQueue: serviceName + "-queue",
-		}, workflows.Checkout, workflows.CheckoutInput{
-			OrderID:   o.ID.String(),
-			ProductID: o.ProductID.String(),
-			Quantity:  o.Quantity,
-		})
-		if err != nil {
-			apierr.Internal(err.Error()).Write(w)
-			return
-		}
-
-		w.WriteHeader(http.StatusAccepted)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"id":         "checkout-" + o.ID.String(),
-			"run_id":     o.ID.String(),
-			"status":     "running",
-			"result_url": "/api/orders/orders/" + o.ID.String(),
-		})
-	}
-}
-
-func getOrder(db *pgxpool.Pool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := uuid.Parse(r.PathValue("id"))
-		if err != nil {
-			apierr.BadRequest("invalid id").Write(w)
-			return
-		}
-		var o Order
-		err = db.QueryRow(r.Context(),
-			`select id, product_id, quantity, total_cents, status from orders where id = $1`, id).
-			Scan(&o.ID, &o.ProductID, &o.Quantity, &o.TotalCents, &o.Status)
-		if errors.Is(err, pgx.ErrNoRows) {
-			apierr.NotFound("order").Write(w)
-			return
-		}
-		if err != nil {
-			apierr.Internal(err.Error()).Write(w)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(o)
-	}
+	return srv.Shutdown(shutCtx)
 }

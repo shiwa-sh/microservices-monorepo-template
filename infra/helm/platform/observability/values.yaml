@@ -1,5 +1,16 @@
+# Observability backend (ADR-0011): Grafana LGTM in monolithic single-binary
+# mode + a single OTel Collector DaemonSet. Durability is the off-cluster bucket
+# (ADR-0003); access keys come from the SOPS-decrypted `observability-bucket`
+# Secret (ADR-0005). Sizing here is the dev/staging default (single replica);
+# prod bumps each backend to 2 replicas in gitops/platform/prod/values.yaml.
+
+# Off-cluster object storage. Endpoint + bucket names are wired per backend
+# below; override the endpoint per environment in the GitOps platform values.
 opentelemetry-collector:
-  mode: deployment
+  # One tier: a DaemonSet on every node. Services send OTLP to localhost:4317;
+  # the agent batches, enriches with k8s attributes, head-samples, and exports
+  # directly to Loki/Mimir/Tempo. There is no separate gateway deployment.
+  mode: daemonset
   fullnameOverride: otel-collector
   # contrib distro: required by the kubernetesAttributes preset (k8sattributes
   # processor). The chart ships no default image, so it must be set explicitly.
@@ -8,17 +19,29 @@ opentelemetry-collector:
   config:
     receivers:
       otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+      # Head sampling at the agent (ADR-0011). Error traces are kept at 100% by
+      # the services' parentbased SDK sampler (OTEL_TRACES_SAMPLER_ARG); this
+      # caps healthy-trace volume. Tail sampling needs the gateway tier and is a
+      # per-project flag — not deployed here.
+      probabilistic_sampler:
+        sampling_percentage: 5
     exporters:
       otlphttp/tempo:   { endpoint: http://tempo.platform.svc.cluster.local:4318 }
-      otlphttp/mimir:   { endpoint: http://mimir-distributed-nginx.platform.svc.cluster.local/otlp }
+      otlphttp/mimir:   { endpoint: http://mimir.platform.svc.cluster.local:8080/otlp }
       # Loki's native OTLP endpoint — the standalone `loki` exporter was removed
       # from the Collector (≤ v0.112), so push logs over OTLP instead.
       otlphttp/loki:    { endpoint: http://loki.platform.svc.cluster.local:3100/otlp }
     service:
       pipelines:
-        traces:  { receivers: [otlp], exporters: [otlphttp/tempo] }
-        metrics: { receivers: [otlp], exporters: [otlphttp/mimir] }
-        logs:    { receivers: [otlp], exporters: [otlphttp/loki] }
+        traces:  { receivers: [otlp], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
+        metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/mimir] }
+        logs:    { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
 
 grafana:
   fullnameOverride: grafana
@@ -27,17 +50,68 @@ grafana:
     datasources.yaml:
       apiVersion: 1
       datasources:
-        - { name: Mimir,     type: prometheus, url: http://mimir-distributed-nginx.platform.svc.cluster.local/prometheus }
-        - { name: Loki,      type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
-        - { name: Tempo,     type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
-        - { name: Pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
+        - { name: Mimir, type: prometheus, url: http://mimir.platform.svc.cluster.local:8080/prometheus }
+        - { name: Loki,  type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
+        - { name: Tempo, type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
   dashboardsConfigMaps:
     default: grafana-dashboards     # populated from infra/observability/dashboards/
 
-loki:                 { deploymentMode: SingleBinary, loki: { commonConfig: { replication_factor: 1 } } }
-tempo:                { tempo: { reportingEnabled: false } }
-mimir-distributed:    { mimir: { structuredConfig: { multitenancy_enabled: false } } }
-pyroscope:            { pyroscope: { replicas: 1 } }
+# Loki — single-binary monolithic (-target=all), bucket-backed (ADR-0011).
+loki:
+  deploymentMode: SingleBinary
+  loki:
+    commonConfig: { replication_factor: 1 }
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index: { prefix: loki_index_, period: 24h }
+    storage:
+      type: s3
+      bucketNames: { chunks: loki-chunks, ruler: loki-ruler, admin: loki-admin }
+      s3:
+        endpoint: s3.eu-central-1.amazonaws.com
+        region: eu-central-1
+        s3ForcePathStyle: true
+        # access_key_id / secret_access_key come from the observability-bucket Secret.
+  singleBinary: { replicas: 1 }
+  # Disable the microservices read/write/backend topology.
+  read: { replicas: 0 }
+  write: { replicas: 0 }
+  backend: { replicas: 0 }
+  chunksCache: { enabled: false }
+  resultsCache: { enabled: false }
 
-alloy:
-  alloy: {}           # config supplied via ConfigMap by templates/alloy-config.yaml
+# Tempo — single-binary monolithic chart, bucket-backed.
+tempo:
+  replicas: 1
+  tempo:
+    reportingEnabled: false
+    storage:
+      trace:
+        backend: s3
+        s3:
+          bucket: tempo-traces
+          endpoint: s3.eu-central-1.amazonaws.com
+          region: eu-central-1
+          # access_key / secret_key come from the observability-bucket Secret.
+
+# Mimir — monolithic single-binary (-target=all), one Deployment, bucket-backed.
+# Rendered by templates/mimir.yaml (ConfigMap + Deployment + Service), not a
+# subchart. dev/staging run 1 replica; prod overrides to 2.
+mimir:
+  image: grafana/mimir:2.14.0
+  replicas: 1
+  httpPort: 8080
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "1",    memory: "1Gi" }
+  # Off-cluster object storage (ADR-0003). Credentials come from the
+  # observability-bucket Secret via envFrom (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).
+  secretName: observability-bucket
+  storage:
+    endpoint: s3.eu-central-1.amazonaws.com
+    region: eu-central-1
+    buckets: { blocks: mimir-blocks, ruler: mimir-ruler, alertmanager: mimir-alertmanager }

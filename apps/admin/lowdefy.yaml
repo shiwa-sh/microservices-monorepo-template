@@ -1,6 +1,6 @@
-# Lowdefy admin (ADR-0012). Pure YAML. Pages under _generated/ are produced
-# from each service's OpenAPI spec at codegen time; pages under custom/ are
-# hand- or LLM-written.
+# Lowdefy admin (ADR-0012). Pure YAML. Day one, every page under custom/ is
+# hand- or LLM-written; the OpenAPI-driven generator (tools/admin-gen, emitting
+# _generated/) is added only when the page count justifies it.
 name: platform-admin
 lowdefy: 4.5.7
 
@@ -10,8 +10,8 @@ config:
   auth:
     pages:
       protected: true
-    # No Lowdefy session store — auth is enforced at the gateway (ADR-0012).
-    # Trust the X-User-Email header forwarded by Tyk.
+    # No Lowdefy session store — auth is enforced at the edge (ADR-0012).
+    # Trust the X-User-Email header forwarded by Oathkeeper (ADR-0009).
 
 connections:
   - id: catalog
@@ -29,6 +29,6 @@ connections:
 
 pages:
   - _ref: pages/dashboard.yaml
-  - _ref: _generated/catalog/products.yaml
-  - _ref: _generated/orders/orders.yaml
+  - _ref: custom/catalog/products.yaml
+  - _ref: custom/orders/orders.yaml
   - _ref: custom/refund-tool.yaml

@@ -5,7 +5,12 @@ serve:
   admin:   { base_url: "http://kratos-admin.platform.svc.cluster.local/" }
 
 session:
-  cookie:    { domain: "{{ env }}.example.com", same_site: Lax }
+  # Session cookie hardening (ADR-0009, ADR-0010): SameSite=Lax is explicit and
+  # backstops CSRF on cookie-authenticated state-changing requests. Kratos always
+  # sets the session cookie HttpOnly, and marks it Secure automatically because
+  # serve.public.base_url is https and dev mode is off — so the cookie is
+  # SameSite=Lax + Secure + HttpOnly in every deployed environment.
+  cookie:    { domain: "{{ env }}.example.com", path: "/", same_site: Lax }
   lifespan:  "168h"
   whoami:    { required_aal: "highest_available" }
 

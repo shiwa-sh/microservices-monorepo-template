@@ -1,4 +1,9 @@
 {{- if .Values.networkPolicy.enabled }}
+# Default-deny NetworkPolicy (ADR-0003, ADR-0010). Selecting the service's pods
+# with both policyTypes makes everything not explicitly allowed below denied.
+# Internal header-trust rests on this: only declared callers can reach a service
+# and spoof identity headers (ADR-0009). Each service declares its allowed
+# callers via .Values.networkPolicy.allowFrom.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -10,18 +15,31 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     {{- if .Values.networkPolicy.allowFromGateway }}
+    # Edge traffic: Traefik (k3s ships it in kube-system) → server port.
     - from:
-        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: tyk } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
       ports:
         - { port: {{ .Values.server.port }}, protocol: TCP }
     {{- end }}
-    # Allow scrape from the OTel collector namespace.
+    {{- with .Values.networkPolicy.allowFrom }}
+    # Service-to-service callers this service accepts (ADR-0006 internal calls
+    # bypass the edge and forward identity headers; reachability is gated here).
+    - from:
+        {{- range . }}
+        - podSelector: { matchLabels: { app.kubernetes.io/name: {{ . }} } }
+          namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
+        {{- end }}
+      ports:
+        - { port: {{ $.Values.server.port }}, protocol: TCP }
+    {{- end }}
+    # Metrics scrape from the OTel collector (platform namespace) → admin port.
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
       ports:
         - { port: {{ .Values.server.adminPort }}, protocol: TCP }
   egress:
-    # Platform deps: Postgres, Temporal, OTel, SpiceDB, Kratos/Hydra.
+    # Platform deps: Postgres, Temporal, OTel, SpiceDB, Kratos/Oathkeeper, and
+    # in-namespace service-to-service calls.
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
     {{- if .Values.networkPolicy.egressDNS }}

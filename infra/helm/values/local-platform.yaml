@@ -1,0 +1,56 @@
+# Local overrides for `cluster:full` (scripts/cluster-full.sh). Layered over each
+# platform chart's own values. These swap the prod assumptions (off-cluster
+# bucket, SOPS secrets, real domain, CNPG) for laptop-friendly stand-ins.
+#
+# Best-effort: the LGTM/Ory layers may need per-chart tuning on first bring-up in
+# a given environment; the script installs them with `|| true` so a partial
+# platform still lets you iterate on the edge + services.
+
+# --- Ory (Kratos + Oathkeeper) --------------------------------------------
+kratos:
+  kratos:
+    config:
+      dsn: "postgres://dev:dev@postgres.platform.svc.cluster.local:5432/kratos?sslmode=disable"
+      serve:
+        public:
+          base_url: "https://dev.localtest.me:8443/auth/"
+      courier:
+        smtp:
+          connection_uri: "smtps://test:test@localhost:1025/?skip_ssl_verify=true"
+    # Dev secrets — local only, never used in a deployed environment.
+    secrets:
+      cookie: ["dev-cookie-secret-at-least-32-chars-long"]
+      cipher: ["0123456789abcdef0123456789abcdef"]
+  # Run Kratos migrations automatically for local.
+  automigration:
+    enabled: true
+
+# --- Observability: point LGTM at in-cluster MinIO -------------------------
+loki:
+  loki:
+    storage:
+      s3:
+        endpoint: "minio.platform.svc.cluster.local:9000"
+        accessKeyId: minioadmin
+        secretAccessKey: minioadmin
+        s3ForcePathStyle: true
+        insecure: true
+
+tempo:
+  tempo:
+    storage:
+      trace:
+        s3:
+          endpoint: "minio.platform.svc.cluster.local:9000"
+          access_key: minioadmin
+          secret_key: minioadmin
+          insecure: true
+
+# Monolithic Mimir (templates/mimir.yaml) — point at MinIO over http.
+mimir:
+  storage:
+    endpoint: "minio.platform.svc.cluster.local:9000"
+
+# Grafana: a known local admin password (prod supplies one via Secret).
+grafana:
+  adminPassword: "admin"

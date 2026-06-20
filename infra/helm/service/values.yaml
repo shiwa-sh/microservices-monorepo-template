@@ -72,8 +72,12 @@ containerSecurityContext:
   capabilities:
     drop: ["ALL"]
 
-# NetworkPolicy is on by default (ADR-0003). Service-specific allowances go here.
+# NetworkPolicy is default-deny by default (ADR-0003). Service-specific
+# allowances go here.
 networkPolicy:
   enabled: true
   allowFromGateway: true
   egressDNS: true
+  # Other services (by slug) allowed to call this one on the server port.
+  # e.g. catalog/payment list `orders` here; orders accepts no inbound svc calls.
+  allowFrom: []
