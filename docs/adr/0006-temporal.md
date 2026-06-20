@@ -90,7 +90,7 @@ services/<service>/
 2. The caller invokes it via the generated client in `libs/go/sdks/<service>/`.
 3. The response is `202 Accepted` with a workflow handle conforming to the `WorkflowHandle` schema declared in each service's OpenAPI `components` (see [ADR-0008](0008-api-contracts.md)).
 
-A service never starts another service's workflow directly via the Temporal client; doing so would import the callee's workflow input struct (coupling) and bypass OpenAPI, Tyk, tracing, and auth.
+A service never starts another service's workflow directly via the Temporal client; doing so would import the callee's workflow input struct (coupling) and bypass OpenAPI, tracing, and the identity-header contract.
 
 **Waiting on a cross-service workflow.** Pick by need:
 
@@ -151,8 +151,9 @@ Liberal use of workflows for multi-step / compensable / cross-system operations;
 ### Cross-cutting integrations
 
 Authz dual-write discipline is [ADR-0010](0010-auth.md)'s; the `WorkflowHandle` response shape is [ADR-0008](0008-api-contracts.md)'s;
-service-to-service JWTs on activity calls are [ADR-0010](0010-auth.md)'s; trace propagation through workflows and
-activities is [ADR-0011](0011-observability.md)'s default. Nothing here overrides those.
+service-to-service identity propagation on activity calls is [ADR-0010](0010-auth.md)'s (forwarded identity headers,
+gated by Cilium NetworkPolicy — no per-call token); trace propagation through workflows and activities is
+[ADR-0011](0011-observability.md)'s default. Nothing here overrides those.
 
 ## Consequences
 

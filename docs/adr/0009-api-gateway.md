@@ -1,4 +1,4 @@
-# ADR-0009: API Gateway
+# ADR-0009: Edge Authentication & Traffic Policy
 
 - **Status:** Accepted
 - **Date:** 2026-05-19
@@ -7,111 +7,173 @@
 
 ## Context
 
-A single API gateway sits in front of all services exposed to the browser (the Next.js app) and to third-party API consumers. Service-to-service calls inside the cluster bypass the gateway ([ADR-0006](0006-temporal.md)).
+Traefik is the cluster ingress ([ADR-0003](0003-cluster-topology.md)): TLS termination, hostname/path routing, load
+balancing, static assets. This ADR covers what happens to a request *after* Traefik and *before* it reaches a service:
+who validates the caller's identity, how that identity is carried onward, and what traffic policy is applied at the edge.
 
-The gateway owns:
+Service-to-service calls inside the cluster bypass the edge entirely ([ADR-0006](0006-temporal.md)) and are gated by
+Cilium NetworkPolicy ([ADR-0003](0003-cluster-topology.md)), not by a token.
 
-- **Routing** for `/api/*` from Traefik ([ADR-0003](0003-cluster-topology.md)) to upstream services.
-- **Auth at the edge** — JWT validation only. Claims are forwarded as upstream headers. Permission decisions live in services ([ADR-0010](0010-auth.md)).
-- **Rate limiting and quotas** — per-key, per-user, per-tier.
-- **Schema validation at the edge** — using the same OpenAPI specs that drive [ADR-0008](0008-api-contracts.md) codegen.
-- **Observability hooks** — request logging and W3C trace context propagation.
+The edge owns:
 
-It does **not** own: cluster ingress (Traefik does), mTLS between services, retries/circuit-breaking inside the cluster, API monetisation.
+- **Identity validation** — validate the Kratos session / Hydra JWT once, at the edge.
+- **Identity propagation** — forward identity to services as trusted headers, in **one shape for every request**.
+- **Rate limiting** — protect auth-sensitive endpoints (login, signup, recovery) and, where present, public APIs.
+
+It does **not** own: cluster ingress / TLS (Traefik does), permission decisions (services do, via [ADR-0010](0010-auth.md)'s
+`Checker`), request-schema validation (services do, via `ogen` — see [ADR-0008](0008-api-contracts.md)).
 
 ## Decision drivers
 
-1. **OpenAPI-native config.** The gateway consumes our OpenAPI specs directly. No parallel routing config.
-2. **Open source.** No paid tiers.
-3. **Plugin language fit.** Custom middleware is written in Go.
-4. **Operational simplicity.** No separate DBA, no separate cluster.
+1. **One identity shape for every request.** A service handler reads identity the same way whether the call came from
+   the browser or another service. No "JWT here, headers there."
+2. **Services are auth-free in their handlers.** Identity arrives pre-validated; services read it, they do not parse
+   tokens.
+3. **Open source, single-binary, Ory-consistent.** The edge validator should fit the Kratos/Hydra stack already deployed
+   ([ADR-0010](0010-auth.md)), not add a parallel control plane.
+4. **Operational simplicity.** No second datastore, no plugin runtime, no gateway-specific config codegen.
 
 ## Considered options
 
-- **Tyk Gateway OSS** — OpenAPI 3.x is a first-class input; Go plugins via gRPC plugin server; mature JWT and rate-limit features; Kubernetes operator with `ApiDefinition` and `SecurityPolicy` CRDs; Redis as the only external dependency.
-- **Kong Gateway OSS** — large plugin ecosystem; Lua-first plugin model; OpenAPI is not a first-class input; heavier ops (Postgres or reduced-feature DB-less).
-- **Apache APISIX** — etcd-backed, Lua core; Go plugins are out-of-process; OpenAPI import is a plugin.
-- **Traefik** — already our cluster ingress ([ADR-0003](0003-cluster-topology.md)); OpenAPI is documentation-only; rate-limit and quota features are far less rich than Tyk.
-- **Envoy Gateway / Gateway API** — bare Envoy is an L7 proxy, not an API management gateway. Out of proportion for our team.
-- **KrakenD** — Go-native and OpenAPI-aware, but primarily an aggregator; JWT and rate limiting less mature.
-- **Gravitee OSS** — only OSS candidate with a built-in developer portal; JVM-based, ruled out by [ADR-0001](0001-language-and-runtime.md).
+- **Ory Oathkeeper (ForwardAuth)** — Ory's identity & access proxy. Validates Kratos sessions and Hydra JWTs, mutates
+  requests (strip + inject identity headers), declarative access rules in YAML. Single Go binary, no datastore.
+  Consolidates into the Ory stack already run for [ADR-0010](0010-auth.md).
+- **Tyk / Kong (full API-management gateway)** — rich API management (per-key quotas, dev portal, plugins), but each
+  adds a control plane, a datastore (Redis/Postgres), a plugin runtime, and gateway-specific config codegen. Their one
+  unique value at our scale — edge OpenAPI validation — is redundant with `ogen`'s in-service validation
+  ([ADR-0008](0008-api-contracts.md)); the rest goes unused. Reserved as a per-project add-on for a project that ships a
+  monetised public API.
+- **Traefik Enterprise / Hub OIDC middleware** — closes the JWT-validation gap in Traefik OSS, but is a paid tier
+  ([ADR-0000](0000-platform-foundations.md): OSS only).
+- **DIY ForwardAuth service** — a small Go service reusing `libs/go/authmw/`. Viable, but Oathkeeper is hardened,
+  declarative, and keeps auth-critical validation code out of our ownership.
 
 ## Decision
 
-**Tyk Gateway OSS is the API gateway** for all external traffic.
+**The edge is Traefik ([ADR-0003](0003-cluster-topology.md)) fronting Ory Oathkeeper.** Oathkeeper does identity
+validation and identity-header injection. **No full API-management gateway (Tyk, Kong) is deployed in the template
+default.**
 
-### Responsibilities
+### Identity: validate once at the edge, headers everywhere after
 
-- TLS termination is upstream at Traefik; Tyk receives plaintext over the cluster network.
-- **Auth: JWT validation only.** Tyk verifies the token, extracts claims, and forwards them as upstream headers (`X-User-Id`, `X-Org-Id`, `X-Roles`). It does **not** call the authz engine.
-- **Rate limiting and quotas** — per API key for third-party traffic; per user (from JWT `sub`) for first-party.
-- **Schema validation** — from the OpenAPI spec at `services/<service>/openapi.yaml` ([ADR-0008](0008-api-contracts.md)). Same artifact, two enforcement points, zero duplicated work.
-- **Trace context propagation** — Tyk preserves W3C `traceparent` and adds its own span as a child.
+```text
+Internet
+  → Traefik       (TLS, routing, load balancing, rate limiting)
+  → Oathkeeper    (validate Kratos session / Hydra JWT → strip → inject X-User-Id / X-Org-Id / X-Roles)
+  → service       (reads identity headers only; authmw is a header reader; Checker authorises the user)
+
+service → service (forwards the same identity headers; Cilium NetworkPolicy gates reachability; no token on the path)
+```
+
+- Oathkeeper validates the caller's Kratos session cookie (browser) or Hydra-issued JWT (third-party / machine clients).
+- It **strips any client-supplied identity headers** and sets authoritative `X-User-Id`, `X-Org-Id`, `X-Roles`.
+- Services read identity **only** from these headers. They never parse a JWT. `authmw` ([ADR-0010](0010-auth.md)) is a
+  trusted-header reader.
+- Internal service-to-service calls **forward the same headers** and are gated by Cilium NetworkPolicy. There is no
+  token on the internal path.
+
+This is the single request shape: every service, edge-origin or internal, reads identity from the same headers.
+
+### Rate limiting
+
+Traefik's rate-limit middleware throttles auth-sensitive routes (login, signup, password reset) per source from day
+one — a security control independent of any public API. Per-API-key *tiered quotas* are a full-API-management feature; a
+project that ships a monetised public API adds a gateway (Tyk/Kong) for its own routes at that point, behind a
+per-project flag. The template default does not.
+
+### Security headers & Origin policy
+
+The edge is the one place every route passes through, so blanket browser-security headers and the CSRF Origin check live
+here, complementing the per-request CSP nonce the frontend sets ([ADR-0014](0014-frontend.md)).
+
+- **Static security headers** are a Traefik `Middleware` applied to all responses: `frame-ancestors 'none'`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and HSTS. The nonce-bearing
+  `script-src` directive stays in the frontend ([ADR-0014](0014-frontend.md)); the edge sets only the directives that
+  never vary per request.
+- **CSRF Origin check.** For cookie-authenticated state-changing requests (the Kratos session cookie), an Oathkeeper
+  rule rejects requests whose `Origin` is not the project's own domain. Bearer-token traffic (Hydra/Oathkeeper) is not
+  browser-attached and is exempt. This backstops the `SameSite=Lax` cookie ([ADR-0010](0010-auth.md)) and the Next.js
+  Server-Actions `Origin` check ([ADR-0014](0014-frontend.md)).
 
 ### Configuration
 
-- Tyk API definitions are **generated** from `services/<service>/openapi.yaml` by `tools/codegen/tyk-gen`. They land in `infra/gateway/apis/` as generated artifacts and are committed per [ADR-0002](0002-monorepo.md).
-- Hand-edited Tyk API definitions are forbidden.
-- Security policies live in `infra/gateway/policies/` as hand-written declarative YAML — one file per logical tier (anonymous, authenticated user, partner, internal-admin).
-- Deployed via the Tyk Kubernetes operator with CRDs in `infra/helm/platform/tyk/`.
-
-### Plugins
-
-- Plugins are written in **Go** via Tyk's gRPC plugin server. Lua plugins are not used.
-- Plugin source lives under `libs/go/tyk-plugins/`. Each plugin's `README.md` explains why the work belongs at the gateway and not in the service.
+- Oathkeeper access rules live in `infra/auth/oathkeeper/` as declarative YAML, deployed via Helm at
+  `infra/helm/platform/ory/` alongside Kratos and Hydra.
+- Traefik routing and rate-limit middleware live in `infra/gateway/` as Traefik CRDs (`Middleware`, `IngressRoute`),
+  committed per [ADR-0002](0002-monorepo.md).
+- There is **no gateway-specific API-definition codegen.** The OpenAPI spec drives service codegen
+  ([ADR-0008](0008-api-contracts.md)); the edge does not consume it.
 
 ### Developer portal
 
-The developer portal is **not part of Tyk in this deployment.** It is a route group in the frontend application: `apps/frontend/src/app/(devportal)/`. The route group:
+The developer portal is a route group in the frontend application: `apps/frontend/src/app/(devportal)/`. It renders
+OpenAPI specs (Scalar or Redoc) and, when a public API exists, calls Hydra to issue and rotate third-party OAuth2 client
+credentials. Until the first third-party consumer, it serves a "documentation coming soon" placeholder — no separate
+component to operate.
 
-- Renders OpenAPI specs via Scalar or Redoc embedded in Next.js pages.
-- Calls the Tyk admin API to issue and rotate API keys for authenticated developers.
-- Matches the product's visual design.
+### Hydra is a public-API flag
 
-The route group is implemented when the first third-party consumer is on the roadmap. Until then, the route group exists as a placeholder serving "documentation coming soon" — no separate component to operate.
+Hydra ([ADR-0010](0010-auth.md)) issues OAuth2 tokens for third-party / external machine clients. **Internal-only
+projects do not deploy it:** Kratos (login) + Oathkeeper (edge) + SpiceDB (authz) is the internal stack. A project
+exposing a public API or external machine clients sets `hydra_thirdparty: on`; Oathkeeper then validates those JWTs at
+the edge and converts them to the same identity headers, so the internal request shape is unchanged.
 
 ### Authz boundary
 
 Settled here and inherited by [ADR-0010](0010-auth.md):
 
-- The gateway validates tokens and forwards claims.
-- The gateway does **not** call the authz engine.
-- Services receive claim headers and use a shared Go authz client (`libs/go/authz/`) to make permission decisions.
-- Service-to-service calls bypass the gateway and authorise themselves the same way using a service-to-service token.
+- The edge validates identity and injects identity headers. It does **not** call the authz engine.
+- Services receive identity headers and use the shared Go authz client (`libs/go/authz/`) to make permission decisions.
+- Service-to-service calls bypass the edge; they authorise the forwarded user identity the same way, and Cilium
+  NetworkPolicy decides which services may reach which.
 
 ## Consequences
 
 ### Positive
 
-- The OpenAPI spec is the single source of truth for routing, validation, codegen, and gateway behaviour. One PR updates them all.
-- Go-only plugin surface keeps the operational language footprint consistent with [ADR-0001](0001-language-and-runtime.md).
-- OSS-only stance keeps licensing cost at zero and avoids paid-control-plane lock-in.
+- One identity shape across the whole platform; service handlers are auth-free.
+- The edge validator is one Go binary in the Ory family — no Redis, no plugin runtime, no gateway codegen.
+- Removing Tyk removes Redis, the gRPC plugin server, `infra/gateway/apis/` codegen, and `tools/codegen/tyk-gen`.
+- JWT validation lives at exactly one hardened chokepoint, not duplicated into every service.
 - The dev portal as a frontend route group keeps visual consistency and removes a separate stateful component.
 
 ### Negative / Risks
 
-- **No admin UI in OSS.** All ops via API/CRDs. Mitigated by GitOps + runbook documentation in `docs/gateway/runbook.md`.
-- **Smaller plugin ecosystem than Kong.** We write more middleware ourselves. Acceptable given the Go plugin model fits.
-- **Tyk's roadmap may push features into paid tiers.** Mitigated by the OSS license and reviewed annually.
-- **Double schema validation (gateway + service)** has a CPU cost. Accepted per [ADR-0008](0008-api-contracts.md).
+- **Header-trust internally rests on Cilium NetworkPolicy.** A misconfigured policy could let a pod spoof `X-User-Id`.
+  Mitigated by default-deny policies in the service template and by Hubble flow visibility
+  ([ADR-0003](0003-cluster-topology.md)) as the audit surface.
+- **No edge schema validation.** Mitigated by `ogen`'s generated in-service validation from the same spec
+  ([ADR-0008](0008-api-contracts.md)); internal calls bypass the edge anyway, so the service is the only point that sees
+  every request.
+- **Per-API-key quotas are not available day one.** Accepted; reintroduced per-project when a monetised public API is
+  real.
+- **Oathkeeper is another component to operate.** Accepted; it is lighter than the Tyk + Redis + plugin stack it
+  replaces and shares the Ory operational model.
 
 ### Follow-ups
 
-- `infra/helm/platform/tyk/` deployment with the Tyk operator and Redis.
-- `tools/codegen/tyk-gen` for OpenAPI → Tyk API definition emission.
-- `infra/gateway/policies/` initial policy set (anonymous, user, partner, internal-admin).
+- `infra/helm/platform/ory/` extended with Oathkeeper alongside Kratos and Hydra.
+- `infra/auth/oathkeeper/` access rules (validate session/JWT → strip → inject identity headers).
+- `infra/gateway/` Traefik `Middleware` + `IngressRoute` for `/api` routing, rate limiting, and static security headers.
+- `infra/auth/oathkeeper/` CSRF Origin-check rule for cookie-authenticated state-changing requests.
 - `apps/frontend/src/app/(devportal)/` placeholder route group.
-- `libs/go/tyk-plugins/` skeleton with one example plugin (claim enrichment).
-- `docs/gateway/runbook.md` covering route changes, policy updates, key issuance.
+- `docs/gateway/runbook.md` covering edge rules, rate-limit changes, and the public-API gateway add-on.
 
 ## Rules
 
-- Tyk Gateway OSS is the API gateway for all external traffic. No alternate gateway is used at the same edge.
-- Tyk API definitions are generated from `services/<service>/openapi.yaml` and committed under `infra/gateway/apis/`. Hand-edits are forbidden.
-- Tyk validates JWTs, extracts claims, and forwards them as `X-User-Id`, `X-Org-Id`, `X-Roles` headers. It does not call the authz engine.
-- Tyk enforces request-schema validation at the edge. The service re-validates the same schema; both come from the same OpenAPI artifact.
-- Rate limits and quotas are configured in `infra/gateway/policies/` per logical tier.
-- Gateway plugins are written in Go via Tyk's gRPC plugin server. Lua plugins are forbidden.
-- The developer portal is a route group in `apps/frontend/`, not a separate application or Tyk-paid feature.
-- Service-to-service calls inside the cluster bypass Tyk; they validate JWTs in the service's auth middleware ([ADR-0010](0010-auth.md)).
-- A new public endpoint is delivered by: spec change in OpenAPI → `mise run gen` → PR with regenerated Tyk definition. No manual Tyk dashboard step.
+- The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed in the template default.
+- Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects
+  `X-User-Id`, `X-Org-Id`, `X-Roles`. It does not call the authz engine.
+- Every request carries identity in the same header shape. Services read identity from headers and never parse a token.
+- Service-to-service calls bypass the edge, forward the identity headers, and are gated by Cilium NetworkPolicy
+  ([ADR-0003](0003-cluster-topology.md)). No token is on the internal path.
+- Request-schema validation is service-side via `ogen` ([ADR-0008](0008-api-contracts.md)). There is no edge schema
+  validation.
+- Rate limiting on auth-sensitive routes is configured as Traefik middleware in `infra/gateway/`.
+- Static browser-security headers (`frame-ancestors`, `nosniff`, `Referrer-Policy`, HSTS) are a Traefik middleware applied to all responses; the per-request CSP nonce is set by the frontend ([ADR-0014](0014-frontend.md)).
+- Cookie-authenticated state-changing requests are Origin-checked by an Oathkeeper rule. Bearer-token traffic is exempt.
+- Hydra is deployed only for projects exposing a public API or external machine clients (`hydra_thirdparty` flag).
+  Internal-only projects run Kratos + Oathkeeper + SpiceDB.
+- The developer portal is a route group in `apps/frontend/`, not a separate application or a gateway feature.
+- A project that needs tiered per-API-key quotas adds a full gateway (Tyk/Kong) for its own routes via its own decision;
+  it is not the platform default.

@@ -40,10 +40,11 @@ We need an internal admin surface that meets these constraints:
 2. **REST through services, not direct SQL.** Admin actions go through the same REST endpoints that
    the frontend uses. Service boundaries from [ADR-0002](0002-monorepo.md) are not bypassed by
    admin convenience.
-3. **Codegen-first, hand-edit second.** Most pages are generated from the OpenAPI specs already
-   committed per [ADR-0008](0008-api-contracts.md). The generator is the bulk of the leverage; the
-   custom directory is the escape hatch.
-4. **Zero new auth surface.** Lowdefy's built-in auth/sessions are not used. The gateway
+3. **Hand-written first, codegen when it pays off.** Day one, admin pages are hand-written (or
+   LLM-written) YAML in `custom/`. The OpenAPI specs already committed per
+   [ADR-0008](0008-api-contracts.md) make a generator possible, but it is added only when the admin
+   surface is large enough that hand-writing CRUD pages hurts — not as day-one machinery.
+4. **Zero new auth surface.** Lowdefy's built-in auth/sessions are not used. The edge
    authenticates; Lowdefy trusts the upstream identity header.
 5. **Stateless deployment.** No MongoDB, no admin-tool database. Treat the admin tool like a
    static-site server: config in, traffic out.
@@ -75,7 +76,7 @@ Alternatives considered and rejected:
   and providers, which is the failure mode this ADR exists to avoid.
 - **NocoDB, Directus** — UI-first authoring; AGPL or BSL.
 
-### Deployment: stateless, behind the gateway, no MongoDB
+### Deployment: stateless, behind the edge, no MongoDB
 
 Lowdefy runs in-cluster:
 
@@ -85,12 +86,12 @@ Lowdefy runs in-cluster:
   them, so the session store is not needed.
 - Image tag pinned by SHA per [ADR-0002](0002-monorepo.md).
 
-Auth is enforced at the gateway:
+Auth is enforced at the edge:
 
-- Tyk routes `/internal/admin/*` to the Lowdefy service ([ADR-0009](0009-api-gateway.md)).
+- Traefik routes `/internal/admin/*` through Oathkeeper to the Lowdefy service ([ADR-0009](0009-api-gateway.md)).
 - The route requires a valid Kratos session per [ADR-0010](0010-auth.md). Unauthenticated requests
   never reach Lowdefy.
-- Tyk forwards the authenticated identity as an `X-User-Email` (or equivalent) header. Lowdefy
+- Oathkeeper forwards the authenticated identity as an `X-User-Email` (or equivalent) header. Lowdefy
   reads it through a request operator and exposes it to pages as `_request.headers.x-user-email`.
 - Authorization (which users see which pages) is enforced by SpiceDB checks issued from Lowdefy
   pages via the same REST surface services use. The admin tool does not own its own RBAC.
@@ -100,13 +101,13 @@ Auth is enforced at the gateway:
 ```text
 apps/admin/
 ├── lowdefy.yaml                    # root config: connections, menu, global theme
-├── _generated/                     # committed codegen output (drift-checked)
+├── custom/                         # hand-written / LLM-written pages (the day-one surface)
 │   └── <service>/
-│       ├── tables.yaml             # CRUD pages, one per resource
-│       └── actions.yaml            # button-per-endpoint pages
-└── custom/                         # hand-written / LLM-written
+│       └── *.yaml                  # CRUD pages, button-per-endpoint pages, joined views, forms
+└── _generated/                     # codegen output, only once tools/admin-gen/ is added (deferred)
     └── <service>/
-        └── *.yaml                  # overrides, joined views, custom forms
+        ├── tables.yaml             # CRUD pages, one per resource
+        └── actions.yaml            # button-per-endpoint pages
 ```
 
 `apps/admin/` is the second application under `apps/` and is therefore the kind of decision
@@ -114,37 +115,42 @@ apps/admin/
 itself is deployed from `infra/helm/platform/lowdefy/`; `apps/admin/` contains only the YAML configuration
 mounted into it.
 
-### Codegen: `tools/admin-gen/`
+### Day-one authoring: hand-written / LLM-written pages in `apps/admin/custom/`
 
-A Go program at `tools/admin-gen/` reads `services/*/openapi.yaml` and produces
-`apps/admin/_generated/<service>/`:
+Every admin page is a YAML file under `custom/<service>/`:
 
-- For every OpenAPI path group tagged `admin:crud`, generate list / detail / create / edit pages
-  in `tables.yaml`.
-- For every operation tagged `admin:action`, generate a page with a button (and a form, if the
-  operation has a request body) in `actions.yaml`.
-- The generator emits **only** REST-connector pages. Direct-DB pages are never generated.
-
-Invocation matches [ADR-0008](0008-api-contracts.md): `mise run gen:admin`, included in
-`mise run gen`, drift-checked by `ci-drift.yml`.
-
-### Hand-written and LLM-written pages: `apps/admin/custom/`
-
-Anything not derivable from the OpenAPI spec lives in `custom/`:
-
-- Joined views that aggregate across services.
-- Custom forms for actions that need shaping before the request body is sent.
-- One-off operational dashboards.
+- CRUD pages (list / detail / create / edit) over a service's resources, via its REST connector.
+- A button (and a form, when the operation has a request body) per `POST`-style action endpoint.
+- Joined views that aggregate across services, and one-off operational dashboards.
 
 A backend engineer adding a button that calls a service endpoint edits one YAML file under
-`custom/<service>/`. An LLM does the same. Neither needs to learn React.
+`custom/<service>/`. An LLM does the same. Neither needs to learn React. Because the OpenAPI spec
+([ADR-0008](0008-api-contracts.md)) already describes every resource and operation, an LLM has
+enough to scaffold a page directly from the spec on request — which is the leverage that makes a
+standing generator unnecessary day one.
+
+### Deferred: the `tools/admin-gen/` generator
+
+When the admin surface grows large enough that hand-writing CRUD pages across many services becomes
+repetitive, a Go program at `tools/admin-gen/` is added to generate `apps/admin/_generated/<service>/`
+from `services/*/openapi.yaml`:
+
+- For every OpenAPI path group tagged `admin:crud`, generate list / detail / create / edit pages in
+  `tables.yaml`; for every operation tagged `admin:action`, a button/form page in `actions.yaml`.
+- It emits **only** REST-connector pages; direct-DB pages are never generated.
+- Invocation matches [ADR-0008](0008-api-contracts.md): `mise run gen:admin`, included in `mise run
+  gen`, drift-checked by `ci-drift.yml`.
+
+This is a latent capability — the `admin:crud` / `admin:action` tag convention and the `_generated/`
+path are reserved for it — but the generator is not built until the page count justifies it. Until
+then, `_generated/` does not exist and `custom/` is the whole surface.
 
 ### Connections: REST first, Postgres as escape hatch
 
 `lowdefy.yaml` declares two kinds of connections:
 
 - **REST connections** (`AxiosHttp`), one per service, baseURL pointing at the in-cluster service
-  address. Auth is the user's Kratos session, forwarded by the gateway.
+  address. Auth is the user's Kratos session, forwarded by the edge as identity headers.
 - **Postgres connections** (`Knex`), one per service database. **Read-only credentials only.** Used
   only for views the REST API cannot serve (cross-table joins for diagnostics, raw inspection).
   Mutations go through REST, never through the Postgres connection.
@@ -162,8 +168,8 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
 
 ### Positive
 
-- Admin pages are YAML files in the same repo, reviewed in PRs, blame-able, generated where
-  possible, hand-edited where not.
+- Admin pages are YAML files in the same repo, reviewed in PRs, blame-able, hand- or LLM-written day
+  one, with a generator reserved for when the surface grows.
 - LLM-driven authoring is the path of least resistance, not a workaround.
 - Backend engineers and DevOps can make small admin changes without touching React.
 - Single stateless container in the cluster — no MongoDB, no new operator, no new auth integration.
@@ -177,44 +183,48 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
 - Lowdefy's community is smaller than React-based alternatives. If upstream maintenance stalls, we
   own a Node server with YAML configs. Mitigated by the fact that the generated artifacts are
   declarative and portable to a successor tool; the lock-in is the runtime, not the data.
-- No compile-time type safety between an OpenAPI spec change and a Lowdefy page. Mitigated by
-  `mise run gen:admin` regenerating on spec change and CI failing on drift; runtime errors surface
-  immediately on first page load post-deploy.
+- No compile-time type safety between an OpenAPI spec change and a Lowdefy page. Day one this is
+  caught by review and by runtime errors surfacing on first page load post-deploy; once
+  `tools/admin-gen/` exists, `mise run gen:admin` plus CI drift-check catches generated pages too.
 - Direct-Postgres connections, even read-only, are a discipline risk: an engineer can add a
   mutation behind the read-only credential's back. Mitigated by enforcing read-only Postgres roles
   at the database level (the user literally cannot `UPDATE`), not by convention.
-- The `_generated/` directory inflates PR diffs on spec changes. Mitigated by the same conventions
-  applied to other generated artifacts in [ADR-0002](0002-monorepo.md).
+- Hand-writing CRUD pages does not scale to a large fleet. Accepted day one (LLM scaffolding from the
+  spec keeps the per-page cost low); the `tools/admin-gen/` generator is added when the page count
+  makes this bite. Its `_generated/` directory will then inflate PR diffs on spec changes, mitigated
+  by the same conventions applied to other generated artifacts in [ADR-0002](0002-monorepo.md).
 
 ### Follow-ups
 
 - `infra/helm/platform/lowdefy/` chart values (image tag, REST/Postgres connection config from secrets).
 - `apps/admin/lowdefy.yaml` root config, with menu structure and global theme.
-- `tools/admin-gen/` Go program with unit tests. Generates `_generated/` from
-  `services/*/openapi.yaml`.
-- `mise run gen:admin` task; inclusion in `mise run gen` and `ci-drift.yml`.
-- vacuum ruleset rule (or `tools/admin-gen/` lint pass) enforcing valid `admin:crud` / `admin:action`
-  tags on OpenAPI operations.
+- **(Deferred)** `tools/admin-gen/` Go program with unit tests, generating `_generated/` from
+  `services/*/openapi.yaml`; the `mise run gen:admin` task and its inclusion in `mise run gen` and
+  `ci-drift.yml`; and a vacuum ruleset rule enforcing valid `admin:crud` / `admin:action` tags. Built
+  when the admin surface justifies a generator, not day one.
 - Postgres read-only role provisioning template in `infra/helm/platform/postgres/`, referenced by per-service
   Helm values.
-- Tyk route definition for `/internal/admin/*` in `infra/gateway/`, including the Kratos session
-  check and identity header forwarding.
+- Traefik route for `/internal/admin/*` in `infra/gateway/` plus the Oathkeeper rule in
+  `infra/auth/oathkeeper/`, including the Kratos session check and identity header forwarding.
 - SpiceDB schema for admin authorization (which users see which services / actions).
 
 ## Rules
 
 - The internal admin tool is Lowdefy, self-hosted, deployed via Helm + ArgoCD under
   `infra/helm/platform/lowdefy/`.
-- Admin pages live as YAML in `apps/admin/`. `_generated/` is codegen output, committed and
-  drift-checked. `custom/` is hand-written or LLM-written.
+- Admin pages live as YAML in `apps/admin/`. Day one they are hand- or LLM-written under `custom/`.
+  `_generated/` is reserved for the deferred `tools/admin-gen/` output (committed and drift-checked
+  when that generator exists); it is not present until then.
 - Admin actions go through service REST APIs by default. Direct Postgres connections are
   read-only, used only for views the REST API cannot serve, and enforced read-only at the database
   role level — not by convention.
 - Lowdefy's built-in auth/sessions are not used. MongoDB is not deployed for Lowdefy.
-- Authentication for `/internal/admin/*` is enforced at the gateway by Kratos session check per
+- Authentication for `/internal/admin/*` is enforced at the edge by Oathkeeper's Kratos session check per
   [ADR-0010](0010-auth.md). Authorization is enforced via SpiceDB calls from Lowdefy pages.
-- The set of admin pages generated for a service is determined by `admin:crud` and `admin:action`
-  tags on its OpenAPI operations. A service without these tags gets no generated admin pages.
+- Once the `tools/admin-gen/` generator exists, the set of admin pages generated for a service is
+  determined by `admin:crud` and `admin:action` tags on its OpenAPI operations; a service without
+  these tags gets no generated admin pages. Until then, a service's admin pages are whatever is
+  hand-written under `custom/<service>/`.
 - `apps/admin/` is the only first-party application under `apps/` besides `apps/frontend/`. Adding
   a third application requires its own ADR per [ADR-0002](0002-monorepo.md).
 - Lowdefy is pinned to a specific release tag in Helm values. Floating tags are forbidden per

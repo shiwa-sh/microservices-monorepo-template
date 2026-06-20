@@ -7,7 +7,7 @@
 
 ## Context
 
-Three environments — **dev**, **staging**, **prod** — each on a k3s cluster ([ADR-0003](0003-cluster-topology.md)). Deploys cover the full service fleet (the target scale, [ADR-0000](0000-platform-foundations.md)), the frontend, and platform components (Postgres via CNPG, Temporal, Kratos/Hydra, SpiceDB, Tyk, the observability stack, ArgoCD itself).
+Three environments — **dev**, **staging**, **prod** — each on a k3s cluster ([ADR-0003](0003-cluster-topology.md)). Deploys cover the full service fleet (the target scale, [ADR-0000](0000-platform-foundations.md)), the frontend, and platform components (Postgres via CNPG, Temporal, Kratos/Oathkeeper (Hydra when a public API exists), SpiceDB, the observability stack, ArgoCD itself).
 
 We need a single answer to:
 
@@ -116,7 +116,7 @@ reverted. Drift alerts fire to Slack via ArgoCD notifications.
 
 ### Bootstrap
 
-A new cluster bootstraps with two commands after [ADR-0003](0003-cluster-topology.md)'s Terraform + Ansible steps:
+A new cluster bootstraps with two commands after [ADR-0003](0003-cluster-topology.md)'s Ansible step (and Terraform, when the project provisions its own infra):
 
 ```sh
 helm install argocd infra/helm/platform/argocd -n argocd --create-namespace

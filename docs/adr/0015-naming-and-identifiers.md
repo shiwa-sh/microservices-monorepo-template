@@ -141,7 +141,8 @@ cluster; repeating the project on every in-cluster object is noise.
 - Template instantiation (`scripts/`/`mise` bootstrap): prompt for the project slug, validate it against
   `^[a-z][a-z0-9-]*$` and the 30-char budget, check it is not already taken by another of our projects, offer to
   append a random `[a-z0-9]{4}` token if a provider-global resource name is unavailable, and thread the final slug
-  through Terraform variables and the SSH/age scaffolding.
+  through the SSH/age scaffolding and the Ansible inventory (and Terraform variables when the project provisions its own
+  infra).
 - A `role` abbreviation glossary kept alongside this ADR.
 
 ## Rules

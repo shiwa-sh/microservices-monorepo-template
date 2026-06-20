@@ -111,7 +111,24 @@ Icons are `lucide-react` (the icon set Untitled UI uses).
 
 - The Next.js proxy (`src/proxy.ts`, the Next 16 successor to `middleware.ts`) checks the Kratos session on every request under `(panel)`, `(admin)`, `(devportal)`. `(landing)` is public except for its `auth/` subtree (Kratos flows).
 - The proxy reads the Kratos session cookie and forwards a session-id header to server components via `headers()`. Server components never call Kratos directly.
-- The frontend never mints, decodes, or validates JWTs. Service calls from server components attach the user's Kratos cookie; Tyk validates the JWT it issues ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)).
+- The frontend never mints, decodes, or validates JWTs. Service calls from server components attach the user's Kratos cookie; Oathkeeper validates it at the edge and injects identity headers ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)).
+
+### Content Security Policy
+
+CSP is a frontend responsibility because a strong policy needs a per-request nonce.
+
+- **Nonce in `src/proxy.ts`.** The proxy generates a random nonce per request, sets it on the request header and in the `Content-Security-Policy` response header (`script-src 'nonce-<x>' 'strict-dynamic'`; `object-src 'none'`; `base-uri 'self'`). Next.js propagates the nonce to its own scripts automatically. Unsafe-inline scripts are forbidden.
+- **`connect-src` allowlists first-party telemetry.** The OTel-web and Faro exporters POST to the Traefik-fronted ingest route; `'self'` covers it when same-origin, otherwise the ingest origin is listed explicitly. A missing entry silently breaks browser RUM, so the kitchen-sink page exercises it.
+- **Static hardening is duplicated at the edge** as defense-in-depth: the non-nonce directives that never vary (`frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, HSTS) are set by a Traefik `Middleware` ([ADR-0009](0009-api-gateway.md)) so every route gets them, not just Next pages.
+
+### CSRF
+
+CSRF protection applies to cookie-authenticated state changes (the Kratos session cookie). Bearer-token traffic (Hydra/Oathkeeper) is not browser-attached and is not CSRF-exposed.
+
+- **SameSite cookies.** The Kratos session cookie is `SameSite=Lax` + `Secure` + `HttpOnly` (set in `infra/auth/kratos/`, [ADR-0010](0010-auth.md)). This alone blocks the classic cross-site POST.
+- **Kratos self-service flows** carry Kratos's built-in anti-CSRF cookie + token; the custom login UI drives those flows and must not disable it.
+- **Server Actions** (the single-service mutation path) rely on Next.js's built-in `Origin`/`Host` check, with `serverActions.allowedOrigins` pinned in `next.config`. Hand-rolled CSRF tokens are not added on top.
+- **Other cookie-authenticated mutations** are rejected at the edge by an Origin-allowlist rule ([ADR-0009](0009-api-gateway.md)) for state-changing methods.
 
 ### Lint and format: Biome only
 
@@ -133,7 +150,7 @@ Biome is the single lint+format tool for the frontend.
 The browser side of [ADR-0011](0011-observability.md) is wired here.
 
 - `@opentelemetry/sdk-trace-web` + `@opentelemetry/instrumentation-fetch` live in `src/lib/observability/client.ts` and are initialised from a client-only entry at `apps/frontend/src/app/observability-init.tsx`. Trace IDs propagate via `traceparent` on outbound fetches, joining the same trace as the upstream services.
-- **Grafana Faro** is the browser RUM agent. Web Vitals (LCP, INP, CLS), JS errors, and session traces forward through a Tyk-fronted ingest route to the cluster's OTel Collector gateway, landing in the same Loki/Tempo backends as services.
+- **Grafana Faro** is the browser RUM agent. Web Vitals (LCP, INP, CLS), JS errors, and session traces forward through a Traefik-fronted ingest route to the cluster's OTel Collector gateway, landing in the same Loki/Tempo backends as services.
 - Next.js server logs are structured JSON via **`pino`**, stdout-only, enriched with `trace_id` from the active span. `console.log` is Biome-forbidden.
 - Build embeds `SERVICE_VERSION` from the git SHA so traces and errors are version-attributable.
 
@@ -191,7 +208,8 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 - `apps/frontend/perf-budget.json` and `apps/frontend/lighthouserc.json`.
 - `apps/frontend/Dockerfile` (Bun-only, standalone output).
 - `src/lib/observability/{client,server}.ts` wiring OTel-JS, Faro, and `pino`, initialised from `apps/frontend/src/app/observability-init.tsx`.
-- `infra/gateway/apis/frontend-observability.yaml` ingest route for OTel + Faro from the browser.
+- `src/proxy.ts` CSP nonce generation and `serverActions.allowedOrigins` in `next.config`.
+- `infra/gateway/frontend-observability.yaml` Traefik ingest route for OTel + Faro from the browser.
 - `docs/frontend/conventions.md` short pointer file linking back to this ADR.
 
 ## Rules
@@ -211,9 +229,11 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 - Forms use react-hook-form + zod via the `<Form>` primitive in `src/components/ui/`. Hand-rolled form wiring is forbidden.
 - URL state uses `nuqs`. Client-only state outside a component tree uses Zustand under `apps/frontend/src/stores/`. Redux and MobX are forbidden.
 - The Next.js proxy (`src/proxy.ts`) enforces the Kratos session on `(panel)`, `(admin)`, `(devportal)`. The frontend never mints, decodes, or validates JWTs.
+- CSP is set in `src/proxy.ts` with a per-request nonce (`script-src 'nonce-<x>' 'strict-dynamic'`); inline scripts are forbidden and `connect-src` allowlists the telemetry ingest origin. Static security headers are duplicated at the Traefik edge ([ADR-0009](0009-api-gateway.md)).
+- CSRF rests on `SameSite=Lax` Kratos cookies, Kratos's built-in protection for auth flows, and Next.js Server Actions' `Origin` check (`serverActions.allowedOrigins`). Other cookie-authenticated mutations are Origin-checked at the edge.
 - Biome is the only lint+format tool, configured with the strict ruleset in `biome.json`. ESLint is not installed.
 - `bun test` covers unit/component tests with `happy-dom` preloaded via `bunfig.toml`; Playwright covers e2e per route group. MSW is forbidden in e2e. Vitest and Jest are not used.
-- Browser observability is OpenTelemetry-JS + Grafana Faro, exporting through a Tyk-fronted ingest route to the cluster's OTel Collector gateway ([ADR-0011](0011-observability.md)).
+- Browser observability is OpenTelemetry-JS + Grafana Faro, exporting through a Traefik-fronted ingest route to the cluster's OTel Collector gateway ([ADR-0011](0011-observability.md)).
 - Server-side logs are structured JSON via `pino` to stdout. `console.log` is Biome-forbidden.
 - Bundle budgets in `apps/frontend/perf-budget.json` and Lighthouse-CI thresholds (LCP < 2.5 s, INP < 200 ms, CLS < 0.1, mobile profile) are merge gates.
 - Images go through `next/image`; fonts through `next/font`. `<img>` and `@font-face` are forbidden.

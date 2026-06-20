@@ -9,11 +9,13 @@ Uptime Kuma pages on-call within 1-2 minutes of total cluster loss.
 ## Recovery
 
 ```sh
-# 1. Provision a new node set.
+# 1. Provision a new node set — ONLY if the project provisions its own infra.
+#    On pre-provided infrastructure the hosts already exist; skip to step 2.
 cd infra/terraform/environments/<env>
 terraform apply
 
-# 2. Bootstrap k3s + the in-cluster age key.
+# 2. Bootstrap k3s + the in-cluster age key (against the Terraform-produced
+#    hosts, or the committed inventory of pre-provided hosts).
 cd ../../../ansible
 ansible-playbook -i inventory/<env> bootstrap.yml
 
