@@ -15,8 +15,8 @@ var _ Handler = UnimplementedHandler{}
 
 // CreateCharge implements createCharge operation.
 //
-// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
-// Returns a workflow handle (ADR-0006).
+// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
+// (ADR-0006).
 //
 // POST /charges
 func (UnimplementedHandler) CreateCharge(ctx context.Context, req *ChargeInput, params CreateChargeParams) (r *WorkflowHandle, _ error) {

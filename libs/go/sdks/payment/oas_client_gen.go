@@ -4,6 +4,7 @@ package payment
 
 import (
 	"context"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -29,8 +30,8 @@ func trimTrailingSlashes(u *url.URL) {
 type Invoker interface {
 	// CreateCharge invokes createCharge operation.
 	//
-	// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
-	// Returns a workflow handle (ADR-0006).
+	// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
+	// (ADR-0006).
 	//
 	// POST /charges
 	CreateCharge(ctx context.Context, request *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error)
@@ -83,8 +84,8 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 
 // CreateCharge invokes createCharge operation.
 //
-// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
-// Returns a workflow handle (ADR-0006).
+// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
+// (ADR-0006).
 //
 // POST /charges
 func (c *Client) CreateCharge(ctx context.Context, request *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error) {
@@ -162,7 +163,13 @@ func (c *Client) sendCreateCharge(ctx context.Context, request *ChargeInput, par
 		return res, errors.Wrap(err, "do request")
 	}
 	body := resp.Body
-	defer body.Close()
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateChargeResponse(resp)
@@ -254,7 +261,13 @@ func (c *Client) sendGetCharge(ctx context.Context, params GetChargeParams) (res
 		return res, errors.Wrap(err, "do request")
 	}
 	body := resp.Body
-	defer body.Close()
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetChargeResponse(resp)
