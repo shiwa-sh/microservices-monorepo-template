@@ -109,7 +109,7 @@ mise run gen
 depends = ["lint:go", "lint:gostyle", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md"]
 
 [tasks."lint:ts"]
-run = "biome ci ."
+run = "biome ci --error-on-warnings ."
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."

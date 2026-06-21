@@ -8,11 +8,14 @@ import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
 import { TracingInstrumentation } from "@grafana/faro-web-tracing";
 
 const INGEST = "/api/observability";
+const FIRST_PARTY_API = /\/api\//;
 
 let initialized = false;
 
 export function initBrowserObservability(): void {
-  if (initialized || typeof window === "undefined") return;
+  if (initialized || typeof window === "undefined") {
+    return;
+  }
   initialized = true;
 
   initializeFaro({
@@ -26,7 +29,7 @@ export function initBrowserObservability(): void {
       ...getWebInstrumentations(),
       new TracingInstrumentation({
         instrumentationOptions: {
-          propagateTraceHeaderCorsUrls: [/\/api\//],
+          propagateTraceHeaderCorsUrls: [FIRST_PARTY_API],
         },
       }),
     ],
@@ -45,6 +48,7 @@ export const obsLog = {
 };
 
 declare global {
+  // biome-ignore lint/style/useConsistentTypeDefinitions: global augmentation must use `interface`
   interface Window {
     faro?: {
       api: {

@@ -22,11 +22,17 @@ export async function pollWorkflow<T>(
   handle: WorkflowHandle,
   { intervalMs = 1000, signal }: PollOpts = {},
 ): Promise<WorkflowStatus<T>> {
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: poll loop exits via return/throw below
   while (true) {
-    if (signal?.aborted) throw new Error("aborted");
+    if (signal?.aborted) {
+      throw new Error("aborted");
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: workflow polling is intentionally sequential
     const res = await fetch(handle.status_url, { cache: "no-store", signal });
     const body = (await res.json()) as WorkflowStatus<T>;
-    if (body.status !== "running") return body;
+    if (body.status !== "running") {
+      return body;
+    }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
 }

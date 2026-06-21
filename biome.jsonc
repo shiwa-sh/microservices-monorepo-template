@@ -1,0 +1,109 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/build",
+      "!**/libs/ts/sdks",
+      "!**/apps/admin/_generated"
+    ]
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      // Start from every rule Biome ships (incl. nursery), then turn off only the
+      // ones that fight the framework (React/Next.js) or the ADRs. Everything else
+      // is enforced and the repo lints clean.
+      "preset": "all",
+      "correctness": {
+        // Biome's resolver can't see Next 16's type-only re-exports
+        // (NextRequest/NextResponse from next/server) -> false positives.
+        "noUnresolvedImports": "off",
+        // Next.js/TS resolve path aliases (@/...) and bare specifiers without file
+        // extensions; the ESM-extension rule fights the bundler.
+        "useImportExtensions": "off",
+        // process.env is the idiomatic Next.js env-access mechanism.
+        "noProcessGlobal": "off"
+      },
+      "performance": {
+        // Solid.js-only rule; this is a React app (ADR-0014).
+        "useSolidForComponent": "off",
+        // components/ui/index.ts is a deliberate UI-kit barrel (Untitled UI re-export).
+        "noBarrelFile": "off"
+      },
+      "suspicious": {
+        // Solid.js-only rule (flags className etc.); this is a React app (ADR-0014).
+        "noReactSpecificProps": "off"
+      },
+      "style": {
+        // ADR-0014 defers i18n; noJsxLiterals is i18n-prep churn until then.
+        "noJsxLiterals": "off",
+        // process.env is idiomatic Next.js env access (NEXT_PUBLIC_*, server config).
+        "noProcessEnv": "off",
+        // ADR-0008 contracts use snake_case fields; Next.js mandates SCREAMING_SNAKE
+        // NEXT_PUBLIC_* keys. (Parallels the Go `tagliatelle` disable.)
+        "useNamingConvention": "off",
+        // globals.css @theme defines the design-token palette; color literals belong there.
+        "noHexColors": "off",
+        // Browser-only client code; `window` is correct and is the type-augmentation target.
+        "useGlobalThis": "off",
+        // Conflicts with the Next.js convention of declaring `metadata` atop route files.
+        "useExportsLast": "off",
+        // Magic-number noise for timeouts/sizes. (Parallels the Go `mnd` disable.)
+        "noMagicNumbers": "off",
+        // Implicit boolean JSX props (<input disabled />) are idiomatic React.
+        "noImplicitBoolean": "off",
+        // Bans ternaries outright; conflicts with idiomatic JSX conditional rendering.
+        "noTernary": "off",
+        // Match the codebase convention: `type` for object shapes. The one unavoidable
+        // `interface` (global Window augmentation) carries an inline biome-ignore.
+        "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "type" } },
+        // Next.js route files co-export metadata/viewport alongside the component.
+        "useComponentExportOnlyModules": {
+          "level": "error",
+          "options": {
+            "allowExportNames": ["metadata", "generateMetadata", "viewport", "generateViewport"]
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      // Next.js App Router mandates default exports for route segments (page/layout/
+      // loading/error/not-found), and tooling config files use them by convention.
+      "includes": ["**/app/**", "**/*.config.{js,cjs,mjs,ts}"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
+    {
+      // Server-only observability writes to stdout via console before slog/OTLP wiring.
+      "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    }
+  ]
+}
