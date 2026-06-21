@@ -3,10 +3,11 @@
 // the (devportal) Kratos session check (proxy.ts).
 //
 // Add one <Section> per primitive added to @/components/ui.
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui";
 
-export const metadata = { title: "UI kitchen sink" };
+export const metadata: Metadata = { title: "UI kitchen sink" };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
