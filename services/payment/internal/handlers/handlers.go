@@ -1,4 +1,4 @@
-// Handlers implement the ogen-generated payment.Handler interface (ADR-0008).
+// Package handlers implement the ogen-generated payment.Handler interface (ADR-0008).
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.
 package handlers
@@ -15,7 +15,7 @@ import (
 	"go.temporal.io/sdk/client"
 
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	payment "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
 	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/store"
 	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/workflows"
 )

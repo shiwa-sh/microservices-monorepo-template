@@ -1,4 +1,4 @@
-// Checkout saga (ADR-0006). The owning service is orders, even though the
+// Package workflows saga (ADR-0006). The owning service is orders, even though the
 // data lives in catalog and payment — process-owner rule.
 //
 // Steps:

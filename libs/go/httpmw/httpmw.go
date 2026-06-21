@@ -46,32 +46,38 @@ type statusWriter struct {
 func (s *statusWriter) WriteHeader(c int) { s.status = c; s.ResponseWriter.WriteHeader(c) }
 
 func red(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sw := &statusWriter{ResponseWriter: w, status: 200}
-		start := time.Now()
-		next.ServeHTTP(sw, r)
-		dur := time.Since(start).Seconds()
-		attrs := metric.WithAttributes(
-			attribute.String("http.method", r.Method),
-			attribute.String("http.route", r.URL.Path),
-			attribute.Int("http.status_code", sw.status),
-		)
-		requestCount.Add(r.Context(), 1, attrs)
-		requestDur.Record(r.Context(), dur, attrs)
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			sw := &statusWriter{ResponseWriter: w, status: 200}
+			start := time.Now()
+			next.ServeHTTP(sw, r)
+			dur := time.Since(start).Seconds()
+			attrs := metric.WithAttributes(
+				attribute.String("http.method", r.Method),
+				attribute.String("http.route", r.URL.Path),
+				attribute.Int("http.status_code", sw.status),
+			)
+			requestCount.Add(r.Context(), 1, attrs)
+			requestDur.Record(r.Context(), dur, attrs)
+		},
+	)
 }
 
 func access(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sw := &statusWriter{ResponseWriter: w, status: 200}
-		start := time.Now()
-		next.ServeHTTP(sw, r)
-		slog.LogAttrs(
-			r.Context(), slog.LevelInfo, "http",
-			slog.String("method", r.Method),
-			slog.String("path", r.URL.Path),
-			slog.Int("status", sw.status),
-			slog.String("duration", strconv.FormatFloat(time.Since(start).Seconds(), 'f', 6, 64)),
-		)
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			sw := &statusWriter{ResponseWriter: w, status: 200}
+			start := time.Now()
+			next.ServeHTTP(sw, r)
+			slog.LogAttrs(
+				r.Context(),
+				slog.LevelInfo,
+				"http",
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+				slog.Int("status", sw.status),
+				slog.String("duration", strconv.FormatFloat(time.Since(start).Seconds(), 'f', 6, 64)),
+			)
+		},
+	)
 }

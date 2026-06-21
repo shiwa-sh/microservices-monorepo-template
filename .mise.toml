@@ -106,13 +106,17 @@ mise run gen
 """
 
 [tasks.lint]
-depends = ["lint:go", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md"]
+depends = ["lint:go", "lint:gostyle", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md"]
 
 [tasks."lint:ts"]
 run = "biome ci ."
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
+
+[tasks."lint:gostyle"]
+# Custom layout-based Go style analyzers
+run = "go run ./tools/gostyle ./..."
 
 [tasks."lint:sql"]
 run = "bash scripts/lint-sql.sh"

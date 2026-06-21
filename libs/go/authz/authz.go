@@ -59,11 +59,14 @@ func (s *spice) Allowed(ctx context.Context, subject, permission, resource strin
 		return false, err
 	}
 
-	r, err := s.c.CheckPermission(ctx, &v1.CheckPermissionRequest{
-		Resource:   &v1.ObjectReference{ObjectType: resT, ObjectId: resID},
-		Permission: permission,
-		Subject:    &v1.SubjectReference{Object: &v1.ObjectReference{ObjectType: subT, ObjectId: subID}},
-	})
+	r, err := s.c.CheckPermission(
+		ctx,
+		&v1.CheckPermissionRequest{
+			Resource:   &v1.ObjectReference{ObjectType: resT, ObjectId: resID},
+			Permission: permission,
+			Subject:    &v1.SubjectReference{Object: &v1.ObjectReference{ObjectType: subT, ObjectId: subID}},
+		},
+	)
 	if err != nil {
 		return false, err
 	}

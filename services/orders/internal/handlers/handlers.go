@@ -1,4 +1,4 @@
-// Handlers implement the ogen-generated orders.Handler interface (ADR-0008).
+// Package handlers implement the ogen-generated orders.Handler interface (ADR-0008).
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.
 package handlers
@@ -35,23 +35,31 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	if req.Quantity <= 0 {
 		return nil, apierr.BadRequest("product_id and quantity required")
 	}
-	row, err := h.q.CreateOrder(ctx, store.CreateOrderParams{
-		ProductID:  pgtype.UUID{Bytes: req.ProductID, Valid: true},
-		Quantity:   int32(req.Quantity),
-		TotalCents: 0,
-	})
+	row, err := h.q.CreateOrder(
+		ctx,
+		store.CreateOrderParams{
+			ProductID:  pgtype.UUID{Bytes: req.ProductID, Valid: true},
+			Quantity:   int32(req.Quantity),
+			TotalCents: 0,
+		},
+	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	id := uuid.UUID(row.ID.Bytes).String()
-	_, err = h.tc.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
-		ID:        "checkout-" + id,
-		TaskQueue: serviceName + "-queue",
-	}, workflows.Checkout, workflows.CheckoutInput{
-		OrderID:   id,
-		ProductID: uuid.UUID(row.ProductID.Bytes).String(),
-		Quantity:  row.Quantity,
-	})
+	_, err = h.tc.ExecuteWorkflow(
+		ctx,
+		client.StartWorkflowOptions{
+			ID:        "checkout-" + id,
+			TaskQueue: serviceName + "-queue",
+		},
+		workflows.Checkout,
+		workflows.CheckoutInput{
+			OrderID:   id,
+			ProductID: uuid.UUID(row.ProductID.Bytes).String(),
+			Quantity:  row.Quantity,
+		},
+	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}

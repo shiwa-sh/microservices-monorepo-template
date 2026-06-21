@@ -83,12 +83,15 @@ func TestClassify(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := classify(tc.files, false)
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("classify(%v) =\n  %+v\nwant\n  %+v", tc.files, got, tc.want)
-			}
-		})
+		t.Run(
+			tc.name,
+			func(t *testing.T) {
+				got := classify(tc.files, false)
+				if !reflect.DeepEqual(got, tc.want) {
+					t.Errorf("classify(%v) =\n  %+v\nwant\n  %+v", tc.files, got, tc.want)
+				}
+			},
+		)
 	}
 }
 

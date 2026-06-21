@@ -36,18 +36,24 @@ func NewClient(serviceName string) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return client.Dial(client.Options{
-		HostPort:     Address(),
-		Namespace:    Namespace(),
-		Identity:     serviceName,
-		Interceptors: []interceptor.ClientInterceptor{tracingInterceptor},
-	})
+	return client.Dial(
+		client.Options{
+			HostPort:     Address(),
+			Namespace:    Namespace(),
+			Identity:     serviceName,
+			Interceptors: []interceptor.ClientInterceptor{tracingInterceptor},
+		},
+	)
 }
 
 // NewWorker constructs a Temporal worker with the platform-default options.
 func NewWorker(c client.Client, taskQueue string) worker.Worker {
-	return worker.New(c, taskQueue, worker.Options{
-		EnableSessionWorker:                true,
-		MaxConcurrentActivityExecutionSize: 50,
-	})
+	return worker.New(
+		c,
+		taskQueue,
+		worker.Options{
+			EnableSessionWorker:                true,
+			MaxConcurrentActivityExecutionSize: 50,
+		},
+	)
 }

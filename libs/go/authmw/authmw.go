@@ -78,10 +78,12 @@ func FromContext(ctx context.Context) (*Principal, bool) {
 // handler's job via the authz Checker.
 func Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), principalKey, Read(r.Header))
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+		return http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				ctx := context.WithValue(r.Context(), principalKey, Read(r.Header))
+				next.ServeHTTP(w, r.WithContext(ctx))
+			},
+		)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	payment "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
 	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/handlers"
 )
