@@ -5,6 +5,9 @@ extends:
 
 rules:
   # Style
+  # Specs are codegen contracts (ogen), not docs — per-property examples add
+  # maintenance burden to every scaffolded spec for no codegen value. Off.
+  oas3-missing-example: off
   operation-operationId: error
   operation-tag-defined: error
   oas3-server-not-example.com: warn
