@@ -23,9 +23,14 @@ function makeNonce(): string {
 
 function contentSecurityPolicy(nonce: string): string {
   const connectSrc = ["'self'", INGEST_ORIGIN].filter(Boolean).join(" ");
+  // Next.js dev mode needs eval() for HMR/debugging; production never uses it.
+  const scriptSrc = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"];
+  if (process.env.NODE_ENV !== "production") {
+    scriptSrc.push("'unsafe-eval'");
+  }
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     `connect-src ${connectSrc}`,
