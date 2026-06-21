@@ -4,11 +4,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -28,23 +30,24 @@ var (
 
 func main() {
 	flag.Parse()
-	files, err := changedFiles(*baseRef)
+	files, err := changedFiles(context.Background(), *baseRef)
 	if err != nil {
-		fail("git diff failed: %v", err)
+		failf("git diff failed: %v", err)
 	}
 	m := classify(files, *all)
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	err = enc.Encode(m)
 	if err != nil {
-		fail("encode: %v", err)
+		failf("encode: %v", err)
 	}
 }
 
-func changedFiles(base string) ([]string, error) {
-	out, err := exec.Command("git", "diff", "--name-only", base+"...HEAD").Output()
+func changedFiles(ctx context.Context, base string) ([]string, error) {
+	// #nosec G204 -- base is an operator-supplied git ref; this is a local CI helper, not a server.
+	out, err := exec.CommandContext(ctx, "git", "diff", "--name-only", base+"...HEAD").Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("git diff: %w", err)
 	}
 	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
 	if len(lines) == 1 && lines[0] == "" {
@@ -75,12 +78,7 @@ func classify(files []string, forceAll bool) Manifest {
 	for _, f := range files {
 		switch {
 		// Anything that affects the whole repo's build graph.
-		case f == "go.mod" || f == "go.sum" ||
-			f == "package.json" || f == "bun.lockb" ||
-			f == ".mise.toml" ||
-			strings.HasPrefix(f, "infra/") ||
-			strings.HasPrefix(f, "tools/") ||
-			strings.HasPrefix(f, ".github/"):
+		case isGlobalTrigger(f):
 			m.Global = true
 			m.Reason = "global trigger: " + f
 			return Manifest{Global: true, Reason: m.Reason, Services: []string{}, Apps: []string{}, Libs: []string{}}
@@ -120,6 +118,17 @@ func classify(files []string, forceAll bool) Manifest {
 	return m
 }
 
+// isGlobalTrigger reports whether a changed path forces a full-repo build.
+func isGlobalTrigger(f string) bool {
+	exact := []string{"go.mod", "go.sum", "package.json", "bun.lockb", ".mise.toml"}
+	if slices.Contains(exact, f) {
+		return true
+	}
+	return strings.HasPrefix(f, "infra/") ||
+		strings.HasPrefix(f, "tools/") ||
+		strings.HasPrefix(f, ".github/")
+}
+
 // segment returns the n-th path segment (0-indexed), or "" if absent.
 func segment(p string, n int) string {
 	parts := strings.Split(p, "/")
@@ -134,16 +143,11 @@ func sortedKeys(m map[string]struct{}) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	// Cheap stable sort without pulling in "sort": tiny insertion sort is fine here.
-	for i := 1; i < len(keys); i++ {
-		for j := i; j > 0 && keys[j-1] > keys[j]; j-- {
-			keys[j-1], keys[j] = keys[j], keys[j-1]
-		}
-	}
+	slices.Sort(keys)
 	return keys
 }
 
-func fail(format string, args ...any) {
+func failf(format string, args ...any) {
 	_, _ = fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
 }

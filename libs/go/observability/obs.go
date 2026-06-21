@@ -12,6 +12,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"strconv"
+	"time"
 
 	otelslog "go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
@@ -37,9 +38,11 @@ type Config struct {
 
 // Init wires up tracing, metrics, logs, pprof, and slog. The returned shutdown
 // function must be called from main to flush all signals.
+//
+//nolint:funlen // ADR-0011: the single documented wiring point; kept linear on purpose.
 func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) {
 	if cfg.ServiceName == "" {
-		return nil, fmt.Errorf("observability.Init: ServiceName is required")
+		return nil, errors.New("observability.Init: ServiceName is required")
 	}
 	if cfg.AdminAddr == "" {
 		cfg.AdminAddr = ":9090"
@@ -170,6 +173,8 @@ func (f fanout) WithGroup(name string) slog.Handler {
 }
 
 // StartSpan wraps otel.Tracer().Start so service code never imports otel directly.
+//
+//nolint:spancheck // thin passthrough; the caller owns the returned span and its End().
 func StartSpan(ctx context.Context, name string) (context.Context, trace.Span) {
 	return otel.Tracer("service").Start(ctx, name)
 }
@@ -192,7 +197,7 @@ func serveAdmin(addr string) {
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	err := srv.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		// Runs in a goroutine, so the error can't be returned

@@ -1,8 +1,9 @@
-// Activities for the Charge workflow.
+// Package activities holds the Charge workflow's activities.
 package activities
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -19,5 +20,8 @@ func (a *Activities) SettleActivity(_ context.Context, _ workflows.ChargeInput) 
 // MarkChargeStatusActivity writes the terminal status of a charge.
 func (a *Activities) MarkChargeStatusActivity(ctx context.Context, chargeID, status string) error {
 	_, err := a.DB.Exec(ctx, `update charges set status = $2 where id = $1`, chargeID, status)
-	return err
+	if err != nil {
+		return fmt.Errorf("mark charge status: update: %w", err)
+	}
+	return nil
 }

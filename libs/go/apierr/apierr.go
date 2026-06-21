@@ -7,6 +7,7 @@ package apierr
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 )
 
@@ -26,7 +27,10 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 func (e *Error) Write(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(e.Status)
-	_ = json.NewEncoder(w).Encode(e)
+	err := json.NewEncoder(w).Encode(e)
+	if err != nil {
+		slog.Error("apierr: encode response", "error", err)
+	}
 }
 
 // Helpers for the common cases. Service code calls these instead of building

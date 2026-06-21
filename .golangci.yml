@@ -2,39 +2,33 @@ version: "2"
 run:
   tests: true
 linters:
-  default: none
-  enable:
-    - bodyclose
-    - depguard
-    - errcheck
-    - errorlint
-    - gocritic
-    - govet
-    - ineffassign
-    - misspell
-    - nilerr
-    - prealloc
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - staticcheck
-    - unconvert
-    - unused
+  default: all
+  disable:
+    # --- deprecated ---
+    - gomodguard          # replaced by gomodguard_v2
+    - wsl                 # replaced by wsl_v5
+    # --- fight the gofumpt formatter (unwinnable blank-line loop) ---
+    - wsl_v5
+    - nlreturn
+    # --- contradict idiomatic Go / the ADRs ---
+    - exhaustruct         # demands every zero-value field be spelled out
+    - varnamelen          # bans idiomatic short names (i, tx, db, r, w)
+    - err113              # ADR-0001: no bespoke error DSLs; sentinel-per-error ceremony
+    - ireturn             # returns are ADR-mandated interfaces (otel/temporal/authz)
+    - gochecknoglobals    # ADR-0011 metrics + CLI flags are idiomatic globals
+    - mnd                 # magic-number noise for timeouts/pool sizes
+    - tagliatelle         # ADR-0008 API uses snake_case json tags
+    - testpackage         # white-box tests of unexported funcs are deliberate
+    # --- redundant within the complexity family (keep cyclop + gocognit + funlen) ---
+    - gocyclo             # cyclomatic, redundant with cyclop
+    - nestif              # subset of gocognit
+    - maintidx            # composite of cyclop/gocognit/funlen
   settings:
+    cyclop:
+      max-complexity: 15
     errcheck:
-      # Drop errcheck's built-in ignore list (fmt.Print*/Fprint* family,
-      # bytes.Buffer.Write, hash.Write, ...) so unchecked errors are flagged the
-      # same way the IDE's "unhandled error" inspection does. The std-error-handling
-      # exclusion preset is also removed below, since its EXC0001 regex re-suppresses
-      # the same print family plus *.Close/*.Flush. Genuinely ignorable errors must
-      # be discarded explicitly with `_ =` (check-blank stays off, the escape hatch).
       disable-default-exclusions: true
     errorlint:
-      # Error == / != comparisons (and switch-on-error) are owned by the custom
-      # ruleguard `errCompare` rule in gorules/rules.go, which has no blind spot
-      # for `err := method(); if err != Sentinel` (errorlint silently misses that
-      # single-value short-decl-from-method form). Disabling comparison here keeps
-      # the two from double-reporting; errorlint still owns asserts and %w/errorf.
       comparison: false
     gocritic:
       enabled-checks:
@@ -60,12 +54,6 @@ linters:
           deny:
             - pkg: github.com/jackc/pgx/v5/stdlib
               desc: Use *pgxpool.Pool, not stdlib database/sql. ADR-0007 §SQL access.
-        # NOTE: a `service-isolation` rule denying the whole `services` prefix also
-        # flags a service importing its OWN internal packages (legal Go), so it is
-        # not expressible cleanly in depguard. Cross-service isolation (ADR-0002,
-        # ADR-0008) is enforced by the SDK convention (libs/go/sdks/<svc>/client)
-        # plus the no-deep-imports rule above (which blocks apps/ and tools/ from
-        # reaching into services/<x>/internal) and code review.
   exclusions:
     generated: lax
     presets:
@@ -75,6 +63,7 @@ linters:
     rules:
       - linters:
           - errcheck
+          - funlen
           - gocritic
           - prealloc
         path: _test\.go

@@ -1,4 +1,4 @@
-// Handlers implement the ogen-generated orgs.Handler interface (ADR-0008).
+// Package handlers implement the ogen-generated orgs.Handler interface (ADR-0008).
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.
 package handlers

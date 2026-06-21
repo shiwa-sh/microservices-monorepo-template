@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"math"
 	"net/url"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func New(db *pgxpool.Pool, tc client.Client) *Handlers { return &Handlers{q: sto
 var _ orders.Handler = (*Handlers)(nil)
 
 func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*orders.WorkflowHandle, error) {
-	if req.Quantity <= 0 {
+	if req.Quantity <= 0 || req.Quantity > math.MaxInt32 {
 		return nil, apierr.BadRequest("product_id and quantity required")
 	}
 	row, err := h.q.CreateOrder(

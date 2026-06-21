@@ -6,6 +6,7 @@ import (
 )
 
 func TestClassify(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		files []string
@@ -86,6 +87,7 @@ func TestClassify(t *testing.T) {
 		t.Run(
 			tc.name,
 			func(t *testing.T) {
+				t.Parallel()
 				got := classify(tc.files, false)
 				if !reflect.DeepEqual(got, tc.want) {
 					t.Errorf("classify(%v) =\n  %+v\nwant\n  %+v", tc.files, got, tc.want)
@@ -96,6 +98,7 @@ func TestClassify(t *testing.T) {
 }
 
 func TestClassifyAllFlag(t *testing.T) {
+	t.Parallel()
 	got := classify([]string{"services/orders/foo.go"}, true)
 	if !got.Global {
 		t.Errorf("--all should force Global=true, got %+v", got)

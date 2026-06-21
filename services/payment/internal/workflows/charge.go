@@ -1,9 +1,10 @@
-// Charge workflow (ADR-0006). Demonstrates an idempotent activity sequence
-// with compensation on failure. Real payment processors are mocked by the
-// SettleActivity for template purposes.
+// Package workflows holds the Charge workflow (ADR-0006). It demonstrates an
+// idempotent activity sequence with compensation on failure. Real payment
+// processors are mocked by the SettleActivity for template purposes.
 package workflows
 
 import (
+	"fmt"
 	"time"
 
 	"go.temporal.io/sdk/temporal"
@@ -32,11 +33,11 @@ func Charge(ctx workflow.Context, in ChargeInput) (ChargeResult, error) {
 	err := workflow.ExecuteActivity(ctx, "SettleActivity", in).Get(ctx, nil)
 	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "failed").Get(ctx, nil)
-		return ChargeResult{Status: "failed"}, err
+		return ChargeResult{Status: "failed"}, fmt.Errorf("charge: settle: %w", err)
 	}
 	err = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "settled").Get(ctx, nil)
 	if err != nil {
-		return ChargeResult{Status: "settled"}, err
+		return ChargeResult{Status: "settled"}, fmt.Errorf("charge: mark settled: %w", err)
 	}
 	return ChargeResult{Status: "settled"}, nil
 }

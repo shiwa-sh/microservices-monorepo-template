@@ -55,7 +55,11 @@ func run() error {
 		return fmt.Errorf("ogen server: %w", err)
 	}
 
-	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(authmw.Middleware()(api), serviceName), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{
+		Addr:              ":8080",
+		Handler:           httpmw.Chain(authmw.Middleware()(api), serviceName),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	serveErr := make(chan error, 1)
 	go func() {
 		err := srv.ListenAndServe()
@@ -72,5 +76,9 @@ func run() error {
 	}
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return srv.Shutdown(shutCtx)
+	err = srv.Shutdown(shutCtx)
+	if err != nil {
+		return fmt.Errorf("orders: server shutdown: %w", err)
+	}
+	return nil
 }

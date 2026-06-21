@@ -52,7 +52,7 @@ func run() error {
 	w.RegisterActivity(acts.SettleActivity)
 	w.RegisterActivity(acts.MarkChargeStatusActivity)
 
-	interrupt := make(chan interface{}, 1)
+	interrupt := make(chan any, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()
 	err = w.Run(interrupt)
 	if err != nil {

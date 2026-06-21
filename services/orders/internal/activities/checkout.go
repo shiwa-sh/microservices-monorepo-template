@@ -42,13 +42,13 @@ func env(k, def string) string {
 
 // LookupProductActivity calls catalog. Returns the product's price in cents.
 func (a *Activities) LookupProductActivity(ctx context.Context, productID string) (int32, error) {
-	req, _ := http.NewRequestWithContext(ctx, "GET", a.CatalogURL+"/products/"+productID, nil)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, a.CatalogURL+"/products/"+productID, nil)
 	resp, err := a.HTTP.Do(req)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("lookup product: call catalog: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("catalog status %d", resp.StatusCode)
 	}
 	var out struct {
@@ -56,7 +56,7 @@ func (a *Activities) LookupProductActivity(ctx context.Context, productID string
 	}
 	err = json.NewDecoder(resp.Body).Decode(&out)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("lookup product: decode response: %w", err)
 	}
 	return out.PriceCents, nil
 }
@@ -64,16 +64,19 @@ func (a *Activities) LookupProductActivity(ctx context.Context, productID string
 // ChargeActivity calls payment with an idempotency key derived from the order ID.
 // Returns the charge handle ID.
 func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCents int32) (string, error) {
-	body, _ := json.Marshal(map[string]any{"order_id": orderID, "amount_cents": totalCents})
-	req, _ := http.NewRequestWithContext(ctx, "POST", a.PaymentURL+"/charges", bytes.NewReader(body))
+	body, err := json.Marshal(map[string]any{"order_id": orderID, "amount_cents": totalCents})
+	if err != nil {
+		return "", fmt.Errorf("charge: marshal request: %w", err)
+	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, a.PaymentURL+"/charges", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", "order-"+orderID)
 	resp, err := a.HTTP.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("charge: call payment: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != 202 {
+	if resp.StatusCode != http.StatusAccepted {
 		return "", fmt.Errorf("payment status %d", resp.StatusCode)
 	}
 	var out struct {
@@ -81,7 +84,7 @@ func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCe
 	}
 	err = json.NewDecoder(resp.Body).Decode(&out)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("charge: decode response: %w", err)
 	}
 	return out.ID, nil
 }
@@ -90,8 +93,11 @@ func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCe
 func (a *Activities) MarkOrderStatusActivity(ctx context.Context, orderID, status string) error {
 	id, err := uuid.Parse(orderID)
 	if err != nil {
-		return err
+		return fmt.Errorf("mark order status: parse order id: %w", err)
 	}
 	_, err = a.DB.Exec(ctx, `update orders set status = $2 where id = $1`, id, status)
-	return err
+	if err != nil {
+		return fmt.Errorf("mark order status: update: %w", err)
+	}
+	return nil
 }

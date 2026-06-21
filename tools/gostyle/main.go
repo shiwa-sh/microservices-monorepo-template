@@ -41,13 +41,16 @@ func runCallArgs(pass *analysis.Pass) (any, error) {
 			}
 
 			if !isSingleLine(call, pass) && !isFullyExploded(call, pass) {
-				pass.Reportf(call.Lparen, "call arguments are partially broken across lines; use either a single line or one argument per line")
+				pass.Reportf(
+					call.Lparen,
+					"call arguments are partially broken across lines; use either a single line or one argument per line",
+				)
 			}
 
 			return true
 		})
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // Run's (result, error) signature; nil result is normal
 }
 
 // isGenerated reports whether the file carries the standard

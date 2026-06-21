@@ -12,6 +12,7 @@
 package workflows
 
 import (
+	"fmt"
 	"time"
 
 	"go.temporal.io/sdk/temporal"
@@ -41,7 +42,7 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 	err := workflow.ExecuteActivity(ctx, "LookupProductActivity", in.ProductID).Get(ctx, &price)
 	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "failed").Get(ctx, nil)
-		return CheckoutResult{Status: "failed"}, err
+		return CheckoutResult{Status: "failed"}, fmt.Errorf("checkout: lookup product: %w", err)
 	}
 	total := price * in.Quantity
 
@@ -49,12 +50,16 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 	err = workflow.ExecuteActivity(ctx, "ChargeActivity", in.OrderID, total).Get(ctx, &chargeID)
 	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "failed").Get(ctx, nil)
-		return CheckoutResult{Status: "failed", TotalCents: total}, err
+		return CheckoutResult{Status: "failed", TotalCents: total}, fmt.Errorf("checkout: charge: %w", err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "confirmed").Get(ctx, nil)
 	if err != nil {
-		return CheckoutResult{Status: "confirmed", TotalCents: total, ChargeID: chargeID}, err
+		return CheckoutResult{
+			Status:     "confirmed",
+			TotalCents: total,
+			ChargeID:   chargeID,
+		}, fmt.Errorf("checkout: mark order confirmed: %w", err)
 	}
 	return CheckoutResult{Status: "confirmed", TotalCents: total, ChargeID: chargeID}, nil
 }

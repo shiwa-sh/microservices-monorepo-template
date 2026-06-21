@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"math"
 	"net/url"
 
 	"github.com/google/uuid"
@@ -31,9 +32,16 @@ func New(db *pgxpool.Pool, tc client.Client) *Handlers { return &Handlers{q: sto
 
 var _ payment.Handler = (*Handlers)(nil)
 
-func (h *Handlers) CreateCharge(ctx context.Context, req *payment.ChargeInput, params payment.CreateChargeParams) (*payment.WorkflowHandle, error) {
+func (h *Handlers) CreateCharge(
+	ctx context.Context,
+	req *payment.ChargeInput,
+	params payment.CreateChargeParams,
+) (*payment.WorkflowHandle, error) {
 	if params.IdempotencyKey == "" {
 		return nil, apierr.BadRequest("Idempotency-Key required")
+	}
+	if req.AmountCents < 0 || req.AmountCents > math.MaxInt32 {
+		return nil, apierr.BadRequest("amount_cents out of range")
 	}
 
 	// Idempotency lookup before anything else (ADR-0006).
@@ -45,24 +53,32 @@ func (h *Handlers) CreateCharge(ctx context.Context, req *payment.ChargeInput, p
 		return nil, apierr.Internal(err.Error())
 	}
 
-	created, err := h.q.CreateCharge(ctx, store.CreateChargeParams{
-		OrderID:        pgtype.UUID{Bytes: req.OrderID, Valid: true},
-		AmountCents:    int32(req.AmountCents),
-		IdempotencyKey: params.IdempotencyKey,
-	})
+	created, err := h.q.CreateCharge(
+		ctx,
+		store.CreateChargeParams{
+			OrderID:        pgtype.UUID{Bytes: req.OrderID, Valid: true},
+			AmountCents:    int32(req.AmountCents),
+			IdempotencyKey: params.IdempotencyKey,
+		},
+	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	id := uuid.UUID(created.ID.Bytes).String()
 
-	_, err = h.tc.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
-		ID:        "charge-" + id,
-		TaskQueue: serviceName + "-queue",
-	}, workflows.Charge, workflows.ChargeInput{
-		ChargeID:    id,
-		OrderID:     uuid.UUID(created.OrderID.Bytes).String(),
-		AmountCents: created.AmountCents,
-	})
+	_, err = h.tc.ExecuteWorkflow(
+		ctx,
+		client.StartWorkflowOptions{
+			ID:        "charge-" + id,
+			TaskQueue: serviceName + "-queue",
+		},
+		workflows.Charge,
+		workflows.ChargeInput{
+			ChargeID:    id,
+			OrderID:     uuid.UUID(created.OrderID.Bytes).String(),
+			AmountCents: created.AmountCents,
+		},
+	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}

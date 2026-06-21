@@ -9,6 +9,7 @@ import (
 )
 
 func TestConformance(t *testing.T) {
+	t.Parallel()
 	fixtures, err := Fixtures()
 	if err != nil {
 		t.Fatal(err)
@@ -21,6 +22,7 @@ func TestConformance(t *testing.T) {
 		t.Run(
 			f.Name,
 			func(t *testing.T) {
+				t.Parallel()
 				h := http.Header{}
 				for k, v := range f.Headers {
 					h.Set(k, v)

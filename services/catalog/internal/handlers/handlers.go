@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"math"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -48,7 +49,7 @@ func (h *Handlers) GetProduct(ctx context.Context, params catalog.GetProductPara
 }
 
 func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput) (*catalog.Product, error) {
-	if req.Name == "" || req.PriceCents < 0 {
+	if req.Name == "" || req.PriceCents < 0 || req.PriceCents > math.MaxInt32 {
 		return nil, apierr.BadRequest("name and price_cents required")
 	}
 	row, err := h.q.CreateProduct(ctx, store.CreateProductParams{Name: req.Name, PriceCents: int32(req.PriceCents)})

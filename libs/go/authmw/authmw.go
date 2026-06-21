@@ -9,6 +9,7 @@ package authmw
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -39,12 +40,7 @@ func (p *Principal) HasRole(role string) bool {
 	if p == nil {
 		return false
 	}
-	for _, r := range p.Roles {
-		if r == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Roles, role)
 }
 
 // Subject renders the principal as a SpiceDB subject ("user:<id>") for the

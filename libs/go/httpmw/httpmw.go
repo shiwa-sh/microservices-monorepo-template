@@ -14,41 +14,35 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-var (
-	requestCount metric.Int64Counter
-	requestDur   metric.Float64Histogram
-)
-
-func init() {
-	m := otel.Meter("http.server")
-	var err error
-	requestCount, err = m.Int64Counter("http.server.requests")
-	if err != nil {
-		panic(err)
-	}
-	requestDur, err = m.Float64Histogram("http.server.duration_seconds")
-	if err != nil {
-		panic(err)
-	}
-}
-
-// Chain wraps h with tracing, RED metrics, and access logging.
+// Chain wraps h with tracing, RED metrics, and access logging. The metric
+// instruments are created here (not in init) so they bind to the MeterProvider
+// that obs.Init installs before any service calls Chain.
 func Chain(h http.Handler, serviceName string) http.Handler {
+	meter := otel.Meter("http.server")
+	requestCount, err := meter.Int64Counter("http.server.requests")
+	if err != nil {
+		panic(err)
+	}
+	requestDur, err := meter.Float64Histogram("http.server.duration_seconds")
+	if err != nil {
+		panic(err)
+	}
 	traced := otelhttp.NewHandler(h, "http", otelhttp.WithServerName(serviceName))
-	return red(access(traced))
+	return red(requestCount, requestDur, access(traced))
 }
 
 type statusWriter struct {
 	http.ResponseWriter
+
 	status int
 }
 
 func (s *statusWriter) WriteHeader(c int) { s.status = c; s.ResponseWriter.WriteHeader(c) }
 
-func red(next http.Handler) http.Handler {
+func red(requestCount metric.Int64Counter, requestDur metric.Float64Histogram, next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			sw := &statusWriter{ResponseWriter: w, status: 200}
+			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 			start := time.Now()
 			next.ServeHTTP(sw, r)
 			dur := time.Since(start).Seconds()
@@ -66,7 +60,7 @@ func red(next http.Handler) http.Handler {
 func access(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			sw := &statusWriter{ResponseWriter: w, status: 200}
+			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 			start := time.Now()
 			next.ServeHTTP(sw, r)
 			slog.LogAttrs(

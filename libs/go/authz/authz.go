@@ -4,6 +4,7 @@ package authz
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -32,7 +33,7 @@ func New() (Checker, error) {
 	}
 	psk := os.Getenv("SPICEDB_PRESHARED_KEY")
 	if psk == "" {
-		return nil, fmt.Errorf("SPICEDB_PRESHARED_KEY not set")
+		return nil, errors.New("SPICEDB_PRESHARED_KEY not set")
 	}
 	c, err := authzed.NewClient(
 		endpoint,
@@ -48,7 +49,7 @@ func New() (Checker, error) {
 // Allowed runs a CheckPermission against SpiceDB.
 // subject  = "user:alice"
 // resource = "order:o1"
-// permission = "read"
+// permission = "read".
 func (s *spice) Allowed(ctx context.Context, subject, permission, resource string) (bool, error) {
 	subT, subID, err := split(subject)
 	if err != nil {
@@ -68,14 +69,14 @@ func (s *spice) Allowed(ctx context.Context, subject, permission, resource strin
 		},
 	)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("authz: check permission: %w", err)
 	}
-	return r.Permissionship == v1.CheckPermissionResponse_PERMISSIONSHIP_HAS_PERMISSION, nil
+	return r.GetPermissionship() == v1.CheckPermissionResponse_PERMISSIONSHIP_HAS_PERMISSION, nil
 }
 
 // split converts "type:id" → ("type", "id").
 func split(s string) (string, string, error) {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == ':' {
 			return s[:i], s[i+1:], nil
 		}
