@@ -15,6 +15,13 @@ kratos:
           registration: { ui_url: https://dev.example.com/auth/register }
           recovery:     { ui_url: https://dev.example.com/auth/recovery }
           settings:     { ui_url: https://dev.example.com/auth/settings }
+      # Scope the session cookie to the parent host so it is shared with
+      # subdomains (e.g. hubble.<host>, served at its own origin). Without a
+      # domain the cookie is host-only and the subdomain sees no session. Set to
+      # the app host; each env overrides it (local → dev.localtest.me).
+      session:
+        cookie:
+          domain: dev.example.com
     # Inlined from infra/auth/kratos/identity-schemas/user.v1.json (canonical
     # source). Helm cannot read files outside a chart, so keep the two in sync.
     identitySchemas:
@@ -126,7 +133,7 @@ oathkeeper:
         },
         {
           "id": "hubble-ui",
-          "match": { "url": "<{http,https}>://<**>/hubble/<**>", "methods": ["GET","POST"] },
+          "match": { "url": "<{http,https}>://hubble.<**>/<**>", "methods": ["GET","POST"] },
           "authenticators": [{ "handler": "cookie_session" }],
           "authorizer": { "handler": "allow" },
           "mutators": [{ "handler": "noop" }],

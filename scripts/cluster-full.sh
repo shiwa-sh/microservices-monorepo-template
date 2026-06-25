@@ -293,7 +293,7 @@ cat <<EOF
 
 ✓ cluster:full up (profile '${PROFILE}': ${COMPONENTS}).
   Edge (Traefik):   https://${DOMAIN}:8443/api/<service>/   (self-signed TLS)
-  Hubble UI:        https://${DOMAIN}:8443/hubble/
+  Hubble UI:        https://hubble.${DOMAIN}:8443/
   Grafana:          https://${DOMAIN}:8443/grafana/   (login admin/admin)
   Teardown:         mise run cluster:full:down
 

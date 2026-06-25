@@ -99,7 +99,7 @@ Traefik (k3s default)  (TLS termination via cert-manager + Let's Encrypt, L7 rou
   ├── /internal/admin/* ─▶ Oathkeeper (identity) ─▶ Lowdefy pod (internal admin, per ADR-0012)
   ├── /(landing|panel|admin|devportal)/* ─▶ Next.js frontend pod (one app, route groups per ADR-0014)
   ├── /grafana/*        ─▶ Grafana (auth-gated)
-  └── /hubble/*         ─▶ Hubble UI (Cilium network / service-map dashboard, auth-gated)
+  └── hubble.<host>/    ─▶ Hubble UI (Cilium network / service-map dashboard, auth-gated; own subdomain at root — its router can't run under a path prefix)
 ```
 
 **Traefik is the only ingress; Oathkeeper is an auth filter behind it, not a second gateway.** Traefik does TLS,
@@ -115,8 +115,8 @@ hostname/path routing, load balancing, and rate limiting; Ory Oathkeeper validat
 **Cluster networking:** Cilium. Network policies are the platform's internal service-to-service trust boundary
 ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)): the default is **deny**, and each service's chart declares
 which callers may reach it. Because internal calls carry forwarded identity headers and no token, NetworkPolicy is what
-guarantees only sanctioned callers reach a service's port. Hubble (bundled, UI exposed auth-gated at `/hubble/*`)
-provides per-flow visibility and is the audit surface for these policies. k3s is installed with
+guarantees only sanctioned callers reach a service's port. Hubble (bundled, UI exposed auth-gated at the `hubble.<host>`
+subdomain) provides per-flow visibility and is the audit surface for these policies. k3s is installed with
 `--flannel-backend=none --disable-network-policy`; Cilium is installed by the Ansible bootstrap role before ArgoCD is
 started, then adopted by ArgoCD for upgrades.
 
@@ -227,7 +227,8 @@ cannot absorb.
 encryption), L7 network policies, and per-flow observability (Hubble) without an injected proxy or a second
 component. **Hubble UI is deployed as the cluster's network / service-map dashboard** — live service-to-service flows,
 dropped connections, and L7 traffic — and is the audit surface for the NetworkPolicy-based internal trust boundary
-([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)); it is exposed auth-gated at `/hubble/*`. Cilium is
+([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)); it is exposed auth-gated at the `hubble.<host>` subdomain
+(its React Router is hardwired to basename `/`, so it must be served at a root origin, not under a path prefix). Cilium is
 installed
 from day one because CNI cannot be hot-swapped on a live cluster.
 
@@ -299,5 +300,5 @@ alongside the backup restore drill above.
   resource cost and component count. Cilium covers CNI + zero-trust + L7 policies + Hubble observability in a single
   component with no per-pod proxy overhead.
 - Cilium NetworkPolicy is the internal service-to-service trust boundary; the default is deny and each service declares
-  its allowed callers ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)). Hubble UI (auth-gated at `/hubble/*`)
+  its allowed callers ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)). Hubble UI (auth-gated at `hubble.<host>`)
   is the dashboard and audit surface for cluster network flows.

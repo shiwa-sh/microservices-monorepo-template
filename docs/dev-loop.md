@@ -132,7 +132,7 @@ matches longest-prefix, so the specific routes below win over the `/` catch-all.
 | `/api/catalog/`, `/api/orders/`, `/api/orgs/`, `/api/payment/` | Service APIs through the edge | Oathkeeper | `infra/helm/service/templates/ingressroute.yaml` |
 | `/api/observability/faro` | Faro/RUM browser-telemetry ingest | public | `infra/gateway/frontend-observability.yaml` |
 | `/grafana/` | **Grafana** — LGTM dashboards (Loki/Tempo/Mimir) | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
-| `/hubble/` | Cilium **Hubble UI** — live network-flow map | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
+| `hubble.dev.localtest.me/` | Cilium **Hubble UI** — live network-flow map (own subdomain at root; its router can't run under a path prefix) | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
 | `/internal/admin` | **Lowdefy** internal admin console | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
 
 Grafana has its own login behind the Kratos gate — sign in with `admin` / `admin`
@@ -140,7 +140,7 @@ Grafana has its own login behind the Kratos gate — sign in with `admin` / `adm
 port-forward: `kubectl -n platform port-forward svc/grafana 3000:80`, then
 <http://localhost:3000/grafana> (it serves from the `/grafana` sub-path).
 
-The `/grafana`, `/hubble`, `/internal/admin`, `/api/*` and `/api/observability/*`
+The `/grafana`, `hubble.<host>`, `/internal/admin`, `/api/*` and `/api/observability/*`
 routes only exist with the `gateway`/`services`/`observability` components up (the
 `full` profile); `min`/`backend`/`obs` bring up a subset (see [Profiles](#profiles)).
 
@@ -148,9 +148,10 @@ routes only exist with the `gateway`/`services`/`observability` components up (t
 
 The edge serves `*.dev.localtest.me` on `:8443` (real DNS → 127.0.0.1, no
 `/etc/hosts` edits). Auth-gated routes (e.g. the Hubble UI at
-`https://dev.localtest.me:8443/hubble/`) redirect an unauthenticated browser to
+`https://hubble.dev.localtest.me:8443/`) redirect an unauthenticated browser to
 Kratos at `…/auth/login`; register/login there and the redirect returns you to the
-gated page. The landing page and `/auth` UI are served by a host-run `next dev`
+gated page. The Kratos session cookie is scoped to `dev.localtest.me` (parent
+domain), so one login covers the edge and every `*.dev.localtest.me` subdomain. The landing page and `/auth` UI are served by a host-run `next dev`
 (run `next dev -H 0.0.0.0` on the host — the dev server is not in-cluster), wired
 through `infra/local/edge-auth.yaml`.
 

@@ -54,10 +54,11 @@
     - handler: redirect
 
 # Hubble UI (ADR-0003). Network-flow visibility, auth-gated to a logged-in
-# operator; no identity headers needed downstream.
+# operator; no identity headers needed downstream. Served at the root of the
+# `hubble.<host>` subdomain (its React Router can't run under a path prefix).
 - id: hubble-ui
   match:
-    url: "http://<**>/hubble/<**>"
+    url: "<{http,https}>://hubble.<**>/<**>"
     methods: [GET, POST]
   authenticators:
     - handler: cookie_session

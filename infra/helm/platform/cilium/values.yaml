@@ -9,12 +9,18 @@ cilium:
 
   # Hubble gives per-flow network visibility without a sidecar (ADR-0003). It is
   # the audit surface for internal header-trust (ADR-0009). The UI is deployed
-  # and exposed auth-gated at /hubble/* via the gateway IngressRoute (infra/gateway).
+  # and exposed auth-gated at the hubble.<host> subdomain via the gateway
+  # IngressRoute (infra/gateway).
   hubble:
     enabled: true
     relay:
       enabled: true
     ui:
       enabled: true
-      # Served under /hubble; Traefik strips nothing, so set the UI base path.
-      baseUrl: /hubble
+      # Served at the ROOT of the `hubble.<host>` subdomain (gateway IngressRoute
+      # matches HostRegexp `^hubble\.`), not under a path prefix. hubble-ui's
+      # React Router is hardwired to basename `/` and never reads the `<base>`
+      # tag for routing, so a `/hubble` sub-path breaks client routing (404 on
+      # every route). Root-on-a-subdomain is the only layout it supports, so keep
+      # baseUrl at `/`.
+      baseUrl: /

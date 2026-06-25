@@ -25,6 +25,12 @@ spec:
 ---
 # Hubble UI (ADR-0003). Network-flow visibility, auth-gated to a logged-in
 # operator. The Cilium Hubble UI service lives in kube-system.
+#
+# Served at the ROOT of the `hubble.<host>` subdomain, NOT under a /hubble path:
+# hubble-ui's React Router is hardwired to basename `/`, so a path prefix 404s
+# its own client routes. HostRegexp keeps this host-agnostic — it matches
+# hubble.dev.localtest.me locally and hubble.<apex> in every deployed env, with
+# no per-env templating. The wildcard cert (`*.<host>`) already covers it.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -34,7 +40,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: PathPrefix(`/hubble`)
+      match: HostRegexp(`^hubble\..+`)
       middlewares:
         - name: oathkeeper-forward-auth
         - name: security-headers

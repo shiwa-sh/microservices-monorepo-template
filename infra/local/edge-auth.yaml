@@ -2,7 +2,9 @@
 # prod, the frontend is NOT deployed in-cluster locally — it runs on the host via
 # `next dev`. Serving it (and the Kratos public API) from the same origin as the
 # edge, https://dev.localtest.me:8443, is what keeps the ory_kratos_session cookie
-# on the host Oathkeeper checks for /hubble etc. Applied by scripts/cluster-full.sh
+# on the host Oathkeeper checks for the gated routes. The cookie is domain-scoped
+# to dev.localtest.me (set in the kratos values), so it also covers subdomains
+# like hubble.dev.localtest.me. Applied by scripts/cluster-full.sh
 # (NOT infra/gateway, which ArgoCD syncs to prod).
 ---
 # Kratos serves its endpoints at root; serve.public.base_url only advertises the
@@ -54,9 +56,10 @@ spec:
   tls:
     secretName: wildcard-tls
 ---
-# Catch-all → host `next dev`. The routes above and the per-service /api/<svc>,
-# /hubble, and /internal routes are longer prefixes, so Traefik matches them
-# first; everything else (landing, /auth/login, /panel …) is served by the app.
+# Catch-all → host `next dev`. The routes above and the per-service /api/<svc>
+# and /internal routes are longer prefixes, and the hubble.<host> route matches
+# by Host, so Traefik matches them first; everything else (landing, /auth/login,
+# /panel …) is served by the app.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

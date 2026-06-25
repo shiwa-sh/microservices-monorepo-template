@@ -37,6 +37,11 @@ kratos:
           registration: { ui_url: https://dev.localtest.me:8443/auth/register }
           recovery:     { ui_url: https://dev.localtest.me:8443/auth/recovery }
           settings:     { ui_url: https://dev.localtest.me:8443/auth/settings }
+      # Share the session cookie with subdomains (hubble.dev.localtest.me is
+      # served at its own origin); overrides the chart's dev.example.com default.
+      session:
+        cookie:
+          domain: dev.localtest.me
       courier:
         smtp:
           connection_uri: "smtps://test:test@localhost:1025/?skip_ssl_verify=true"
@@ -50,7 +55,7 @@ kratos:
       type: initContainer
 
 # Oathkeeper sends unauthenticated browser (text/html) requests to a login page.
-# Override the prod placeholder host so /hubble/ et al. redirect to the local edge.
+# Override the prod placeholder host so gated routes redirect to the local edge.
 oathkeeper:
   oathkeeper:
     config:
