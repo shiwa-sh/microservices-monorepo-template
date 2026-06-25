@@ -154,6 +154,26 @@ gated page. The landing page and `/auth` UI are served by a host-run `next dev`
 (run `next dev -H 0.0.0.0` on the host — the dev server is not in-cluster), wired
 through `infra/local/edge-auth.yaml`.
 
+**There is no seeded user** — Kratos starts with an empty identity store. Create
+one at <https://dev.localtest.me:8443/auth/register> with any email and a password
+that clears Kratos' defaults (≥ 8 chars and not a known-breached password — it runs
+a HaveIBeenPwned check, so `password123` is rejected); then log in with it. Email
+verification is configured but the local SMTP sink isn't wired up, so verification
+mail isn't delivered — login doesn't require it.
+
+Start the host `next dev` with **`APP_ORIGIN=dev.localtest.me`** so the login and
+registration **server actions** pass Next's Origin/CSRF check (it feeds
+`serverActions.allowedOrigins` in `next.config.mjs`). Without it, form submits from
+the edge origin are rejected as cross-origin:
+
+```sh
+APP_ORIGIN=dev.localtest.me next dev -H 0.0.0.0
+```
+
+The full Kratos self-service set is served under `/auth/` — `login`, `register`,
+`recovery`, and `settings` (these are frontend pages, identical in every env, not
+local-only).
+
 > On a restricted network whose registry blocks **digest** pulls (only tags
 > resolve), pre-pull the platform images by tag and `k3d image import` them; the
 > upstream charts pin images by digest. A normal connection pulls them directly.
