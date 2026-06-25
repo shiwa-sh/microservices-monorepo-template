@@ -12,6 +12,11 @@ const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
   typedRoutes: true,
+  // `cluster:full` serves the host-run `next dev` through the edge at
+  // dev.localtest.me:8443 — a different origin than localhost — so allow it,
+  // otherwise Next blocks the cross-origin dev/HMR requests. Dev-server-only;
+  // the prod build ignores it.
+  allowedDevOrigins: ["dev.localtest.me"],
   experimental: {
     serverActions: {
       allowedOrigins,

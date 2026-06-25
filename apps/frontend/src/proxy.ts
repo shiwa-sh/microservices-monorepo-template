@@ -23,11 +23,15 @@ function makeNonce(): string {
 
 function contentSecurityPolicy(nonce: string): string {
   const connectSrc = ["'self'", INGEST_ORIGIN].filter(Boolean).join(" ");
-  // Next.js dev mode needs eval() for HMR/debugging; production never uses it.
-  const scriptSrc = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"];
-  if (process.env.NODE_ENV !== "production") {
-    scriptSrc.push("'unsafe-eval'");
-  }
+  // Production: a strict nonce + strict-dynamic policy. `next dev` can't satisfy
+  // it — it injects un-nonced inline HMR/fast-refresh scripts and needs eval(),
+  // and strict-dynamic makes the browser ignore 'unsafe-inline' — so the dev
+  // server gets an inline-permissive policy instead. Production never uses eval
+  // or un-nonced inline scripts, so it keeps the strict form.
+  const scriptSrc =
+    process.env.NODE_ENV === "production"
+      ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"]
+      : ["'self'", "'unsafe-inline'", "'unsafe-eval'"];
   return [
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
