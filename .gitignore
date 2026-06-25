@@ -29,6 +29,7 @@ node_modules/
 .next/
 out/
 .bun/
+*.tsbuildinfo
 
 # Biome (ADR-0014)
 .biome/
