@@ -131,6 +131,14 @@ oathkeeper:
           "authorizer": { "handler": "allow" },
           "mutators": [{ "handler": "noop" }],
           "errors": [{ "handler": "redirect" }]
+        },
+        {
+          "id": "grafana-ui",
+          "match": { "url": "<{http,https}>://<**>/grafana<**>", "methods": ["GET","POST"] },
+          "authenticators": [{ "handler": "cookie_session" }],
+          "authorizer": { "handler": "allow" },
+          "mutators": [{ "handler": "noop" }],
+          "errors": [{ "handler": "redirect" }]
         }
       ]
 

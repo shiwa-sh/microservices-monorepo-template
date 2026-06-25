@@ -231,6 +231,12 @@ fi
 # ---------------------------------------------------------------------------
 if want observability; then
   echo "→ installing observability"
+  # Grafana mounts the `grafana-dashboards` ConfigMap (chart values
+  # dashboardsConfigMaps.default). Materialise it from the committed dashboards so
+  # the pod can start — prod gets the same ConfigMap from its dashboards source.
+  k -n "$NS" create configmap grafana-dashboards \
+    --from-file=infra/observability/dashboards/ \
+    --dry-run=client -o yaml | k apply -f -
   helm dependency update infra/helm/platform/observability >/dev/null
   h upgrade --install observability infra/helm/platform/observability -n "$NS" \
     -f infra/gitops/platform/local/values.yaml --timeout 10m || true
@@ -288,7 +294,7 @@ cat <<EOF
 ✓ cluster:full up (profile '${PROFILE}': ${COMPONENTS}).
   Edge (Traefik):   https://${DOMAIN}:8443/api/<service>/   (self-signed TLS)
   Hubble UI:        https://${DOMAIN}:8443/hubble/
-  Grafana:          kubectl -n ${NS} port-forward svc/grafana 3000:80
+  Grafana:          https://${DOMAIN}:8443/grafana/   (login admin/admin)
   Teardown:         mise run cluster:full:down
 
   Profiles:         mise run cluster:full:up [min|backend|obs|full]   (default full)

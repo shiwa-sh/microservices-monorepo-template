@@ -131,18 +131,18 @@ matches longest-prefix, so the specific routes below win over the `/` catch-all.
 | `/auth/self-service`, `/auth/.well-known`, `/auth/sessions` | Kratos public API | public | `infra/local/edge-auth.yaml` |
 | `/api/catalog/`, `/api/orders/`, `/api/orgs/`, `/api/payment/` | Service APIs through the edge | Oathkeeper | `infra/helm/service/templates/ingressroute.yaml` |
 | `/api/observability/faro` | Faro/RUM browser-telemetry ingest | public | `infra/gateway/frontend-observability.yaml` |
+| `/grafana/` | **Grafana** — LGTM dashboards (Loki/Tempo/Mimir) | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
 | `/hubble/` | Cilium **Hubble UI** — live network-flow map | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
 | `/internal/admin` | **Lowdefy** internal admin console | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
 
-Not on the edge — reach these by port-forward:
+Grafana has its own login behind the Kratos gate — sign in with `admin` / `admin`
+(the local `grafana.adminPassword`). Without the edge you can still reach it by
+port-forward: `kubectl -n platform port-forward svc/grafana 3000:80`, then
+<http://localhost:3000/grafana> (it serves from the `/grafana` sub-path).
 
-| Service | Command | URL |
-| --- | --- | --- |
-| **Grafana** (LGTM dashboards) | `kubectl -n platform port-forward svc/grafana 3000:80` | <http://localhost:3000> |
-
-The `/hubble`, `/internal/admin`, `/api/*` and `/api/observability/*` routes only
-exist with the `gateway`/`services`/`observability` components up (the `full`
-profile); `min`/`backend`/`obs` bring up a subset (see [Profiles](#profiles)).
+The `/grafana`, `/hubble`, `/internal/admin`, `/api/*` and `/api/observability/*`
+routes only exist with the `gateway`/`services`/`observability` components up (the
+`full` profile); `min`/`backend`/`obs` bring up a subset (see [Profiles](#profiles)).
 
 #### Login flow (full profile)
 

@@ -87,5 +87,10 @@ mimir:
     insecure: true
 
 # Grafana: a known local admin password (prod supplies one via Secret).
+# root_url carries the local edge's :8443 port so post-login redirects land back
+# on https://dev.localtest.me:8443/grafana (serve_from_sub_path is in the chart).
 grafana:
   adminPassword: "admin"
+  grafana.ini:
+    server:
+      root_url: "https://dev.localtest.me:8443/grafana"

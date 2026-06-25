@@ -44,3 +44,25 @@ spec:
           port: 80
   tls:
     secretName: wildcard-tls
+---
+# Grafana (ADR-0011). LGTM dashboards, auth-gated to a logged-in operator like
+# Hubble. Served under /grafana — the observability chart sets
+# grafana.ini server.serve_from_sub_path + root_url to match.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: PathPrefix(`/grafana`)
+      middlewares:
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: grafana
+          port: 80
+  tls:
+    secretName: wildcard-tls

@@ -61,6 +61,13 @@ opentelemetry-collector:
 grafana:
   fullnameOverride: grafana
   adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
+  # Served behind the edge under /grafana (infra/gateway/ingressroutes.yaml).
+  # Each env overrides root_url with its external origin (the local overlay sets
+  # the :8443 dev.localtest.me edge).
+  grafana.ini:
+    server:
+      serve_from_sub_path: true
+      root_url: "%(protocol)s://%(domain)s/grafana"
   datasources:
     datasources.yaml:
       apiVersion: 1
