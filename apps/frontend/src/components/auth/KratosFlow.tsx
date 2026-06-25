@@ -6,10 +6,10 @@
 // those cookies only exist in the browser.
 "use client";
 
-import type { ReactNode } from "react";
+import type { HTMLAttributeReferrerPolicy, ReactNode } from "react";
 import { useEffect, useState } from "react";
 
-export type FlowKind = "login" | "registration" | "recovery" | "settings";
+export type FlowKind = "login" | "registration" | "recovery" | "verification" | "settings";
 
 export type FlowStrings = {
   title: string;
@@ -20,6 +20,8 @@ export type FlowStrings = {
 
 type UiText = { id: number; text: string };
 type UiNode = {
+  type?: string; // node_type at the node level: input | text | img | script | a
+  group?: string;
   attributes: {
     node_type?: string;
     name?: string;
@@ -27,10 +29,26 @@ type UiNode = {
     value?: string | number | boolean;
     required?: boolean;
     disabled?: boolean;
+    // text node (e.g. the TOTP secret) and img node (the TOTP QR code)
+    text?: UiText;
+    src?: string;
+    // webauthn registration is a submit button whose handler the script node sets
+    onclick?: string;
+    // script node attributes (Kratos WebAuthn helper)
+    id?: string;
+    async?: boolean;
+    referrerpolicy?: string;
+    crossorigin?: string;
+    integrity?: string;
+    nonce?: string;
   };
   messages?: UiText[];
   meta: { label?: UiText };
 };
+
+function nodeType(node: UiNode): string {
+  return node.type ?? node.attributes.node_type ?? "input";
+}
 type Flow = {
   ui: { action: string; method: string; nodes: UiNode[]; messages?: UiText[] };
 };
@@ -46,7 +64,29 @@ function restartFlow(kind: FlowKind): void {
   window.location.replace(init.toString());
 }
 
-function FlowField({ node, submitLabel }: { node: UiNode; submitLabel: string }) {
+// Kratos WebAuthn helper script. Same-origin src; the nonce lets it run under the
+// strict CSP (strict-dynamic). It defines window.__oryWebAuthn* used by buttons.
+function ScriptNode({ attr }: { attr: UiNode["attributes"] }) {
+  return (
+    <script
+      src={attr.src}
+      async={attr.async}
+      nonce={attr.nonce}
+      crossOrigin={attr.crossorigin as "anonymous" | "use-credentials" | undefined}
+      integrity={attr.integrity}
+      referrerPolicy={attr.referrerpolicy as HTMLAttributeReferrerPolicy | undefined}
+    />
+  );
+}
+
+// TOTP QR code. A plain <img> is correct: Kratos returns a data: URL (allowed by
+// img-src 'self' data:), not a routable next/image asset.
+function ImgNode({ src, alt }: { src?: string; alt: string }) {
+  // biome-ignore lint/performance/noImgElement: data: URL QR, not a next/image asset.
+  return <img src={src} alt={alt} width={200} height={200} className="my-2" />;
+}
+
+function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string }) {
   const attr = node.attributes;
   const value = String(attr.value ?? "");
   const labelText = node.meta.label ? node.meta.label.text : undefined;
@@ -54,10 +94,10 @@ function FlowField({ node, submitLabel }: { node: UiNode; submitLabel: string })
   if (attr.type === "hidden") {
     return <input type="hidden" name={attr.name} value={value} />;
   }
-  if (attr.type === "submit") {
+  if (attr.type === "submit" || attr.type === "button") {
     return (
       <button
-        type="submit"
+        type={attr.type === "button" ? "button" : "submit"}
         name={attr.name}
         value={value}
         className="w-full rounded bg-brand-600 px-4 py-2 text-white hover:bg-brand-700"
@@ -84,6 +124,27 @@ function FlowField({ node, submitLabel }: { node: UiNode; submitLabel: string })
       ))}
     </label>
   );
+}
+
+// Renders a single Kratos UI node. Beyond inputs, settings flows for MFA emit
+// `text` (the TOTP secret), `img` (the TOTP QR code) and `script` (the WebAuthn
+// helper) nodes, so an operator can enrol a second factor (AAL2, ADR-0010).
+function FlowNode({ node, submitLabel }: { node: UiNode; submitLabel: string }) {
+  const attr = node.attributes;
+  const labelText = node.meta.label ? node.meta.label.text : undefined;
+  switch (nodeType(node)) {
+    case "text":
+      // e.g. the TOTP shared secret to type into an authenticator app.
+      return (
+        <p className="break-all rounded bg-slate-100 p-2 font-mono text-sm">{attr.text?.text}</p>
+      );
+    case "img":
+      return <ImgNode src={attr.src} alt={labelText ?? "QR code"} />;
+    case "script":
+      return <ScriptNode attr={attr} />;
+    default:
+      return <InputNode node={node} submitLabel={submitLabel} />;
+  }
 }
 
 export function KratosFlow({
@@ -141,8 +202,6 @@ export function KratosFlow({
     );
   }
 
-  const inputs = flow.ui.nodes.filter((node) => node.attributes.node_type === "input");
-
   return (
     <main className="mx-auto max-w-md p-6">
       <h1 className="text-2xl font-semibold">{strings.title}</h1>
@@ -152,8 +211,13 @@ export function KratosFlow({
         </p>
       ))}
       <form method={flow.ui.method} action={flow.ui.action} className="mt-4 space-y-3">
-        {inputs.map((node) => (
-          <FlowField key={node.attributes.name} node={node} submitLabel={strings.submit} />
+        {flow.ui.nodes.map((node, i) => (
+          <FlowNode
+            // Nodes are stable in order; text/img/script have no name, so index-key.
+            key={node.attributes.name ?? `${nodeType(node)}-${i}`}
+            node={node}
+            submitLabel={strings.submit}
+          />
         ))}
       </form>
       {footer}

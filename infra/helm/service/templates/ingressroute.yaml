@@ -28,6 +28,11 @@ spec:
     - kind: Rule
       match: Host(`{{ required ".Values.ingress.host is required when ingress.enabled" .Values.ingress.host }}`) && PathPrefix(`{{ include "service.ingressPath" . }}`)
       middlewares:
+        # Anti-spoofing (ADR-0009): strip any client-supplied identity headers
+        # BEFORE forwardAuth, so a client cannot inject X-User-* on an anonymous
+        # /api route (Oathkeeper re-adds the authoritative values).
+        - name: strip-identity-headers
+          namespace: platform
         - name: oathkeeper-forward-auth
           namespace: platform
         - name: security-headers

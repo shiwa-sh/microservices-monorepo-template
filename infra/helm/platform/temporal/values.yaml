@@ -20,14 +20,15 @@ temporal:
             database: temporal_visibility
             user: dev
             existingSecret: temporal-db-creds
-    # Register the `default` namespace via the chart's setup job. The split
-    # production topology doesn't auto-create it the way `start-dev` does, so
-    # workers targeting TEMPORAL_NAMESPACE=default fail without this.
-    namespaces:
-      create: true
-      namespace:
-        - name: default
-          retention: 3d
+      # Register the `default` namespace via the chart's setup job. The split
+      # production topology doesn't auto-create it the way `start-dev` does, so
+      # workers targeting TEMPORAL_NAMESPACE=default fail without this. The chart
+      # reads this at server.config.namespaces (NOT server.namespaces).
+      namespaces:
+        create: true
+        namespace:
+          - name: default
+            retention: 3d
   cassandra: { enabled: false }
   prometheus: { enabled: false }       # we scrape from OTel collector instead
   grafana:   { enabled: false }

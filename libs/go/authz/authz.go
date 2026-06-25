@@ -31,9 +31,14 @@ func New() (Checker, error) {
 	if endpoint == "" {
 		endpoint = "spicedb.platform.svc.cluster.local:50051"
 	}
+	// Fall back to the SOPS secret's native key name (spicedb-creds.preshared_key,
+	// ADR-0005) so a consumer can mount that Secret with envFrom unmodified.
 	psk := os.Getenv("SPICEDB_PRESHARED_KEY")
 	if psk == "" {
-		return nil, errors.New("SPICEDB_PRESHARED_KEY not set")
+		psk = os.Getenv("preshared_key")
+	}
+	if psk == "" {
+		return nil, errors.New("SPICEDB_PRESHARED_KEY (or preshared_key) not set")
 	}
 	c, err := authzed.NewClient(
 		endpoint,

@@ -36,7 +36,20 @@ kratos:
           login:        { ui_url: https://dev.localtest.me:8443/auth/login }
           registration: { ui_url: https://dev.localtest.me:8443/auth/register }
           recovery:     { ui_url: https://dev.localtest.me:8443/auth/recovery }
+          verification: { ui_url: https://dev.localtest.me:8443/auth/verification }
           settings:     { ui_url: https://dev.localtest.me:8443/auth/settings }
+        # WebAuthn/TOTP are domain-bound: the relying-party id + origins must match
+        # the local edge host (the chart base uses dev.example.com).
+        methods:
+          totp:
+            config:
+              issuer: dev.localtest.me
+          webauthn:
+            config:
+              rp:
+                id: dev.localtest.me
+                display_name: Platform (local)
+                origins: ["https://dev.localtest.me:8443"]
       # Share the session cookie with subdomains (hubble.dev.localtest.me is
       # served at its own origin); overrides the chart's dev.example.com default.
       session:
@@ -45,10 +58,10 @@ kratos:
       courier:
         smtp:
           connection_uri: "smtps://test:test@localhost:1025/?skip_ssl_verify=true"
-    # Dev secrets — local only, never used in a deployed environment.
-    secrets:
-      cookie: ["dev-cookie-secret-at-least-32-chars-long"]
-      cipher: ["0123456789abcdef0123456789abcdef"]
+    # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets`
+    # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
+    # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never
+    # inline here (ADR-0005, Phase 5).
     # Run Kratos migrations automatically for local (initContainer before serve).
     automigration:
       enabled: true
@@ -92,10 +105,10 @@ mimir:
     insecure: true
 
 # Grafana: a known local admin password (prod supplies one via Secret).
-# root_url carries the local edge's :8443 port so post-login redirects land back
-# on https://dev.localtest.me:8443/grafana (serve_from_sub_path is in the chart).
+# Served at the root of its ops origin (ADR-0017); root_url carries the local
+# edge's :8443 port so post-login redirects land back on the same origin.
 grafana:
   adminPassword: "admin"
   grafana.ini:
     server:
-      root_url: "https://dev.localtest.me:8443/grafana"
+      root_url: "https://grafana.ops.dev.localtest.me:8443/"

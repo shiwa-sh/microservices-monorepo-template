@@ -64,7 +64,12 @@ echo "→ profile '${PROFILE}': ${COMPONENTS}"
 PROXY_ARGS=()
 host_proxy="${HTTPS_PROXY:-${https_proxy:-}}"
 if [ -n "$host_proxy" ]; then
-  node_proxy="$(printf '%s' "$host_proxy" | sed -E 's#//(127\.0\.0\.1|localhost)#//host.k3d.internal#')"
+  # Rewrite the loopback host to one the node container can reach. Handle both
+  # scheme-ful (http://127.0.0.1:8118) and scheme-less (127.0.0.1:8118) proxy
+  # values — some shells export the latter — and ensure a scheme afterwards so
+  # containerd's Go HTTP client accepts it (a bare host:port wedges every pull).
+  node_proxy="$(printf '%s' "$host_proxy" | sed -E 's#(127\.0\.0\.1|localhost)#host.k3d.internal#')"
+  case "$node_proxy" in *://*) ;; *) node_proxy="http://${node_proxy}" ;; esac
   no_proxy="10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,cluster.local,127.0.0.1,localhost,host.k3d.internal,.localtest.me"
   echo "→ routing node image pulls through proxy ${node_proxy}"
   PROXY_ARGS=(
@@ -83,6 +88,12 @@ if ! k3d cluster list 2>/dev/null | awk '{print $1}' | grep -qx "$CLUSTER"; then
     --k3s-arg '--disable-network-policy@server:*' \
     --k3s-arg '--kubelet-arg=eviction-hard=imagefs.available<5%,nodefs.available<5%@server:*' \
     "${PROXY_ARGS[@]}"
+else
+  # Cluster already exists. `cluster:full:down` only STOPS it (keeping the node's
+  # image cache), so resume it here — a no-op if it is already running. Only
+  # `cluster:full:purge` deletes it, forcing the create branch above next time.
+  echo "→ cluster '$CLUSTER' exists; ensuring it is started"
+  k3d cluster start "$CLUSTER" || true
 fi
 kubectl config use-context "k3d-${CLUSTER}"
 
@@ -109,11 +120,33 @@ fi
 SERVER_IP="$(k get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
 echo "→ installing Cilium (apiserver ${SERVER_IP}:6443)"
 helm dependency update infra/helm/platform/cilium >/dev/null
+# Proxy-only Cilium workaround. Behind an egress proxy the cilium agent's large
+# image layer reliably truncates (containerd does a single-stream pull), wedging
+# the CNI and leaving the node NotReady forever. So ONLY when $host_proxy is set:
+# reference the agent by tag instead of the chart's sha256 digest (useDigest=false)
+# and pre-pull+import it on the host (docker resumes/retries) so it starts from the
+# local copy — a docker-saved image gets a NEW manifest digest, so a digest-pinned
+# ref could never resolve to the import. With no proxy (normal connection) none of
+# this runs and the chart's digest pinning is kept. Tag is read from the chart so
+# it tracks version bumps.
+CILIUM_ARGS=()
+if [ -n "$host_proxy" ]; then
+  CILIUM_ARGS+=(--set cilium.image.useDigest=false)
+  cilium_img="$(helm template cilium infra/helm/platform/cilium \
+    --set cilium.image.useDigest=false 2>/dev/null \
+    | grep -oE 'quay\.io/cilium/cilium:[A-Za-z0-9._-]+' | head -1)"
+  if [ -n "$cilium_img" ]; then
+    echo "→ pre-pulling ${cilium_img} on host + importing (proxy truncation workaround)"
+    docker pull "$cilium_img"
+    k3d image import "$cilium_img" -c "$CLUSTER"
+  fi
+fi
 h upgrade --install cilium infra/helm/platform/cilium -n kube-system \
   --set cilium.kubeProxyReplacement=false \
   --set cilium.k8sServiceHost="${SERVER_IP}" \
   --set cilium.k8sServicePort=6443 \
   --set cilium.operator.replicas=1 \
+  "${CILIUM_ARGS[@]}" \
   --timeout 5m
 # Single operator replica locally (default 2 needs 2 nodes for anti-affinity);
 # set via Helm so it owns .spec.replicas — an imperative `kubectl scale` would
@@ -133,12 +166,19 @@ k create namespace "$NS" --dry-run=client -o yaml | k apply -f -
 # even encrypted, and it rotates on expiry). Every *credential* below comes from
 # SOPS instead.
 if ! k -n "$NS" get secret wildcard-tls >/dev/null 2>&1; then
-  echo "→ generating self-signed wildcard TLS for *.${DOMAIN}"
+  echo "→ generating self-signed wildcard TLS for *.${DOMAIN} + *.ops.${DOMAIN}"
   tmp="$(mktemp -d)"
+  # Two trust tiers (ADR-0017): product `*.<host>` (+ apex) and ops `*.ops.<host>`
+  # (two labels deep — a single-label wildcard does not cover it). Both SANs on the
+  # one local cert; deployed envs get two cert-manager Certificates instead.
   openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
     -keyout "$tmp/tls.key" -out "$tmp/tls.crt" \
-    -subj "/CN=*.${DOMAIN}" -addext "subjectAltName=DNS:*.${DOMAIN},DNS:${DOMAIN}" >/dev/null 2>&1
-  k -n "$NS" create secret tls wildcard-tls --cert="$tmp/tls.crt" --key="$tmp/tls.key"
+    -subj "/CN=*.${DOMAIN}" \
+    -addext "subjectAltName=DNS:*.${DOMAIN},DNS:${DOMAIN},DNS:*.ops.${DOMAIN}" >/dev/null 2>&1
+  # Product tier reads wildcard-tls; ops tier reads wildcard-ops-tls. Locally both
+  # secrets carry the same multi-SAN cert (prod splits them into two Certificates).
+  k -n "$NS" create secret tls wildcard-tls     --cert="$tmp/tls.crt" --key="$tmp/tls.key"
+  k -n "$NS" create secret tls wildcard-ops-tls --cert="$tmp/tls.crt" --key="$tmp/tls.key"
   rm -rf "$tmp"
 fi
 
@@ -157,7 +197,7 @@ k -n "$NS" wait --for=condition=Available deploy \
 # secretTemplates[] entry. Wait for them so the charts below find their creds.
 k apply -f infra/gitops/platform/local/secrets/platform.enc.yaml
 for s in observability-bucket postgres-superuser temporal-db-creds spicedb-creds \
-         catalog-db orders-db orgs-db payment-db; do
+         kratos-secrets catalog-db orders-db orgs-db payment-db; do
   for _ in $(seq 1 60); do
     k -n "$NS" get secret "$s" >/dev/null 2>&1 && break
     sleep 2
@@ -222,7 +262,15 @@ fi
 if want ory; then
   echo "→ installing Ory (Kratos + Oathkeeper)"
   helm dependency update infra/helm/platform/ory >/dev/null
+  # Auth config has exactly one copy, in the canonical infra/auth tree (Phase 0.4).
+  # Map configs ride `-f` overlays; the string artefacts (identity schema, access
+  # rules) ride `--set-file`. The per-env overlay (local/values.yaml) layers last
+  # so its host/dsn/secret overrides win.
   h upgrade --install ory infra/helm/platform/ory -n "$NS" \
+    -f infra/auth/kratos/values.yaml \
+    -f infra/auth/oathkeeper/values.yaml \
+    --set-file "kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json" \
+    --set-file "oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json" \
     -f infra/gitops/platform/local/values.yaml --timeout 8m || true
 fi
 
@@ -292,9 +340,13 @@ fi
 cat <<EOF
 
 ✓ cluster:full up (profile '${PROFILE}': ${COMPONENTS}).
-  Edge (Traefik):   https://${DOMAIN}:8443/api/<service>/   (self-signed TLS)
-  Hubble UI:        https://hubble.${DOMAIN}:8443/
-  Grafana:          https://${DOMAIN}:8443/grafana/   (login admin/admin)
+  Product (Traefik): https://${DOMAIN}:8443/api/<service>/   (self-signed TLS)
+  Ops tier (ADR-0017, one origin per tool, AAL2 operator session required):
+    Hubble UI:       https://hubble.ops.${DOMAIN}:8443/
+    Grafana:         https://grafana.ops.${DOMAIN}:8443/   (login admin/admin)
+    Temporal UI:     https://temporal.ops.${DOMAIN}:8443/
+    MinIO console:   https://minio.ops.${DOMAIN}:8443/
+    (Argo CD + Lowdefy console are deployed-env only, not in the local profile.)
   Teardown:         mise run cluster:full:down
 
   Profiles:         mise run cluster:full:up [min|backend|obs|full]   (default full)

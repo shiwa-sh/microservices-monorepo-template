@@ -9,6 +9,6 @@ blocks:
       content: |
         # Welcome, {{ _request.headers.x-user-email }}
 
-        - [Products](/internal/admin/products)
-        - [Orders](/internal/admin/orders)
-        - [Refund tool](/internal/admin/refund-tool)
+        - [Products](/products)
+        - [Orders](/orders)
+        - [Refund tool](/refund-tool)

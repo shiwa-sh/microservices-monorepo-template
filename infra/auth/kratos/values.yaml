@@ -1,0 +1,94 @@
+# Canonical Kratos config (ADR-0010), the single source of truth — injected into
+# the Ory umbrella chart as a Helm values overlay (`-f` locally via
+# scripts/cluster-full.sh; ArgoCD `valueFiles` per env). The identity schema is a
+# string artefact injected separately with `--set-file` (it lands at
+# /etc/config/user.v1.json, referenced by identity.schemas[].url below).
+#
+# Map-typed config cannot ride `--set-file`/`fileParameters` (those set a value to
+# a file's string content, but the chart renders `kratos.config` via `toYaml`), so
+# the config maps use a values overlay while the string artefacts use --set-file.
+#
+# Host is the `dev.example.com` baseline; each env overrides host/dsn/secrets via
+# its gitops overlay (infra/gitops/platform/<env>/values.yaml).
+kratos:
+  kratos:
+    config:
+      dsn: "postgres://kratos@postgres-rw.platform.svc.cluster.local:5432/kratos?sslmode=disable"
+      identity:
+        default_schema_id: user_v1
+        schemas:
+          - id: user_v1
+            # Chart mounts identitySchemas keys directly under /etc/config.
+            url: file:///etc/config/user.v1.json
+      selfservice:
+        default_browser_return_url: https://dev.example.com/
+        flows:
+          login:        { ui_url: https://dev.example.com/auth/login }
+          registration: { ui_url: https://dev.example.com/auth/register }
+          recovery:
+            enabled: true
+            use: code              # enumeration-resistant; no account-existence leak
+            ui_url: https://dev.example.com/auth/recovery
+          verification:
+            enabled: true
+            use: code
+            ui_url: https://dev.example.com/auth/verification
+          settings:
+            ui_url: https://dev.example.com/auth/settings
+            # Step-up (ADR-0010): mutating credentials/MFA requires a recent login.
+            privileged_session_max_age: 15m
+            required_aal: highest_available
+        # Authentication methods (ADR-0010). password is the first factor; TOTP and
+        # WebAuthn/passkeys are the operator second factor (AAL2 is enforced on the
+        # ops tier by services/authz, not forced on B2C product users here). HIBP +
+        # a length policy harden the password method in every deployed env.
+        methods:
+          password:
+            enabled: true
+            config:
+              haveibeenpwned_enabled: true
+              max_breaches: 0
+              min_password_length: 12
+              identifier_similarity_check_enabled: true
+          totp:
+            enabled: true
+            config:
+              issuer: dev.example.com
+          webauthn:
+            enabled: true
+            config:
+              passwordless: false       # second factor, not passwordless login
+              rp:
+                id: dev.example.com
+                display_name: Platform
+                origins: ["https://dev.example.com"]
+      session:
+        # 7-day absolute lifespan; whoami returns the highest AAL the identity has
+        # configured, so an operator who enrolled MFA must use it (and the ops edge
+        # requires aal2). B2C users with no second factor stay aal1.
+        lifespan: 168h
+        whoami:
+          required_aal: highest_available
+        # Scope the session cookie to the parent host so it is shared with
+        # subdomains (e.g. hubble.ops.<host>, served at its own origin). Without a
+        # domain the cookie is host-only and the subdomain sees no session. Set to
+        # the app host; each env overrides it (local → dev.localtest.me).
+        cookie:
+          domain: dev.example.com
+          same_site: Lax
+      # Transactional mail (recovery/verification). Prod/staging supply a real
+      # mailer via the per-env overlay (secret-sourced); local uses mailslurper.
+      courier:
+        smtp:
+          connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false"
+  # Cookie/cipher/system secrets + dsn come from a SOPS-managed Secret, never
+  # inline values (ADR-0005, Phase 5). `secret` is a top-level kratos-subchart key
+  # (sibling of the `kratos:` config block above), so it sits one level up. Every
+  # env's secrets bundle must provide a `kratos-secrets` Secret with keys
+  # secretsDefault / secretsCookie / secretsCipher / dsn / smtpConnectionURI
+  # (local: infra/gitops/platform/local/secrets/platform.enc.yaml). Rotation is
+  # dual-secret: prepend a new value, redeploy, then drop the old after the
+  # session-cookie TTL.
+  secret:
+    enabled: false
+    nameOverride: kratos-secrets

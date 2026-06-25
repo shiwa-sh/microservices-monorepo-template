@@ -1,47 +1,30 @@
-# Shared Traefik IngressRoutes (ADR-0009). Per-service /api/<svc> routes are
-# emitted by the service Helm chart (infra/helm/service/templates/ingressroute.yaml).
-# These are the cross-cutting routes that don't belong to a single service.
----
-# Internal admin (Lowdefy, ADR-0012). Oathkeeper validates the Kratos session
-# and injects X-User-Email, which Lowdefy keys off.
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: internal-admin
-  namespace: platform
-spec:
-  entryPoints: [websecure]
-  routes:
-    - kind: Rule
-      match: PathPrefix(`/internal/admin`)
-      middlewares:
-        - name: oathkeeper-forward-auth
-        - name: security-headers
-      services:
-        - name: lowdefy
-          port: 80
-  tls:
-    secretName: wildcard-tls
----
-# Hubble UI (ADR-0003). Network-flow visibility, auth-gated to a logged-in
-# operator. The Cilium Hubble UI service lives in kube-system.
+# Shared Traefik IngressRoutes (ADR-0009, ADR-0017). Per-service /api/<svc> routes
+# are emitted by the service Helm chart (infra/helm/service/templates/ingressroute.yaml)
+# on the product apex. These are the cross-cutting OPS-TIER routes.
 #
-# Served at the ROOT of the `hubble.<host>` subdomain, NOT under a /hubble path:
-# hubble-ui's React Router is hardwired to basename `/`, so a path prefix 404s
-# its own client routes. HostRegexp keeps this host-agnostic — it matches
-# hubble.dev.localtest.me locally and hubble.<apex> in every deployed env, with
-# no per-env templating. The wildcard cert (`*.<host>`) already covers it.
+# Trust-tier split (ADR-0017): every operator dashboard lives on its own origin
+# `{tool}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
+# host-agnostic (env parity, ADR-0016) — `^{tool}\.ops\..+` matches
+# {tool}.ops.dev.localtest.me locally and {tool}.ops.<apex> in every deployed env.
+# The `*.ops.<host>` wildcard cert (secret wildcard-ops-tls) covers all of them.
+#
+# Each route is behind the ops forward-auth (Oathkeeper validates an AAL2 operator
+# session and the per-tool `dashboard:<tool>#view` grant — ADR-0010/0017) and the
+# identity-header strip + security-headers middlewares.
+---
+# Hubble UI (ADR-0003) — Cilium network-flow visibility (service in kube-system).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: hubble
+  name: ops-hubble
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^hubble\..+`)
+      match: HostRegexp(`^hubble\.ops\..+`)
       middlewares:
+        - name: strip-identity-headers
         - name: oathkeeper-forward-auth
         - name: security-headers
       services:
@@ -49,26 +32,112 @@ spec:
           namespace: kube-system
           port: 80
   tls:
-    secretName: wildcard-tls
+    secretName: wildcard-ops-tls
 ---
-# Grafana (ADR-0011). LGTM dashboards, auth-gated to a logged-in operator like
-# Hubble. Served under /grafana — the observability chart sets
-# grafana.ini server.serve_from_sub_path + root_url to match.
+# Grafana (ADR-0011) — served at root (serve_from_sub_path dropped, see chart).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: grafana
+  name: ops-grafana
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: PathPrefix(`/grafana`)
+      match: HostRegexp(`^grafana\.ops\..+`)
       middlewares:
+        - name: strip-identity-headers
         - name: oathkeeper-forward-auth
         - name: security-headers
       services:
         - name: grafana
           port: 80
   tls:
-    secretName: wildcard-tls
+    secretName: wildcard-ops-tls
+---
+# Lowdefy internal-admin console (ADR-0012). Named `console` to disambiguate from
+# the product `/admin` route group. Oathkeeper injects X-User-Email, which Lowdefy
+# keys off (see access-rules console rule).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-console
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^console\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: lowdefy
+          port: 80
+  tls:
+    secretName: wildcard-ops-tls
+---
+# Argo CD (ADR-0004) — deployed envs only (not in the local profile). server.insecure
+# is on, so TLS terminates at Traefik and argocd-server serves http on :80.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-argo
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^argo\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: argocd-server
+          port: 80
+  tls:
+    secretName: wildcard-ops-tls
+---
+# Temporal Web UI (ADR-0006) — temporalio/ui at root on :8080.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-temporal
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^temporal\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: temporal-web
+          port: 8080
+  tls:
+    secretName: wildcard-ops-tls
+---
+# MinIO console (ADR-0011, ADR-0016) — non-prod only, console at root on :9001.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-minio
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^minio\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: minio-console
+          port: 9001
+  tls:
+    secretName: wildcard-ops-tls

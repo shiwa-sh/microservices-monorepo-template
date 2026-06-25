@@ -1,0 +1,11 @@
+[tasks.run]
+run = "go run ./cmd/server"
+
+[tasks.test]
+run = "go test ./..."
+
+[tasks.lint]
+run = "golangci-lint run ./..."
+
+[tasks.build]
+run = "go build ./..."

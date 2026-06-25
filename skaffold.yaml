@@ -149,6 +149,40 @@ profiles:
 apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
+  name: authz
+# Ops-tier edge authorizer (ADR-0017). Internal-only: Oathkeeper's remote_json
+# authorizer calls it by service DNS, so it gets no /api edge route. The `full`
+# profile layers the internal authz overlay (telemetry on, real SpiceDB creds).
+build:
+  local: { push: false, useBuildkit: true }
+  artifacts:
+    - image: authz-server
+      context: .
+      docker: { dockerfile: services/authz/Dockerfile, buildArgs: { SERVICE: authz, APP_CMD: server } }
+manifests:
+  helm:
+    releases:
+      - name: authz
+        chartPath: infra/helm/service
+        namespace: platform
+        createNamespace: true
+        valuesFiles: [infra/helm/values/local-service.yaml]
+        setValues: { name: authz, "secrets.envFrom": "{spicedb-creds}" }
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_authz_server}}"
+          image.tag: "{{.IMAGE_TAG_authz_server}}"
+deploy:
+  kubeContext: k3d-platform-dev
+  helm: {}
+profiles:
+  - name: full
+    patches:
+      - { op: add, path: /manifests/helm/releases/0/valuesFiles/-, value: infra/helm/values/authz-service.yaml }
+
+---
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
   name: platform
 # Port-forwards cluster:up's deps for local tools (psql, Temporal UI/gRPC).
 # Included by a bare `skaffold dev`; add `-m platform` to a single-service run.

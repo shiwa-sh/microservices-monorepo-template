@@ -23,3 +23,17 @@ spec:
   issuerRef: { name: letsencrypt, kind: ClusterIssuer }
   dnsNames:
     - "*.{{ "{{ .Values.envHost }}" }}"
+---
+# Ops-tier wildcard (ADR-0017). The product wildcard `*.<host>` covers only one
+# label, so the two-labels-deep ops tools (`{tool}.ops.<host>`) need their own
+# `*.ops.<host>` cert. Routes in infra/gateway reference secret wildcard-ops-tls.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ops
+  namespace: traefik
+spec:
+  secretName: wildcard-ops-tls
+  issuerRef: { name: letsencrypt, kind: ClusterIssuer }
+  dnsNames:
+    - "*.ops.{{ "{{ .Values.envHost }}" }}"

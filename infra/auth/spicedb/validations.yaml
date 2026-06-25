@@ -5,3 +5,6 @@ relationships: |
   order:o1#owner@user:alice
   order:o2#org@org:acme
   order:o2#owner@user:bob
+  group:operator#member@user:alice
+  dashboard:console#viewer@user:alice
+  dashboard:grafana#viewer@group:operator#member

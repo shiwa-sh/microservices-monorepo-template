@@ -1,0 +1,78 @@
+# Canonical Oathkeeper config (ADR-0009), the single source of truth — injected
+# into the Ory umbrella chart as a Helm values overlay (`-f` locally via
+# scripts/cluster-full.sh; ArgoCD `valueFiles` per env). The access rules are a
+# string artefact injected separately with `--set-file` (oathkeeper.accessRules →
+# /etc/rules/access-rules.json, referenced by access_rules.repositories below).
+#
+# Traefik ForwardAuth calls the decisions API; Oathkeeper validates the Kratos
+# session / Hydra JWT and injects X-User-Id / X-Org-Id / X-Roles. A dedicated
+# Traefik middleware strips client-supplied identity headers before forwardAuth.
+#
+# CSRF Origin policy (ADR-0009): for cookie-authenticated state-changing requests
+# the project's own domain is the only allowed Origin. Oathkeeper OSS has no
+# native Origin authorizer, so the check is enforced by the layers that can: the
+# Kratos session cookie is SameSite=Lax (a cross-site POST/fetch never carries it)
+# and Next.js Server Actions check the Origin against serverActions.allowedOrigins
+# (apps/frontend/next.config.mjs). Bearer-token (Hydra) traffic is not
+# browser-attached and is exempt.
+oathkeeper:
+  oathkeeper:
+    config:
+      serve:
+        proxy: { port: 4455 }
+        api: { port: 4456 }
+      access_rules:
+        matching_strategy: glob
+        repositories:
+          - file:///etc/rules/access-rules.json
+      authenticators:
+        cookie_session:
+          enabled: true
+          config:
+            check_session_url: http://ory-kratos-public.platform.svc.cluster.local/sessions/whoami
+            preserve_path: true
+            preserve_query: true
+            only: [ory_kratos_session]
+        jwt:
+          enabled: true
+          config:
+            jwks_urls:
+              - http://hydra-public.platform.svc.cluster.local/.well-known/jwks.json
+        anonymous:
+          enabled: true
+          config: { subject: guest }
+      authorizers:
+        # `allow` is for the product /api edge (services authorize in-process via
+        # libs/go/authz). Ops dashboards use remote_json → the authz service, which
+        # checks group:operator + dashboard:<tool>#view + AAL2 (ADR-0017).
+        allow: { enabled: true }
+        remote_json:
+          enabled: true
+          # The global config requires both `remote` and `payload` (Oathkeeper
+          # schema); each access rule overrides `payload` with its own tool slug.
+          config:
+            remote: http://authz-server.platform.svc.cluster.local/internal/authorize
+            payload: '{"subject":"{{ print .Subject }}","aal":"{{ print .Extra.authenticator_assurance_level }}"}'
+      mutators:
+        header:
+          enabled: true
+          config:
+            headers:
+              X-User-Id: "{{ print .Subject }}"
+              # `api-services` allows the anonymous authenticator (guest), which has
+              # no .Extra.identity — guard with `with` so these emit empty headers
+              # instead of nil-panicking (500). Authenticated requests are unchanged.
+              X-Org-Id: "{{ with .Extra.identity }}{{ print .metadata_public.org_id }}{{ end }}"
+              X-Roles: "{{ with .Extra.identity }}{{ print .metadata_public.roles }}{{ end }}"
+        noop: { enabled: true }
+      errors:
+        fallback: [json]
+        handlers:
+          json: { enabled: true, config: { verbose: false } }
+          redirect:
+            enabled: true
+            config:
+              to: https://dev.example.com/auth/login
+              when:
+                - error: [unauthorized, forbidden]
+                  request: { header: { accept: ["text/html"] } }

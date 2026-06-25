@@ -1,153 +1,18 @@
-kratos:
-  kratos:
-    config:
-      dsn: "postgres://kratos@postgres-rw.platform.svc.cluster.local:5432/kratos?sslmode=disable"
-      identity:
-        default_schema_id: user_v1
-        schemas:
-          - id: user_v1
-            # Chart mounts identitySchemas keys directly under /etc/config.
-            url: file:///etc/config/user.v1.json
-      selfservice:
-        default_browser_return_url: https://dev.example.com/
-        flows:
-          login:        { ui_url: https://dev.example.com/auth/login }
-          registration: { ui_url: https://dev.example.com/auth/register }
-          recovery:     { ui_url: https://dev.example.com/auth/recovery }
-          settings:     { ui_url: https://dev.example.com/auth/settings }
-      # Scope the session cookie to the parent host so it is shared with
-      # subdomains (e.g. hubble.<host>, served at its own origin). Without a
-      # domain the cookie is host-only and the subdomain sees no session. Set to
-      # the app host; each env overrides it (local → dev.localtest.me).
-      session:
-        cookie:
-          domain: dev.example.com
-    # Inlined from infra/auth/kratos/identity-schemas/user.v1.json (canonical
-    # source). Helm cannot read files outside a chart, so keep the two in sync.
-    identitySchemas:
-      "user.v1.json": |
-        {
-          "$id": "https://example.com/identity-schemas/user.v1.json",
-          "$schema": "http://json-schema.org/draft-07/schema#",
-          "title": "User",
-          "type": "object",
-          "properties": {
-            "traits": {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "type": "string",
-                  "format": "email",
-                  "title": "E-Mail",
-                  "ory.sh/kratos": {
-                    "credentials": { "password": { "identifier": true } },
-                    "verification": { "via": "email" },
-                    "recovery":     { "via": "email" }
-                  }
-                },
-                "name": { "type": "string", "title": "Name" }
-              },
-              "required": ["email"],
-              "additionalProperties": false
-            }
-          }
-        }
+# Ory umbrella chart values (ADR-0009, ADR-0010).
+#
+# The auth config is NOT inlined here — it lives once in the canonical tree under
+# infra/auth/ and is injected at install time (Phase 0.4 of the auth plan):
+#   - infra/auth/kratos/values.yaml            → `-f` overlay (kratos.config map)
+#   - infra/auth/oathkeeper/values.yaml        → `-f` overlay (oathkeeper.config map)
+#   - infra/auth/kratos/identity-schemas/user.v1.json
+#                                              → --set-file kratos.kratos.identitySchemas."user.v1.json"
+#   - infra/auth/oathkeeper/access-rules.json  → --set-file oathkeeper.oathkeeper.accessRules
+# scripts/cluster-full.sh wires the local path; the platform ApplicationSet wires
+# the deployed path (valueFiles + fileParameters). A CI lint (mise run
+# lint:auth-inline) fails if any of these are re-inlined into this file.
 
-# Edge identity/access proxy (ADR-0009). Traefik ForwardAuth calls the decisions
-# API; Oathkeeper validates the Kratos session / Hydra JWT, strips client-supplied
-# identity headers, and injects X-User-Id / X-Org-Id / X-Roles.
 oathkeeper:
   enabled: true
-  oathkeeper:
-    # Inlined from infra/auth/oathkeeper/oathkeeper.yaml (canonical source).
-    # Helm cannot read files outside a chart, so keep the two in sync.
-    config:
-      serve:
-        proxy: { port: 4455 }
-        api: { port: 4456 }
-      access_rules:
-        matching_strategy: glob
-        repositories:
-          - file:///etc/rules/access-rules.json
-      authenticators:
-        cookie_session:
-          enabled: true
-          config:
-            check_session_url: http://ory-kratos-public.platform.svc.cluster.local/sessions/whoami
-            preserve_path: true
-            preserve_query: true
-            only: [ory_kratos_session]
-        jwt:
-          enabled: true
-          config:
-            jwks_urls:
-              - http://hydra-public.platform.svc.cluster.local/.well-known/jwks.json
-        anonymous:
-          enabled: true
-          config: { subject: guest }
-      authorizers:
-        allow: { enabled: true }
-      mutators:
-        header:
-          enabled: true
-          config:
-            headers:
-              X-User-Id: "{{ print .Subject }}"
-              # `api-services` allows the anonymous authenticator (guest), which has
-              # no .Extra.identity — guard with `with` so these emit empty headers
-              # instead of nil-panicking (500). Authenticated requests are unchanged.
-              X-Org-Id: "{{ with .Extra.identity }}{{ print .metadata_public.org_id }}{{ end }}"
-              X-Roles: "{{ with .Extra.identity }}{{ print .metadata_public.roles }}{{ end }}"
-        noop: { enabled: true }
-      errors:
-        fallback: [json]
-        handlers:
-          json: { enabled: true, config: { verbose: false } }
-          redirect:
-            enabled: true
-            config:
-              to: https://dev.example.com/auth/login
-              when:
-                - error: [unauthorized, forbidden]
-                  request: { header: { accept: ["text/html"] } }
-    # Inlined from infra/auth/oathkeeper/access-rules.yaml (canonical source).
-    # Must be a JSON string: the chart writes it verbatim to access-rules.json
-    # (config.access_rules.repositories) and pipes it through `indent`.
-    accessRules: |-
-      [
-        {
-          "id": "api-services",
-          "match": { "url": "<{http,https}>://<**>/api/<{catalog,orders,orgs,payment}>/<**>", "methods": ["GET","POST","PUT","PATCH","DELETE"] },
-          "authenticators": [{ "handler": "cookie_session" }, { "handler": "jwt" }, { "handler": "anonymous" }],
-          "authorizer": { "handler": "allow" },
-          "mutators": [{ "handler": "header" }],
-          "errors": [{ "handler": "json" }]
-        },
-        {
-          "id": "internal-admin",
-          "match": { "url": "<{http,https}>://<**>/internal/admin/<**>", "methods": ["GET","POST","PUT","PATCH","DELETE"] },
-          "authenticators": [{ "handler": "cookie_session" }],
-          "authorizer": { "handler": "allow" },
-          "mutators": [{ "handler": "header", "config": { "headers": { "X-User-Id": "{{ print .Subject }}", "X-User-Email": "{{ print .Extra.identity.traits.email }}" } } }],
-          "errors": [{ "handler": "redirect" }]
-        },
-        {
-          "id": "hubble-ui",
-          "match": { "url": "<{http,https}>://hubble.<**>/<**>", "methods": ["GET","POST"] },
-          "authenticators": [{ "handler": "cookie_session" }],
-          "authorizer": { "handler": "allow" },
-          "mutators": [{ "handler": "noop" }],
-          "errors": [{ "handler": "redirect" }]
-        },
-        {
-          "id": "grafana-ui",
-          "match": { "url": "<{http,https}>://<**>/grafana<**>", "methods": ["GET","POST"] },
-          "authenticators": [{ "handler": "cookie_session" }],
-          "authorizer": { "handler": "allow" },
-          "mutators": [{ "handler": "noop" }],
-          "errors": [{ "handler": "redirect" }]
-        }
-      ]
 
 # Hydra is a public-API add-on (ADR-0009). Off by default — internal-only
 # projects run Kratos + Oathkeeper + SpiceDB. The `hydra_thirdparty` flag flips

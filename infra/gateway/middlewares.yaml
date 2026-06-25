@@ -21,6 +21,25 @@ spec:
       - X-Roles
       - X-User-Email
 ---
+# Anti-spoofing (ADR-0009, ADR-0017). Strip ALL client-supplied identity headers
+# at ingress, before forwardAuth, so a client cannot inject an identity on any
+# route — especially anonymous/cached ones where Oathkeeper's mutator would not
+# overwrite them. Oathkeeper re-adds the authoritative values; authResponseHeaders
+# then copies only those onto the upstream. Setting a customRequestHeader to ""
+# removes that header in Traefik. This middleware is applied first on every route.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-identity-headers
+  namespace: platform
+spec:
+  headers:
+    customRequestHeaders:
+      X-User-Id: ""
+      X-Org-Id: ""
+      X-Roles: ""
+      X-User-Email: ""
+---
 # Rate limit for auth-sensitive routes (login, signup, recovery). Per source IP.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

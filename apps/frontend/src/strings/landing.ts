@@ -28,8 +28,17 @@ export const landing = {
     error: "Could not start recovery. Please retry.",
     toLogin: "Back to sign in",
   },
+  verification: {
+    title: "Verify your email",
+    starting: "Starting Kratos verification flow…",
+    submit: "Send verification code",
+    error: "Could not start verification. Please retry.",
+    toLogin: "Back to sign in",
+  },
   settings: {
-    title: "Account settings",
+    // The settings flow also carries TOTP/WebAuthn enrolment for operator MFA
+    // (AAL2, ADR-0010) — the QR code, secret and security-key buttons render here.
+    title: "Account settings & security",
     starting: "Starting Kratos settings flow…",
     submit: "Save",
     error: "Could not start settings. Please retry.",

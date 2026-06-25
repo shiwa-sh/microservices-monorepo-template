@@ -25,3 +25,19 @@ definition order {
     permission read  = owner + org->admin
     permission write = owner + org->admin
 }
+
+// Ops-tier authorization (ADR-0017). A `group` models coarse cohorts; the
+// `operator` group (group:operator) gates the whole ops tier. Each operator
+// dashboard (Hubble, Grafana, Argo, Temporal, console, MinIO) is a `dashboard`
+// resource; the ops-tier Oathkeeper checks `dashboard:<tool>#view` via the
+// remote_json authorizer. Coarse-then-fine: the authz endpoint requires
+// group:operator membership AND the per-tool view grant, so a non-operator gets
+// nothing and per-dashboard grants refine within the tier.
+definition group {
+    relation member: user
+}
+
+definition dashboard {
+    relation viewer: user | group#member
+    permission view = viewer
+}

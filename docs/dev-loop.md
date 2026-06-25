@@ -131,18 +131,29 @@ matches longest-prefix, so the specific routes below win over the `/` catch-all.
 | `/auth/self-service`, `/auth/.well-known`, `/auth/sessions` | Kratos public API | public | `infra/local/edge-auth.yaml` |
 | `/api/catalog/`, `/api/orders/`, `/api/orgs/`, `/api/payment/` | Service APIs through the edge | Oathkeeper | `infra/helm/service/templates/ingressroute.yaml` |
 | `/api/observability/faro` | Faro/RUM browser-telemetry ingest | public | `infra/gateway/frontend-observability.yaml` |
-| `/grafana/` | **Grafana** — LGTM dashboards (Loki/Tempo/Mimir) | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
-| `hubble.dev.localtest.me/` | Cilium **Hubble UI** — live network-flow map (own subdomain at root; its router can't run under a path prefix) | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
-| `/internal/admin` | **Lowdefy** internal admin console | Oathkeeper (Kratos session) | `infra/gateway/ingressroutes.yaml` |
+
+The **ops tier** (ADR-0017) is a separate origin per operator dashboard under
+`*.ops.<host>` — never a product path. Each requires an authorized (AAL2 operator)
+session; a bare login does not grant tool access.
+
+| Ops URL | Tool | Auth | Defined in |
+| --- | --- | --- | --- |
+| `grafana.ops.dev.localtest.me/` | **Grafana** — LGTM dashboards | Oathkeeper (`dashboard:grafana#view`) | `infra/gateway/ingressroutes.yaml` |
+| `hubble.ops.dev.localtest.me/` | Cilium **Hubble UI** — network-flow map | Oathkeeper (`dashboard:hubble#view`) | `infra/gateway/ingressroutes.yaml` |
+| `temporal.ops.dev.localtest.me/` | **Temporal Web UI** | Oathkeeper (`dashboard:temporal#view`) | `infra/gateway/ingressroutes.yaml` |
+| `minio.ops.dev.localtest.me/` | **MinIO console** (non-prod) | Oathkeeper (`dashboard:minio#view`) | `infra/gateway/ingressroutes.yaml` |
+| `console.ops.<host>/` | **Lowdefy** admin console (deployed envs) | Oathkeeper (`dashboard:console#view`) | `infra/gateway/ingressroutes.yaml` |
+| `argo.ops.<host>/` | **Argo CD** (deployed envs) | Oathkeeper (`dashboard:argo#view`) | `infra/gateway/ingressroutes.yaml` |
 
 Grafana has its own login behind the Kratos gate — sign in with `admin` / `admin`
 (the local `grafana.adminPassword`). Without the edge you can still reach it by
 port-forward: `kubectl -n platform port-forward svc/grafana 3000:80`, then
-<http://localhost:3000/grafana> (it serves from the `/grafana` sub-path).
+<http://localhost:3000/> (it now serves at root, not a sub-path).
 
-The `/grafana`, `hubble.<host>`, `/internal/admin`, `/api/*` and `/api/observability/*`
-routes only exist with the `gateway`/`services`/`observability` components up (the
-`full` profile); `min`/`backend`/`obs` bring up a subset (see [Profiles](#profiles)).
+The `/api/*`, `/api/observability/*` and the `*.ops.<host>` dashboard routes only
+exist with the `gateway`/`services`/`observability` components up (the `full`
+profile); `min`/`backend`/`obs` bring up a subset (see [Profiles](#profiles)).
+Argo CD and the Lowdefy console are deployed-env only (not in the local profile).
 
 #### Login flow (full profile)
 

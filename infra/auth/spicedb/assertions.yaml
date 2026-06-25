@@ -4,7 +4,17 @@ assertTrue:
   - "org:acme#member@user:alice"
   - "org:acme#read@user:alice"
   - "order:o1#read@user:alice"
+  # Ops tier (ADR-0017): alice is an operator; she views the console (direct
+  # grant) and grafana (via the operator group), but NOT hubble.
+  - "group:operator#member@user:alice"
+  - "dashboard:console#view@user:alice"
+  - "dashboard:grafana#view@user:alice"
 assertFalse:
   - "org:acme#admin@user:alice"
   - "org:acme#write@user:alice"
   - "order:o2#write@user:alice"
+  - "dashboard:hubble#view@user:alice"
+  # bob is not an operator → reaches no ops dashboard.
+  - "group:operator#member@user:bob"
+  - "dashboard:console#view@user:bob"
+  - "dashboard:grafana#view@user:bob"

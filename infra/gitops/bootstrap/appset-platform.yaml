@@ -29,8 +29,22 @@ spec:
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
+          # Auth config single source (Phase 0.4): the Ory app pulls its kratos/
+          # oathkeeper config from the canonical infra/auth tree — map configs as
+          # valueFiles, the identity-schema + access-rules strings as fileParameters.
+          # Paths are relative to each chart dir (infra/helm/platform/<component>);
+          # non-Ory components ignore the extra keys.
+          # Auth overlays first; the per-env file layers last so its host/dsn/secret
+          # overrides win (later valueFiles take precedence in Helm).
           valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }

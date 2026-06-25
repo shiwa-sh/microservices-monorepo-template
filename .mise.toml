@@ -29,6 +29,9 @@ ansible = "14.0.0"
 age = "1.3.1"
 sops = "3.13.1"
 
+# Authorization (SpiceDB schema validation)
+"github:authzed/zed" = "1.1.1"
+
 # Repo hygiene
 lefthook = "2.1.9"
 cocogitto = "7.0.0"
@@ -74,7 +77,13 @@ run = "bash scripts/cluster-down.sh"
 run = "bash scripts/cluster-full.sh"
 
 [tasks."cluster:full:down"]
+# Stops the cluster but KEEPS it (image cache + volumes survive) so the next
+# `cluster:full:up` resumes without re-pulling. To delete entirely, use :purge.
 run = "bash scripts/cluster-full-down.sh"
+
+[tasks."cluster:full:purge"]
+# Deletes the cluster and wipes its image cache (reclaims disk, clean rebuild).
+run = "bash scripts/cluster-full-purge.sh"
 
 [tasks.dev]
 # Trailing args forward to skaffold; -m scopes to one service (ADR-0003).
@@ -118,7 +127,23 @@ mise run gen
 """
 
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md"]
+depends = ["lint:go", "lint:gostyle", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md", "lint:auth-inline", "lint:authz"]
+
+[tasks."lint:auth-inline"]
+# Auth config single-source guard (ADR-0009/0010): fails if kratos/oathkeeper
+# config is re-inlined into the Ory chart values instead of living in infra/auth/*.
+run = "bash scripts/lint-auth-inline.sh"
+
+[tasks."lint:authz"]
+# Edge-auth policy gates (ADR-0009/0010/0017):
+#   - SpiceDB schema + assertions (zed validate)
+#   - ops dashboards authorize via remote_json → Checker, never `allow`
+#   - every forward-auth route strips client identity headers first (anti-spoofing)
+run = """
+bash scripts/validate-spicedb.sh
+bash scripts/lint-authorizer.sh
+bash scripts/lint-strip-headers.sh
+"""
 
 [tasks."lint:ts"]
 run = "biome ci --error-on-warnings ."

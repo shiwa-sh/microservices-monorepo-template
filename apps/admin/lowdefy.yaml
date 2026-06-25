@@ -6,7 +6,9 @@ lowdefy: 4.5.7
 
 config:
   homePageId: dashboard
-  basePath:   /internal/admin
+  # Served at the root of its own ops origin console.ops.<host> (ADR-0017), not
+  # under a product path.
+  basePath:   /
   auth:
     pages:
       protected: true
