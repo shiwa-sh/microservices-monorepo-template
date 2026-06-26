@@ -99,7 +99,8 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
   service-local tasks.
 - **Standard task names** at every service: `build`, `test`, `lint`, `generate`, `migrate`, `run`, `worker`.
 - **Standard task names** at repo root: `cluster:up`, `cluster:down`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
-  `gen`, `db:migrate`.
+  `e2e`, `e2e:smoke`, `gen`, `db:migrate`. The `e2e` tasks ([ADR-0018](0018-testing-strategy.md)) run against `cluster:full`
+  and are deliberately outside `ci:affected` — every e2e crosses service boundaries.
 - `mise tasks --list` is the discoverable interface.
 
 ### Tool versioning: pinned in mise or in a container tag
@@ -285,7 +286,7 @@ Each upgrade is its own ADR when triggered.
 - `tools/affected/` with unit tests.
 - Root `.mise.toml`, root `package.json`, root `go.mod`.
 - `services/_template/` service skeleton (referenced from later ADRs).
-- `.github/workflows/{lint,test,build,ci-drift,publish,promote-on-merge,promote-on-release}.yml`.
+- `.github/workflows/{lint,test,build,ci-drift,publish,promote-on-merge,promote-on-release,e2e}.yml` (`e2e.yml`: nightly + pre-release full suite, plus a label-gated smoke job — [ADR-0018](0018-testing-strategy.md)).
 - `depguard` lint rule preventing `services/<X>/` from importing `services/<Y>/`.
 - Lint rule preventing cross-route-group imports in `apps/frontend/`.
 - Renovate config for the single Go module (one PR per dependency, repo-wide).

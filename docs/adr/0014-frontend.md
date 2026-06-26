@@ -141,8 +141,8 @@ Biome is the single lint+format tool for the frontend.
 ### Testing
 
 - **`bun test`** for unit and component tests — Bun's built-in Jest-compatible runner. No Vitest, no Jest: Bun is the only JS runtime ([ADR-0001](0001-language-and-runtime.md)), and shipping a third-party runner duplicates what's already in the toolchain. Component tests use Testing Library with `happy-dom` registered via `bunfig.toml` `preload`.
-- **Playwright** for end-to-end tests, one suite per route group under `apps/frontend/e2e/(landing|panel|admin|devportal)/`. Suites run against `mise run cluster:up` plus the route group's owning services.
-- **MSW** for mocking SDK calls in unit/component tests. MSW is forbidden in e2e: e2e runs against real services.
+- **End-to-end and visual-regression tests are owned by [ADR-0018](0018-testing-strategy.md):** Playwright drives them from the repo-root `e2e/` workspace (frontend route-group suites under `e2e/frontend/(landing|panel|admin|devportal)/`, visual baselines under `e2e/visual/`), running against `cluster:full`. They are not part of this app's `bun test` runner.
+- **MSW** for mocking SDK calls in unit/component tests. MSW is forbidden in e2e: e2e runs against real services ([ADR-0018](0018-testing-strategy.md)).
 - Coverage thresholds per route group in `bunfig.toml`; CI fails below threshold.
 
 ### Observability
@@ -233,7 +233,7 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 - CSP is set in `src/proxy.ts` with a per-request nonce (`script-src 'nonce-<x>' 'strict-dynamic'`); inline scripts are forbidden and `connect-src` allowlists the telemetry ingest origin. Static security headers are duplicated at the Traefik edge ([ADR-0009](0009-api-gateway.md)).
 - CSRF rests on `SameSite=Lax` Kratos cookies, Kratos's built-in protection for auth flows, and Next.js Server Actions' `Origin` check (`serverActions.allowedOrigins`). Other cookie-authenticated mutations are Origin-checked at the edge.
 - Biome is the only lint+format tool, configured with the strict ruleset in `biome.json`. ESLint is not installed.
-- `bun test` covers unit/component tests with `happy-dom` preloaded via `bunfig.toml`; Playwright covers e2e per route group. MSW is forbidden in e2e. Vitest and Jest are not used.
+- `bun test` covers unit/component tests with `happy-dom` preloaded via `bunfig.toml`; Vitest and Jest are not used. End-to-end and visual-regression tests are owned by [ADR-0018](0018-testing-strategy.md) (Playwright, repo-root `e2e/`); MSW is forbidden there.
 - Browser observability is OpenTelemetry-JS + Grafana Faro, exporting through a Traefik-fronted ingest route to the cluster's OTel Collector gateway ([ADR-0011](0011-observability.md)).
 - Server-side logs are structured JSON via `pino` to stdout. `console.log` is Biome-forbidden.
 - Bundle budgets in `apps/frontend/perf-budget.json` and Lighthouse-CI thresholds (LCP < 2.5 s, INP < 200 ms, CLS < 0.1, mobile profile) are merge gates.

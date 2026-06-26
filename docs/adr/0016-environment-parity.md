@@ -49,7 +49,7 @@ Local is two tiers with different jobs:
 | Tier | Command | Parity | What runs | For |
 |------|---------|--------|-----------|-----|
 | **Inner loop** | `cluster:up` + `skaffold dev` | **interface** | k3d + lightweight dependency stand-ins (`infra/local/deps.yaml`) + the service(s) under change | day-to-day coding |
-| **Full platform** | `cluster:full` | **implementation** | k3d + the real platform charts at `instances=1` (CNPG, the Temporal chart, SpiceDB, MinIO, the observability stack, the edge + auth) | end-to-end tests, pre-merge validation, CI, per-PR preview |
+| **Full platform** | `cluster:full` | **implementation** | k3d + the real platform charts at `instances=1` (CNPG, the Temporal chart, SpiceDB, MinIO, the observability stack, the edge + auth) | end-to-end tests ([ADR-0018](0018-testing-strategy.md)), pre-merge validation, CI, label-gated per-PR preview |
 
 The **inner loop** optimises for speed. Lightweight stand-ins (a plain Postgres, `temporal server start-dev`, in-memory
 SpiceDB; see [ADR-0003](0003-cluster-topology.md), [ADR-0006](0006-temporal.md)) are acceptable here because they honour
@@ -60,7 +60,8 @@ The **full platform** optimises for fidelity. It runs the **same charts producti
 through the `local` values overlay — CNPG (not a plain Postgres pod), the Temporal Helm chart (not `start-dev`), the
 SpiceDB chart, in-cluster MinIO, and the observability stack. This is the tier that catches operator behaviour, sync
 ordering, and chart wiring before code reaches a deployed environment, and it is the exact configuration CI and per-PR
-preview environments use.
+preview environments use. It is also the environment the end-to-end and visual suites run against ([ADR-0018](0018-testing-strategy.md)):
+the full e2e suite nightly + pre-release, a smoke subset on label-gated per-PR previews.
 
 ### Distribution tiers: k3d (ephemeral) vs k3s (persistent)
 
@@ -69,7 +70,7 @@ preview environments use.
 | Tier | Distribution | Lifecycle |
 |------|--------------|-----------|
 | local (both loops) | k3d | per-engineer, recreated freely |
-| CI e2e / per-PR preview | k3d | ephemeral, created and destroyed per run |
+| CI e2e / label-gated per-PR preview | k3d | ephemeral, created and destroyed per run |
 | dev / staging / prod | k3s on compute | persistent ([ADR-0003](0003-cluster-topology.md)) |
 
 The full-platform local tier and the CI/preview tier are the **same configuration**; investment in one is investment in

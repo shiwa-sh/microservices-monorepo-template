@@ -41,6 +41,7 @@ In priority order:
 - **Sanctioned escape hatches:**
   - **Rust** for services with measured CPU/latency requirements Go cannot meet, or for blockchain components whose canonical libraries are Rust-native.
   - **Python** for ML/data services where the Python scientific ecosystem is the reason the service exists. Never permitted for general API services.
+  - **Node.js** solely as the Playwright end-to-end / visual test runner ([ADR-0018](0018-testing-strategy.md)). Bun cannot reliably run a browser test runner (extra-fd pipe transport + worker IPC are the corners of `child_process` Bun has not matched), and this is a Node-ecosystem-wide gap, not a tool we can swap to avoid it. Scoped to the `e2e/` runner and CI only — never in a service, container image, shipped artifact, or app/library code.
 - Every escape-hatch service requires its own ADR documenting the measured need.
 
 **Rejected as primary:** Rust (velocity), JVM (footprint), Node.js backend (concurrency, type-safety), .NET (ecosystem gap), Python (wrong tool).
@@ -72,7 +73,7 @@ In priority order:
 - Every backend service is written in Go unless an ADR sanctions an escape hatch.
 - Go version is pinned by `.mise.toml`; services do not override it.
 - The frontend is TypeScript on Next.js, single app per [ADR-0002](0002-monorepo.md).
-- Bun is the only JS runtime — Node.js is not installed locally or in any container image.
+- Bun is the only JS runtime — Node.js is not installed in any container image, service, or shipped artifact. The sole exception is the Playwright e2e/visual test runner ([ADR-0018](0018-testing-strategy.md)), where Node is sanctioned for the runner and CI only.
 - A Rust service requires its own ADR demonstrating measured Go inadequacy or Rust-native ecosystem need.
 - A Python service requires its own ADR; it is permitted only for ML/data workloads.
 - JVM, .NET, and Node.js backends are not permitted, with or without an ADR.

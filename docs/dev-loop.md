@@ -50,6 +50,24 @@ hot-restart all work — the service is a plain host process.
 mise run cluster:down                    # stops port-forwards + deletes the k3d cluster
 ```
 
+## End-to-end & visual tests
+
+End-to-end and visual-regression tests are owned by [ADR-0018](adr/0018-testing-strategy.md):
+**Playwright** drives them from the repo-root `e2e/` workspace against the full platform.
+
+```sh
+mise run cluster:full:up      # the environment e2e runs against
+mise run e2e:smoke            # product golden path + a key dashboard render
+mise run e2e                  # full suite: every journey, every dashboard, all visual baselines
+```
+
+The browser test is the acceptance gauge — a rendered, authenticated dashboard (Grafana,
+Hubble, Temporal) is the proof the whole stack underneath is wired. A Go/shell **preflight
+readiness** check runs first so a red e2e reads "infra down" vs "app broken". The suite ships a
+committed deterministic test identity (an AAL1 user + an AAL2 operator); there is nothing to seed
+by hand. Playwright's runner is Node — the **one** sanctioned Node tool in the repo
+([ADR-0001](adr/0001-language-and-runtime.md)), scoped to `e2e/` and CI; everything else stays on Bun.
+
 ## Formatting & linting
 
 `mise run format` / `mise run lint` cover every language, including Markdown.
