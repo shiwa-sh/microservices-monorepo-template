@@ -68,6 +68,15 @@ grafana:
     server:
       serve_from_sub_path: false
       root_url: "%(protocol)s://%(domain)s/"
+    # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding
+    # dashboard:grafana#view, ADR-0017). Grafana trusts it and serves anonymously
+    # instead of running a second, redundant login that would redirect to /login and
+    # never render. Only AAL2 operators ever reach this origin.
+    auth:
+      disable_login_form: true
+    "auth.anonymous":
+      enabled: true
+      org_role: Admin
   datasources:
     datasources.yaml:
       apiVersion: 1

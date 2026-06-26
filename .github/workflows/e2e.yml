@@ -1,0 +1,105 @@
+# End-to-end + visual acceptance (ADR-0018). Every full-platform e2e shares one
+# expensive prerequisite — a running cluster:full — so cadence is set per
+# environment to amortise the bring-up, and these jobs are NOT part of ci:affected
+# (every e2e crosses service boundaries by nature):
+#   - full  — nightly + pre-release (and manual). Every dashboard + visual baseline.
+#   - smoke — per-PR, opt-in via the `e2e-smoke` label, for risky changes only.
+#
+# NOTE: cluster:full is heavy (~16GB RAM). Run on a large self-hosted runner; the
+# default GitHub runner is undersized for the full platform.
+name: e2e
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # nightly full suite
+  push:
+    tags: ["v*", "services/*/v*"] # pre-release (ADR-0013)
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "full or smoke"
+        default: "full"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    # Nightly, pre-release tags, and manual full runs — never on a PR.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+      - name: Provision the local SOPS age key
+        run: mise run secrets:age
+      - name: Bring up cluster:full
+        run: mise run cluster:full:up
+      - name: Install Playwright (Node island)
+        run: mise run e2e:install
+      - name: Run full e2e + visual suite
+        run: mise run e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-full
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+      - name: Tear down
+        if: always()
+        run: mise run cluster:full:purge
+
+  smoke:
+    # Label-gated per-PR: a golden path + a key dashboard render. Opt-in so an
+    # unlabeled PR never pays a full bring-up (ADR-0018 §Cadence).
+    if: >-
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'e2e-smoke')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+      - name: Provision the local SOPS age key
+        run: mise run secrets:age
+      - name: Bring up cluster:full
+        run: mise run cluster:full:up
+      - name: Install Playwright (Node island)
+        run: mise run e2e:install
+      - name: Run smoke suite
+        run: mise run e2e:smoke
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-smoke
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+      - name: Tear down
+        if: always()
+        run: mise run cluster:full:purge

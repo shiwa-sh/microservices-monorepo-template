@@ -1,0 +1,16 @@
+{
+  "name": "e2e",
+  "private": true,
+  "description": "Repo-root Playwright e2e + visual workspace (ADR-0018). The one sanctioned Node island; everything else runs on Bun.",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "install:browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.50.1",
+    "@types/node": "22.10.7",
+    "otplib": "12.0.1",
+    "typescript": "5.7.3"
+  }
+}

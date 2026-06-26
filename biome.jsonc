@@ -13,7 +13,11 @@
       "!**/dist",
       "!**/build",
       "!**/libs/ts/sdks",
-      "!**/apps/admin/_generated"
+      "!**/apps/admin/_generated",
+      // The e2e/ Playwright workspace is the sanctioned Node island (ADR-0018) with
+      // its own toolchain; the frontend-tuned React preset does not apply to it
+      // (it is type-checked by its own tsconfig + the Playwright compile).
+      "!**/e2e"
     ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
@@ -91,6 +95,13 @@
       // Writes to stdout via console before slog/OTLP wiring.
       "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
       "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    },
+    {
+      // Canonical Oathkeeper access rules (ADR-0010): hand-curated one-rule-per-line
+      // for readability and consumed verbatim as a Helm --set-file string. Biome's
+      // JSON formatter collapses it to one line — never format this artefact.
+      "includes": ["**/infra/auth/oathkeeper/access-rules.json"],
+      "formatter": { "enabled": false }
     }
   ]
 }

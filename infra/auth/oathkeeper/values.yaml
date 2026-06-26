@@ -33,6 +33,12 @@ oathkeeper:
             preserve_path: true
             preserve_query: true
             only: [ory_kratos_session]
+            # Kratos whoami has no top-level `subject`/`extra`; map them explicitly so
+            # `.Subject` is the identity id and `.Extra` is the whole session body.
+            # Without these the ops payload's {{ .Extra.authenticator_assurance_level }}
+            # (and .Extra.identity.*) are empty → every dashboard check denies.
+            subject_from: identity.id
+            extra_from: "@this"
         jwt:
           enabled: true
           config:

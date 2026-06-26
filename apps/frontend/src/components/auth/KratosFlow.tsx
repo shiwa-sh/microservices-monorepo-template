@@ -100,6 +100,12 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
         type={attr.type === "button" ? "button" : "submit"}
         name={attr.name}
         value={value}
+        // A settings flow renders every method (password, WebAuthn, TOTP) in this
+        // one form, each with its own submit. Native required-field validation
+        // would block one method's submit on another's empty input (e.g. enrolling
+        // TOTP while the password field is blank). Kratos validates the submitted
+        // method server-side, so skip the browser's cross-group check.
+        formNoValidate
         className="w-full rounded bg-brand-600 px-4 py-2 text-white hover:bg-brand-700"
       >
         {labelText ?? submitLabel}

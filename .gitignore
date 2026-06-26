@@ -34,9 +34,12 @@ out/
 # Biome (ADR-0014)
 .biome/
 
-# Playwright (ADR-0014)
+# Playwright e2e (ADR-0014, ADR-0018)
 playwright-report/
 test-results/
+blob-report/
+# Saved auth storage states (session cookies) from the e2e setup project.
+e2e/.auth/
 
 # Helm / Terraform
 **/charts/*.tgz

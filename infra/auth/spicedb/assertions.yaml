@@ -5,15 +5,18 @@ assertTrue:
   - "org:acme#read@user:alice"
   - "order:o1#read@user:alice"
   # Ops tier (ADR-0017): alice is an operator; she views the console (direct
-  # grant) and grafana (via the operator group), but NOT hubble.
+  # grant) and grafana/hubble/temporal (via the operator group), but NOT minio —
+  # the per-tool grant is the real gate, not bare operator membership.
   - "group:operator#member@user:alice"
   - "dashboard:console#view@user:alice"
   - "dashboard:grafana#view@user:alice"
+  - "dashboard:hubble#view@user:alice"
+  - "dashboard:temporal#view@user:alice"
 assertFalse:
   - "org:acme#admin@user:alice"
   - "org:acme#write@user:alice"
   - "order:o2#write@user:alice"
-  - "dashboard:hubble#view@user:alice"
+  - "dashboard:minio#view@user:alice"
   # bob is not an operator → reaches no ops dashboard.
   - "group:operator#member@user:bob"
   - "dashboard:console#view@user:bob"

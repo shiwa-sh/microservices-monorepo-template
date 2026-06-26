@@ -8,3 +8,5 @@ relationships: |
   group:operator#member@user:alice
   dashboard:console#viewer@user:alice
   dashboard:grafana#viewer@group:operator#member
+  dashboard:hubble#viewer@group:operator#member
+  dashboard:temporal#viewer@group:operator#member

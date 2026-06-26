@@ -243,6 +243,27 @@ if want spicedb; then
   echo "→ installing SpiceDB"
   h upgrade --install spicedb infra/helm/platform/spicedb -n "$NS" \
     -f infra/gitops/platform/local/values.yaml --timeout 5m
+  # Seed the authz schema + static ops-tier policy. Nothing else writes the SpiceDB
+  # schema — the chart and the authz service both assume it is already present — so
+  # without this every ops-dashboard edge check (dashboard:<tool>#view) fails and no
+  # operator can reach Grafana/Hubble/Temporal. Group-based dashboard grants are
+  # platform policy; per-user operator membership is seeded by operator onboarding /
+  # the e2e identity bootstrap. All writes are idempotent.
+  #   NOTE (env parity): deployed envs need the same seeding via a gitops Job — the
+  #   ArgoCD path (infra/gitops) is still a stub; tracked as a follow-up.
+  echo "  seeding SpiceDB schema + ops dashboard grants"
+  k -n "$NS" rollout status deploy/spicedb --timeout=120s
+  sk=$(k -n "$NS" get secret spicedb-creds -o jsonpath='{.data.preshared_key}' | base64 -d)
+  k -n "$NS" port-forward svc/spicedb 50051:50051 >/dev/null 2>&1 &
+  sk_pf=$!
+  sleep 4
+  zed schema write infra/auth/spicedb/schema.zed \
+    --endpoint 127.0.0.1:50051 --insecure --token "$sk"
+  for tool in grafana hubble temporal; do
+    zed relationship touch "dashboard:${tool}" viewer "group:operator#member" \
+      --endpoint 127.0.0.1:50051 --insecure --token "$sk"
+  done
+  kill "$sk_pf" 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
