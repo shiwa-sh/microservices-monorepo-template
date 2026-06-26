@@ -15,15 +15,15 @@ definition org {
 
 definition product {
     relation org: org
-    permission read  = org->member + org->admin
-    permission write = org->admin
+    permission read  = org->read
+    permission write = org->write
 }
 
 definition order {
     relation org:     org
     relation owner:   user
-    permission read  = owner + org->admin
-    permission write = owner + org->admin
+    permission read  = owner + org->write
+    permission write = owner + org->write
 }
 
 // Ops-tier authorization (ADR-0017). A `group` models coarse cohorts; the
