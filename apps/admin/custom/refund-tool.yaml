@@ -5,24 +5,33 @@ id: refund-tool
 type: PageHeaderMenu
 properties:
   title: Refund tool
+requests:
+  - id: refund
+    type: AxiosHttp
+    connectionId: payment
+    # Requests evaluate server-side: carry client state in `payload` (where _state
+    # is allowed) and reference it via _payload in properties.
+    payload:
+      chargeId: { _state: chargeId }
+      reason: { _state: reason }
+    properties:
+      url:
+        _string_concat: ["/charges/", { _payload: chargeId }, "/refund"]
+      method: post
+      data:
+        reason: { _payload: reason }
 blocks:
   - id: chargeId
-    type: Input
-    properties: { label: "Charge ID" }
+    type: TextInput
+    properties: { label: Charge ID }
   - id: reason
     type: TextArea
-    properties: { label: "Reason" }
+    properties: { label: Reason }
   - id: submit
     type: Button
     properties: { title: Refund }
     events:
       onClick:
-        - id: refund
+        - id: doRefund
           type: Request
-          params:
-            connectionId: payment
-            properties:
-              url:    { _string_concat: ["/charges/", { _state: chargeId }, "/refund"] }
-              method: POST
-              data:
-                reason: { _state: reason }
+          params: refund

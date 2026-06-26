@@ -1,11 +1,25 @@
+# Lowdefy 5 requires Node + pnpm (it shells out to pnpm and serves a Next.js app),
+# so these host tasks run the lowdefy CLI under Node, not bun — a tool-confined
+# island, the same exception ADR-0018 makes for the Playwright runner. corepack
+# provides pnpm; pnpm 10+ needs build scripts allowed for the server's deps
+# (sharp, @sentry/cli). The container build does the same (apps/admin/Dockerfile).
+[env]
+LOWDEFY_VERSION = "5.4.0"
+
+[tasks.setup]
+run = "corepack enable && pnpm config set dangerously-allow-all-builds true"
+
 [tasks.build]
-run = "bun x lowdefy build"
+depends = ["setup"]
+run = "npx lowdefy@{{env.LOWDEFY_VERSION}} build"
 
 [tasks.run]
-run = "bun x lowdefy dev"
+depends = ["setup"]
+run = "npx lowdefy@{{env.LOWDEFY_VERSION}} dev"
 
 [tasks.lint]
-run = "bun x lowdefy validate"
+depends = ["setup"]
+run = "npx lowdefy@{{env.LOWDEFY_VERSION}} validate"
 
 [tasks.test]
 run = "echo 'no tests yet'"

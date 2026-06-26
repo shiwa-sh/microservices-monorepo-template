@@ -1,4 +1,4 @@
-// Hubble UI operator dashboard (plan.md #8) — gated at hubble.ops.<host>
+// Hubble UI operator dashboard (ADR-0017) — gated at hubble.ops.<host>
 // (dashboard:hubble#view) and the flow-map renders behind a real AAL2 session.
 // Hubble's React Router only runs at an origin ROOT (ADR-0003), which the
 // {tool}.ops.<host> topology gives it.

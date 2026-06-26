@@ -1,4 +1,4 @@
-// Grafana operator dashboard (plan.md #6) — the staged localiser chain: reachable
+// Grafana operator dashboard (ADR-0017) — the staged localiser chain: reachable
 // (preflight), gated (edge authz), login (the real interactive flow, @smoke), and
 // renders (the gauge — the dashboard paints behind a real AAL2 session).
 import fs from "node:fs";

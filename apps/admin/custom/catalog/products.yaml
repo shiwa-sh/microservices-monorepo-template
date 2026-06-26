@@ -11,14 +11,14 @@ requests:
     connectionId: catalog
     properties:
       url: /products
-      method: GET
+      method: get
 blocks:
   - id: table
-    type: AntdTable
+    type: AgGridAlpine
     properties:
-      columns:
-        - { key: id,          title: ID }
-        - { key: name,        title: Name }
-        - { key: price_cents, title: Price (cents) }
-      dataSource:
+      rowData:
         _request: list
+      columnDefs:
+        - { field: id, headerName: ID }
+        - { field: name, headerName: Name }
+        - { field: price_cents, headerName: Price (cents) }

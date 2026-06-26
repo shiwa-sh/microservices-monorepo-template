@@ -133,6 +133,11 @@ run = "bash scripts/db-migrate.sh"
 # Idempotent; also writes .sops.yaml (ADR-0005).
 run = "bash scripts/gen-age.sh"
 
+[tasks."ops:grant"]
+# Operator onboarding (ADR-0010/0017): add/revoke a human's group:operator
+# membership by email. Usage: mise run ops:grant -- <email> [--revoke].
+run = "bash scripts/ops-grant.sh"
+
 [tasks.gen]
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
 # OpenAPI spec; ogen + sqlc are the only generators (ADR-0008, ADR-0009).

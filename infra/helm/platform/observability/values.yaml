@@ -89,8 +89,17 @@ grafana:
 
 # Loki — single-binary monolithic (-target=all), bucket-backed (ADR-0011).
 loki:
+  # Pin the service name to `loki` (not the release-prefixed `observability-loki`)
+  # so the OTel exporter and Grafana datasource below — and prod — reach it at
+  # loki.<ns>.svc:3100. Mirrors grafana/mimir, which also fix their names.
+  fullnameOverride: loki
   deploymentMode: SingleBinary
   loki:
+    # Single-tenant (ADR-0011): no X-Scope-OrgID required, matching Mimir's
+    # multitenancy_enabled:false. Without this the chart defaults to multi-tenant
+    # and every header-less query (incl. Grafana's datasource health check) 401s
+    # with "no org id".
+    auth_enabled: false
     commonConfig: { replication_factor: 1 }
     schemaConfig:
       configs:
@@ -126,6 +135,9 @@ loki:
 
 # Tempo — single-binary monolithic chart, bucket-backed.
 tempo:
+  # Pin the service name to `tempo` so the OTel exporter (tempo:4318) and Grafana
+  # datasource (tempo:3200) resolve it, instead of the release-prefixed default.
+  fullnameOverride: tempo
   replicas: 1
   tempo:
     reportingEnabled: false

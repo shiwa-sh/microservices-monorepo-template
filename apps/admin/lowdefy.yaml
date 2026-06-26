@@ -2,18 +2,26 @@
 # hand- or LLM-written; the OpenAPI-driven generator (tools/admin-gen, emitting
 # _generated/) is added only when the page count justifies it.
 name: platform-admin
-lowdefy: 4.5.7
+lowdefy: 5.4.0
+
+# Lowdefy 5 requires every block/connection to be declared as a plugin, pinned to
+# the core version: antd UI blocks, basic layout, markdown, an AgGrid table, and
+# the Axios HTTP connection cover the day-one pages.
+plugins:
+  - { name: "@lowdefy/blocks-antd", version: 5.4.0 }
+  - { name: "@lowdefy/blocks-basic", version: 5.4.0 }
+  - { name: "@lowdefy/blocks-markdown", version: 5.4.0 }
+  - { name: "@lowdefy/blocks-aggrid", version: 5.4.0 }
+  - { name: "@lowdefy/connection-axios-http", version: 5.4.0 }
 
 config:
   homePageId: dashboard
   # Served at the root of its own ops origin console.ops.<host> (ADR-0017), not
-  # under a product path.
-  basePath:   /
-  auth:
-    pages:
-      protected: true
-    # No Lowdefy session store — auth is enforced at the edge (ADR-0012).
-    # Trust the X-User-Email header forwarded by Oathkeeper (ADR-0009).
+  # under a product path. basePath is omitted: Lowdefy requires it to start with
+  # "/" while Next.js rejects exactly "/", so the only root-valid setting is unset.
+  # No Lowdefy auth/session store — access is gated upstream at the ops edge
+  # (Oathkeeper: AAL2 operator holding dashboard:console#view, ADR-0012/0017).
+  # Pages are public to Lowdefy; only authorized operators ever reach this origin.
 
 connections:
   - id: catalog

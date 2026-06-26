@@ -5,13 +5,27 @@ id: orders
 type: PageHeaderMenu
 properties:
   title: Orders
-blocks:
-  - id: lookup
-    type: Input
-    properties: { label: "Order ID" }
+requests:
   - id: detail
     type: AxiosHttp
     connectionId: orders
+    # Requests evaluate server-side: carry client state in `payload` (where _state
+    # is allowed) and reference it via _payload in properties.
+    payload:
+      lookup: { _state: lookup }
     properties:
-      url: { _string_concat: ["/orders/", { _state: lookup }] }
-      method: GET
+      url:
+        _string_concat: ["/orders/", { _payload: lookup }]
+      method: get
+blocks:
+  - id: lookup
+    type: TextInput
+    properties: { label: Order ID }
+  - id: load
+    type: Button
+    properties: { title: Load }
+    events:
+      onClick:
+        - id: fetch
+          type: Request
+          params: detail

@@ -5,9 +5,8 @@ controls every serious project should have, independent of domain. Framework-spe
 (PCI-DSS, SOC 2, HIPAA, …) is a documented **per-instance escalation** layered on top (last
 section), never baked into the template or its ADRs.
 
-It implements the program in [`plan.md`](../plan.md) and the decisions in
-[ADR-0009](adr/0009-api-gateway.md), [ADR-0010](adr/0010-auth.md) and
-[ADR-0017](adr/0017-url-and-domain-structure.md).
+It implements the decisions in [ADR-0009](adr/0009-api-gateway.md),
+[ADR-0010](adr/0010-auth.md) and [ADR-0017](adr/0017-url-and-domain-structure.md).
 
 ## Trust boundaries
 
@@ -55,14 +54,15 @@ be shared across the product apex and `*.ops.<host>` (ADR-0017). The `__Secure-`
 adopting it means renaming `ory_kratos_session` in Kratos, Oathkeeper (`only:`) and `proxy.ts` together
 — tracked as a per-instance hardening, not a baseline default.
 
-## Known follow-ups (tracked, not baseline-blocking)
+## Deliberately deferred (enable per-instance when the need arises)
+
+These are conscious omissions from the baseline, not unfinished work — each is a values/policy flip a
+specific project turns on when it needs it:
 
 - **Per-account lockout / CAPTCHA**: Kratos OSS relies on the edge IP rate-limit; per-account backoff
   and a CAPTCHA hook on registration/recovery are per-instance add-ons where the product needs them.
 - **Ops-tier OIDC (Hydra)**: optional token-isolation upgrade (ADR-0017); mandatory only if a
   non-first-party origin is ever hosted under `<host>`.
-- **Prod auth routing**: the in-cluster frontend + Kratos public route exist locally
-  (`infra/local/edge-auth.yaml`); a deployed env needs the equivalent in `infra/gateway`.
 - **B2C MFA, social/SSO, SCIM**: deferred/optional per ADR-0010.
 
 ## Per-instance compliance escalation

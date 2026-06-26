@@ -47,7 +47,7 @@ case "$PROFILE" in
   min)     COMPONENTS="postgres" ;;
   backend) COMPONENTS="postgres temporal spicedb" ;;
   obs)     COMPONENTS="minio observability" ;;
-  full)    COMPONENTS="minio postgres temporal spicedb ory observability gateway services" ;;
+  full)    COMPONENTS="minio postgres temporal spicedb ory observability gateway services lowdefy" ;;
   *) echo "unknown profile '$PROFILE' — use one of: min | backend | obs | full" >&2; exit 1 ;;
 esac
 want() { case " $COMPONENTS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
@@ -259,7 +259,7 @@ if want spicedb; then
   sleep 4
   zed schema write infra/auth/spicedb/schema.zed \
     --endpoint 127.0.0.1:50051 --insecure --token "$sk"
-  for tool in grafana hubble temporal; do
+  for tool in grafana hubble temporal console; do
     zed relationship touch "dashboard:${tool}" viewer "group:operator#member" \
       --endpoint 127.0.0.1:50051 --insecure --token "$sk"
   done
@@ -356,6 +356,25 @@ if want services; then
   # under /api/<name>/ through the edge and ships telemetry (vs the inner loop's
   # direct-call, no-edge default).
   skaffold run -p full --kube-context "k3d-${CLUSTER}" --default-repo="" || true
+fi
+
+# ---------------------------------------------------------------------------
+# 10. Lowdefy admin console (ADR-0012). Deployed envs get it for free from the
+#     platform ApplicationSet (dir generator over infra/helm/platform/*) with a
+#     CI-built image; locally we build the apps/admin image, import it into k3d,
+#     and install the same chart. Reached at console.ops.<host> through the ops
+#     edge (ops-console IngressRoute, applied in the gateway phase). The console
+#     dashboard grant is seeded in the SpiceDB step above.
+# ---------------------------------------------------------------------------
+if want lowdefy; then
+  echo "→ building + installing Lowdefy admin console"
+  admin_img="admin:local"
+  docker build -t "$admin_img" -f apps/admin/Dockerfile apps/admin
+  k3d image import "$admin_img" -c "$CLUSTER"
+  h upgrade --install lowdefy infra/helm/platform/lowdefy -n "$NS" \
+    --set image.repository=admin --set image.tag=local --set image.pullPolicy=IfNotPresent \
+    -f infra/gitops/platform/local/values.yaml --timeout 5m || true
+  k -n "$NS" rollout status deploy/lowdefy --timeout=180s || true
 fi
 
 cat <<EOF

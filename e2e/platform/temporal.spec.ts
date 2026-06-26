@@ -1,4 +1,4 @@
-// Temporal Web UI operator dashboard (plan.md #7) — gated at temporal.ops.<host>
+// Temporal Web UI operator dashboard (ADR-0017) — gated at temporal.ops.<host>
 // (dashboard:temporal#view) and the namespace view renders behind a real AAL2
 // operator session.
 import { expect, test } from "@playwright/test";
