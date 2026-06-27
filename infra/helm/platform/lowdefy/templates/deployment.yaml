@@ -19,7 +19,7 @@ spec:
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: {{ $v | quote }} }
             {{- end }}
-          readinessProbe: { httpGet: { path: /, port: http } }
+          readinessProbe: { tcpSocket: { port: http } }
 ---
 apiVersion: v1
 kind: Service
