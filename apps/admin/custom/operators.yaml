@@ -1,0 +1,49 @@
+id: operators
+type: PageHeaderMenu
+properties:
+  title: Operators
+requests:
+  - id: addOperator
+    type: AxiosHttp
+    connectionId: authz-admin
+    payload:
+      email: { _state: email }
+      password: { _state: password }
+    properties:
+      url: /admin/operators
+      method: post
+      data:
+        email: { _payload: email }
+        password: { _payload: password }
+blocks:
+  - id: email
+    type: TextInput
+    properties:
+      label: Email
+  - id: password
+    type: TextInput
+    properties:
+      label: Password
+      type: password
+  - id: submit
+    type: Button
+    properties:
+      title: Add operator
+    events:
+      onClick:
+        - id: doAdd
+          type: Request
+          params: addOperator
+        - id: setSuccess
+          type: SetState
+          params:
+            success: true
+  - id: successMsg
+    type: Title
+    visible:
+      _eq:
+        - { _state: success }
+        - true
+    properties:
+      content: Operator added
+      level: 5

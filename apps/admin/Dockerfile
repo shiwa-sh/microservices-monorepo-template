@@ -9,7 +9,6 @@
 # code is Node; this is just how the upstream admin tool ships.
 ARG NODE_VERSION=22
 ARG LOWDEFY_VERSION=5.4.0
-
 FROM node:${NODE_VERSION}-alpine
 ARG LOWDEFY_VERSION
 WORKDIR /app

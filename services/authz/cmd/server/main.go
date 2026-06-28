@@ -18,6 +18,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/decision"
+	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/operator"
 )
 
 const serviceName = "authz"
@@ -44,9 +45,14 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("authz client: %w", err)
 	}
+	granter, err := authz.NewGranter()
+	if err != nil {
+		return fmt.Errorf("authz granter: %w", err)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/internal/authorize", decision.New(checker, slog.Default()))
+	mux.Handle("/admin/operators", operator.New(granter, slog.Default()))
 
 	srv := &http.Server{
 		Addr:              ":8080",

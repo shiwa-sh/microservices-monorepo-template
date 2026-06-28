@@ -20,13 +20,28 @@ type Checker interface {
 	Allowed(ctx context.Context, subject, permission, resource string) (bool, error)
 }
 
+// Granter writes a relationship into SpiceDB (e.g. adding a user to group:operator).
+type Granter interface {
+	Grant(ctx context.Context, subject, relation, resource string) error
+}
+
 type spice struct{ c *authzed.Client }
 
-// New dials the cluster SpiceDB.
+// New dials the cluster SpiceDB and returns a value satisfying both Checker and Granter.
 //
 // SPICEDB_ENDPOINT and SPICEDB_PRESHARED_KEY are required env vars
 // (typically envFrom-mounted from a SOPS Secret — ADR-0005).
 func New() (Checker, error) {
+	s, err := dial()
+	return s, err
+}
+
+// NewGranter returns the SpiceDB client as a Granter for relationship writes.
+func NewGranter() (Granter, error) {
+	return dial()
+}
+
+func dial() (*spice, error) {
 	endpoint := os.Getenv("SPICEDB_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "spicedb.platform.svc.cluster.local:50051"
@@ -77,6 +92,38 @@ func (s *spice) Allowed(ctx context.Context, subject, permission, resource strin
 		return false, fmt.Errorf("authz: check permission: %w", err)
 	}
 	return r.GetPermissionship() == v1.CheckPermissionResponse_PERMISSIONSHIP_HAS_PERMISSION, nil
+}
+
+// Grant writes a TOUCH relationship: subject relation resource.
+// Example: subject="user:alice", relation="member", resource="group:operator".
+func (s *spice) Grant(ctx context.Context, subject, relation, resource string) error {
+	subT, subID, err := split(subject)
+	if err != nil {
+		return err
+	}
+	resT, resID, err := split(resource)
+	if err != nil {
+		return err
+	}
+	_, err = s.c.WriteRelationships(
+		ctx,
+		&v1.WriteRelationshipsRequest{
+			Updates: []*v1.RelationshipUpdate{
+				{
+					Operation: v1.RelationshipUpdate_OPERATION_TOUCH,
+					Relationship: &v1.Relationship{
+						Resource: &v1.ObjectReference{ObjectType: resT, ObjectId: resID},
+						Relation: relation,
+						Subject:  &v1.SubjectReference{Object: &v1.ObjectReference{ObjectType: subT, ObjectId: subID}},
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("authz: grant: %w", err)
+	}
+	return nil
 }
 
 // split converts "type:id" → ("type", "id").

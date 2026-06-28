@@ -36,9 +36,14 @@ connections:
     type: AxiosHttp
     properties:
       baseURL: http://payment-server.platform.svc.cluster.local
+  - id: authz-admin
+    type: AxiosHttp
+    properties:
+      baseURL: http://authz-server.platform.svc.cluster.local
 
 pages:
   - _ref: pages/dashboard.yaml
   - _ref: custom/catalog/products.yaml
   - _ref: custom/orders/orders.yaml
   - _ref: custom/refund-tool.yaml
+  - _ref: custom/operators.yaml

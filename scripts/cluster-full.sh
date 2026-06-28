@@ -374,6 +374,9 @@ if want lowdefy; then
   h upgrade --install lowdefy infra/helm/platform/lowdefy -n "$NS" \
     --set image.repository=admin --set image.tag=local --set image.pullPolicy=IfNotPresent \
     -f infra/gitops/platform/local/values.yaml --timeout 5m || true
+  # Force a rollout restart so the pod picks up the freshly-imported local image
+  # (k8s won't re-pull an existing tag when imagePullPolicy=IfNotPresent).
+  k -n "$NS" rollout restart deploy/lowdefy || true
   k -n "$NS" rollout status deploy/lowdefy --timeout=180s || true
 fi
 
@@ -386,7 +389,8 @@ cat <<EOF
     Grafana:         https://grafana.ops.${DOMAIN}:8443/   (login admin/admin)
     Temporal UI:     https://temporal.ops.${DOMAIN}:8443/
     MinIO console:   https://minio.ops.${DOMAIN}:8443/
-    (Argo CD + Lowdefy console are deployed-env only, not in the local profile.)
+    Lowdefy console: https://console.ops.${DOMAIN}:8443/
+    (Argo CD is deployed-env only, not in the local profile.)
   Teardown:         mise run cluster:full:down
 
   Profiles:         mise run cluster:full:up [min|backend|obs|full]   (default full)
