@@ -194,3 +194,44 @@ local-only).
 > On a restricted network whose registry blocks **digest** pulls (only tags
 > resolve), pre-pull the platform images by tag and `k3d image import` them; the
 > upstream charts pin images by digest. A normal connection pulls them directly.
+
+## HTTP proxies
+
+If your host routes egress through an HTTP proxy, configure it at the **environment
+level**, not in the repo — `cluster-create.sh` carries no proxy logic. Docker
+propagates its proxy settings into every container it starts, including the k3d
+nodes, so in-cluster image pulls (and ArgoCD-synced workloads in `cluster:full`)
+inherit it automatically.
+
+Set it once in `~/.docker/config.json`:
+
+```json
+{
+  "proxies": {
+    "default": {
+      "httpProxy": "http://proxy.example.com:8080",
+      "httpsProxy": "http://proxy.example.com:8080",
+      "noProxy": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+    }
+  }
+}
+```
+
+For the Docker **daemon** itself (so the daemon's own pulls are proxied too), use a
+systemd drop-in — `/etc/systemd/system/docker.service.d/http-proxy.conf`:
+
+```ini
+[Service]
+Environment="HTTP_PROXY=http://proxy.example.com:8080"
+Environment="HTTPS_PROXY=http://proxy.example.com:8080"
+Environment="NO_PROXY=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+```
+
+then `sudo systemctl daemon-reload && sudo systemctl restart docker`.
+
+> **Loopback proxies** (e.g. `127.0.0.1:8080`, as some sandboxes use) are not
+> reachable from inside a container as `127.0.0.1`. Point the k3d nodes at the host
+> instead — substitute `host.k3d.internal` for `127.0.0.1`/`localhost` in the
+> values above, and make sure that name resolves on the node (Docker normally adds
+> it; if a restart drops it, re-add `<gateway-ip> host.k3d.internal` to the node's
+> `/etc/hosts`).

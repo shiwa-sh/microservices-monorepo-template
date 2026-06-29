@@ -15,7 +15,6 @@ bash scripts/cilium-install.sh
 
 echo "→ applying lightweight dev dependencies (Postgres, Temporal, SpiceDB)"
 kubectl --context "k3d-${CLUSTER}" apply -f infra/local/deps.yaml
-kubectl --context "k3d-${CLUSTER}" -n platform rollout status deploy/postgres --timeout=180s
 
 cat <<'EOF'
 ✓ cluster:up complete (inner loop).

@@ -108,9 +108,6 @@ mise run cluster:up               # k3d cluster + local deps (Postgres, Temporal
 cd services/catalog
 mise run run                  # http server
 mise run worker               # temporal worker
-
-# Health check
-bash scripts/doctor.sh
 ```
 
 ## Layout
