@@ -171,40 +171,40 @@ Parity is at the manifest, chart, and API level. Topology differences are explic
 | Kubernetes API | k3s             | k3s                               | yes           |
 | Helm charts    | `infra/helm/`   | `infra/helm/`                     | yes           |
 | Service code   | identical image | identical image                   | yes           |
-| Ingress        | n/a (direct)    | Traefik                           | no, by design |
-| TLS issuer     | n/a             | Let's Encrypt                     | no            |
+| Ingress        | inner: direct / full: Traefik | Traefik             | full tier: yes |
+| TLS issuer     | cert-manager (self-signed) | cert-manager (Let's Encrypt) | mechanism: yes |
 | LB driver      | klipper-lb      | provider cloud-controller-manager | no            |
-| Object storage | n/a (opt-in)    | external S3 bucket                | no, by design |
-| GitOps         | not used        | ArgoCD                            | no, by design |
+| Object storage | MinIO (non-prod) | external S3 bucket               | API: yes      |
+| GitOps         | inner: n/a / full: ArgoCD | ArgoCD                  | full tier: yes |
 | Sizing         | tiny            | sized for traffic                 | no            |
 
-`mise run cluster:up` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then driven by
-Skaffold (`mise run dev`) — see *Local development* below. There is no docker-compose path: k3d is the single local
-runtime, keeping local and prod on the same manifests.
+`mise run cluster:up` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then **native
+execution** — you run the service you are changing directly on the host (any editor/IDE, or `go run`) against those
+dependencies — see *Local development* below. There is no docker-compose path: k3d is the single local runtime, keeping
+local and prod on the same manifests.
 
 ### Local development
 
-The local runtime is **k3d**, in two tiers ([ADR-0016](0016-environment-parity.md)). The **inner loop** below — driven
-by **Skaffold** against lightweight dependency stand-ins — is the day-to-day path: you run the service(s) you are
-changing, fast. The **full platform** (`mise run cluster:full`) brings the real charts up at a single replica for
-end-to-end and pre-merge validation; ArgoCD remains the deploy mechanism for the persistent dev/staging/prod clusters
-([ADR-0004](0004-gitops.md)).
+The local runtime is **k3d**, in two tiers ([ADR-0016](0016-environment-parity.md)). The **inner loop** below runs the
+service you are changing **natively on the host** against lightweight dependency stand-ins reached via port-forwards —
+the day-to-day path: no image build, no in-cluster redeploy, no file-watch on the hot path. The **full platform**
+(`mise run cluster:full`) brings the real charts up at a single replica, delivered by **ArgoCD** — the same mechanism
+the persistent dev/staging/prod clusters use ([ADR-0004](0004-gitops.md)) — for end-to-end and pre-merge validation.
 
-| Step         | Command                         | Brings up                                                                                            |
-|--------------|---------------------------------|------------------------------------------------------------------------------------------------------|
-| Cluster+deps | `mise run cluster:up`           | k3d cluster + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
-| Inner loop   | `mise run dev` (`skaffold dev`) | builds each service image, deploys it via `infra/helm/service`, watches sources and live-rebuilds    |
-| One service  | `mise run dev -m <svc>`         | same, scoped to one service module so the others keep their last deploy and don't rebuild            |
-| Debug        | `skaffold debug`                | Delve attached, for cluster-only bugs; prefer native local debug of one service                      |
-| Migrations   | `mise run db:migrate`           | applies each service's migrations to the local Postgres                                              |
-| Teardown     | `mise run cluster:down`         | deletes the cluster                                                                                  |
+| Step          | Command                                    | Brings up / does                                                                                     |
+|---------------|--------------------------------------------|------------------------------------------------------------------------------------------------------|
+| Cluster+deps  | `mise run cluster:up`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
+| Port-forwards | `mise run dev:forward`                      | forwards the deps to localhost (Postgres 5432, Temporal 7233/8233, SpiceDB 50051); leave running     |
+| Inner loop    | run the service natively                    | set the env contract and run it in any editor/IDE or `go run ./services/<svc>/cmd/server` — no build/deploy |
+| In-cluster    | `mise run service:deploy -- <svc>`          | one-shot build → `k3d image import` → `helm upgrade` (for edge/auth/e2e testing); **no watch loop**  |
+| Migrations    | `mise run db:migrate`                       | applies each service's migrations to the local Postgres                                              |
+| Teardown      | `mise run cluster:down` / `cluster:purge`   | stops (keeps image cache) / deletes the cluster                                                      |
 
-**Same chart, laptop knobs only.** Skaffold deploys the production `infra/helm/service` chart; the only overrides live
-in `infra/helm/values/local-service.yaml` (ingress off, single replica, migrations run separately, endpoints pointed at
-the local deps). Per-service `name`, image, and `DATABASE_URL` are injected by Skaffold. Each service is its own
-Skaffold `Config` module in `skaffold.yaml` (selectable with `skaffold dev -m <svc>`); adding a service to the loop is
-one module block there. Each service's `Dockerfile` copies only `libs/go` + its own tree (and the root `.dockerignore`
-trims the build context), so editing one service rebuilds only that service's images.
+**Native, against real dependencies.** The service binary runs on the host; it reaches the k3d-hosted deps through the
+`dev:forward` port-forwards and the standard env contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, `SPICEDB_ENDPOINT`).
+There is nothing to rebuild or redeploy on save — you just re-run. When you genuinely need the service *in* the cluster
+(exercising the edge, auth, or e2e), `service:deploy` does a single build-import-upgrade against the production
+`infra/helm/service` chart with the `local` values overlay — a one-shot, not a watch loop.
 
 **Lightweight deps in the inner loop only.** `infra/local/deps.yaml` ships throwaway Postgres / Temporal-dev / in-memory
 SpiceDB so a service has something to talk to without paying for the full platform. Their production counterparts (CNPG,
@@ -214,7 +214,7 @@ local tier (`cluster:full`) and in dev/staging/prod, where their operators and o
 
 **What is not swapped out, ever:** the Kubernetes API, the service chart, the service images, the env contract (
 `DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP, SpiceDB), the Postgres major version. A bug reproduced locally reproduces in
-staging and prod. Skaffold loads images into k3d (no registry round-trip) and manages port-forwards.
+staging and prod. `service:deploy` loads images into k3d directly (no registry round-trip).
 
 ### Service mesh
 
@@ -282,9 +282,9 @@ alongside the backup restore drill above.
   When infra is pre-provided, Terraform is skipped and Ansible bootstraps the existing hosts from a committed inventory.
 - Every environment runs k3s with three control-plane nodes (embedded etcd). Adding workers follows the
   resource-pressure trigger.
-- Local development runs on k3d in two tiers ([ADR-0016](0016-environment-parity.md)): a fast inner loop (Skaffold +
-  lightweight deps) and a full-platform tier (`cluster:full`) running the real charts at a single replica. ArgoCD is the
-  deploy mechanism for the persistent dev/staging/prod clusters.
+- Local development runs on k3d in two tiers ([ADR-0016](0016-environment-parity.md)): a fast inner loop (the service
+  run natively against lightweight deps) and a full-platform tier (`cluster:full`) running the real charts at a single
+  replica, delivered by ArgoCD — the same deploy mechanism the persistent dev/staging/prod clusters use.
 - Ingress is Traefik with TLS via cert-manager. Ory Oathkeeper sits behind Traefik as the edge identity filter
   ([ADR-0009](0009-api-gateway.md)); there is no API-management gateway in the default stack.
 - Object storage in production is an external S3-compatible bucket. Non-prod (local full tier, dev, staging) uses

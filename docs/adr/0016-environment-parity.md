@@ -48,13 +48,15 @@ Local is two tiers with different jobs:
 
 | Tier | Command | Parity | What runs | For |
 |------|---------|--------|-----------|-----|
-| **Inner loop** | `cluster:up` + `skaffold dev` | **interface** | k3d + lightweight dependency stand-ins (`infra/local/deps.yaml`) + the service(s) under change | day-to-day coding |
+| **Inner loop** | `cluster:up` + `dev:forward` + **native run** | **interface** | k3d + lightweight dependency stand-ins (`infra/local/deps.yaml`); the service under change runs natively on the host | day-to-day coding |
 | **Full platform** | `cluster:full` | **implementation** | k3d + the real platform charts at `instances=1` (CNPG, the Temporal chart, SpiceDB, MinIO, the observability stack, the edge + auth) | end-to-end tests ([ADR-0018](0018-testing-strategy.md)), pre-merge validation, CI, label-gated per-PR preview |
 
-The **inner loop** optimises for speed. Lightweight stand-ins (a plain Postgres, `temporal server start-dev`, in-memory
-SpiceDB; see [ADR-0003](0003-cluster-topology.md), [ADR-0006](0006-temporal.md)) are acceptable here because they honour
-the same wire contract — a bug reproduced against them reproduces in prod. The full platform is not running, so the loop
-is fast and light.
+The **inner loop** optimises for speed. The service under change runs **natively on the host** (any editor/IDE, or
+`go run`) against lightweight stand-ins (a plain Postgres, `temporal server start-dev`, in-memory SpiceDB; see
+[ADR-0003](0003-cluster-topology.md), [ADR-0006](0006-temporal.md)) reached through `dev:forward` port-forwards. The
+stand-ins are acceptable because they honour the same wire contract — a bug reproduced against them reproduces in prod.
+There is no image build, in-cluster redeploy, or file-watch on the hot path; the full platform is not running, so the
+loop is fast and light.
 
 The **full platform** optimises for fidelity. It runs the **same charts production runs**, scaled to a single replica
 through the `local` values overlay — CNPG (not a plain Postgres pod), the Temporal Helm chart (not `start-dev`), the
@@ -92,18 +94,31 @@ Two independent axes, resolved by two independent mechanisms:
   | `obs` | observability + Faro/Grafana | frontend RUM / dashboards |
   | `full` | everything | operator end-to-end |
 
-- **Which services I rebuild and watch** — Skaffold modules (`skaffold dev -m <svc>`) and profiles ([ADR-0003](0003-cluster-topology.md)).
-  This axis is Skaffold's alone; it never leaks into platform composition.
+- **Which service I iterate on** — in the inner loop you run exactly one service natively (the one under change); the
+  rest are stand-ins or absent. When a service must run *in* the cluster (edge/auth/e2e), `service:deploy -- <svc>` does a
+  one-shot build-import-upgrade ([ADR-0003](0003-cluster-topology.md)). This axis never leaks into platform composition.
 
 Profiles stay a handful of composable toggles, not per-engineer snowflakes.
 
-### GitOps locally: inner loop is helm-direct, full/e2e is ArgoCD
+### GitOps locally: inner loop is native, full tier is ArgoCD
 
-ArgoCD reconciles committed git state, so it is **not** the inner loop's engine — `cluster:up` runs `helm`/Skaffold
-directly against a working tree ([ADR-0004](0004-gitops.md)). The **full-platform tier** can run the same ArgoCD
-app-of-apps production uses, pointed at a local git source (the working tree pushed to an in-cluster git server, or
-`argocd app sync --local`), so that sync ordering and app discovery are exercised exactly as in prod. This is what makes
-the full tier a true e2e rehearsal rather than a hand-rolled approximation.
+ArgoCD reconciles committed git state, so it is **not** the inner loop's engine — the inner loop runs the service
+natively against `cluster:up`'s stand-ins ([ADR-0004](0004-gitops.md)). The **full-platform tier does run ArgoCD**: a
+local bootstrap (`infra/gitops/bootstrap-local/`) applies the same app-of-apps prod uses, syncing committed `master`
+from the remote, so sync ordering, app discovery, and secret materialisation are exercised exactly as in prod. Only the
+two genuine bootstrap components ArgoCD cannot self-create — the CNI (Cilium) and ArgoCD itself — are installed
+imperatively by `cluster:full` before the root-app is applied; everything else is Argo-managed.
+
+Two escape hatches cover iterating on uncommitted infra (a rare day):
+
+- **Chart/value change:** `platform:deploy -- <chart>` pauses Argo auto-sync on that one app and `helm upgrade`s it from
+  the working tree.
+- **GitOps-wiring change** (sync-waves, ApplicationSets, App defs): push a branch and point the local root-app
+  `targetRevision` at it — this exercises the real delivery path, which `helm` cannot.
+- **CNI/CRD change** (e.g. Cilium): prefer `cluster:purge` + a fresh `cluster:full` over an in-place upgrade — hot-
+  swapping a CNI on a live cluster blips networking. This is inherent to the component, not a tooling gap.
+
+This is what makes the full tier a true e2e rehearsal rather than a hand-rolled approximation.
 
 ### Object storage: MinIO (S3 API) in non-prod, external bucket in prod
 

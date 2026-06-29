@@ -1,6 +1,6 @@
 # Lightweight local dependencies for the inner dev loop (ADR-0003).
 # NOT the production components — these are throwaway, in-memory/ephemeral stand-ins
-# so a service (run via `skaffold dev`) has Postgres, Temporal and SpiceDB to talk to.
+# so a service (run natively on the host) has Postgres, Temporal and SpiceDB to talk to.
 # The production-grade versions (CNPG, the Temporal Helm chart, operator-backed
 # SpiceDB) are exercised by ArgoCD in staging/prod, not here.
 apiVersion: v1

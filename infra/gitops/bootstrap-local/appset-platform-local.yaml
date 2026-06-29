@@ -18,7 +18,7 @@ spec:
                 - { env: local, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
-              revision: argo-full-test
+              revision: master
               directories:
                 - { path: "infra/helm/platform/*" }
                 # Bootstrap-level components are installed imperatively by
@@ -36,7 +36,7 @@ spec:
       project: default
       source:
         repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
-        targetRevision: argo-full-test
+        targetRevision: master
         path: "{{ .path.path }}"
         helm:
           # Stable Helm release name = chart basename, so resources are named

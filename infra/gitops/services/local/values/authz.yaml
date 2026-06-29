@@ -2,8 +2,8 @@
 # INTERNAL: Oathkeeper's remote_json authorizer calls it by service DNS, so it gets
 # no /api edge route (ingress off). It has no database (migrations off). It talks to
 # the real SpiceDB chart using the SOPS-managed preshared key (spicedb-creds).
-# Mirrors the semantics of infra/helm/values/authz-service.yaml, which the old
-# skaffold authz module layered.
+# Internal authorizer (no edge route, no database), talking to the real SpiceDB
+# chart via the SOPS-managed preshared key.
 name: authz
 image:
   repository: ghcr.io/tabmadi/microservices-monorepo-template/authz-server

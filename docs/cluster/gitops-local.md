@@ -1,83 +1,67 @@
-# Running the full tier through ArgoCD locally (ADR-0004, ADR-0016)
+# The full tier runs through ArgoCD locally (ADR-0004, ADR-0016)
 
-The default `mise run cluster:full` installs the platform charts **helm-direct** —
-it is fast and needs no git remote, which is what you want for inner-loop and
-pre-merge work. It deliberately does **not** exercise ArgoCD, so it cannot catch
-problems in sync-wave ordering, app-of-apps discovery, or the `ApplicationSet`
-generators that only ArgoCD evaluates.
+`mise run cluster:full` **is** the ArgoCD path. It creates the cluster, installs
+the two components ArgoCD cannot bootstrap (the CNI and ArgoCD itself), plants the
+SOPS age key, then applies a local root-app (`infra/gitops/bootstrap-local/`) that
+reconciles the same app-of-apps prod uses — sync waves, `ApplicationSet`
+generators, secret materialisation and all — against committed **`master`** on the
+remote. CI's end-to-end job and per-PR previews reuse this exact path.
 
-This page documents the **opt-in** path that closes that last gap: bring the same
-platform up the way prod does — the app-of-apps reconciled by ArgoCD — but against
-a **local git source** instead of `github.com/.../master`. CI's end-to-end job and
-per-PR previews reuse this exact path.
+So the everyday full tier already exercises ArgoCD; there is nothing to opt into.
+What needs a little ceremony is testing **uncommitted** changes, because ArgoCD
+reconciles a git ref, not your working tree.
 
-It is opt-in precisely because it is slower (a full reconcile + image pulls) and
-needs a git source ArgoCD can reach in-cluster. Reach for it when you are changing
-anything under `infra/gitops/bootstrap/` (the generators, sync waves, or the
-app-of-apps wiring) — those are invisible to the helm-direct path.
+## Local bootstrap layout
 
-## Why a local git source at all
+`infra/gitops/bootstrap-local/` is a sibling of `bootstrap/` — deliberately, so
+the prod root-app's `directory.recurse` over `bootstrap/` never picks up the
+local-only appsets. It contains a local root-app plus `local`-scoped copies of the
+platform/services `ApplicationSet`s and the gateway/secrets apps. Cilium and ArgoCD
+are excluded from the local platform appset (they are installed imperatively first).
 
-ArgoCD reconciles from a git URL, not your working tree. Pointed at
-`github.com/.../master` (as `root-application.yaml` and both `ApplicationSet`s are),
-it would deploy **committed master**, not your local changes. So the only honest
-way to test your tree through ArgoCD is to make ArgoCD read your tree. Two options:
+## Testing uncommitted changes
 
-### Option A — `argocd app sync --local` (no server, quickest)
+### Service code → `service:deploy`
 
-Generate the manifests from your working tree and sync them into a
-helm-direct-installed ArgoCD, bypassing the repo-server's git fetch:
+The fast path. Build your working-tree service into the cluster and let it override
+the Argo-synced (CI-image) copy:
 
 ```sh
-# 1. Bring the cluster + Cilium + ArgoCD up (ArgoCD is a platform chart).
-mise run cluster:full:up min            # cluster + baseline; or full
-helm --kube-context k3d-platform-full upgrade --install argocd \
-  infra/helm/platform/argocd -n argocd --create-namespace
-
-# 2. Apply the app-of-apps, then sync each generated Application from local files.
-kubectl --context k3d-platform-full apply -f infra/gitops/bootstrap/root-application.yaml
-argocd app sync root --local infra/gitops/bootstrap
+mise run service:deploy -- catalog     # build → k3d image import → helm upgrade (Argo auto-sync paused)
 ```
 
-`--local` makes ArgoCD render the named app from the local directory once, so the
-sync-wave annotations and app discovery run through ArgoCD's own engine. It is a
-one-shot (no continuous reconcile), which is enough to validate ordering.
-
-### Option B — in-cluster git server (continuous, closest to prod)
-
-Push your working tree to a throwaway in-cluster git server and repoint the
-app-of-apps + `ApplicationSet`s at it, so ArgoCD reconciles continuously exactly
-as in prod:
+### Platform chart / values → `platform:deploy`
 
 ```sh
-# 1. A tiny git server in-cluster (gitea is one single-binary option).
-helm --kube-context k3d-platform-full upgrade --install gitea \
-  oci://docker.gitea.com/charts/gitea -n gitea --create-namespace \
-  --set gitea.admin.username=dev --set gitea.admin.password=dev
-
-# 2. Push the working tree to it (port-forward, then git push).
-kubectl --context k3d-platform-full -n gitea port-forward svc/gitea-http 3001:3000 &
-git push http://dev:dev@localhost:3001/dev/template.git HEAD:refs/heads/master
-
-# 3. Point ArgoCD at the in-cluster URL instead of GitHub. The bootstrap manifests
-#    read ${GITOPS_REPO_URL:-github...} — override it for the local apply:
-GITOPS_REPO_URL=http://gitea-http.gitea.svc:3000/dev/template.git \
-  envsubst < infra/gitops/bootstrap/root-application.yaml \
-  | kubectl --context k3d-platform-full apply -f -
+mise run platform:deploy -- ory        # working-tree helm upgrade, Argo auto-sync paused on that app
 ```
 
-> The bootstrap manifests pin the GitHub URL today; making `repoURL` an
-> `envsubst`/Helm parameter is the one change needed to use Option B unmodified.
-> Until then, repoint the three `repoURL` fields by hand (root-application +
-> appset-platform + appset-services).
+Re-enable GitOps for that app when done (the command prints the exact `kubectl
+patch`), or just re-run `cluster:full`.
 
-## What this validates that helm-direct does not
+### GitOps wiring (sync waves, ApplicationSets, app defs) → a branch
 
-- **Sync-wave ordering** — CRDs → operators → instances (`sync-wave` annotations).
-- **App-of-apps discovery** — the `directory.recurse` walk of `bootstrap/`.
-- **`ApplicationSet` generators** — the `matrix` of env × `infra/helm/platform/*`,
-  and the per-env `valueFiles` path convention this template relies on.
+`helm` cannot exercise the delivery path, so push a branch and point the local
+root-app at it. This is the only change that genuinely needs a git round-trip:
 
-The helm-direct `cluster:full` covers everything **below** ArgoCD (the charts, the
-values overlays, the data tier, the edge). Use this page only when the thing you
-changed lives in `infra/gitops/bootstrap/`.
+```sh
+git switch -c my-gitops-change
+# edit infra/gitops/** ; commit ; push
+git push -u origin my-gitops-change
+
+# Point the local bootstrap at the branch (root-app + the appsets' revision/
+# targetRevision all default to master), then bring the full tier up:
+sed -i -E 's/(revision|targetRevision): master/\1: my-gitops-change/' \
+  infra/gitops/bootstrap-local/*.yaml
+mise run cluster:full
+```
+
+Revert the `sed` before merging — `master` is the committed default (choice a).
+ArgoCD must be able to clone the repo; this template's repo is public, so no
+credentials are needed locally.
+
+## CNI / CRD-operator changes (e.g. Cilium)
+
+Prefer `mise run cluster:purge` + a fresh `cluster:full` **with** the change over
+an in-place upgrade — hot-swapping a CNI on a live cluster blips networking. This
+is inherent to the component, not a tooling gap.

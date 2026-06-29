@@ -3,8 +3,9 @@
 Per [ADR-0003](adr/0003-cluster-topology.md), k3d is the only local runtime.
 `mise run cluster:up` creates the cluster and applies the lightweight dev
 dependencies (Postgres, Temporal, SpiceDB) from `infra/local/deps.yaml`. The
-inner loop itself is `skaffold dev` (`mise run dev`), which builds, deploys, and
-live-reloads the services in-cluster.
+inner loop is **native execution**: you run the service you are changing directly
+on the host against those dependencies — no image build, no in-cluster redeploy,
+no file-watch on the hot path.
 
 This file is editor-agnostic. Any IDE that can load a `.env` file and run a Go
 `main.go` works the same way.
@@ -16,38 +17,40 @@ mise run setup                       # lefthook hooks
 cp services/catalog/.env.example services/catalog/.env  # only for host-process debugging
 ```
 
-## Inner loop (in-cluster)
+## Inner loop (native)
 
 ```sh
-mise run cluster:up          # k3d + deps (Postgres, Temporal, SpiceDB)
-mise run dev                 # skaffold dev: build + deploy + live-reload all services
-mise run dev -m catalog      # …or scope to a single service (others keep their last deploy)
+mise run cluster:up          # k3d + a CNI + deps (Postgres, Temporal, SpiceDB)
+mise run dev:forward         # port-forward the deps to localhost (leave running in its own terminal)
+mise run db:migrate          # apply each service's migrations to the local Postgres
+# then run the service natively (any editor/IDE, or go run):
+DATABASE_URL=postgres://dev:dev@localhost:5432/catalog?sslmode=disable \
+  TEMPORAL_HOST_PORT=localhost:7233 SPICEDB_ENDPOINT=localhost:50051 \
+  go run ./services/catalog/cmd/server      # → http://localhost:8080
 ```
 
-`skaffold dev` port-forwards the service servers (e.g. orders → `localhost:8080`)
-plus Postgres (`localhost:5432`) and the Temporal UI (`localhost:8233`) so local
-tools like `psql` can reach them.
+`dev:forward` exposes Postgres (`localhost:5432`), Temporal (`7233` gRPC / `8233`
+UI), and SpiceDB (`50051`) so the host process — and tools like `psql` — can reach
+them. Re-running the service is just re-running the binary; there is nothing to
+rebuild or redeploy. To debug, point your editor's Go run configuration at
+`services/<svc>/cmd/server/main.go` with those env vars set; breakpoints and
+hot-restart work because the service is a plain host process.
 
-## Host-process debugging (optional)
+### Putting a service *in* the cluster (edge/auth/e2e)
 
-To run one service on the host instead of in-cluster — for a debugger, dlv, or
-faster iteration — use the deps' port-forwards. `mise run dev -m platform` brings
-up Postgres on `localhost:5432` without deploying any service, then:
+When you need the service behind the edge (not the native hot path), do a one-shot
+build-import-deploy — no watch loop:
 
 ```sh
-mise run -C services/catalog migrate   # dbmate up against localhost:5432
-mise run -C services/catalog run       # go run ./cmd/server  → http://localhost:8080
+mise run service:deploy -- catalog       # build → k3d image import → helm upgrade
+mise run service:undeploy -- catalog     # helm uninstall
 ```
-
-To debug, point your editor's Go run configuration at
-`services/catalog/cmd/server/main.go` with the working directory set to the
-service folder so `.env` is picked up. Breakpoints, evaluate-expression, and
-hot-restart all work — the service is a plain host process.
 
 ## Teardown
 
 ```sh
-mise run cluster:down                    # stops port-forwards + deletes the k3d cluster
+mise run cluster:down        # stops the cluster, keeps the image cache + volumes
+mise run cluster:purge       # deletes the cluster (reclaims disk, forces a clean recreate)
 ```
 
 ## End-to-end & visual tests
@@ -56,7 +59,7 @@ End-to-end and visual-regression tests are owned by [ADR-0018](adr/0018-testing-
 **Playwright** drives them from the repo-root `e2e/` workspace against the full platform.
 
 ```sh
-mise run cluster:full:up      # the environment e2e runs against
+mise run cluster:full         # the environment e2e runs against (ArgoCD-driven)
 mise run e2e:smoke            # product golden path + a key dashboard render
 mise run e2e                  # full suite: every journey, every dashboard, all visual baselines
 ```
@@ -88,54 +91,39 @@ table is flagged, align it with **Alt+Enter → "Reformat table"** in JetBrains
 (note: plain `Ctrl+Alt+L` does *not* align Markdown tables — only that quick-fix
 does). Outside JetBrains, align the columns by hand to satisfy CI.
 
-## The full platform is not local
+## The full platform: `mise run cluster:full`
 
-The edge (Traefik + Ory Oathkeeper), auth stack (Kratos), and GitOps (ArgoCD) are
+The edge (Traefik + Ory Oathkeeper), auth stack (Kratos), and the data tier are
 **not** brought up by `cluster:up` — it only applies the lightweight deps above.
-The full platform is delivered by ArgoCD in staging/prod (per
-[ADR-0003](adr/0003-cluster-topology.md)). If a bug only reproduces with the edge,
-auth, or GitOps in the path, reproduce it in a staging environment rather than locally.
+For end-to-end work, the edge, auth, NetworkPolicy, or observability on a laptop,
+`mise run cluster:full` (scripts/platform-up.sh) stands up the **same charts
+production runs**, at a single replica ([ADR-0016](adr/0016-environment-parity.md)),
+**delivered by ArgoCD** — the same engine staging/prod use: **Cilium** as the CNI
+(real NetworkPolicy + Hubble), **CNPG**, the **Temporal** chart, the **SpiceDB**
+chart, in-cluster **MinIO**, the **observability** chart, Traefik + Ory (Kratos +
+Oathkeeper), and the Lowdefy console.
 
-### Heavier local option: `mise run cluster:full`
-
-For testing the edge / NetworkPolicy / observability on a laptop without a staging
-cluster, `mise run cluster:full:up` (scripts/cluster-full.sh) stands up the **same
-charts production runs**, at a single replica ([ADR-0016](adr/0016-environment-parity.md)):
-**Cilium** as the CNI (real NetworkPolicy + Hubble), **CNPG**, the **Temporal**
-chart, the **SpiceDB** chart, in-cluster **MinIO**, the **observability** chart,
-and Traefik + Ory (Kratos + Oathkeeper). It is installed directly with `helm` (not
-ArgoCD — that reconciles from git@master, not your tree; for the ArgoCD path see
-[cluster/gitops-local.md](cluster/gitops-local.md)).
+`cluster:full` creates the cluster, installs the two components ArgoCD cannot
+bootstrap (the CNI and ArgoCD itself), plants the SOPS age key, then applies a
+local root-app (`infra/gitops/bootstrap-local/`) that syncs committed **`master`**
+from the remote. Ordering, readiness, and secret materialisation are ArgoCD's job
+(sync waves), not a shell script's. Because it syncs committed `master`, services
+run **CI-built images**; to put uncommitted service code in the cluster use
+`service:deploy`, and for uncommitted infra see
+[cluster/gitops-local.md](cluster/gitops-local.md).
 
 Local diverges from prod **only** through one values overlay,
 `infra/gitops/platform/local/values.yaml`, consumed the same way the ArgoCD
 ApplicationSet consumes the dev/staging/prod overlays. The only genuine local
 substitutions are: in-cluster MinIO instead of the off-cluster bucket (S3 API both
-sides), a self-signed `*.dev.localtest.me` wildcard cert, and a **committed
-throwaway age key** so SOPS decrypts locally exactly as it does in prod (the
-`sops-operator` materialises every credential from
-`infra/gitops/platform/local/secrets/platform.enc.yaml` — nothing is `kubectl
-create secret`'d). Plan for ~16GB free RAM; a measured `full`-profile bring-up
-settles around **5GB resident / <0.5 core idle** on the single k3d node. Tear down
-with `mise run cluster:full:down`.
+sides), cert-manager with a **self-signed** `*.dev.localtest.me` wildcard issuer
+(same mechanism as prod's Let's Encrypt), and a **committed throwaway age key** so
+SOPS decrypts locally exactly as it does in prod (the `sops-operator` materialises
+every credential from `infra/gitops/platform/local/secrets/platform.enc.yaml` —
+only the age key itself is created imperatively). Plan for ~16GB free RAM. Tear
+down with `mise run cluster:down` (keep the cache) or `cluster:purge` (delete).
 
-#### Profiles
-
-`cluster:full:up` takes an optional **profile** that selects the component subset —
-thin overlays on the same charts, for the different roles that need a partial
-platform:
-
-```sh
-mise run cluster:full:up            # full (default): everything incl. edge + services
-mise run cluster:full:up min        # Postgres only — a service author iterating on a DB
-mise run cluster:full:up backend    # + Temporal + SpiceDB (workflows + authz)
-mise run cluster:full:up obs        # observability + its MinIO backend (the LGTM/Faro slice)
-```
-
-The cluster, Cilium, namespace, TLS, and the SOPS secrets are the always-on
-baseline; the profile gates everything else.
-
-#### Endpoints (full profile)
+### Endpoints
 
 Everything is served from one origin, **`https://dev.localtest.me:8443`** (real DNS
 → 127.0.0.1, self-signed wildcard TLS — accept the cert once). The edge (Traefik)
@@ -168,12 +156,11 @@ Grafana has its own login behind the Kratos gate — sign in with `admin` / `adm
 port-forward: `kubectl -n platform port-forward svc/grafana 3000:80`, then
 <http://localhost:3000/> (it now serves at root, not a sub-path).
 
-The `/api/*`, `/api/observability/*` and the `*.ops.<host>` dashboard routes only
-exist with the `gateway`/`services`/`observability` components up (the `full`
-profile); `min`/`backend`/`obs` bring up a subset (see [Profiles](#profiles)).
-Argo CD and the Lowdefy console are deployed-env only (not in the local profile).
+`cluster:full` brings up the whole platform (edge, services, observability,
+console); Argo CD itself is installed imperatively for the local full tier and is
+reachable at `argo.ops.<host>` like the other dashboards.
 
-#### Login flow (full profile)
+### Login flow
 
 The edge serves `*.dev.localtest.me` on `:8443` (real DNS → 127.0.0.1, no
 `/etc/hosts` edits). Auth-gated routes (e.g. the Hubble UI at

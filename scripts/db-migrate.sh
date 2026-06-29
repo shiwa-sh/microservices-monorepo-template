@@ -2,8 +2,8 @@
 # Apply each service's migrations to the local Postgres (ADR-0007).
 # Run after `cluster:up`; this opens its own port-forward, so it is independent of
 # whether `dev:forward` is running and of the native inner loop. Schema migrations
-# are intentionally not run by the chart locally (migrations.enabled=false in
-# local-service.yaml).
+# are run separately here, not by the service in the inner loop (the service runs
+# natively against these deps and does not apply migrations itself).
 set -euo pipefail
 
 kubectl -n platform port-forward svc/postgres 5432:5432 >/dev/null 2>&1 &

@@ -26,7 +26,6 @@ cilium-cli = "0.19.4"
 kustomize = "5.8.1"
 terraform = "1.15.6"
 k3d = "5.9.0"
-skaffold = "2.22.0"
 ansible = "14.0.0"
 
 # Secrets
@@ -117,28 +116,6 @@ run = "bash scripts/platform-deploy.sh"
 # Mint a Kratos session token for local authenticated calls (needs the full tier).
 #   mise run auth:token -- <email>
 run = "bash scripts/auth-token.sh"
-
-# --- Deprecated inner loop (Skaffold) — removed once cluster:full + e2e verified.
-[tasks."cluster:full:up"]
-run = "bash scripts/cluster-full.sh"
-
-[tasks."cluster:full:down"]
-run = "bash scripts/cluster-full-down.sh"
-
-[tasks."cluster:full:purge"]
-run = "bash scripts/cluster-full-purge.sh"
-
-[tasks.dev]
-depends = ["cluster:up"]
-run = "skaffold dev"
-
-[tasks."dev:obs"]
-depends = ["cluster:up"]
-run = "skaffold dev -m observability -p obs"
-
-[tasks."dev:all"]
-depends = ["cluster:up"]
-run = "skaffold dev -p obs"
 
 [tasks."e2e:install"]
 # One-time (and CI) setup: install the e2e workspace deps and the Chromium binary.
