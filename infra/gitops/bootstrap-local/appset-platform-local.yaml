@@ -39,6 +39,11 @@ spec:
         targetRevision: argo-full-test
         path: "{{ .path.path }}"
         helm:
+          # Stable Helm release name = chart basename, so resources are named
+          # the same under ArgoCD as under a direct `helm install <chart>` (a
+          # bare release name would prefix every resource with the app name and
+          # break in-cluster DNS / cross-component refs).
+          releaseName: "{{ .path.basename }}"
           # Same auth single-source wiring as the prod appset; the per-env file
           # (local/values.yaml) layers last so its host/dsn/secret overrides win.
           valueFiles:

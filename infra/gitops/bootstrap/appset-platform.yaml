@@ -31,6 +31,11 @@ spec:
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
+          # Stable Helm release name = chart basename, so resources are named
+          # the same under ArgoCD as under a direct `helm install <chart>` (a
+          # bare release name would prefix every resource with the app name and
+          # break in-cluster DNS / cross-component refs).
+          releaseName: "{{ .path.basename }}"
           # Auth config single source (Phase 0.4): the Ory app pulls its kratos/
           # oathkeeper config from the canonical infra/auth tree — map configs as
           # valueFiles, the identity-schema + access-rules strings as fileParameters.
