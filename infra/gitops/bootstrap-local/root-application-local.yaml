@@ -19,7 +19,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
-    targetRevision: master
+    targetRevision: argo-full-test
     path: infra/gitops/bootstrap-local
     directory:
       recurse: true

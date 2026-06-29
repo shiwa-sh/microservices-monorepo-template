@@ -16,7 +16,7 @@ spec:
                 - { env: local, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
-              revision: master
+              revision: argo-full-test
               directories:
                 - { path: "infra/helm/platform/*" }
                 # Bootstrap-level components are installed imperatively by
@@ -34,7 +34,7 @@ spec:
       project: default
       source:
         repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
-        targetRevision: master
+        targetRevision: argo-full-test
         path: "{{ .path.path }}"
         helm:
           # Same auth single-source wiring as the prod appset; the per-env file
