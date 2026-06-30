@@ -176,7 +176,7 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 
 ### Local development
 
-- `mise run -C apps/frontend dev` runs `bun run dev` against `mise run cluster:up`. SDK requests target services on `localhost` ports established by the cluster:up port-forwards ([ADR-0003](0003-cluster-topology.md)).
+- `mise run -C apps/frontend dev` runs `bun run dev` against `mise run cluster:lite`. SDK requests target services on `localhost` ports established by the cluster:lite port-forwards ([ADR-0003](0003-cluster-topology.md)).
 - HMR is left to Next.js defaults; no custom dev server.
 
 ## Consequences

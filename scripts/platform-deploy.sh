@@ -9,7 +9,7 @@
 #
 # For GitOps-wiring changes (sync-waves, ApplicationSets, App defs) helm cannot
 # exercise the delivery path — push a branch and point the local root-app
-# targetRevision at it instead. For CNI/CRD changes (Cilium) prefer cluster:purge
+# targetRevision at it instead. For CNI/CRD changes (Cilium) prefer cluster:delete
 # + a fresh cluster:full over an in-place upgrade.
 set -euo pipefail
 
@@ -33,7 +33,7 @@ if k -n argocd get application.argoproj.io "$APP" >/dev/null 2>&1; then
 fi
 
 echo "→ helm upgrade ${CHART} from the working tree"
-helm --kube-context "k3d-${CLUSTER}" dependency update "$CHART_DIR" >/dev/null 2>&1 || true
+h dependency update "$CHART_DIR" >/dev/null
 h upgrade --install "$CHART" "$CHART_DIR" -n "$NS" \
   -f infra/gitops/platform/local/values.yaml --timeout 8m
 echo "✓ ${CHART} overlaid from working tree."

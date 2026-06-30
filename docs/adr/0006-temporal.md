@@ -136,7 +136,7 @@ Liberal use of workflows for multi-step / compensable / cross-system operations;
 - **Task queues:** named per-service (e.g. `payments-tq`, `checkout-tq`), plus a shared `background-tq`.
 - **Namespaces:** one per environment (`dev`, `staging`, `prod`).
 - **History retention:** 30 days production, 7 days non-prod.
-- **Local development:** the inner loop uses `temporal server start-dev` (`mise run cluster:up`) for speed; the
+- **Local development:** the inner loop uses `temporal server start-dev` (`mise run cluster:lite`) for speed; the
   full-platform local tier (`mise run cluster:full`) runs this same Helm chart at a single replica, Postgres-backed via
   CNPG, so workflow behaviour is validated against the real server before merge ([ADR-0016](0016-environment-parity.md)).
 
@@ -178,7 +178,7 @@ gated by Cilium NetworkPolicy — no per-call token); trace propagation through 
 
 - `infra/helm/platform/temporal/` deployment with Postgres backing.
 - `libs/go/temporalmw/` shared client config, default retry policies, tracing middleware, replay-test scaffolding.
-- `scripts/cluster-up.sh` brings up `temporal server start-dev` alongside other local infra.
+- `mise run cluster:lite` (via `infra/local/deps.yaml`) brings up Temporal alongside other local infra.
 - `golangci-lint` config including `workflowcheck`.
 - `docs/temporal/long-running.md` registry (initially empty).
 - Standard `202 Accepted` workflow-handle shape, declared inline as the `WorkflowHandle` schema in each service's `openapi.yaml` `components`.

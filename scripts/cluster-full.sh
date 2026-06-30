@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Full local platform via ArgoCD (ADR-0004, ADR-0016) — the Argo-driven
-# replacement for the old helm-direct scripts/cluster-full.sh. The heavy lifting
+# Full local platform via ArgoCD (ADR-0004, ADR-0016) — backs `mise run cluster:full`.
+# The heavy lifting
 # (CRD→operator→instance ordering, secret materialisation, sync waves) is ArgoCD's
 # job, the same tool prod runs; this script only does what Argo cannot bootstrap:
 # create the cluster, install the CNI + Argo itself, plant the SOPS decryption key,
@@ -10,7 +10,7 @@
 # identical to prod. To iterate on uncommitted code/infra, see service:deploy /
 # platform:deploy, or point the local root-app targetRevision at a pushed branch.
 #
-# Teardown: mise run cluster:down (stop) / mise run cluster:purge (delete).
+# Teardown: mise run cluster:stop (stop) / mise run cluster:delete (delete).
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
@@ -23,7 +23,7 @@ k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 
 # 1. Cluster + CNI (a CNI must exist before Argo's pods can schedule).
-bash scripts/cluster-create.sh
+bash scripts/cluster-ensure.sh
 bash scripts/cilium-install.sh
 
 # 2. ArgoCD (it cannot sync itself into existence). Excluded from the local
@@ -110,5 +110,5 @@ cat <<EOF
     Lowdefy console:  https://console.ops.${DOMAIN}:8443/
   Frontend:           run it natively on :3000 (the frontend-dev EndpointSlice
                       routes /auth + landing to the host).
-  Teardown:           mise run cluster:down  (keep cache) / cluster:purge (delete)
+  Teardown:           mise run cluster:stop  (keep cache) / cluster:delete (delete)
 EOF

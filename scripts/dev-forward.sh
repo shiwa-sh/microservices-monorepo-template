@@ -4,7 +4,7 @@
 # reach them. Replaces the Skaffold `platform` module's port-forwards. Long-running
 # — run it in a separate terminal (or background) and leave it up while you iterate.
 #
-#   mise run cluster:up      # once: cluster + lightweight deps
+#   mise run cluster:lite      # once: cluster + lightweight deps
 #   mise run dev:forward     # this script, in its own terminal
 #   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 SPICEDB_ENDPOINT=localhost:50051 \
 #     go run ./services/orders/cmd/server   # run the service natively

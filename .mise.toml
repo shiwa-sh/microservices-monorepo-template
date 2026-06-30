@@ -50,106 +50,57 @@ rumdl = "0.2.18"
 GOFLAGS = "-mod=readonly"
 CGO_ENABLED = "0"
 
+# Task naming: `group:member`, group = the axis you list/run together (ADR-0002).
+# `activity:target` for fan-out families with an umbrella (gen, lint, format);
+# `resource:operation` for lifecycles (cluster, service, db).
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
 [tasks.setup]
 run = "lefthook install"
 
-[tasks.upgrade]
-depends = ["upgrade:tools", "upgrade:js", "upgrade:go"]
+# ── Local cluster & inner loop ────────────────────────────────────────────────
+[tasks."cluster:ensure"]
+# Ensure the single local k3d cluster exists and is running (create-or-start).
+run = "bash scripts/cluster-ensure.sh"
 
-[tasks."upgrade:tools"]
-run = "bash scripts/upgrade-tools.sh"
+[tasks."cilium:install"]
+# Install Cilium as the CNI (ADR-0003). Needs the cluster first. Internal plumbing
+# (a dependency node for cluster:lite), not a command you run directly — hence hidden.
+hide = true
+depends = ["cluster:ensure"]
+run = "bash scripts/cilium-install.sh"
 
-[tasks."upgrade:js"]
-run = "bun update --latest --recursive"
-
-[tasks."upgrade:go"]
-# GOFLAGS override: go get must write go.mod (env pins -mod=readonly).
-# Scope to Go roots so go get skips node_modules (bun symlinks → "ignoring symlink" noise).
-run = """
-GOFLAGS= go get -u ./libs/... ./services/... ./tools/...
-GOFLAGS= go mod tidy
-"""
-
-[tasks."cluster:create"]
-# Create (or resume) the single local k3d cluster (Cilium-ready). Idempotent.
-run = "bash scripts/cluster-create.sh"
-
-[tasks."cluster:up"]
+[tasks."cluster:lite"]
 # Inner loop (ADR-0016): cluster + CNI + lightweight deps (Postgres/Temporal/
-# SpiceDB). Run the service you are changing NATIVELY; no Skaffold, no watch.
-run = "bash scripts/cluster-up.sh"
+# SpiceDB), then run the service you are changing NATIVELY (no Skaffold, no watch).
+# Ordering is the dependency graph: cluster:ensure → cilium:install → this apply.
+# Next steps (dev:forward, db:migrate, go run …) are in docs/dev-loop.md.
+depends = ["cilium:install"]
+run = "kubectl --context k3d-${CLUSTER:-platform} apply -f infra/local/deps.yaml"
+
+[tasks."cluster:full"]
+# Full local platform via ArgoCD (ADR-0004, ADR-0016): syncs committed master.
+# Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
+run = "bash scripts/cluster-full.sh"
+
+[tasks."cluster:stop"]
+# Stops the cluster but KEEPS it (image cache + volumes survive) so the next
+# bring-up resumes without re-pulling.
+run = "bash scripts/cluster-stop.sh"
+
+[tasks."cluster:delete"]
+# Deletes the cluster and wipes its image cache (reclaims disk, clean rebuild).
+run = "k3d cluster delete ${CLUSTER:-platform}"
 
 [tasks."dev:forward"]
 # Port-forward the inner-loop deps so a natively-run service can reach them.
 # Long-running — use a separate terminal. See docs/dev-loop.md.
 run = "bash scripts/dev-forward.sh"
 
-[tasks."cluster:down"]
-# Stops the cluster but KEEPS it (image cache + volumes survive) so the next
-# bring-up resumes without re-pulling.
-run = "bash scripts/cluster-down.sh"
-
-[tasks."cluster:purge"]
-# Deletes the cluster and wipes its image cache (reclaims disk, clean rebuild).
-run = "k3d cluster delete ${CLUSTER:-platform}"
-
-[tasks."cluster:full"]
-# Full local platform via ArgoCD (ADR-0004, ADR-0016): syncs committed master.
-# Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
-run = "bash scripts/platform-up.sh"
-
-[tasks."service:deploy"]
-# One-shot in-cluster deploy of a service from the working tree (no watch).
-#   mise run service:deploy -- <svc>
-run = "bash scripts/service-deploy.sh"
-
-[tasks."service:undeploy"]
-#   mise run service:undeploy -- <svc>
-run = "helm --kube-context k3d-${CLUSTER:-platform} uninstall -n platform"
-
-[tasks."platform:deploy"]
-# One-shot working-tree overlay of a platform chart (rare infra iteration).
-#   mise run platform:deploy -- <chart>
-run = "bash scripts/platform-deploy.sh"
-
-[tasks."auth:token"]
-# Mint a Kratos session token for local authenticated calls (needs the full tier).
-#   mise run auth:token -- <email>
-run = "bash scripts/auth-token.sh"
-
-[tasks."e2e:install"]
-# One-time (and CI) setup: install the e2e workspace deps and the Chromium binary.
-# Node-only island (ADR-0018); npm is bundled with the Node tool above.
-run = """
-npm --prefix e2e ci || npm --prefix e2e install
-npm --prefix e2e run install:browsers
-"""
-
-# The edge (*.localtest.me) must be hit directly, never through a dev HTTPS_PROXY;
-# the in-cluster port-forwards are loopback. Belt-and-suspenders for both cases.
-[tasks.e2e]
-# Full browser acceptance + visual suite against a running cluster:full (ADR-0018).
-# Nightly + pre-release in CI; never part of ci:affected.
-env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
-run = "npm --prefix e2e run test"
-
-[tasks."e2e:smoke"]
-# Label-gated per-PR subset: one product golden path + a key dashboard render.
-env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
-run = "npm --prefix e2e run test:smoke"
-
 [tasks."db:migrate"]
 run = "bash scripts/db-migrate.sh"
 
-[tasks."secrets:age"]
-# Idempotent; also writes .sops.yaml (ADR-0005).
-run = "bash scripts/gen-age.sh"
-
-[tasks."ops:grant"]
-# Operator onboarding (ADR-0010/0017): add/revoke a human's group:operator
-# membership by email. Usage: mise run ops:grant -- <email> [--revoke].
-run = "bash scripts/ops-grant.sh"
-
+# ── Code generation ───────────────────────────────────────────────────────────
 [tasks.gen]
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
 # OpenAPI spec; ogen + sqlc are the only generators (ADR-0008, ADR-0009).
@@ -168,8 +119,45 @@ rm -rf libs/go/sdks/* libs/ts/sdks/*
 mise run gen
 """
 
+# ── Format ────────────────────────────────────────────────────────────────────
+[tasks.format]
+depends = ["format:go", "format:ts", "format:md"]
+
+[tasks."format:go"]
+run = "golangci-lint fmt ./..."
+
+[tasks."format:ts"]
+run = "biome format --write ."
+
+[tasks."format:md"]
+# rumdl is the only Markdown formatter — never the IDE's.
+run = "rumdl fmt ."
+
+# ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:ts", "lint:md", "lint:auth-inline", "lint:authz", "lint:node-scope"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:md", "lint:node-scope", "lint:auth-inline", "lint:authz"]
+
+[tasks."lint:go"]
+run = "golangci-lint run ./..."
+
+[tasks."lint:gostyle"]
+# Custom layout-based Go style analyzers
+run = "go run ./tools/gostyle ./..."
+
+[tasks."lint:ts"]
+run = "biome ci --error-on-warnings ."
+
+[tasks."lint:sql"]
+run = "bash scripts/lint-sql.sh"
+
+[tasks."lint:openapi"]
+run = "bash scripts/lint-openapi.sh"
+
+[tasks."lint:floating-tags"]
+run = "bash scripts/lint-floating-tags.sh"
+
+[tasks."lint:md"]
+run = "rumdl check ."
 
 [tasks."lint:node-scope"]
 # Node confinement guard (ADR-0001/ADR-0018): Node/npm may appear ONLY in the
@@ -193,34 +181,21 @@ bash scripts/lint-authorizer.sh
 bash scripts/lint-strip-headers.sh
 """
 
-[tasks."lint:ts"]
-run = "biome ci --error-on-warnings ."
-
-[tasks."lint:go"]
-run = "golangci-lint run ./..."
-
-[tasks."lint:gostyle"]
-# Custom layout-based Go style analyzers
-run = "go run ./tools/gostyle ./..."
-
-[tasks."lint:sql"]
-run = "bash scripts/lint-sql.sh"
-
-[tasks."lint:openapi"]
-run = "bash scripts/lint-openapi.sh"
-
-[tasks."lint:floating-tags"]
-run = "bash scripts/lint-floating-tags.sh"
-
-[tasks."lint:md"]
-run = "rumdl check ."
-
+# ── Test & build ──────────────────────────────────────────────────────────────
 [tasks.test]
 run = "go test ./..."
 
 [tasks.build]
 run = "go build ./..."
 
+# ── Composite gates ───────────────────────────────────────────────────────────
+[tasks.pre-commit]
+depends = ["format", "lint"]
+
+[tasks.check]
+depends = ["format", "lint", "test"]
+
+# ── CI entrypoints ────────────────────────────────────────────────────────────
 [tasks."ci:affected"]
 run = "go run ./tools/affected"
 
@@ -237,24 +212,75 @@ depends = ["build"]
 # Drift check: fail if regeneration changes anything.
 run = "mise run gen && git diff --exit-code"
 
-[tasks.format]
-depends = ["format:go", "format:ts", "format:md"]
+# ── Deploy to cluster (working-tree overrides) ────────────────────────────────
+[tasks."service:deploy"]
+# One-shot in-cluster deploy of a service from the working tree (no watch).
+#   mise run service:deploy -- <svc>
+run = "bash scripts/service-deploy.sh"
 
-[tasks."format:go"]
-run = "golangci-lint fmt ./..."
+[tasks."service:undeploy"]
+#   mise run service:undeploy -- <svc>
+run = "helm --kube-context k3d-${CLUSTER:-platform} uninstall -n platform"
 
-[tasks."format:ts"]
-run = "biome format --write ."
+[tasks."platform:deploy"]
+# One-shot working-tree overlay of a platform chart (rare infra iteration).
+#   mise run platform:deploy -- <chart>
+run = "bash scripts/platform-deploy.sh"
 
-[tasks."format:md"]
-# rumdl is the only Markdown formatter — never the IDE's.
-run = "rumdl fmt ."
+# ── Auth, ops & secrets ───────────────────────────────────────────────────────
+[tasks."auth:token"]
+# Mint a Kratos session token for local authenticated calls (needs the full tier).
+#   mise run auth:token -- <email>
+run = "bash scripts/auth-token.sh"
 
-[tasks.pre-commit]
-depends = ["format", "lint"]
+[tasks."ops:grant"]
+# Operator onboarding (ADR-0010/0017): add/revoke a human's group:operator
+# membership by email. Usage: mise run ops:grant -- <email> [--revoke].
+run = "bash scripts/ops-grant.sh"
 
-[tasks.check]
-depends = ["format", "lint", "test"]
+[tasks."secrets:age"]
+# Idempotent; also writes .sops.yaml (ADR-0005).
+run = "bash scripts/secrets-age.sh"
+
+# ── End-to-end tests ──────────────────────────────────────────────────────────
+[tasks."e2e:install"]
+# One-time (and CI) setup: install the e2e workspace deps and the Chromium binary.
+# Node-only island (ADR-0018); npm is bundled with the Node tool above.
+run = """
+npm --prefix e2e ci || npm --prefix e2e install
+npm --prefix e2e run install:browsers
+"""
+
+# The edge (*.localtest.me) must be hit directly, never through a dev HTTPS_PROXY;
+# the in-cluster port-forwards are loopback. Belt-and-suspenders for both cases.
+[tasks.e2e]
+# Full browser acceptance + visual suite against a running cluster:full (ADR-0018).
+# Nightly + pre-release in CI; never part of ci:affected.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm --prefix e2e run test"
+
+[tasks."e2e:smoke"]
+# Label-gated per-PR subset: one product golden path + a key dashboard render.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm --prefix e2e run test:smoke"
+
+# ── Maintenance ───────────────────────────────────────────────────────────────
+[tasks.upgrade]
+depends = ["upgrade:tools", "upgrade:js", "upgrade:go"]
+
+[tasks."upgrade:tools"]
+run = "bash scripts/upgrade-tools.sh"
+
+[tasks."upgrade:js"]
+run = "bun update --latest --recursive"
+
+[tasks."upgrade:go"]
+# GOFLAGS override: go get must write go.mod (env pins -mod=readonly).
+# Scope to Go roots so go get skips node_modules (bun symlinks → "ignoring symlink" noise).
+run = """
+GOFLAGS= go get -u ./libs/... ./services/... ./tools/...
+GOFLAGS= go mod tidy
+"""
 
 [tasks.act]
 run = "act pull_request --secret-file .env -e .github/act/pull_request.json"

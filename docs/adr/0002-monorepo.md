@@ -98,9 +98,20 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
 - Tasks are defined in `.mise.toml` files: a root file declares repo-wide tasks; each service has its own with
   service-local tasks.
 - **Standard task names** at every service: `build`, `test`, `lint`, `generate`, `migrate`, `run`, `worker`.
-- **Standard task names** at repo root: `cluster:up`, `cluster:down`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
+- **Standard task names** at repo root: `cluster:lite`, `cluster:stop`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
   `e2e`, `e2e:smoke`, `gen`, `db:migrate`. The `e2e` tasks ([ADR-0018](0018-testing-strategy.md)) run against `cluster:full`
   and are deliberately outside `ci:affected` — every e2e crosses service boundaries.
+- **Task naming convention.** A task name is `group:member`, where the **group is the axis you want to list and
+  run together** — pick it by asking "what would I browse or aggregate by?" Two shapes fall out, and both are correct:
+  - **`activity:target`** when one activity fans out across many targets, with an umbrella task that runs them all:
+    `lint:go`/`lint:ts`/`lint:md` (umbrella `lint`), `format:*`, `gen:openapi`/`gen:sqlc` (umbrella `gen`), `upgrade:*`.
+  - **`resource:operation`** when a stateful thing has a lifecycle you want grouped: `cluster:ensure`/`stop`/`delete`,
+    `service:deploy`/`undeploy`, `db:migrate`, `ops:grant`.
+
+  Don't force one literal shape on both — homogenizing would scatter a family (e.g. `stop:cluster`/`delete:cluster`
+  splits the cluster lifecycle; `ts:format`/`md:format` breaks the `format` umbrella). Use `activity:` only when a
+  real fan-out/umbrella exists; otherwise group by the resource. Graph-only plumbing (a task that exists solely as a
+  `depends` node, e.g. `cilium:install`) is marked `hide = true`.
 - `mise tasks --list` is the discoverable interface.
 
 ### Tool versioning: pinned in mise or in a container tag

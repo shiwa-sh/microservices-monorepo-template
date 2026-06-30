@@ -30,14 +30,18 @@ fi
 
 k() { kubectl "${ctx_args[@]}" -n "$NS" "$@"; }
 
+# Cleanup must be armed before backgrounding anything, or a failure in between
+# (e.g. the secret read) would orphan a port-forward.
+kpf=""; spf=""
+trap 'kill "$kpf" "$spf" 2>/dev/null || true' EXIT
+
 # 1. Resolve the Kratos identity id from the email via the admin API.
-k port-forward svc/ory-kratos-admin 4434:80 >/dev/null 2>&1 &
+k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
 kpf=$!
 # 2. Open the SpiceDB gRPC port with its preshared key.
 sk="$(k get secret spicedb-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
-k port-forward svc/spicedb 50051:50051 >/dev/null 2>&1 &
+k port-forward svc/spicedb 50051:50051 >/dev/null &
 spf=$!
-trap 'kill "$kpf" "$spf" 2>/dev/null || true' EXIT
 sleep 4
 
 id="$(curl -fsS "http://localhost:4434/admin/identities?credentials_identifier=${email}" \

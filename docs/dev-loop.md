@@ -1,7 +1,7 @@
 # Local development loop
 
 Per [ADR-0003](adr/0003-cluster-topology.md), k3d is the only local runtime.
-`mise run cluster:up` creates the cluster and applies the lightweight dev
+`mise run cluster:lite` creates the cluster and applies the lightweight dev
 dependencies (Postgres, Temporal, SpiceDB) from `infra/local/deps.yaml`. The
 inner loop is **native execution**: you run the service you are changing directly
 on the host against those dependencies — no image build, no in-cluster redeploy,
@@ -20,9 +20,9 @@ cp services/catalog/.env.example services/catalog/.env  # only for host-process 
 ## Inner loop (native)
 
 ```sh
-mise run cluster:up          # k3d + a CNI + deps (Postgres, Temporal, SpiceDB)
-mise run dev:forward         # port-forward the deps to localhost (leave running in its own terminal)
-mise run db:migrate          # apply each service's migrations to the local Postgres
+mise run cluster:lite  # k3d + a CNI + deps (Postgres, Temporal, SpiceDB)
+mise run dev:forward   # port-forward the deps to localhost (leave running in its own terminal)
+mise run db:migrate    # apply each service's migrations to the local Postgres
 # then run the service natively (any editor/IDE, or go run):
 DATABASE_URL=postgres://dev:dev@localhost:5432/catalog?sslmode=disable \
   TEMPORAL_HOST_PORT=localhost:7233 SPICEDB_ENDPOINT=localhost:50051 \
@@ -49,8 +49,8 @@ mise run service:undeploy -- catalog     # helm uninstall
 ## Teardown
 
 ```sh
-mise run cluster:down        # stops the cluster, keeps the image cache + volumes
-mise run cluster:purge       # deletes the cluster (reclaims disk, forces a clean recreate)
+mise run cluster:stop        # stops the cluster, keeps the image cache + volumes
+mise run cluster:delete       # deletes the cluster (reclaims disk, forces a clean recreate)
 ```
 
 ## End-to-end & visual tests
@@ -94,9 +94,9 @@ does). Outside JetBrains, align the columns by hand to satisfy CI.
 ## The full platform: `mise run cluster:full`
 
 The edge (Traefik + Ory Oathkeeper), auth stack (Kratos), and the data tier are
-**not** brought up by `cluster:up` — it only applies the lightweight deps above.
+**not** brought up by `cluster:lite` — it only applies the lightweight deps above.
 For end-to-end work, the edge, auth, NetworkPolicy, or observability on a laptop,
-`mise run cluster:full` (scripts/platform-up.sh) stands up the **same charts
+`mise run cluster:full` (scripts/cluster-full.sh) stands up the **same charts
 production runs**, at a single replica ([ADR-0016](adr/0016-environment-parity.md)),
 **delivered by ArgoCD** — the same engine staging/prod use: **Cilium** as the CNI
 (real NetworkPolicy + Hubble), **CNPG**, the **Temporal** chart, the **SpiceDB**
@@ -121,7 +121,7 @@ sides), cert-manager with a **self-signed** `*.dev.localtest.me` wildcard issuer
 SOPS decrypts locally exactly as it does in prod (the `sops-operator` materialises
 every credential from `infra/gitops/platform/local/secrets/platform.enc.yaml` —
 only the age key itself is created imperatively). Plan for ~16GB free RAM. Tear
-down with `mise run cluster:down` (keep the cache) or `cluster:purge` (delete).
+down with `mise run cluster:stop` (keep the cache) or `cluster:delete` (delete).
 
 ### Endpoints
 
@@ -198,7 +198,7 @@ local-only).
 ## HTTP proxies
 
 If your host routes egress through an HTTP proxy, configure it at the **environment
-level**, not in the repo — `cluster-create.sh` carries no proxy logic. Docker
+level**, not in the repo — `cluster-ensure.sh` carries no proxy logic. Docker
 propagates its proxy settings into every container it starts, including the k3d
 nodes, so in-cluster image pulls (and ArgoCD-synced workloads in `cluster:full`)
 inherit it automatically.
@@ -235,3 +235,14 @@ then `sudo systemctl daemon-reload && sudo systemctl restart docker`.
 > values above, and make sure that name resolves on the node (Docker normally adds
 > it; if a restart drops it, re-add `<gateway-ip> host.k3d.internal` to the node's
 > `/etc/hosts`).
+>
+> **Large image layers through a proxy.** Some egress proxies truncate large image
+> layers on a single-stream containerd pull — the Cilium agent is the usual victim,
+> leaving the node `NotReady`. If that happens, pre-pull it on the host (where
+> Docker resumes/retries) and import it into the cluster, then re-run the bring-up:
+>
+> ```sh
+> img=$(helm template cilium infra/helm/platform/cilium --set cilium.image.useDigest=false \
+>   | grep -oE 'quay\.io/cilium/cilium:[A-Za-z0-9._-]+' | head -1)
+> docker pull "$img" && k3d image import "$img" -c platform
+> ```

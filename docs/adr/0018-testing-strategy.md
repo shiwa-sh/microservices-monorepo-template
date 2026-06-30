@@ -75,7 +75,7 @@ scoped to the e2e/visual runner alone.
 | Layer | Tool | Environment | Role |
 |-------|------|-------------|------|
 | **Unit / component** | `go test`, `bun test` ([ADR-0014](0014-frontend.md)) | none / `happy-dom` | logic & component shape in isolation |
-| **Service integration** | `go test` + generated SDK clients ([ADR-0008](0008-api-contracts.md)) | `cluster:up` (deps only) | a service against real Postgres/Temporal/SpiceDB |
+| **Service integration** | `go test` + generated SDK clients ([ADR-0008](0008-api-contracts.md)) | `cluster:lite` (deps only) | a service against real Postgres/Temporal/SpiceDB |
 | **Preflight readiness** | Go / shell | `cluster:full` | fast failure **localiser** — pods ready, ports open, Postgres/Oathkeeper reachable; runs before the browser suite so a red e2e instantly reads "infra down" vs "app broken" |
 | **Browser acceptance e2e** | **Playwright (TS)** | `cluster:full` | **the gauge** — product journeys + operator dashboards rendered behind a real AAL2 session |
 | **Visual regression** | **Playwright `toHaveScreenshot`** | `cluster:full` / static render | component shape vs committed baselines |
@@ -162,7 +162,7 @@ measurable trigger: adopt when built-in baseline diffing no longer scales.
 - The browser acceptance test is the platform's acceptance gauge; operator dashboards (Grafana, Hubble, Temporal, MinIO) are tested rendered behind a real AAL2 session, not by HTTP status alone.
 - Preflight readiness checks (Go/shell) run before the browser suite as failure localisers; they are not acceptance tests.
 - E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e ([ADR-0014](0014-frontend.md)).
-- Service integration tests run against `cluster:up` deps and drive services through their generated SDK clients ([ADR-0008](0008-api-contracts.md)); they do not import another service's code.
+- Service integration tests run against `cluster:lite` deps and drive services through their generated SDK clients ([ADR-0008](0008-api-contracts.md)); they do not import another service's code.
 - The full e2e + visual suite runs nightly and pre-release. The smoke suite runs per-PR only when labeled. Neither is part of `ci:affected`.
 - Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-vs-Figma diffing is not a CI gate.
 - E2e provisions a committed deterministic test identity (AAL1 user + AAL2 operator); no test relies on hand-created state.

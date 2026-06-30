@@ -19,7 +19,7 @@ if [ -z "$password" ]; then
   read -rsp "password for ${email}: " password; echo
 fi
 
-k port-forward svc/ory-kratos-public 4433:80 >/dev/null 2>&1 &
+k port-forward svc/ory-kratos-public 4433:80 >/dev/null &
 pf=$!
 trap 'kill "$pf" 2>/dev/null || true' EXIT
 sleep 3

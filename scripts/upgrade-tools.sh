@@ -40,7 +40,7 @@ fi
 echo "Checking for outdated tools (latest across all versions)..."
 echo ""
 
-outdated=$(mise outdated --bump --no-header 2>/dev/null || true)
+outdated=$(mise outdated --bump --no-header)
 
 if [[ -z "$outdated" ]]; then
   echo "All tools are up to date."

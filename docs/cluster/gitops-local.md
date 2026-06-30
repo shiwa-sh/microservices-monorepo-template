@@ -62,6 +62,6 @@ credentials are needed locally.
 
 ## CNI / CRD-operator changes (e.g. Cilium)
 
-Prefer `mise run cluster:purge` + a fresh `cluster:full` **with** the change over
+Prefer `mise run cluster:delete` + a fresh `cluster:full` **with** the change over
 an in-place upgrade — hot-swapping a CNI on a live cluster blips networking. This
 is inherent to the component, not a tooling gap.

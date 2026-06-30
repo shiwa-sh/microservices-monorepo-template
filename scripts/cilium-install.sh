@@ -24,30 +24,11 @@ SERVER_IP="$(k get node -o jsonpath='{.items[0].status.addresses[?(@.type=="Inte
 echo "→ installing Cilium (apiserver ${SERVER_IP}:6443)"
 helm dependency update infra/helm/platform/cilium >/dev/null
 
-# Proxy-only workaround: behind an egress proxy the cilium agent's large image
-# layer reliably truncates (containerd single-stream pull), wedging the CNI and
-# leaving the node NotReady. So ONLY when a proxy is set: reference the agent by
-# tag (useDigest=false) and pre-pull+import it on the host (docker resumes/retries).
-CILIUM_ARGS=()
-host_proxy="${HTTPS_PROXY:-${https_proxy:-}}"
-if [ -n "$host_proxy" ]; then
-  CILIUM_ARGS+=(--set cilium.image.useDigest=false)
-  cilium_img="$(helm template cilium infra/helm/platform/cilium \
-    --set cilium.image.useDigest=false 2>/dev/null \
-    | grep -oE 'quay\.io/cilium/cilium:[A-Za-z0-9._-]+' | head -1)"
-  if [ -n "$cilium_img" ]; then
-    echo "→ pre-pulling ${cilium_img} on host + importing (proxy truncation workaround)"
-    docker pull "$cilium_img"
-    k3d image import "$cilium_img" -c "$CLUSTER"
-  fi
-fi
-
 h upgrade --install cilium infra/helm/platform/cilium -n kube-system \
   --set cilium.kubeProxyReplacement=false \
   --set cilium.k8sServiceHost="${SERVER_IP}" \
   --set cilium.k8sServicePort=6443 \
   --set cilium.operator.replicas=1 \
-  "${CILIUM_ARGS[@]}" \
   --timeout 5m
 
 echo "→ waiting for the node to go Ready (Cilium up)…"

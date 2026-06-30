@@ -178,7 +178,7 @@ Parity is at the manifest, chart, and API level. Topology differences are explic
 | GitOps         | inner: n/a / full: ArgoCD | ArgoCD                  | full tier: yes |
 | Sizing         | tiny            | sized for traffic                 | no            |
 
-`mise run cluster:up` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then **native
+`mise run cluster:lite` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then **native
 execution** — you run the service you are changing directly on the host (any editor/IDE, or `go run`) against those
 dependencies — see *Local development* below. There is no docker-compose path: k3d is the single local runtime, keeping
 local and prod on the same manifests.
@@ -193,12 +193,12 @@ the persistent dev/staging/prod clusters use ([ADR-0004](0004-gitops.md)) — fo
 
 | Step          | Command                                    | Brings up / does                                                                                     |
 |---------------|--------------------------------------------|------------------------------------------------------------------------------------------------------|
-| Cluster+deps  | `mise run cluster:up`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
+| Cluster+deps  | `mise run cluster:lite`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
 | Port-forwards | `mise run dev:forward`                      | forwards the deps to localhost (Postgres 5432, Temporal 7233/8233, SpiceDB 50051); leave running     |
 | Inner loop    | run the service natively                    | set the env contract and run it in any editor/IDE or `go run ./services/<svc>/cmd/server` — no build/deploy |
 | In-cluster    | `mise run service:deploy -- <svc>`          | one-shot build → `k3d image import` → `helm upgrade` (for edge/auth/e2e testing); **no watch loop**  |
 | Migrations    | `mise run db:migrate`                       | applies each service's migrations to the local Postgres                                              |
-| Teardown      | `mise run cluster:down` / `cluster:purge`   | stops (keeps image cache) / deletes the cluster                                                      |
+| Teardown      | `mise run cluster:stop` / `cluster:delete`   | stops (keeps image cache) / deletes the cluster                                                      |
 
 **Native, against real dependencies.** The service binary runs on the host; it reaches the k3d-hosted deps through the
 `dev:forward` port-forwards and the standard env contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, `SPICEDB_ENDPOINT`).

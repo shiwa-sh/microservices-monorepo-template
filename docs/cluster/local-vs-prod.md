@@ -2,7 +2,7 @@
 
 Local runs in **two tiers** ([ADR-0016](../adr/0016-environment-parity.md)):
 
-- **Inner loop** (`mise run cluster:up` + `dev:forward` + run the service **natively**) — k3d plus lightweight dependency stand-ins; the service under change runs on the host. Optimised for iteration speed; parity is at the **interface** (same wire contracts), not the implementation.
+- **Inner loop** (`mise run cluster:lite` + `dev:forward` + run the service **natively**) — k3d plus lightweight dependency stand-ins; the service under change runs on the host. Optimised for iteration speed; parity is at the **interface** (same wire contracts), not the implementation.
 - **Full platform** (`mise run cluster:full`) — k3d running the **same charts production runs**, at a single replica. Parity is at the **implementation**: CNPG, the Temporal chart, SpiceDB, in-cluster MinIO, the observability stack, and the edge + auth. This is the end-to-end / pre-merge tier, and the same configuration CI and per-PR previews use.
 
 The table below compares the **full-platform tier** with production — the inner-loop differences are called out in the last column.

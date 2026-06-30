@@ -48,7 +48,7 @@ Local is two tiers with different jobs:
 
 | Tier | Command | Parity | What runs | For |
 |------|---------|--------|-----------|-----|
-| **Inner loop** | `cluster:up` + `dev:forward` + **native run** | **interface** | k3d + lightweight dependency stand-ins (`infra/local/deps.yaml`); the service under change runs natively on the host | day-to-day coding |
+| **Inner loop** | `cluster:lite` + `dev:forward` + **native run** | **interface** | k3d + lightweight dependency stand-ins (`infra/local/deps.yaml`); the service under change runs natively on the host | day-to-day coding |
 | **Full platform** | `cluster:full` | **implementation** | k3d + the real platform charts at `instances=1` (CNPG, the Temporal chart, SpiceDB, MinIO, the observability stack, the edge + auth) | end-to-end tests ([ADR-0018](0018-testing-strategy.md)), pre-merge validation, CI, label-gated per-PR preview |
 
 The **inner loop** optimises for speed. The service under change runs **natively on the host** (any editor/IDE, or
@@ -103,7 +103,7 @@ Profiles stay a handful of composable toggles, not per-engineer snowflakes.
 ### GitOps locally: inner loop is native, full tier is ArgoCD
 
 ArgoCD reconciles committed git state, so it is **not** the inner loop's engine — the inner loop runs the service
-natively against `cluster:up`'s stand-ins ([ADR-0004](0004-gitops.md)). The **full-platform tier does run ArgoCD**: a
+natively against `cluster:lite`'s stand-ins ([ADR-0004](0004-gitops.md)). The **full-platform tier does run ArgoCD**: a
 local bootstrap (`infra/gitops/bootstrap-local/`) applies the same app-of-apps prod uses, syncing committed `master`
 from the remote, so sync ordering, app discovery, and secret materialisation are exercised exactly as in prod. Only the
 two genuine bootstrap components ArgoCD cannot self-create — the CNI (Cilium) and ArgoCD itself — are installed
@@ -115,7 +115,7 @@ Two escape hatches cover iterating on uncommitted infra (a rare day):
   the working tree.
 - **GitOps-wiring change** (sync-waves, ApplicationSets, App defs): push a branch and point the local root-app
   `targetRevision` at it — this exercises the real delivery path, which `helm` cannot.
-- **CNI/CRD change** (e.g. Cilium): prefer `cluster:purge` + a fresh `cluster:full` over an in-place upgrade — hot-
+- **CNI/CRD change** (e.g. Cilium): prefer `cluster:delete` + a fresh `cluster:full` over an in-place upgrade — hot-
   swapping a CNI on a live cluster blips networking. This is inherent to the component, not a tooling gap.
 
 This is what makes the full tier a true e2e rehearsal rather than a hand-rolled approximation.

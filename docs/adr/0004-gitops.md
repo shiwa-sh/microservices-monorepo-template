@@ -131,7 +131,7 @@ Secret values are not in git. Encrypted SOPS files in the repo are decrypted by 
 
 ### Local development
 
-GitOps is **not the inner loop's engine.** The inner loop runs the service natively against `mise run cluster:up`'s
+GitOps is **not the inner loop's engine.** The inner loop runs the service natively against `mise run cluster:lite`'s
 lightweight deps — ArgoCD reconciles committed git state, which is the opposite of what a working-tree loop needs.
 
 The **full-platform local tier** (`mise run cluster:full`) and the CI/preview tier do run this same app-of-apps. Locally
