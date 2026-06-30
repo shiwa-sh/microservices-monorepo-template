@@ -197,43 +197,83 @@ local-only).
 
 ## HTTP proxies
 
-If your host routes egress through an HTTP proxy, configure it at the **environment
-level**, not in the repo — `cluster-ensure.sh` carries no proxy logic. Docker
-propagates its proxy settings into every container it starts, including the k3d
-nodes, so in-cluster image pulls (and ArgoCD-synced workloads in `cluster:full`)
-inherit it automatically.
+Proxy configuration is a property of **your machine**, not of this template — the
+repo carries no proxy values or logic, and the scripts never will. Behind a
+corporate/loopback proxy you configure it once, system-side, and the `cluster:*`
+tasks work unchanged.
 
-Set it once in `~/.docker/config.json`:
+There are two independent layers, and they need separate handling:
 
-```json
-{
-  "proxies": {
-    "default": {
-      "httpProxy": "http://proxy.example.com:8080",
-      "httpsProxy": "http://proxy.example.com:8080",
-      "noProxy": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+**1. Host-side pulls (the k3s node image, host `docker pull`/`helm`).** These go
+through the Docker daemon and the Docker CLI on your host. Point both at your proxy:
+
+- Docker **CLI** (`~/.docker/config.json`) — used by host `docker` commands:
+
+  ```json
+  {
+    "proxies": {
+      "default": {
+        "httpProxy": "http://proxy.example.com:8080",
+        "httpsProxy": "http://proxy.example.com:8080",
+        "noProxy": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+      }
     }
   }
-}
+  ```
+
+- Docker **daemon** (`/etc/systemd/system/docker.service.d/http-proxy.conf`) — so
+  the daemon's own image pulls are proxied:
+
+  ```ini
+  [Service]
+  Environment="HTTP_PROXY=http://proxy.example.com:8080"
+  Environment="HTTPS_PROXY=http://proxy.example.com:8080"
+  Environment="NO_PROXY=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+  ```
+
+  then `sudo systemctl daemon-reload && sudo systemctl restart docker`.
+
+**2. In-cluster pulls (Cilium, the inner-loop deps, every ArgoCD-synced workload).**
+These are pulled by the **containerd that runs inside the k3d node**, using the
+node's own process environment — which none of the settings above reach. k3d creates
+its nodes through the Docker SDK, so it does **not** inherit `~/.docker/config.json`
+proxies, the daemon's proxy env, or your exported shell `HTTP_PROXY`. The proxy has
+to be present on the node, and the only way to put it there is at cluster-create time
+(k3d `-e` flags or a k3d config file).
+
+`cluster-ensure.sh` deliberately does **not** pass these — it stays proxy-free. So,
+behind a proxy, create the cluster **once yourself** with your proxy injected, then
+let the tasks take over. `cluster:ensure` is convergent: it reuses an existing
+cluster (only starting it), so every later `cluster:lite` / `cluster:full`
+just works.
+
+```sh
+# One-time, on a proxied machine. Mirror the flags cluster-ensure.sh uses, plus
+# YOUR proxy values. Substitute your proxy URL for the example below.
+k3d cluster create platform \
+  --servers 1 --agents 0 \
+  --port 8080:80@loadbalancer --port 8443:443@loadbalancer \
+  --k3s-arg '--flannel-backend=none@server:*' \
+  --k3s-arg '--disable-network-policy@server:*' \
+  -e 'HTTP_PROXY=http://proxy.example.com:8080@server:*' \
+  -e 'HTTPS_PROXY=http://proxy.example.com:8080@server:*' \
+  -e 'NO_PROXY=localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,cluster.local,.localtest.me@server:*'
+
+# Verify the node actually has it, then drive the cluster normally:
+docker exec k3d-platform-server-0 env | grep -i proxy
+mise run cluster:lite      # cluster:ensure reuses the cluster you just made
 ```
 
-For the Docker **daemon** itself (so the daemon's own pulls are proxied too), use a
-systemd drop-in — `/etc/systemd/system/docker.service.d/http-proxy.conf`:
-
-```ini
-[Service]
-Environment="HTTP_PROXY=http://proxy.example.com:8080"
-Environment="HTTPS_PROXY=http://proxy.example.com:8080"
-Environment="NO_PROXY=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
-```
-
-then `sudo systemctl daemon-reload && sudo systemctl restart docker`.
+Prefer keeping those values out of your shell history? Put them in a personal k3d
+config file outside the repo and `k3d cluster create platform --config ~/…/k3d.yaml`
+— same effect, same one-time step.
 
 > **Loopback proxies** (e.g. `127.0.0.1:8080`, as some sandboxes use) are not
 > reachable from inside a container as `127.0.0.1`. Point the k3d nodes at the host
-> instead — substitute `host.k3d.internal` for `127.0.0.1`/`localhost` in the
-> values above, and make sure that name resolves on the node (Docker normally adds
-> it; if a restart drops it, re-add `<gateway-ip> host.k3d.internal` to the node's
+> instead — substitute `host.k3d.internal` for `127.0.0.1`/`localhost` in the proxy
+> URL (e.g. `-e 'HTTPS_PROXY=http://host.k3d.internal:8118@server:*'`), and make
+> sure that name resolves on the node (Docker normally adds it as the gateway; if a
+> restart drops it, re-add `<gateway-ip> host.k3d.internal` to the node's
 > `/etc/hosts`).
 >
 > **Large image layers through a proxy.** Some egress proxies truncate large image

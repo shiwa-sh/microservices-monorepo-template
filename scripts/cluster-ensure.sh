@@ -10,8 +10,9 @@
 # (NetworkPolicy + Hubble, ADR-0003). Traefik stays (it provides the IngressRoute/
 # Middleware CRDs the edge uses). Ports 8080/8443 map the loadbalancer.
 #
-# Behind a corporate/loopback HTTP proxy, configure Docker (and thus the k3d nodes)
-# at the environment level — not here. See docs/dev-loop.md ("HTTP proxies").
+# Proxy-free by design. Behind a proxy, in-cluster pulls need proxy env ON the node,
+# which only k3d's create-time -e flags/config set — so create the cluster yourself
+# once (this task then just reuses it). See docs/dev-loop.md ("HTTP proxies").
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
