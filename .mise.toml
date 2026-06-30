@@ -63,7 +63,7 @@ run = "lefthook install"
 # Ensure the single local k3d cluster exists and is running (create-or-start).
 run = "bash scripts/cluster-ensure.sh"
 
-[tasks."cilium:install"]
+[tasks."cluster:cilium"]
 # Install Cilium as the CNI (ADR-0003). Needs the cluster first. Internal plumbing
 # (a dependency node for cluster:lite), not a command you run directly — hence hidden.
 hide = true
@@ -73,9 +73,9 @@ run = "bash scripts/cilium-install.sh"
 [tasks."cluster:lite"]
 # Inner loop (ADR-0016): cluster + CNI + lightweight deps (Postgres/Temporal/
 # SpiceDB), then run the service you are changing NATIVELY (no Skaffold, no watch).
-# Ordering is the dependency graph: cluster:ensure → cilium:install → this apply.
+# Ordering is the dependency graph: cluster:ensure → cluster:cilium → this apply.
 # Next steps (dev:forward, db:migrate, go run …) are in docs/dev-loop.md.
-depends = ["cilium:install"]
+depends = ["cluster:cilium"]
 run = "kubectl --context k3d-${CLUSTER:-platform} apply -f infra/local/deps.yaml"
 
 [tasks."cluster:full"]

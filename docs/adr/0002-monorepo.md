@@ -111,7 +111,7 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
   Don't force one literal shape on both — homogenizing would scatter a family (e.g. `stop:cluster`/`delete:cluster`
   splits the cluster lifecycle; `ts:format`/`md:format` breaks the `format` umbrella). Use `activity:` only when a
   real fan-out/umbrella exists; otherwise group by the resource. Graph-only plumbing (a task that exists solely as a
-  `depends` node, e.g. `cilium:install`) is marked `hide = true`.
+  `depends` node, e.g. `cluster:cilium`) is marked `hide = true`.
 - `mise tasks --list` is the discoverable interface.
 
 ### Tool versioning: pinned in mise or in a container tag
