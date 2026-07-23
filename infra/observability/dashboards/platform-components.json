@@ -151,24 +151,24 @@
     {
       "type": "timeseries",
       "title": "Frontend latency p50 / p95 / p99",
-      "description": "Client-facing gRPC latency at the frontend role — Temporal's own \"D\" of RED.",
+      "description": "Client-facing gRPC latency at the frontend role — Temporal's own \"D\" of RED. Long-poll operations are excluded: they block ~60s by design and would swamp the percentiles.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
       "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\"}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\",operation!~\"PollWorkflowTaskQueue|PollActivityTaskQueue|PollNexusTaskQueue|GetWorkflowExecutionHistory\"}[5m])))",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\",operation!~\"PollWorkflowTaskQueue|PollActivityTaskQueue|PollNexusTaskQueue|GetWorkflowExecutionHistory\"}[5m])))",
           "legendFormat": "p95"
         },
         {
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\",operation!~\"PollWorkflowTaskQueue|PollActivityTaskQueue|PollNexusTaskQueue|GetWorkflowExecutionHistory\"}[5m])))",
           "legendFormat": "p99"
         }
       ]

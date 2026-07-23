@@ -483,7 +483,7 @@
     {
       "type": "stat",
       "title": "Temporal frontend p95",
-      "description": "gRPC latency p95 at the Temporal frontend. Click through for role/persistence breakdowns.",
+      "description": "gRPC latency p95 at the Temporal frontend, excluding long-poll operations (which block ~60s by design). Click through for role/persistence breakdowns.",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 22 },
       "links": [
@@ -492,7 +492,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\"}[5m])))"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(service_latency_bucket{service_name=\"temporal\",type=\"frontend\",operation!~\"PollWorkflowTaskQueue|PollActivityTaskQueue|PollNexusTaskQueue|GetWorkflowExecutionHistory\"}[5m])))"
         }
       ],
       "fieldConfig": {
