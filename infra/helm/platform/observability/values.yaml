@@ -141,12 +141,13 @@ grafana:
       org_role: Admin
     # Skip the "Welcome to Grafana" home page and land operators on a real
     # dashboard. dashboardsConfigMaps.default (grafana-dashboards) mounts at
-    # /var/lib/grafana/dashboards/default, so applications.json is served there.
-    # Applications is the single-pane landing page: every workload in one table
-    # (CPU/mem/net always present via kubeletstats, RED filling in under traffic),
-    # each row linking to its service-detail drill-down.
+    # /var/lib/grafana/dashboards/default, so overview.json is served there.
+    # Overview is the L1 landing page (ADR-0026): firing alerts, cluster-wide
+    # golden signals, per-service SLO status, and platform-dependency one-liners —
+    # every panel either turns red or links down to Applications / Service detail /
+    # Platform components / policy-denials.
     dashboards:
-      default_home_dashboard_path: /var/lib/grafana/dashboards/default/applications.json
+      default_home_dashboard_path: /var/lib/grafana/dashboards/default/overview.json
     # No phone-home: version/plugin update checks and usage analytics are the only
     # reason Grafana reaches the internet (seen in Hubble as grafana -> <gcp-ip>:443).
     analytics:

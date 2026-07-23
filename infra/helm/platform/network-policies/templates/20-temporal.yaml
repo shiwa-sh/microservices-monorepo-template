@@ -21,6 +21,13 @@ spec:
             - { port: "7234", protocol: TCP }
             - { port: "7235", protocol: TCP }
             - { port: "7239", protocol: TCP }
+    # otel-cluster scrapes each server role's Prometheus endpoint (metrics port
+    # 9090) and re-exports over OTLP (ADR-0011: Prometheus itself scrapes
+    # nothing) — the temporal component metrics on the dashboards.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]
 ---
 ## Frontend RPC (7233) is the client entrypoint: app workers, temporal-web and
 ## admintools call it. Any platform pod may reach the frontend on 7233 only.

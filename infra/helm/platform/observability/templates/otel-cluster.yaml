@@ -72,13 +72,9 @@ subjects:
     name: otel-cluster
     namespace: {{ .Release.Namespace }}
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: otel-cluster
-  labels: { app.kubernetes.io/name: otel-cluster, app.kubernetes.io/part-of: observability }
-data:
-  config.yaml: |
+{{/* Config in a define so the Deployment stamps checksum/config and rolls on
+     config edits — same pattern (and same reason) as prometheus.yaml. */}}
+{{- define "observability.otelCluster.config" }}
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -86,6 +82,46 @@ data:
       k8s_cluster:
         auth_type: serviceAccount
         collection_interval: 30s
+      # Platform-component exporters (ADR-0025 follow-up): postgres (the CNPG
+      # instance manager's built-in exporter on :9187) and the Temporal server
+      # roles (:9090) already publish Prometheus metrics — this scrapes what
+      # exists rather than instrumenting anything. Lives HERE and not in the
+      # DaemonSet for the same reason k8s_cluster does: these are cluster-scoped
+      # targets, and N node agents would scrape N duplicate copies. Prometheus
+      # itself still scrapes nothing (ADR-0011) — this re-exports over OTLP.
+      # Discovery is label-selected pods, with a keep on the container port
+      # NAMED `metrics` — that is what skips temporal-web/admintools (no such
+      # port) and pins the exporter port on multi-port pods. The prometheus
+      # receiver sets service.name from the job name, so these series land as
+      # service_name="postgres"/"temporal" — the identity the dashboards and
+      # the Loki/kubeletstats signals already agree on.
+      prometheus/exporters:
+        config:
+          scrape_configs:
+            - job_name: postgres
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [{{ .Release.Namespace }}] }
+                  selectors:
+                    - role: pod
+                      label: "cnpg.io/cluster=postgres"
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: metrics
+            - job_name: temporal
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [{{ .Release.Namespace }}] }
+                  selectors:
+                    - role: pod
+                      label: "app.kubernetes.io/name=temporal"
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: metrics
     processors:
       # Same workload-identity mapping the DaemonSet's kubernetesAttributes
       # preset applies: associate pod-scoped resources by k8s.pod.uid and derive
@@ -120,6 +156,36 @@ data:
               - set(attributes["service.name"], attributes["k8s.deployment.name"]) where attributes["service.name"] == nil and attributes["k8s.deployment.name"] != nil
               - set(attributes["service.name"], attributes["k8s.statefulset.name"]) where attributes["service.name"] == nil and attributes["k8s.statefulset.name"] != nil
               - set(attributes["service.namespace"], attributes["k8s.namespace.name"]) where attributes["service.namespace"] == nil and attributes["k8s.namespace.name"] != nil
+              # Deployment names carry a ROLE suffix the pod-label identity does
+              # not: repo services deploy as <service>-server/<service>-worker
+              # (both pods label app.kubernetes.io/name=<service>), and the
+              # Temporal chart's roles all label name=temporal. Without this
+              # strip the deployment-scoped series (desired/available) land as
+              # orders-server/orders-worker/temporal-frontend/… — entities that
+              # exist NOWHERE else, splitting each workload into ghost rows.
+              # Per-deployment granularity is NOT lost: k8s.deployment.name is
+              # promoted to a label by Prometheus (promote_resource_attributes),
+              # which is also what keeps the merged series distinct.
+              - replace_pattern(attributes["service.name"], "-(server|worker|frontend|history|matching|web|admintools)$$", "") where attributes["k8s.deployment.name"] != nil or attributes["k8s.statefulset.name"] != nil
+              # CNPG's pooler Deployment (postgres-pgbouncer-rw) joins the
+              # postgres identity its pods already resolve to via
+              # app.kubernetes.io/instance.
+              - replace_pattern(attributes["service.name"], "^postgres-pgbouncer-.*$$", "postgres") where attributes["k8s.deployment.name"] != nil
+      # Scraped-exporter fixups. service.namespace: the prometheus receiver only
+      # sets service.name (from the job), so fill the namespace half of the
+      # identity pair the dashboards filter on. delete_key service_name:
+      # Temporal's own metrics carry a `service_name` label (frontend/history/
+      # matching/worker) that would collide with the promoted resource label and
+      # fragment the workload identity — drop it; the same value survives in the
+      # `type` label for per-role breakdowns.
+      transform/exporters:
+        metric_statements:
+          - context: resource
+            statements:
+              - set(attributes["service.namespace"], "{{ .Release.Namespace }}") where attributes["service.namespace"] == nil
+          - context: datapoint
+            statements:
+              - delete_key(attributes, "service_name")
       memory_limiter:
         check_interval: 1s
         limit_percentage: 80
@@ -137,6 +203,23 @@ data:
           receivers: [k8s_cluster]
           processors: [memory_limiter, k8sattributes, transform/workload_identity, batch]
           exporters: [otlphttp/prometheus]
+        # Separate pipeline: scraped series must NOT pass k8sattributes /
+        # transform/workload_identity (their identity comes from the scrape job,
+        # not pod association) and the k8s_cluster series must not lose their
+        # datapoint attributes to delete_key.
+        metrics/exporters:
+          receivers: [prometheus/exporters]
+          processors: [memory_limiter, transform/exporters, batch]
+          exporters: [otlphttp/prometheus]
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-cluster
+  labels: { app.kubernetes.io/name: otel-cluster, app.kubernetes.io/part-of: observability }
+data:
+  config.yaml: |
+    {{- include "observability.otelCluster.config" . }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -153,6 +236,9 @@ spec:
   template:
     metadata:
       labels: { app.kubernetes.io/name: otel-cluster }
+      # Roll on config change — the collector only reads config at startup.
+      annotations:
+        checksum/config: {{ include "observability.otelCluster.config" . | sha256sum }}
     spec:
       serviceAccountName: otel-cluster
       containers:

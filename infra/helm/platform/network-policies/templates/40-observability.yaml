@@ -32,7 +32,10 @@ spec:
       toPorts:
         - ports: [{ port: "3100", protocol: TCP }]
 ---
-## Prometheus — OTLP metrics push from OTel, queries from Grafana (all 9090).
+## Prometheus — OTLP metrics push from BOTH collectors (the DaemonSet agent and
+## the otel-cluster singleton), queries from Grafana (all 9090). otel-cluster
+## missing here is exactly what the ClusterStateMetricsAbsent alert fires on —
+## its push was netpol-dropped from 2026-07-23's first deploy until this rule.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -44,6 +47,7 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: opentelemetry-collector }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: grafana }
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]

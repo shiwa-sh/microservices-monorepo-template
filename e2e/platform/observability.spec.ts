@@ -150,8 +150,8 @@ test.describe("service observability POC (ADR-0025)", () => {
     const res = await ctx.get(`${opsURL("grafana")}/api/search?type=dash-db`);
     expect(res.ok(), "Grafana search API answers").toBeTruthy();
     const uids = ((await res.json()) as { uid: string }[]).map((d) => d.uid);
-    expect(uids, "detail + applications dashboards are provisioned").toEqual(
-      expect.arrayContaining(["service-detail", "applications"]),
+    expect(uids, "overview + detail + applications + components dashboards are provisioned").toEqual(
+      expect.arrayContaining(["overview", "service-detail", "applications", "platform-components"]),
     );
   });
 
@@ -171,6 +171,20 @@ test.describe("service observability POC (ADR-0025)", () => {
 
   test("RED reads the stable otelhttp histogram (real 500ms bucket)", async () => {
     expect(await promHasSeries('http_server_request_duration_seconds_bucket{le="0.5"}')).toBeTruthy();
+  });
+
+  // otel-cluster's two jobs. k8s_cluster: the desired/available/restart series
+  // the workload-health alerts and the service-detail Health row read — its OTLP
+  // push is netpol-gated (prometheus CNP must allow otel-cluster; it silently
+  // didn't until 2026-07-23, which is what ClusterStateMetricsAbsent fires on).
+  // Exporter scrapes: postgres (CNPG :9187) and Temporal (:9090) land under the
+  // canonical service_name identity — each guards its scrape config, the
+  // metrics-port ingress rule on the target, and (for temporal) the delete_key
+  // that stops the exporter's own service_name label fragmenting the identity.
+  test("otel-cluster series exist: cluster state + component exporters", async () => {
+    expect(await promHasSeries('k8s_deployment_desired{service_namespace="platform"}')).toBeTruthy();
+    expect(await promHasSeries('cnpg_backends_total{service_name="postgres"}')).toBeTruthy();
+    expect(await promHasSeries('service_requests_total{service_name="temporal"}')).toBeTruthy();
   });
 
   // Alerts-as-code (ADR-0011): the rule files under infra/observability/alerts/

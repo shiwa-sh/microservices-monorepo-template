@@ -27,7 +27,13 @@
       # namespace so dashboards can group by service — this is the label the RED, log,
       # trace AND kubeletstats CPU/memory series (ADR-0025 POC) all share, since
       # k8sattributes derives service.name from each pod's app.kubernetes.io/name.
-      promote_resource_attributes: ["service.name", "service.namespace"]
+      # k8s.deployment.name / k8s.statefulset.name: otel-cluster folds role
+      # deployments into one service identity (orders-server + orders-worker →
+      # orders); these labels keep the folded series distinct (else the two
+      # deployments' desired/available would collide on an identical labelset)
+      # and give the workload-health alerts a per-deployment subject to name.
+      promote_resource_attributes:
+        ["service.name", "service.namespace", "k8s.deployment.name", "k8s.statefulset.name"]
     # OTLP pushes can land slightly out of order across collector batches.
     storage:
       tsdb:
