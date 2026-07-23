@@ -26,3 +26,4 @@ configMapGenerator:
     files:
       - service-availability.yaml
       - policy-drops.yaml
+      - workload-health.yaml

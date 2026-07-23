@@ -193,27 +193,114 @@
     },
     {
       "type": "timeseries",
-      "title": "CPU usage (cores)",
+      "title": "CPU usage vs limit (cores)",
+      "description": "Usage from kubeletstats; the dashed red line is the workload's total CPU limit (sum across pods, k8s_cluster receiver). Usage approaching the line means throttling.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "fieldConfig": { "defaults": { "unit": "none" } },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "limit" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
       "targets": [
         {
+          "refId": "A",
           "legendFormat": "{{service_name}}",
           "expr": "sum by (service_name) (k8s_pod_cpu_usage{service_namespace=\"platform\",service_name=\"$service\"})"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "limit",
+          "expr": "sum(k8s_container_cpu_limit{service_namespace=\"platform\",service_name=\"$service\"})"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Memory usage",
+      "title": "Memory usage vs limit",
+      "description": "Usage from kubeletstats; the dashed red line is the workload's total memory limit (sum across pods, k8s_cluster receiver). Usage touching the line means OOM-kill territory.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "limit" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
       "targets": [
         {
+          "refId": "A",
           "legendFormat": "{{service_name}}",
           "expr": "sum by (service_name) (k8s_pod_memory_usage_bytes{service_namespace=\"platform\",service_name=\"$service\"})"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "limit",
+          "expr": "sum(k8s_container_memory_limit_bytes{service_namespace=\"platform\",service_name=\"$service\"})"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Replicas — available vs desired",
+      "description": "From the k8s_cluster receiver (otel-cluster singleton). A gap between the lines is pods that should exist but don't — Pending or crash-looping; drill into Headlamp for the why. Restart history rides along as the yellow line.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "min": 0,
+          "custom": { "lineInterpolation": "stepAfter" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "desired" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "available" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "restarts (30m)" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "desired",
+          "expr": "max(k8s_deployment_desired{service_namespace=\"platform\",service_name=\"$service\"})"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "available",
+          "expr": "max(k8s_deployment_available{service_namespace=\"platform\",service_name=\"$service\"})"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "restarts (30m)",
+          "expr": "sum(delta(k8s_container_restarts{service_namespace=\"platform\",service_name=\"$service\"}[30m]))"
         }
       ]
     },

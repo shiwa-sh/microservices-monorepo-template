@@ -186,7 +186,37 @@ test.describe("service observability POC (ADR-0025)", () => {
     const groups: { rules: { name: string }[] }[] = (await res.json()).data?.groups ?? [];
     const names = groups.flatMap((g) => g.rules.map((r) => r.name));
     expect(names, "committed alert rules are evaluating").toEqual(
-      expect.arrayContaining(["ServiceHigh5xx", "PolicyDropsDetected"]),
+      expect.arrayContaining([
+        "ServiceHigh5xx",
+        "PolicyDropsDetected",
+        "DeploymentReplicasUnavailable",
+        "ContainerRestartsSpiking",
+      ]),
+    );
+  });
+
+  // Log coverage for PLATFORM workloads (ADR-0011's filelog path). Repo services
+  // push logs over OTLP from the SDK, but postgres/temporal/lowdefy/… only write
+  // stdout — those reach Loki solely through the collector's logsCollection
+  // (filelog) preset. Until 2026-07-23 that receiver was missing and every
+  // platform service showed a permanently empty Logs panel on service-detail.
+  // Asserting distinct service_name values (24h window — these workloads can be
+  // quiet at idle) pins the whole chain: hostPath mount, filelog receiver,
+  // container parser, and the k8sattributes service.name inference the dashboard
+  // filters on. grafana/loki/tempo appear as "observability": service.name
+  // inference prefers app.kubernetes.io/instance (the Helm release) over /name.
+  test("platform workloads that only log to stdout reach Loki (filelog)", async () => {
+    const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
+    expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
+    const { uid } = await ds.json();
+    const start = `${(Date.now() - 24 * 3600 * 1000) * 1e6}`;
+    const res = await ctx.get(
+      `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/label/service_name/values?start=${start}`,
+    );
+    expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
+    const services: string[] = (await res.json()).data ?? [];
+    expect(services, "stdout-only platform workloads have logs in Loki").toEqual(
+      expect.arrayContaining(["postgres", "temporal", "lowdefy", "observability", "otel-collector"]),
     );
   });
 });

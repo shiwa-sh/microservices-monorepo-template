@@ -3,7 +3,7 @@
   "uid": "applications",
   "schemaVersion": 39,
   "tags": ["service", "applications", "overview", "poc"],
-  "description": "POC (ADR-0025): Applications overview — the single-pane landing page. One row per workload in the selected namespace, driven by kubeletstats so EVERY pod is listed — not just the traced ones. CPU, memory and network come from the kubelet; Req/s, Errors/s and p95 latency come from the stable OTel http.server.request.duration histogram and fill in for any service currently serving HTTP traffic (idle HTTP servers show blank RED — the counters have no recent samples, not a missing-instrumentation gap). Click a workload to open its detail page.",
+  "description": "POC (ADR-0025): Applications overview — the single-pane landing page. One row per workload in the selected namespace, driven by kubeletstats so EVERY pod is listed — not just the traced ones. CPU, memory and network come from the kubelet; Req/s, Errors/s and p95 latency come from the stable OTel http.server.request.duration histogram and fill in for any service currently serving HTTP traffic (idle HTTP servers show blank RED — the counters have no recent samples, not a missing-instrumentation gap). Up/Desired replicas, memory limits and the %-of-limit gauges come from the otel-cluster singleton (k8s_cluster receiver) + kubeletstats limit_utilization; blank means no Deployment / no limit set, not zero. Live pod status and events live in Headlamp — this page answers 'is something wrong?', Headlamp answers 'what exactly'. Click a workload to open its detail page.",
   "templating": {
     "list": [
       {
@@ -66,6 +66,41 @@
           "instant": true,
           "range": false,
           "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_namespace=~\"$namespace\"}[$__range])))"
+        },
+        {
+          "refId": "G",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "max by (service_name) (k8s_pod_memory_limit_utilization{service_namespace=~\"$namespace\"})"
+        },
+        {
+          "refId": "H",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "max by (service_name) (k8s_pod_cpu_limit_utilization{service_namespace=~\"$namespace\"})"
+        },
+        {
+          "refId": "I",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "max by (service_name) (k8s_deployment_available{service_namespace=~\"$namespace\"})"
+        },
+        {
+          "refId": "J",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "max by (service_name) (k8s_deployment_desired{service_namespace=~\"$namespace\"})"
+        },
+        {
+          "refId": "K",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (service_name) (k8s_container_memory_limit_bytes{service_namespace=~\"$namespace\"})"
         }
       ],
       "transformations": [
@@ -80,7 +115,12 @@
               "Time 3": true,
               "Time 4": true,
               "Time 5": true,
-              "Time 6": true
+              "Time 6": true,
+              "Time 7": true,
+              "Time 8": true,
+              "Time 9": true,
+              "Time 10": true,
+              "Time 11": true
             },
             "renameByName": {
               "service_name": "Workload",
@@ -89,7 +129,26 @@
               "Value #C": "Net I/O",
               "Value #D": "Req/s",
               "Value #E": "Errors/s",
-              "Value #F": "p95 latency"
+              "Value #F": "p95 latency",
+              "Value #G": "Mem % of limit",
+              "Value #H": "CPU % of limit",
+              "Value #I": "Up",
+              "Value #J": "Desired",
+              "Value #K": "Mem limit"
+            },
+            "indexByName": {
+              "service_name": 0,
+              "Value #I": 1,
+              "Value #J": 2,
+              "Value #A": 3,
+              "Value #H": 4,
+              "Value #B": 5,
+              "Value #K": 6,
+              "Value #G": 7,
+              "Value #C": 8,
+              "Value #D": 9,
+              "Value #E": 10,
+              "Value #F": 11
             }
           }
         }
@@ -122,6 +181,42 @@
           {
             "matcher": { "id": "byName", "options": "Memory" },
             "properties": [{ "id": "unit", "value": "bytes" }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": "^(Up|Desired)$" },
+            "properties": [
+              { "id": "unit", "value": "none" },
+              { "id": "decimals", "value": 0 },
+              { "id": "custom.width", "value": 70 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Mem limit" },
+            "properties": [{ "id": "unit", "value": "bytes" }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".* % of limit" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 1 },
+              { "id": "decimals", "value": 0 },
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "gauge", "mode": "basic", "valueDisplayMode": "text" }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.8 },
+                    { "color": "red", "value": 0.9 }
+                  ]
+                }
+              }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "Net I/O" },
