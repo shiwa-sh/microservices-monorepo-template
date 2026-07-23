@@ -13,6 +13,11 @@ data:
   config.yaml: |
     server:
       http_listen_port: 4040
+    # No phone-home (same stance as grafana.ini analytics): without this
+    # Pyroscope dials Grafana Labs' usage-stats endpoint on 443, which the
+    # default-deny egress correctly drops — pure PolicyDropsDetected noise.
+    analytics:
+      reporting_enabled: false
     # Local profile store. emptyDir at /data (POC); swap for a bucket to persist.
     pyroscopedb:
       data_path: /data

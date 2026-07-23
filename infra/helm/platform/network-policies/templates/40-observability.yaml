@@ -1,5 +1,8 @@
 ## OTel collector (DaemonSet) — the single telemetry ingest point. Every app pod
-## pushes OTLP (4317 gRPC / 4318 HTTP); nothing else should.
+## pushes OTLP (4317 gRPC / 4318 HTTP); nothing else should. The edge (Traefik in
+## kube-system) additionally forwards browser Faro telemetry to 8027
+## (infra/gateway/frontend-observability.yaml) — without that rule the frontend
+## RUM path is POLICY_DENIED at the collector.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -15,6 +18,10 @@ spec:
         - ports:
             - { port: "4317", protocol: TCP }
             - { port: "4318", protocol: TCP }
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "8027", protocol: TCP }]
 ---
 ## Loki — writes come from the OTel collector, reads from Grafana.
 apiVersion: cilium.io/v2
