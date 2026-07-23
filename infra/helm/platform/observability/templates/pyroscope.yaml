@@ -4,13 +4,11 @@
 # (templates/alloy.yaml); Grafana queries it as the Pyroscope datasource. Ingress is
 # granted by the pyroscope CiliumNetworkPolicy in the network-policies chart.
 {{- $py := .Values.pyroscope }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pyroscope
-  labels: { app.kubernetes.io/name: pyroscope, app.kubernetes.io/part-of: observability }
-data:
-  config.yaml: |
+{{/* Config in a define so the Deployment stamps checksum/config and rolls on
+     config edits (same pattern as prometheus.yaml / otel-cluster.yaml). Without
+     it the analytics opt-out below sat in the ConfigMap while the running pod
+     kept the old config and kept phoning home — PolicyDropsDetected stayed red. */}}
+{{- define "observability.pyroscope.config" }}
     server:
       http_listen_port: 4040
     # No phone-home (same stance as grafana.ini analytics): without this
@@ -21,6 +19,15 @@ data:
     # Local profile store. emptyDir at /data (POC); swap for a bucket to persist.
     pyroscopedb:
       data_path: /data
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pyroscope
+  labels: { app.kubernetes.io/name: pyroscope, app.kubernetes.io/part-of: observability }
+data:
+  config.yaml: |
+    {{- include "observability.pyroscope.config" . }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -34,6 +41,10 @@ spec:
   template:
     metadata:
       labels: { app.kubernetes.io/name: pyroscope }
+      # Roll the pod whenever the config changes — Pyroscope only reads its
+      # config at startup.
+      annotations:
+        checksum/config: {{ include "observability.pyroscope.config" . | sha256sum }}
     spec:
       containers:
         - name: pyroscope
