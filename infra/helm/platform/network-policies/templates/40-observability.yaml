@@ -123,6 +123,33 @@ spec:
       toPorts:
         - ports: [{ port: "4040", protocol: TCP }]
 ---
+## Alloy — the pprof scraper (ADR-0025). Its egress to live pods is already
+## covered by the baseline's intra-namespace rule; this adds the same reachability
+## by CIDR so a target that was deleted between two service-discovery refreshes
+## does not read as `world` and get denied.
+##
+## Same root cause as the temporal stale-member allow (20-temporal.yaml), but a
+## much shorter window: Alloy re-resolves its targets within a minute or two, so
+## these drops never sustain the 10m PolicyDropsDetected needs. They do, however,
+## land on the overview dashboard's drop tile — which is scoped to POLICY_DENIED
+## and reddens above 0.01/s — after every rollout, and a tile that flickers red
+## during routine deploys is a tile people learn to ignore.
+##
+## Scoped to the admin port only: that is the pprof/metrics endpoint services
+## expose (values.yaml server.adminPort), and it is the only port Alloy scrapes.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: alloy
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: alloy
+  egress:
+    - toCIDR: [{{ .Values.podCIDR | quote }}]
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]
+---
 ## Grafana — the ops UI, reached only through the edge gateway (3000).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
