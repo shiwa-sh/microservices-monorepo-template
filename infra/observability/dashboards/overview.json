@@ -169,13 +169,18 @@
     {
       "type": "stat",
       "title": "Policy drops/s",
-      "description": "NetworkPolicy denials (hubble_drop_total). Non-zero usually means a policy is blocking a flow someone expected to work — click through for history by reason and flow.",
+      "description": "NetworkPolicy denials (hubble_drop_total, reason=POLICY_DENIED). Non-zero means a policy is blocking a flow someone expected to work — click through for history by reason and flow. Scoped to POLICY_DENIED on purpose: unfiltered, this tile also counts UNSUPPORTED_L3_PROTOCOL, which on an IPv4-only dataplane is constant benign background (see the reason breakdown on the linked dashboard) and pinned the tile red permanently.",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
       "links": [
         { "title": "Network: policy denials", "url": "/d/hubble-drops/network-policy-denials" }
       ],
-      "targets": [{ "refId": "A", "expr": "sum(rate(hubble_drop_total[5m])) or vector(0)" }],
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(hubble_drop_total{reason=\"POLICY_DENIED\"}[5m])) or vector(0)"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
