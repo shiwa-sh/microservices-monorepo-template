@@ -40,6 +40,12 @@ opentelemetry-collector:
       - apiGroups: [""]
         resources: ["nodes/stats", "nodes/proxy"]
         verbs: ["get", "list", "watch"]
+      # PVC/PV reads for the kubeletstats `volume` metric group's k8s_api_config,
+      # which turns per-volume series keyed by the in-pod name ("data", shared by
+      # every StatefulSet) into series keyed by the actual claim.
+      - apiGroups: [""]
+        resources: ["persistentvolumeclaims", "persistentvolumes"]
+        verbs: ["get", "list", "watch"]
   # Browser beacons reach the collector through a ClusterIP Service (Traefik →
   # otel-collector:8027). Services still emit to localhost:4317, not this Service.
   # In daemonset mode the chart omits the Service unless explicitly enabled.
@@ -85,7 +91,18 @@ opentelemetry-collector:
         auth_type: serviceAccount
         endpoint: "https://${env:K8S_NODE_IP}:10250"
         insecure_skip_verify: true
-        metric_groups: [pod, container, node]
+        # `volume` is the one that protects the data tier. Postgres, Loki, Tempo,
+        # Prometheus and MinIO all write to PVCs, and a full PVC does not evict a
+        # pod or fail a probe — Postgres simply starts refusing writes. Nothing
+        # else in this stack reports PVC free space: kubelet knows it, and this is
+        # the only receiver that asks.
+        metric_groups: [pod, container, node, volume]
+        # Resolve volumes to their PersistentVolumeClaim / PV names. Without this
+        # the volume series are keyed by the in-pod volume name ("data"), which is
+        # the same string on every StatefulSet and therefore useless for alerting
+        # on a specific claim. Needs the PVC/PV read grants in clusterRole.rules.
+        k8s_api_config:
+          auth_type: serviceAccount
         # Usage-vs-limit ratios (off by default). Computed from the pod spec the
         # receiver reads via the kubelet's /pods endpoint (nodes/proxy, granted
         # above). Pod-level limit_utilization is only emitted when EVERY

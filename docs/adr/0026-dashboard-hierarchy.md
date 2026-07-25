@@ -43,11 +43,23 @@ Dashboards form a three-level funnel; each level answers one question and links 
 
 - **Overview is the home dashboard** (`default_home_dashboard_path` in the
   observability values). Its contract: *every panel either turns red or links down a
-  level.* Content: firing Prometheus alerts (count + table, from `ALERTS`),
-  cluster-wide golden signals (total req/s, 5xx %, p95), per-service SLO table
-  (same expressions as the Service detail SLO tiles, rows linking to it), and
-  one-line platform-dependency stats (Postgres, Temporal, policy drops) linking to
-  their L3 dashboards. No deep-dive timeseries — those live one click down.
+  level.* Content, in row order: **cluster capacity** (node CPU / memory / disk
+  free, CPU and memory requests committed, pod slots used), firing Prometheus
+  alerts (count + table, from `ALERTS`), cluster-wide golden signals (total req/s,
+  5xx %, p95), per-service SLO table (same expressions as the Service detail SLO
+  tiles, rows linking to it), and one-line platform-dependency stats (Postgres,
+  Temporal, policy drops) linking to their L3 dashboards. No deep-dive timeseries —
+  those live one click down.
+- **Capacity sits first, above the alert count**, which is the one deliberate
+  departure from "verdict before everything". It earns the position by being the
+  only row that is *leading* rather than reporting: running out of disk, memory or
+  schedulable capacity is a thing you can still act on beforehand, whereas a firing
+  alert is already the incident. It also answers a question the rest of the
+  dashboard structurally cannot — every other panel is per-service or
+  per-dependency, so a cluster-wide ceiling has no other home. Both ceilings are
+  shown because they are different failures: requests-committed predicts "the
+  scheduler refuses the next pod", real usage predicts "the kernel kills a
+  container", and either can happen while the other looks healthy.
 - **Applications stays the workload directory** one click below Overview:
   kubeletstats-driven so idle and non-HTTP pods appear, which the SLO table on
   Overview (HTTP-traffic-driven) deliberately does not guarantee.

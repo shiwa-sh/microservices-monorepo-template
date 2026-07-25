@@ -4,12 +4,20 @@
   "schemaVersion": 39,
   "tags": ["overview", "landing", "slo"],
   "description": "L1 landing page (ADR-0026): answers 'is anything wrong right now, and where?' and nothing else. Every panel either turns red or links down a level — firing alerts, cluster-wide golden signals, per-service SLO status (linking to Service detail), and one-line health for the platform dependencies (linking to Platform components / Network: policy denials). Deep-dive timeseries live one click down; if a panel here cannot demand action, it does not belong here. The Applications dashboard remains the full workload directory (every pod, incl. idle ones).",
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "panels": [
     {
       "type": "row",
       "title": "Is anything wrong?",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "panels": []
     },
     {
@@ -17,7 +25,12 @@
       "title": "Firing alerts",
       "description": "Count of Prometheus alerts currently firing (alerts-as-code, infra/observability/alerts). Anything non-zero: see the table below.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
@@ -32,7 +45,16 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
           }
         },
         "overrides": []
@@ -40,7 +62,9 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -48,7 +72,12 @@
       "title": "Total req/s",
       "description": "Cluster-wide HTTP request rate across all instrumented services.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
@@ -59,14 +88,19 @@
         "defaults": {
           "unit": "reqps",
           "decimals": 1,
-          "color": { "mode": "fixed", "fixedColor": "text" }
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
         },
         "overrides": []
       },
       "options": {
         "colorMode": "none",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -74,7 +108,12 @@
       "title": "Error rate (5xx)",
       "description": "Cluster-wide share of HTTP responses that are 5xx.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
@@ -88,9 +127,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         },
@@ -99,7 +147,9 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -107,7 +157,12 @@
       "title": "p95 latency",
       "description": "Cluster-wide HTTP p95 across all instrumented services.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
@@ -121,9 +176,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.5 },
-              { "color": "red", "value": 2 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
             ]
           }
         },
@@ -132,7 +196,9 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -140,7 +206,12 @@
       "title": "Pods not ready",
       "description": "Pods that are not Running and not Succeeded (Pending / Failed / Unknown), cluster-wide.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
@@ -155,7 +226,16 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
           }
         },
         "overrides": []
@@ -163,7 +243,9 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -171,9 +253,17 @@
       "title": "Policy drops/s",
       "description": "NetworkPolicy denials (hubble_drop_total, reason=POLICY_DENIED). Non-zero means a policy is blocking a flow someone expected to work — click through for history by reason and flow. Scoped to POLICY_DENIED on purpose: unfiltered, this tile also counts UNSUPPORTED_L3_PROTOCOL, which on an IPv4-only dataplane is constant benign background (see the reason breakdown on the linked dashboard) and pinned the tile red permanently.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 6
+      },
       "links": [
-        { "title": "Network: policy denials", "url": "/d/hubble-drops/network-policy-denials" }
+        {
+          "title": "Network: policy denials",
+          "url": "/d/hubble-drops/network-policy-denials"
+        }
       ],
       "targets": [
         {
@@ -187,7 +277,16 @@
           "decimals": 2,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.01 }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
+            ]
           }
         },
         "overrides": []
@@ -195,7 +294,9 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -203,7 +304,12 @@
       "title": "Firing alerts — what and where",
       "description": "One row per firing Prometheus alert. severity=page means act now; severity=ticket means file and fix in hours. Rules live in infra/observability/alerts/.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
       "targets": [
         {
           "refId": "A",
@@ -217,7 +323,12 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Value": true, "__name__": true, "alertstate": true },
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "alertstate": true
+            },
             "indexByName": {
               "alertname": 0,
               "severity": 1,
@@ -233,17 +344,28 @@
           }
         }
       ],
-      "options": { "showHeader": true },
+      "options": {
+        "showHeader": true
+      },
       "fieldConfig": {
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Severity" },
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
             "properties": [
-              { "id": "custom.width", "value": 110 },
+              {
+                "id": "custom.width",
+                "value": 110
+              },
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background", "mode": "basic" }
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
               },
               {
                 "id": "mappings",
@@ -251,8 +373,14 @@
                   {
                     "type": "value",
                     "options": {
-                      "page": { "color": "red", "index": 0 },
-                      "ticket": { "color": "yellow", "index": 1 }
+                      "page": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "ticket": {
+                        "color": "yellow",
+                        "index": 1
+                      }
                     }
                   }
                 ]
@@ -265,7 +393,12 @@
     {
       "type": "row",
       "title": "Services — SLO status",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
       "panels": []
     },
     {
@@ -273,8 +406,18 @@
       "title": "HTTP services — click a name to open its detail page",
       "description": "SLO status per HTTP-serving service over the selected time range, same expressions as the Service detail SLO tiles (99.9% availability target). Only services with recent HTTP traffic appear here — the full workload directory (incl. idle and non-HTTP pods) is the Applications dashboard.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 12 },
-      "links": [{ "title": "Applications — all workloads", "url": "/d/applications/applications" }],
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "links": [
+        {
+          "title": "Applications — all workloads",
+          "url": "/d/applications/applications"
+        }
+      ],
       "targets": [
         {
           "refId": "A",
@@ -313,7 +456,13 @@
         }
       ],
       "transformations": [
-        { "id": "joinByField", "options": { "byField": "service_name", "mode": "outer" } },
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "service_name",
+            "mode": "outer"
+          }
+        },
         {
           "id": "organize",
           "options": {
@@ -346,13 +495,21 @@
       ],
       "options": {
         "showHeader": true,
-        "sortBy": [{ "displayName": "Error budget left (99.9%)", "desc": false }]
+        "sortBy": [
+          {
+            "displayName": "Error budget left (99.9%)",
+            "desc": false
+          }
+        ]
       },
       "fieldConfig": {
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Service" },
+            "matcher": {
+              "id": "byName",
+              "options": "Service"
+            },
             "properties": [
               {
                 "id": "links",
@@ -366,60 +523,138 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Availability" },
+            "matcher": {
+              "id": "byName",
+              "options": "Availability"
+            },
             "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "decimals", "value": 3 },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background", "mode": "basic" }
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
               },
               {
                 "id": "thresholds",
                 "value": {
                   "mode": "absolute",
                   "steps": [
-                    { "color": "red", "value": null },
-                    { "color": "yellow", "value": 99 },
-                    { "color": "green", "value": 99.9 }
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 99
+                    },
+                    {
+                      "color": "green",
+                      "value": 99.9
+                    }
                   ]
                 }
               }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Error budget left (99.9%)" },
+            "matcher": {
+              "id": "byName",
+              "options": "Error budget left (99.9%)"
+            },
             "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "decimals", "value": 1 },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
               {
                 "id": "custom.cellOptions",
-                "value": { "type": "color-background", "mode": "basic" }
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
               },
               {
                 "id": "thresholds",
                 "value": {
                   "mode": "absolute",
                   "steps": [
-                    { "color": "red", "value": null },
-                    { "color": "yellow", "value": 0 },
-                    { "color": "green", "value": 50 }
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 50
+                    }
                   ]
                 }
               }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Req/s" },
-            "properties": [{ "id": "unit", "value": "reqps" }, { "id": "decimals", "value": 2 }]
+            "matcher": {
+              "id": "byName",
+              "options": "Req/s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Errors/s" },
-            "properties": [{ "id": "unit", "value": "reqps" }, { "id": "decimals", "value": 3 }]
+            "matcher": {
+              "id": "byName",
+              "options": "Errors/s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "p95 latency" },
-            "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 3 }]
+            "matcher": {
+              "id": "byName",
+              "options": "p95 latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
           }
         ]
       }
@@ -427,7 +662,12 @@
     {
       "type": "row",
       "title": "Platform dependencies",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "panels": []
     },
     {
@@ -435,9 +675,17 @@
       "title": "Postgres txn/s",
       "description": "Commits + rollbacks across all databases (CNPG exporter). Click through for per-database breakdowns.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 22 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 27
+      },
       "links": [
-        { "title": "Platform components", "url": "/d/platform-components/platform-components" }
+        {
+          "title": "Platform components",
+          "url": "/d/platform-components/platform-components"
+        }
       ],
       "targets": [
         {
@@ -449,7 +697,10 @@
         "defaults": {
           "unit": "ops",
           "decimals": 1,
-          "color": { "mode": "fixed", "fixedColor": "text" },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
           "noValue": "down?"
         },
         "overrides": []
@@ -457,7 +708,9 @@
       "options": {
         "colorMode": "none",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -465,16 +718,32 @@
       "title": "Postgres backends",
       "description": "Open connections across all databases. Sudden jumps usually mean a connection-pool leak.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 22 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 27
+      },
       "links": [
-        { "title": "Platform components", "url": "/d/platform-components/platform-components" }
+        {
+          "title": "Platform components",
+          "url": "/d/platform-components/platform-components"
+        }
       ],
-      "targets": [{ "refId": "A", "expr": "sum(cnpg_backends_total{service_name=\"postgres\"})" }],
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(cnpg_backends_total{service_name=\"postgres\"})"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "decimals": 0,
-          "color": { "mode": "fixed", "fixedColor": "text" },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
           "noValue": "down?"
         },
         "overrides": []
@@ -482,7 +751,9 @@
       "options": {
         "colorMode": "none",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -490,9 +761,17 @@
       "title": "Temporal frontend p95",
       "description": "gRPC latency p95 at the Temporal frontend, excluding long-poll operations (which block ~60s by design). Click through for role/persistence breakdowns.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 22 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 27
+      },
       "links": [
-        { "title": "Platform components", "url": "/d/platform-components/platform-components" }
+        {
+          "title": "Platform components",
+          "url": "/d/platform-components/platform-components"
+        }
       ],
       "targets": [
         {
@@ -508,9 +787,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.5 },
-              { "color": "red", "value": 2 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
             ]
           }
         },
@@ -519,7 +807,9 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
@@ -527,9 +817,17 @@
       "title": "Temporal schedule→start p95",
       "description": "Task schedule-to-start p95 — the queue-backlog signal. Rising means workers cannot keep up.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 22 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 27
+      },
       "links": [
-        { "title": "Platform components", "url": "/d/platform-components/platform-components" }
+        {
+          "title": "Platform components",
+          "url": "/d/platform-components/platform-components"
+        }
       ],
       "targets": [
         {
@@ -545,9 +843,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 10 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
             ]
           }
         },
@@ -556,7 +863,325 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Capacity — is the cluster running out?",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Node CPU used",
+      "description": "Real CPU saturation across nodes. Read together with 'CPU requests committed': this can sit near zero while the scheduler is already full.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(k8s_node_cpu_usage) / sum(k8s_node_allocatable_cpu)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Node memory used",
+      "description": "Real memory saturation. Above ~90% the next allocation spike OOM-kills a container that is over its request.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - sum(k8s_node_memory_available_bytes) / (sum(k8s_node_memory_available_bytes) + sum(k8s_node_memory_usage_bytes)))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Node disk free",
+      "description": "Free space on the node filesystem — the disk kubelet evicts on. This cluster pins eviction-hard at 2% so kubelet gives almost no warning of its own; treat anything under 15% as the warning. Reclaim with docker/crictl image + build-cache pruning and a registry garbage-collect.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(k8s_node_filesystem_available_bytes) / sum(k8s_node_filesystem_capacity_bytes)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 15
+              },
+              {
+                "color": "green",
+                "value": 25
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "CPU requests committed",
+      "description": "sum(container CPU requests) / node allocatable. This — not usage — is what the scheduler admits pods against, so it is usually what fills first and the number to size the next node from.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(k8s_container_cpu_request) / sum(k8s_node_allocatable_cpu)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Memory requests committed",
+      "description": "As CPU requests committed, for memory. Compare with 'Node memory used' — a wide gap means requests are set far above real need and the cluster is reserving hardware it never uses.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(k8s_container_memory_request_bytes) / sum(k8s_node_allocatable_memory_bytes)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pod slots used",
+      "description": "Running pods against the nodes' pod capacity (110 per node on k3s). The quietest of the three ceilings and the easiest to hit on a single-node cluster.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * count(k8s_container_ready) / sum(k8s_node_allocatable_pods)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     }
   ]

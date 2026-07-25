@@ -82,6 +82,19 @@ subjects:
       k8s_cluster:
         auth_type: serviceAccount
         collection_interval: 30s
+        # Node allocatable — the denominator for "how close is the cluster to
+        # full?". This is a DIFFERENT question from real utilisation, and it is
+        # usually the one that bites first: the scheduler admits pods against
+        # sum(requests) vs allocatable, so a cluster can refuse new pods while
+        # actual CPU sits at 5% (measured here: 1.11 cores requested against 0.55
+        # in use). kubeletstats gives the usage side; nothing was emitting the
+        # capacity side, so an overcommit alert was impossible to express.
+        #
+        # ephemeral-storage is included on purpose: it is the node filesystem the
+        # kubelet evicts on, and this cluster deliberately pins eviction-hard to
+        # 2% (scripts/cluster-ensure.sh), which means kubelet gives almost no
+        # warning of its own.
+        allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage, pods]
       # Platform-component exporters (ADR-0025 follow-up): postgres (the CNPG
       # instance manager's built-in exporter on :9187) and the Temporal server
       # roles (:9090) already publish Prometheus metrics — this scrapes what

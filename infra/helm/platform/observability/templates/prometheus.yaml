@@ -32,8 +32,29 @@
       # orders); these labels keep the folded series distinct (else the two
       # deployments' desired/available would collide on an identical labelset)
       # and give the workload-health alerts a per-deployment subject to name.
+      # k8s.volume.* : the kubeletstats `volume` metric group reports free space per
+      # volume, and the identifying attributes are resource-level — unpromoted,
+      # every volume in the cluster collapses onto one labelset (measured: 12
+      # identical series) and nothing can name which disk is filling up.
+      #
+      # k8s.persistentvolumeclaim.name and k8s.volume.type are listed but do NOT
+      # resolve on the local tier: local-path PVs are directories on the node disk,
+      # so kubelet reports every volume — configMap, secret, emptyDir and PVC alike
+      # — with the NODE filesystem's numbers and without a claim reference.
+      # Locally that makes per-volume free space a duplicate of node disk, which is
+      # why the disk alerts key off k8s_node_filesystem_* instead. On a real CSI
+      # storage class these attributes appear and the per-volume panel becomes the
+      # per-claim signal it looks like.
       promote_resource_attributes:
-        ["service.name", "service.namespace", "k8s.deployment.name", "k8s.statefulset.name"]
+        [
+          "service.name",
+          "service.namespace",
+          "k8s.deployment.name",
+          "k8s.statefulset.name",
+          "k8s.persistentvolumeclaim.name",
+          "k8s.volume.name",
+          "k8s.volume.type",
+        ]
     # OTLP pushes can land slightly out of order across collector batches.
     storage:
       tsdb:

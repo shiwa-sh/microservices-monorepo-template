@@ -18,6 +18,16 @@ metadata:
     component: worker
 spec:
   replicas: {{ .Values.worker.replicas }}
+  # Stated explicitly even though these ARE the CRD's schema defaults. ArgoCD
+  # diffs the rendered manifest against the live object and has no normalizer for
+  # custom resources the way it does for built-in kinds, so any field the API
+  # server defaults in — but the manifest omits — reads as permanent drift. The
+  # Application then sits OutOfSync forever, which matters here beyond tidiness:
+  # the platform's sync-wave gate only advances on Synced+Healthy
+  # (infra/gitops/*/appset-platform.yaml), and a tier that never reports Synced
+  # is a tier whose real drift nobody notices.
+  minReadySeconds: 0
+  progressDeadlineSeconds: 600
   workerOptions:
     connectionRef:
       name: {{ .Values.temporal.connectionRef | quote }}
@@ -63,7 +73,11 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
-            - { name: admin, containerPort: {{ .Values.server.adminPort }} }
+            # `protocol` is likewise defaulted by the API server; spelling it out
+            # keeps the WorkerDeployment manifest byte-comparable with the live
+            # object (see minReadySeconds above). Harmless on the plain
+            # Deployment, which Argo does normalize.
+            - { name: admin, containerPort: {{ .Values.server.adminPort }}, protocol: TCP }
           env:
             {{- include "service.otelEnv" . | nindent 12 }}
             - { name: TEMPORAL_WORKER_STOP_TIMEOUT, value: "{{ .Values.worker.stopTimeoutSeconds }}s" }
