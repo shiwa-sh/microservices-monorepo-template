@@ -138,6 +138,31 @@ After a `mise run perf` on a quiet machine, record in the PR that changes perfor
 
 Compare like for like: same profile, same seed size, same tier.
 
+### The Prometheus side of a baseline is not durable
+
+Prometheus's TSDB is an `emptyDir` on the local tier (the ADR-0011 POC floor), so **any
+rollout of the observability chart destroys all metric history** — `mise run
+platform:deploy -- observability` and a `cluster:delete` both wipe it, silently and
+instantly. A resource or capacity comparison that depends on querying "before" numbers out
+of Prometheus will therefore fail exactly when you redeploy to apply the change you are
+measuring.
+
+The `perf/results/*.json` summaries are files and survive, which is why they are the
+authoritative record. Copy them somewhere before a redeploy, and write the pod-level peaks
+into the PR (or the values comment) rather than assuming you can re-query them.
+
+### Interpreting a small delta
+
+At the load profile this platform serves single-digit-millisecond latencies, so a *relative*
+percentage is misleading: p95 varied between **4.40ms and 5.69ms across ~15 identical runs**
+in one sitting, a ±13% spread from noise alone. Two rules follow:
+
+- Judge a latency change by its ABSOLUTE size first. Sub-millisecond movement at 5ms is
+  noise however large the percentage looks.
+- A freshly rolled cluster is slower for the first minutes: Postgres restarts with a cold
+  buffer cache, and Loki/Tempo/the collectors re-ingest at once. Let it settle, or take two
+  samples, before believing a regression.
+
 ## Cadence
 
 | Suite | When |

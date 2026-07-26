@@ -218,7 +218,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -241,6 +241,16 @@ run = "bash scripts/lint-openapi.sh"
 # service is edge-exposed (public ⇔ has an /api route). Spec-less control-plane
 # services (authz) are exempt. Prevents the finding-D omission from recurring.
 run = "go run ./tools/lint-api-audience"
+
+[tasks."lint:resource-governance"]
+# ADR-0020 gate: renders every chart (each service separately) and checks the
+# declared resources against the guardrails in infra/helm/platform/resource-governance
+# BEFORE they reach a cluster — LimitRange floors that would REJECT a pod, containers
+# with no requests/memory limit and no namespace default, unsanctioned CPU limits, and
+# ResourceQuota headroom. Catches the admission-time, cluster-wide failures that are
+# invisible in review: a 16Mi floor here was one apply away from rejecting Cilium's
+# CNI initContainer and taking the node's networking with it.
+run = "go run ./tools/lint-resource-governance"
 
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"

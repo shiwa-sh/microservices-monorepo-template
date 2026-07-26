@@ -380,7 +380,7 @@
     {
       "type": "table",
       "title": "Cost per workload over this window — sorted by peak CPU",
-      "description": "Every workload in the cluster, ranked by what this run cost it. Rows are per DEPLOYMENT or StatefulSet, not per service: `service_name` folds all six Temporal components into one row (and orders-server + orders-worker into another), which hides the finding — under checkout load the expensive workload is temporal-history specifically, at nearly 2 cores. The `workload` label is derived in PromQL as deployment name, else statefulset name, else the folded service_name. Peak comes before mean because peak is what you size for: a container is OOM-killed at its peak, not at its mean. Deliberately NOT filtered to the services under test — the interesting answer is usually a workload nobody was testing (measured under read load, the top two rows are Oathkeeper and Traefik, not catalog: the ingress + forward-auth hop costs roughly 3x the business logic behind it). No RED columns here on purpose: http.server metrics are labelled per service and cannot join to per-deployment rows — for req/s and errors per service use Overview or Applications. This complements the Applications dashboard rather than repeating it: that one answers 'how big is each workload right now', this one answers 'what did THIS experiment cost', over the selected range.",
+      "description": "Every workload in the cluster, ranked by what this run cost it. Rows are per DEPLOYMENT or StatefulSet, not per service: `service_name` folds all six Temporal components into one row (and orders-server + orders-worker into another), which hides the finding — under checkout load the expensive workload is temporal-history specifically, at nearly 2 cores. The `workload` label is derived in PromQL as deployment name, else statefulset name, else the folded service_name. Peak comes before mean because peak is what you size for: a container is OOM-killed at its peak, not at its mean. Deliberately NOT filtered to the services under test — the interesting answer is usually a workload nobody was testing (measured under read load, the top two rows are Oathkeeper and Traefik, not catalog: the ingress + forward-auth hop costs roughly 3x the business logic behind it). No RED columns here on purpose: http.server metrics are labelled per service and cannot join to per-deployment rows — for req/s and errors per service use Overview or Applications. This complements the Applications dashboard rather than repeating it: that one answers 'how big is each workload right now', this one answers 'what did THIS experiment cost', over the selected range. IMPORTANT: this is working_set / container limit, computed here rather than read from kubeletstats' k8s_pod_memory_limit_utilization_ratio. That metric divides memory.USAGE by the limit, and usage includes reclaimable page cache — measured 2-3x overstatement across every pod (otel-cluster reported 97.9% against a real 58.0%). The OOM killer acts on the working set, so the working set is what a limit must be sized against. Only containers that declare a memory limit appear; a blank row is itself an ADR-0020 finding.",
       "datasource": "Prometheus",
       "gridPos": { "h": 11, "w": 24, "x": 0, "y": 24 },
       "options": {
@@ -496,7 +496,7 @@
           "format": "table",
           "instant": true,
           "range": false,
-          "expr": "max_over_time((max by (workload) (label_replace(label_replace(label_replace(k8s_pod_memory_limit_utilization_ratio{service_namespace=~\"$namespace\"}, \"workload\", \"$1\", \"service_name\", \"(.*)\"), \"workload\", \"$1\", \"k8s_deployment_name\", \"(.+)\"), \"workload\", \"$1\", \"k8s_statefulset_name\", \"(.+)\")))[$__range:15s])"
+          "expr": "max_over_time((max by (workload) (label_replace(label_replace(label_replace(k8s_pod_memory_working_set_bytes{service_namespace=~\"$namespace\"} / on(instance) group_left k8s_container_memory_limit_bytes, \"workload\", \"$1\", \"service_name\", \"(.*)\"), \"workload\", \"$1\", \"k8s_deployment_name\", \"(.+)\"), \"workload\", \"$1\", \"k8s_statefulset_name\", \"(.+)\")))[$__range:15s])"
         },
         {
           "refId": "E",
@@ -586,7 +586,7 @@
     {
       "type": "timeseries",
       "title": "Memory headroom against limit",
-      "description": "Fraction of each pod's memory limit in use (ADR-0020). Crossing 1.0 is an OOM kill, so this is the panel that turns a load run into a sizing decision. Blank for pods whose containers do not all declare a limit — which is itself an ADR-0020 finding.",
+      "description": "Fraction of each container's memory limit actually in use (ADR-0020). Crossing 1.0 is an OOM kill, so this is the panel that turns a load run into a sizing decision. IMPORTANT: this is working_set / container limit, computed here rather than read from kubeletstats' k8s_pod_memory_limit_utilization_ratio. That metric divides memory.USAGE by the limit, and usage includes reclaimable page cache — measured 2-3x overstatement across every pod (otel-cluster reported 97.9% against a real 58.0%). The OOM killer acts on the working set, so the working set is what a limit must be sized against. Only containers that declare a memory limit appear; a blank row is itself an ADR-0020 finding.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 35 },
       "fieldConfig": {
@@ -616,8 +616,8 @@
       "targets": [
         {
           "refId": "A",
-          "legendFormat": "{{service_name}}",
-          "expr": "max by (service_name) (k8s_pod_memory_limit_utilization_ratio{service_namespace=\"platform\",service_name=~\"$service\"})"
+          "legendFormat": "{{workload}}",
+          "expr": "max by (workload) (label_replace(label_replace(label_replace(k8s_pod_memory_working_set_bytes{service_namespace=\"platform\",service_name=~\"$service\"} / on(instance) group_left k8s_container_memory_limit_bytes, \"workload\", \"$1\", \"service_name\", \"(.*)\"), \"workload\", \"$1\", \"k8s_deployment_name\", \"(.+)\"), \"workload\", \"$1\", \"k8s_statefulset_name\", \"(.+)\"))"
         }
       ]
     },
