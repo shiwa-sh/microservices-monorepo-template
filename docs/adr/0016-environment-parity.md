@@ -83,15 +83,17 @@ they are not managed Kubernetes, so there is no control-plane bill to cut by mov
 
 Two independent axes, resolved by two independent mechanisms:
 
-- **What platform components are up** — a small set of named **profiles**, each a thin overlay on the `local` values
-  that toggles component `enabled` flags. Because every component is the same chart gated by a value, a profile is a
-  selection, not a copy:
+- **What platform components are up** — a small set of named **profiles**, each naming a subset of the platform's
+  components. A profile is a **selection, not a copy**: every component it brings up is the same chart with the same
+  `infra/gitops/platform/local/values.yaml` overlay the full tier uses, and the shared stand-in manifest
+  (`infra/local/deps.yaml`) is sliced by the `local.platform/component` label rather than forked. So there is exactly one
+  local values file, and a profile cannot drift from the tier above it:
 
   | Profile | Components up | Typical user |
   |---------|---------------|--------------|
   | `min` | Postgres only | backend, no workflows |
   | `backend` | + Temporal + OpenFGA | backend with workflows |
-  | `edge` | Traefik + Kratos + Oathkeeper + Postgres, application data served by the API mock ([ADR-0029](0029-api-mocking-and-ui-dev-loop.md)) | frontend building authenticated UI |
+  | `edge` (`cluster:edge-profile`) | Traefik + cert-manager + Kratos + Oathkeeper + Postgres, application data served by the API mock ([ADR-0029](0029-api-mocking-and-ui-dev-loop.md)) | frontend building authenticated UI |
   | `obs` | observability + Faro/Grafana | frontend RUM / dashboards |
   | `full` | everything | operator end-to-end |
 
@@ -106,7 +108,9 @@ Two independent axes, resolved by two independent mechanisms:
   rest are stand-ins or absent. When a service must run *in* the cluster (edge/auth/e2e), `service:deploy -- <svc>` does a
   one-shot build-import-upgrade ([ADR-0003](0003-cluster-topology.md)). This axis never leaks into platform composition.
 
-Profiles stay a handful of composable toggles, not per-engineer snowflakes.
+Profiles stay a handful of composable selections, not per-engineer snowflakes. ArgoCD is the engine for `full` only;
+the lighter profiles are applied imperatively for the same reason the inner loop is (see below), which is also why
+`edge` runs the ephemeral Postgres stand-in rather than CNPG.
 
 ### GitOps locally: inner loop is native, full tier is ArgoCD
 
