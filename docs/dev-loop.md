@@ -280,6 +280,10 @@ frontend:
 | `EDGE_ORIGIN=https://dev.localtest.me:8443` | The environment's edge origin. **Server components** fetch through it (`src/lib/server-fetch/server.ts`) — it is the edge, not a service: the `/api/<resource>` IngressRoutes match on `Host(dev.localtest.me)` and Oathkeeper injects identity there. `next.config.mjs` also derives the **server-action** CSRF allowlist from it. Unset, `/panel/products` throws at the first fetch. |
 | `NODE_TLS_REJECT_UNAUTHORIZED=0`   | The local wildcard cert is signed by the SelfSigned `ClusterIssuer` — a self-signed leaf, not a CA — so Node cannot be taught to trust it via `NODE_EXTRA_CA_CERTS`. Local only; deployed envs have Let's Encrypt certs and set neither var.                                                                     |
 
+Starting the dev server another way — an IDE run config, a debugger — needs the
+same env: copy `apps/frontend/.env.example` to `.env.local`, which Next loads
+before evaluating `next.config.mjs`.
+
 Browser-side calls need no such variable: `client.ts` uses a relative `/api`, which
 is the same origin by construction ([ADR-0017](adr/0017-url-and-domain-structure.md)).
 A server-side `fetch` has no document to resolve a relative URL against, so the
