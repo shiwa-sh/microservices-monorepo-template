@@ -337,8 +337,21 @@ depends = ["test"]
 depends = ["build"]
 
 [tasks."ci:gen"]
-# Drift check: fail if regeneration changes anything.
-run = "mise run gen && git diff --exit-code"
+# Drift check: regenerate AND reformat, then fail if anything changed.
+#
+# Formatting belongs here rather than in `lint` because the linters are analysers
+# (golangci-lint run, biome lint, rumdl check, shellcheck) and none of them rewrite
+# code — a correctly-analysed-but-misformatted file passes `mise run lint` cleanly.
+# Only the formatters can tell, and they tell by rewriting, which is exactly the
+# shape this drift check already handles for generated code.
+#
+# The single definition behind ci-drift.yml and the lefthook gen-drift hook: run it
+# locally to reproduce that CI job exactly.
+run = """
+mise run gen
+mise run format
+git diff --exit-code
+"""
 
 # ── Deploy to cluster (working-tree overrides) ────────────────────────────────
 [tasks."service:deploy"]

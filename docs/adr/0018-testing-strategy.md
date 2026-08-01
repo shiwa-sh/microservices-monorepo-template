@@ -175,7 +175,9 @@ measurable trigger: adopt when built-in baseline diffing no longer scales.
 - Preflight readiness checks (Go/shell) run before the browser suite as failure localisers; they are not acceptance tests.
 - E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e ([ADR-0014](0014-frontend.md)) — including the development API mock and the `edge` profile it runs in ([ADR-0029](0029-api-mocking-and-ui-dev-loop.md)), whose only consumer is a human looking at a browser.
 - Service integration tests run against `cluster:lite` deps and drive services through their generated SDK clients ([ADR-0008](0008-api-contracts.md)); they do not import another service's code.
-- The full e2e + visual suite runs nightly and pre-release. The smoke suite runs per-PR only when labeled. Neither is part of `ci:affected`.
+- The full e2e + visual suite runs nightly and pre-release; the nightly is activity-gated, so an unchanged repo is
+  re-tested monthly rather than every night. The smoke suite runs per-PR only when labeled. Neither is part of
+  `ci:affected`.
 - Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-vs-Figma diffing is not a CI gate.
 - E2e provisions a committed deterministic test identity (AAL1 user + AAL2 operator); no test relies on hand-created state.
 - Within testing, Node is permitted solely as the Playwright e2e/visual runner ([ADR-0001](0001-language-and-runtime.md)); it appears in no service, app/library code, or image built from our own source. It is pinned in `e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain.

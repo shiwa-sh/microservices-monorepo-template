@@ -3,7 +3,8 @@
 # different question: not "is it correct" but "what does it cost and where does it
 # break". These jobs are NOT part of ci:affected and never implicitly gate a merge.
 #
-#   load  — nightly + pre-release. The baseline number, tracked over time.
+#   load  — nightly + pre-release, activity-gated (_nightly-gate.yml): the baseline
+#           number, tracked over time, but not re-measured on an idle repo.
 #   smoke — per-PR, opt-in via the `perf-smoke` label. ~30s of actual load; it
 #           proves the scenarios still run against the current API, nothing more.
 #
@@ -12,8 +13,10 @@
 # ADR-0011 service SLOs, and a CI runner is a noisy place to measure. Read a red
 # nightly next to the previous night's, not in isolation.
 #
-# NOTE: cluster:full is heavy (~16GB RAM), and here it shares the runner with the
-# load generator. Absolute numbers from CI are not capacity figures (ADR-0027);
+# NOTE: cluster:full is heavy (~16GB RAM) — the whole of a standard GitHub-hosted
+# runner — and here it shares that runner with the load generator, so k6 and the
+# platform contend for the same cores. Absolute numbers from CI are not capacity
+# figures (ADR-0027);
 # they are a series to diff against yesterday's.
 name: perf
 
@@ -39,21 +42,26 @@ permissions:
   contents: read
 
 jobs:
+  # Same activity gate as the e2e nightly: no commits, no bring-up. A perf number
+  # for an unchanged commit is yesterday's number plus runner noise.
+  gate:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/_nightly-gate.yml
+
   load:
+    needs: gate
     if: >-
+      needs.gate.outputs.run == 'true' && (
       github.event_name == 'schedule' ||
       github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-        with:
-          install: true
-          cache: true
+      - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       - name: Bring up cluster:full
@@ -87,10 +95,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-        with:
-          install: true
-          cache: true
+      - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       - name: Bring up cluster:full

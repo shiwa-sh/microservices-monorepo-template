@@ -186,7 +186,7 @@ machine sustains.* Until then the floor is the binary, per the budget rule in
 | Suite | Trigger | Purpose |
 |-------|---------|---------|
 | `perf:smoke` | per-PR, label-gated (alongside `e2e:smoke`) | the scenarios still run; ~30s |
-| `perf` (`load`) | nightly + pre-release | the baseline number, tracked over time |
+| `perf` (`load`) | nightly (activity-gated) + pre-release | the baseline number, tracked over time |
 | `perf:stress` | on demand, before a capacity decision | find the knee; produce the ADR-0020 sizing/HPA signal |
 
 Thresholds live in the scenario files and are **budgets, not SLOs** — deliberately looser
