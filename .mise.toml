@@ -101,11 +101,27 @@ run = "kubectl --context k3d-${CLUSTER:-platform} apply -f infra/local/deps.yaml
 run = "bash scripts/cluster-full.sh"
 
 [tasks."cluster:edge"]
-# Re-apply the host-only frontend edge glue (catch-all `/` → host `next dev` :3000,
-# Kratos public API, and the docker-bridge EndpointSlice). Not GitOps-managed, so a
-# stop/start or reboot loses it → Traefik 404 at /. cluster:ensure/heal/full run this
-# automatically; invoke it directly to re-stamp without a full restart.
+# The `edge` profile (ADR-0016, ADR-0029): the tier for building authenticated UI.
+# Traefik + cert-manager + Kratos + Oathkeeper + Postgres are REAL and the frontend
+# runs natively on :3000, with its production auth path and no development-only auth
+# code. Temporal, OpenFGA, CNPG, observability and ArgoCD are absent.
+#
+# INCOMPLETE: the API mock that replaces the application services on /api is not
+# wired up yet, so nothing serves /api on this tier. Logging in works end to end;
+# any route that fetches application data does not. See docs/dev-loop.md.
 run = "bash scripts/cluster-edge.sh"
+
+[tasks."cluster:edge-glue"]
+# Re-stamp the host-only frontend edge glue: the last-resort catch-all `/` → host
+# `next dev` :3000 and the docker-bridge EndpointSlice behind it. Per-machine state
+# that cannot be GitOps-managed (the bridge IP is discovered at runtime and moves
+# across restarts), so a stop/start or reboot loses it → Traefik 404 at /.
+#
+# Internal plumbing, not a tier: cluster:ensure (start), cluster:heal (reboot) and
+# cluster:edge all run it automatically. Hidden for the same reason cluster:cilium
+# is — invoke it by hand only to self-heal a 404/502 at / without a full restart.
+hide = true
+run = "bash scripts/cluster-edge-glue.sh"
 
 [tasks."cluster:stop"]
 # Stops the cluster but KEEPS it (image cache + volumes survive) so the next
@@ -177,6 +193,11 @@ run = "bun run next dev -H 0.0.0.0"
 
 [tasks."db:migrate"]
 run = "bash scripts/db-migrate.sh"
+
+[tasks."auth:seed"]
+# Seed the committed deterministic test identities (ADR-0018) into a running Kratos.
+# cluster:edge does this for you; run it alone after a Kratos reinstall.
+run = "bash scripts/identity-seed.sh"
 
 # ── Code generation ───────────────────────────────────────────────────────────
 [tasks.gen]
@@ -292,8 +313,10 @@ run = "bash scripts/lint-log-vocab.sh"
 run = "bash scripts/lint-node-scope.sh"
 
 [tasks."lint:auth-inline"]
-# Auth config single-source guard (ADR-0009/0010): fails if kratos/oathkeeper
-# config is re-inlined into the Ory chart values instead of living in infra/auth/*.
+# Auth single-source guard (ADR-0009/0010/0029): fails if kratos/oathkeeper config
+# is re-inlined into the Ory chart values instead of living in infra/auth/*, or if
+# the frontend grows development-only auth code (a session bypass in proxy.ts or
+# src/lib/auth/ — local UI work logs in for real via cluster:edge).
 run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]

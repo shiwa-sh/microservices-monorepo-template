@@ -251,7 +251,7 @@ proxy.
 - `infra/local/mock.yaml` — the mock Deployment, Service, and the `/api` IngressRoute, carrying the
   real edge middleware chain plus the `/api` `stripPrefix` a real service route also applies. The
   spec ConfigMap is stamped from the committed projection on every run rather than baked in.
-- The `edge` profile: `cluster:edge-profile`, which brings up the components above against the one
+- The `edge` profile: `cluster:edge`, which brings up the components above against the one
   `infra/gitops/platform/local/values.yaml` overlay and the label-selected Postgres slice of
   `infra/local/deps.yaml`; plus `mock:start` / `mock:stop` / `mock:logs` for the standalone mode.
 - `scripts/identity-seed.sh` (`auth:seed`) — the committed test identities from

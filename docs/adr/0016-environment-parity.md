@@ -93,7 +93,7 @@ Two independent axes, resolved by two independent mechanisms:
   |---------|---------------|--------------|
   | `min` | Postgres only | backend, no workflows |
   | `backend` | + Temporal + OpenFGA | backend with workflows |
-  | `edge` (`cluster:edge-profile`) | Traefik + cert-manager + Kratos + Oathkeeper + Postgres, application data served by the API mock ([ADR-0029](0029-api-mocking-and-ui-dev-loop.md)) | frontend building authenticated UI |
+  | `edge` (`cluster:edge`) | Traefik + cert-manager + Kratos + Oathkeeper + Postgres, application data served by the API mock ([ADR-0029](0029-api-mocking-and-ui-dev-loop.md)) | frontend building authenticated UI |
   | `obs` | observability + Faro/Grafana | frontend RUM / dashboards |
   | `full` | everything | operator end-to-end |
 

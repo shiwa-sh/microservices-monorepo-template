@@ -59,6 +59,44 @@ mise run service:deploy -- catalog       # build → k3d image import → helm u
 mise run service:undeploy -- catalog     # helm uninstall
 ```
 
+## Building UI: the `edge` profile
+
+The inner loop runs **one** service natively, and a frontend is nobody's single
+client — one panel screen fans out across `/products`, `/orders`, `/orgs`, and
+`/charges`. The full platform serves them for about 7 GiB, none of which renders a
+table. [ADR-0029](adr/0029-api-mocking-and-ui-dev-loop.md) fills that gap by
+inverting the usual split: **the edge and the identity stack stay real, the
+application services are replaced by their own OpenAPI contract.**
+
+```sh
+mise run cluster:edge   # Traefik + cert-manager + Kratos + Oathkeeper + Postgres
+cp apps/frontend/.env.example apps/frontend/.env.local
+bun run --cwd apps/frontend dev                          # host :3000, reached through the edge
+```
+
+Then open <https://dev.localtest.me:8443/> and **log in for real** — the task seeds
+the committed test identities from `e2e/fixtures/identities.ts` (the same ones the
+e2e suite uses; `mise run auth:seed` re-seeds alone), and a Kratos session lasts 7
+days, so this is a weekly event, not a per-run one. What you get is the production
+authentication path: real cookie, real CSRF, real expiry, real `proxy.ts` redirect on
+a gated route, and every `/api` call decided by the same Oathkeeper access rules
+production runs. The frontend carries **no** development-only auth code — no bypass, no
+fake session, no `NODE_ENV` branch in the session path — and `mise run
+lint:auth-inline` fails the build if one appears.
+
+> **The API mock is not wired up yet.** The auth half of this tier is complete and
+> usable today; the half that serves application data from the committed
+> `internal.json` projection is not, so any route that fetches data will fail until
+> it lands. Until then, real data means `cluster:full`.
+
+**What this tier cannot tell you.** It is stateless: a create is not reflected by
+the next read, a `WorkflowHandle`'s `result_url` polls nothing, and no authorization
+decision is real (the mock returns the same rows to everyone — for building a table,
+ownership-correct rows teach you nothing). Persistence, Temporal behaviour, and
+authorization are asserted against real services on `cluster:full`, which is also
+where the e2e suite runs: the mock is forbidden in `mise run test`, `ci:affected`,
+and the e2e and visual suites ([ADR-0018](adr/0018-testing-strategy.md)).
+
 ## Teardown
 
 ```sh
@@ -94,8 +132,10 @@ The browser test is the acceptance gauge — a rendered, authenticated dashboard
 Hubble UI, Temporal) is the proof the whole stack underneath is wired. A Go/shell **preflight
 readiness** check runs first so a red e2e reads "infra down" vs "app broken". The suite ships a
 committed deterministic test identity (an AAL1 user + an AAL2 operator); there is nothing to seed
-by hand. Playwright's runner is Node — the **one** sanctioned Node tool in the repo
-([ADR-0001](adr/0001-language-and-runtime.md)), scoped to `e2e/` and CI; everything else stays on Bun.
+by hand. Playwright's runner is Node — one of the three sanctioned Node exceptions
+([ADR-0001](adr/0001-language-and-runtime.md)), all of them vendored third-party
+tools rather than code we author: this runner (scoped to `e2e/` and CI), the Lowdefy
+console image, and the API mock container. Everything we write stays on Bun.
 
 ## Load & performance tests
 
@@ -264,10 +304,13 @@ served by a host-run `next dev`
 (run `mise run dev:frontend` on the host — the dev server is not in-cluster), wired
 through `infra/local/edge-auth.yaml`.
 
-**There is no seeded user** — Kratos starts with an empty identity store. Create
-one at <https://dev.localtest.me:8443/auth/register> with any email and a password
+Kratos starts with an empty identity store. Either seed the committed test
+identities — `mise run auth:seed`, the same pair the e2e suite and the `edge`
+profile use (`e2e/fixtures/identities.ts`) — or register your own at
+<https://dev.localtest.me:8443/auth/register> with any email and a password
 that clears the policy (≥ 12 chars and not similar to the email, so `password123`
-is rejected); then log in with it. Email
+is rejected). Only self-service registration fires the `after` web_hook that creates
+a personal org; admin-seeded identities skip it. Email
 verification is configured but the local SMTP sink isn't wired up, so verification
 mail isn't delivered — login doesn't require it.
 
