@@ -193,7 +193,7 @@ Parity is at the manifest, chart, and API level. Topology differences are explic
 | GitOps         | inner: n/a / full: ArgoCD | ArgoCD                  | full tier: yes |
 | Sizing         | tiny            | sized for traffic                 | no            |
 
-`mise run cluster:lite` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then **native
+`mise run cluster:base` creates the k3d cluster and the local floor; a service's own tasks add what it declares, and the inner loop is then **native
 execution** — you run the service you are changing directly on the host (any editor/IDE, or `go run`) against those
 dependencies — see *Local development* below. There is no docker-compose path: k3d is the single local runtime, keeping
 local and prod on the same manifests.
@@ -208,7 +208,7 @@ the persistent dev/staging/prod clusters use ([ADR-0004](0004-gitops.md)) — fo
 
 | Step          | Command                                    | Brings up / does                                                                                     |
 |---------------|--------------------------------------------|------------------------------------------------------------------------------------------------------|
-| Cluster+deps  | `mise run cluster:lite`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory OpenFGA (`infra/local/deps.yaml`) |
+| Cluster+floor | `mise run cluster:base`                       | k3d cluster + a CNI + Traefik, cert-manager, Postgres, Kratos, Oathkeeper. Temporal and in-memory OpenFGA are opt-in `dep:*` components (`infra/local/deps.yaml`) |
 | Port-forwards | `mise run dev:forward`                      | forwards the deps to localhost (Postgres 5432, Temporal 7233/8233, OpenFGA 8080); leave running     |
 | Inner loop    | run the service natively                    | set the env contract and run it in any editor/IDE or `go run ./services/<svc>/cmd/server` — no build/deploy |
 | In-cluster    | `mise run service:deploy -- <svc>`          | one-shot build → `k3d image import` → `helm upgrade` (for edge/auth/e2e testing); **no watch loop**  |

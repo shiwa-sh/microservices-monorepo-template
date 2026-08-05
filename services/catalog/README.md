@@ -9,5 +9,5 @@ migrations → observability middleware.
 ```sh
 cd services/catalog
 mise run migrate    # apply migrations to $DATABASE_URL
-mise run server     # http://localhost:8080
+mise run server     # http://localhost:8081 (its registered port; :8080 in-cluster)
 ```

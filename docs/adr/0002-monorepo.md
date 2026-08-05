@@ -106,7 +106,7 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
   `<service>-{server,worker}` images, and the in-cluster DNS names — one vocabulary end to end. (Frontends are not
   services and keep `run`: they have no worker to be symmetric with, and the task starts a dev server, not a
   production binary.)
-- **Standard task names** at repo root: `cluster:lite`, `cluster:stop`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
+- **Standard task names** at repo root: `cluster:base`, `cluster:stop`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
   `e2e`, `e2e:smoke`, `gen`, `db:migrate`. The `e2e` tasks ([ADR-0018](0018-testing-strategy.md)) run against `cluster:full`
   and are deliberately outside `ci:affected` — every e2e crosses service boundaries.
 - **Task naming convention.** A task name is `group:member`, where the **group is the axis you want to list and

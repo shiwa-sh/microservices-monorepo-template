@@ -58,7 +58,7 @@ func run() error {
 	}
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              httpmw.ListenAddr(),
 		Handler:           httpmw.Chain(authmw.Middleware()(api), serviceName),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

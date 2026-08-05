@@ -52,7 +52,7 @@ func run() error {
 		return fmt.Errorf("ogen server: %w", err)
 	}
 
-	srv := &http.Server{Addr: ":8080", Handler: httpmw.Chain(authmw.Middleware()(api), serviceName), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: httpmw.ListenAddr(), Handler: httpmw.Chain(authmw.Middleware()(api), serviceName), ReadHeaderTimeout: 5 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() {
 		err := srv.ListenAndServe()

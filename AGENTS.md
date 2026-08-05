@@ -37,7 +37,7 @@ a single tool needs lives in that tool's own dotfile.
 
 ## Working in the repo
 
-- The task runner is `mise` (root `.mise.toml`); commands are `mise run <task>`. `mise run cluster:lite` /
+- The task runner is `mise` (root `.mise.toml`); commands are `mise run <task>`. `mise run cluster:base` /
   `cluster:full` bring up the local cluster ([ADR-0003](docs/adr/0003-cluster-topology.md),
   [ADR-0016](docs/adr/0016-environment-parity.md)).
 - Generated code is committed and drift-checked in CI ([ADR-0000](docs/adr/0000-platform-foundations.md),

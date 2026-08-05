@@ -3,7 +3,7 @@
 # Convergent: create it if absent, start it if stopped (cluster:stop keeps the
 # image cache + volumes; cluster:delete deletes it). One cluster serves both local
 # tiers; what differs is what you bring up on it:
-#   mise run cluster:lite     → inner loop (lightweight deps, run services natively)
+#   mise run cluster:base     → the local floor (a service's own tasks bring it up)
 #   mise run cluster:full   → full platform via ArgoCD
 #
 # Flannel + the built-in network policy are disabled because Cilium is the CNI

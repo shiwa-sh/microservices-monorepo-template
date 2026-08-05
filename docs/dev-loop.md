@@ -1,11 +1,17 @@
 # Local development loop
 
 Per [ADR-0003](adr/0003-cluster-topology.md), k3d is the only local runtime.
-`mise run cluster:lite` creates the cluster and applies the lightweight dev
-dependencies (Postgres, Temporal, OpenFGA) from `infra/local/deps.yaml`. The
-inner loop is **native execution**: you run the service you are changing directly
-on the host against those dependencies — no image build, no in-cluster redeploy,
-no file-watch on the hot path.
+`mise run cluster:base` brings up the local **floor** — Traefik, cert-manager,
+Postgres, Kratos and Oathkeeper — and everything above it is opt-in, declared by
+the service that needs it ([ADR-0016](adr/0016-environment-parity.md),
+[ADR-0030](adr/0030-dev-loop-tooling.md)). The inner loop is **native execution**:
+you run the service you are changing directly on the host — no image build, no
+in-cluster redeploy, no file-watch on the hot path.
+
+**There is no cluster step to remember.** A service's own tasks declare what they
+need, and mise resolves the graph — bringing up the floor plus exactly those
+components, skipping whatever is already Ready. `cd services/orders && mise run
+server` is the whole command.
 
 This file is editor-agnostic. Any IDE that can load a `.env` file and run a Go
 `main.go` works the same way.
@@ -14,7 +20,6 @@ This file is editor-agnostic. Any IDE that can load a `.env` file and run a Go
 
 ```sh
 mise run setup                       # lefthook hooks
-cp services/<svc>/.env.example services/<svc>/.env   # per service you work on
 ```
 
 Every service ships a `.env.example` listing exactly the variables it reads, with
@@ -22,44 +27,122 @@ values already pointing at the port-forwarded deps. Its `.mise.toml` loads `.env
 (`_.file`), so `mise run server` needs no inline environment. `.env` is gitignored;
 `.env.example` is the tracked contract.
 
+You do not need to copy it by hand: the first `mise run server` seeds `.env` from
+`.env.example` and stops, telling you to re-run. It stops rather than continuing
+because mise reads `_.file` when it *loads* the config, before any task runs — so
+the run that creates `.env` cannot itself see it.
+
 ## Inner loop (native)
 
 ```sh
-mise run cluster:lite  # k3d + a CNI + deps (Postgres, Temporal, OpenFGA)
-mise run dev:forward   # port-forward the deps to localhost (leave running in its own terminal)
-mise run db:migrate    # apply each service's migrations to the local Postgres
-
 cd services/catalog
-mise run server        # http server → http://localhost:8080
-mise run worker        # temporal worker (orders, payment, orgs)
+mise run server        # brings up the floor + this service's deps, then serves :8081
+```
+
+That one command resolves `cluster:base` plus `dep:postgres` and `dep:openfga`
+(orders/orgs/payment add `dep:temporal`) and skips whatever is already up. Then, in
+their own terminals:
+
+```sh
+mise run dev:forward   # port-forward the deps to localhost (leave running)
+mise run db:migrate    # apply each service's migrations to the local Postgres
+cd services/orders && mise run worker   # temporal worker (orders, payment, orgs)
 ```
 
 `dev:forward` exposes Postgres (`localhost:5432`), Temporal (`7233` gRPC / `8233`
 UI), and OpenFGA (`localhost:18080`) so the host process — and tools like `psql` —
-can reach them. OpenFGA is forwarded to `18080`, not its own `8080`, because the
-service under test already serves on `8080` (and k3d maps host `8080` to the edge);
-`OPENFGA_API_URL` in each service's `.env.example` points at `18080` to match. Re-running the service is just re-running the binary; there is nothing to
+can reach them. OpenFGA is forwarded to `18080`, not its own `8080`, because k3d maps
+host `8080` to the edge; `OPENFGA_API_URL` in each service's `.env.example` points at
+`18080` to match. Re-running the service is just re-running the binary; there is nothing to
 rebuild or redeploy. To debug, point your editor's Go run configuration at
 `services/<svc>/cmd/server/main.go` and have it load that service's `.env`;
 breakpoints and hot-restart work because the service is a plain host process.
 
-Every server hardcodes `:8080`, so only one can run natively at a time. To exercise
-a service that calls another (orders → catalog/payment), deploy the callee into the
-cluster with `mise run service:deploy -- catalog` and override `CATALOG_URL` /
-`PAYMENT_URL` in `.env` — their defaults are in-cluster DNS, which a host process
-cannot resolve.
+### Local ports
 
-### Putting a service *in* the cluster (edge/auth/e2e)
+Each service binds a stable port of its own on the host, assigned in
+`scripts/lib/ports.sh` and set as `PORT` in the service's `.mise.toml`:
 
-When you need the service behind the edge (not the native hot path), do a one-shot
+| Service | Port |
+|---|---|
+| catalog | 8081 |
+| orders | 8082 |
+| orgs | 8083 |
+| payment | 8084 |
+| authz | 8085 |
+
+That is what lets several run at once, and what lets `CATALOG_URL` ship a working
+default. `:8080` is deliberately unassigned — k3d maps host `8080` to the edge.
+In-cluster nothing changes: pods still bind `:8080`. Override for one run by putting
+`PORT=` in that service's `.env` (it wins over the registry), but prefer editing the
+registry so siblings stay in agreement — `mise run lint:ports` enforces that they do.
+
+### When your service calls other services
+
+Nothing to arrange. A service declares its callees the same way it declares
+Postgres, so the graph brings them up:
+
+```sh
+cd services/orders && mise run worker   # also deploys catalog + payment, forwarded
+```
+
+The checkout saga's `svc:catalog` and `svc:payment` deploy each callee and forward it
+to the port `CATALOG_URL` / `PAYMENT_URL` already point at. You are working on
+orders; catalog and payment are opaque.
+
+### Debugging a flow across several services
+
+Run the ones you want breakpoints in **first**, natively:
+
+```sh
+cd services/catalog && mise run server   # terminal 1 — binds :8081
+cd services/payment && mise run server   # terminal 2 — binds :8084
+cd services/orders  && mise run worker   # terminal 3 — sees both answered, deploys neither
+```
+
+Same commands, same ports, no flags. `svc:*` guards on *whether the port answers*,
+not on whether a deployment exists — so a callee you started yourself satisfies the
+dependency and the graph leaves it alone. Anything you did not start still gets
+deployed and forwarded.
+
+To go back to opaque callees, stop the native process and run
+`mise run cluster:remove -- catalog` to clear any leftover forward.
+
+### Behind the real edge
+
+A service curled directly on `:8080` is being handed **forged** identity headers.
+To run it natively behind the real Oathkeeper chain instead:
+
+```sh
+mise run service:dev -- catalog          # stamps the per-service edge glue
+cd services/catalog && mise run server
+```
+
+That routes `https://dev.localtest.me:8443/api/products` to your host process
+through the same middlewares the deployed service gets, so the identity headers are
+genuine — which is the class of bug that otherwise only appears after a deploy.
+
+### Putting a service *in* the cluster
+
+When you need it running but are not editing it, do a one-shot
 build-import-deploy — no watch loop:
 
 ```sh
-mise run service:deploy -- catalog       # build → k3d image import → helm upgrade
-mise run service:undeploy -- catalog     # helm uninstall
+mise run cluster:add -- catalog          # build → k3d image import → helm upgrade
+mise run cluster:remove -- catalog       # uninstall AND restore ArgoCD auto-sync
 ```
 
-## Building UI: the `edge` profile
+`cluster:add` also takes a platform chart (`mise run cluster:add -- ory`) and brings
+up the service's declared dependency components first, so a deploy onto a bare floor
+does not CrashLoop on a missing Temporal. It follows `svc:*` too — deploying orders
+deploys catalog and payment if they are absent, since in-cluster they resolve by DNS
+and must actually be there.
+
+Always prefer `cluster:remove` over a bare `helm uninstall`: the add path pauses
+ArgoCD auto-sync, and removal is what restores it. Skip that and the service is gone
+*and* unmanaged — a later `cluster:full` will not bring it back.
+
+## Building UI
 
 The inner loop runs **one** service natively, and a frontend is nobody's single
 client — one panel screen fans out across `/products`, `/orders`, `/orgs`, and
@@ -68,11 +151,16 @@ table. [ADR-0029](adr/0029-api-mocking-and-ui-dev-loop.md) fills that gap by
 inverting the usual split: **the edge and the identity stack stay real, the
 application services are replaced by their own OpenAPI contract.**
 
+The edge and identity stack are already in `cluster:base`, so UI work is the floor
+plus the mock — not a separate tier:
+
 ```sh
-mise run cluster:edge   # Traefik + cert-manager + Kratos + Oathkeeper + Postgres
-cp apps/frontend/.env.example apps/frontend/.env.local
-bun run --cwd apps/frontend dev                          # host :3000, reached through the edge
+mise run cluster:base   # Traefik + cert-manager + Kratos + Oathkeeper + Postgres
+mise run dev:frontend   # host :3000, reached through the edge
 ```
+
+`dev:frontend` extracts the local CA from the cluster and trusts exactly it, so
+nothing disables TLS verification — the same mechanism the in-cluster image uses.
 
 Then open <https://dev.localtest.me:8443/> and **log in for real** — the task seeds
 the committed test identities from `e2e/fixtures/identities.ts` (the same ones the
@@ -89,7 +177,24 @@ lint:auth-inline` fails the build if one appears.
 > `internal.json` projection is not, so any route that fetches data will fail until
 > it lands. Until then, real data means `cluster:full`.
 
-**What this tier cannot tell you.** It is stateless: a create is not reflected by
+### The frontend as its production container
+
+The daily loop is the host `next dev` above. When you need to verify the Dockerfile,
+the standalone output, or a production-only rendering difference:
+
+```sh
+mise run cluster:add -- frontend
+```
+
+This runs the image CI builds, with `NODE_ENV=production` and no TLS bypass. It was
+impossible until three things were fixed: `EDGE_ORIGIN` split into public/internal
+origins, a CoreDNS rewrite so `dev.localtest.me` resolves to Traefik inside the
+cluster rather than the pod's own loopback, and a real local CA so the edge cert can
+be *trusted* rather than unverified. The glue catch-all route holds `priority: 1`,
+so the in-cluster frontend wins while it exists and the host `next dev` takes over
+again the moment you `cluster:remove` it.
+
+**What the mocked tier cannot tell you.** It is stateless: a create is not reflected by
 the next read, a `WorkflowHandle`'s `result_url` polls nothing, and no authorization
 decision is real (the mock returns the same rows to everyone — for building a table,
 ownership-correct rows teach you nothing). Persistence, Temporal behaviour, and
@@ -181,7 +286,7 @@ does). Outside JetBrains, align the columns by hand to satisfy CI.
 ## The full platform: `mise run cluster:full`
 
 The edge (Traefik + Ory Oathkeeper), auth stack (Kratos), and the data tier are
-**not** brought up by `cluster:lite` — it only applies the lightweight deps above.
+**not** in the floor — declare it, or use `cluster:full`.
 For end-to-end work, the edge, auth, NetworkPolicy, or observability on a laptop,
 `mise run cluster:full` (scripts/cluster-full.sh) stands up the **same charts
 production runs**, at a single replica ([ADR-0016](adr/0016-environment-parity.md)),
@@ -306,7 +411,7 @@ through `infra/local/edge-auth.yaml`.
 
 Kratos starts with an empty identity store. Either seed the committed test
 identities — `mise run auth:seed`, the same pair the e2e suite and the `edge`
-profile use (`e2e/fixtures/identities.ts`) — or register your own at
+suite uses (`e2e/fixtures/identities.ts`) — or register your own at
 <https://dev.localtest.me:8443/auth/register> with any email and a password
 that clears the policy (≥ 12 chars and not similar to the email, so `password123`
 is rejected). Only self-service registration fires the `after` web_hook that creates
@@ -320,7 +425,8 @@ frontend:
 
 | Env var                            | Why                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `EDGE_ORIGIN=https://dev.localtest.me:8443` | The environment's edge origin. **Server components** fetch through it (`src/lib/server-fetch/server.ts`) — it is the edge, not a service: the `/api/<resource>` IngressRoutes match on `Host(dev.localtest.me)` and Oathkeeper injects identity there. `next.config.mjs` also derives the **server-action** CSRF allowlist from it. Unset, `/panel/products` throws at the first fetch. |
+| `EDGE_PUBLIC_ORIGIN=https://dev.localtest.me:8443` | The **browser's** edge origin. `next.config.mjs` derives the server-action CSRF allowlist from it, so it must carry the port. Server components fall back to it when `EDGE_INTERNAL_ORIGIN` is unset — which is right on the host, where the two are the same. Unset, `/panel/products` throws at the first fetch. |
+| `EDGE_INTERNAL_ORIGIN=https://dev.localtest.me` | Where **this process** dials the edge. In-cluster that is Traefik's `:443`, not the browser's `:8443` — one variable could not be both, which is why they are two. Same host either way: the `/api` IngressRoutes match on `Host(dev.localtest.me)` and the wildcard cert is issued for it. Set only in-cluster. |
 | `NODE_TLS_REJECT_UNAUTHORIZED=0`   | The local wildcard cert is signed by the SelfSigned `ClusterIssuer` — a self-signed leaf, not a CA — so Node cannot be taught to trust it via `NODE_EXTRA_CA_CERTS`. Local only; deployed envs have Let's Encrypt certs and set neither var.                                                                     |
 
 Starting the dev server another way — an IDE run config, a debugger — needs the

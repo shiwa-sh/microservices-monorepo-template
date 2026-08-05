@@ -202,7 +202,7 @@ No i18n library is adopted day one. All user-facing strings live as TS constants
 
 ### Local development
 
-- `mise run -C apps/frontend dev` runs `bun run dev` against `mise run cluster:lite`. SDK requests target services on `localhost` ports established by the cluster:lite port-forwards ([ADR-0003](0003-cluster-topology.md)).
+- `mise run dev:frontend` runs `next dev` against `mise run cluster:base`, reached through the edge at `https://dev.localtest.me:8443` ([ADR-0003](0003-cluster-topology.md)).
 - Work on authenticated surfaces uses the `edge` profile ([ADR-0016](0016-environment-parity.md)): the real Traefik, Kratos, and Oathkeeper with application data served by the API mock ([ADR-0029](0029-api-mocking-and-ui-dev-loop.md)). The app's auth path is identical to production — the frontend carries **no** development-only session, bypass, or `NODE_ENV`-conditional branch in `proxy.ts` or `src/lib/auth/`.
 - HMR is left to Next.js defaults; no custom dev server.
 

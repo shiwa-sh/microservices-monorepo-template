@@ -56,7 +56,7 @@ for p in "${AUTH_PATHS[@]}"; do
   if hits=$(grep -rniE "$BYPASS" "$p" | grep -vE '^[^:]+:[0-9]+:\s*(//|\*|/\*)'); then
     echo "✗ development-only auth code in $p — the frontend has ONE auth path and it is the production one (ADR-0029):" >&2
     echo "$hits" >&2
-    echo "  To develop against mocked data while logged in, use: mise run cluster:edge" >&2
+    echo "  To develop against mocked data while logged in, use: mise run cluster:base" >&2
     fail=1
   fi
 done

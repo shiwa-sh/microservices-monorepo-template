@@ -102,7 +102,7 @@ mise run setup                # install git hooks
 mise run secrets:age          # SOPS private key + your public key to add to .sops.yaml (ADR-0005)
 
 # Local cluster
-mise run cluster:lite         # k3d cluster + local deps (Postgres, Temporal, OpenFGA)
+mise run cluster:base         # k3d cluster + the local floor (edge, identity, Postgres)
 mise run dev:forward          # port-forward the deps to localhost (leave running)
 mise run db:migrate           # apply each service's migrations
 

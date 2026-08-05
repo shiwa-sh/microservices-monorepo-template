@@ -5,6 +5,7 @@ package httpmw
 import (
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -70,4 +71,23 @@ func access(next http.Handler) http.Handler {
 			)
 		},
 	)
+}
+
+// ListenAddr is the address a service's HTTP server binds. In-cluster it is always
+// ":8080" — the chart's containerPort, the edge IngressRoute and the NetworkPolicies
+// all assume it, and the chart sets no PORT.
+//
+// PORT overrides it for host-native runs, where every service instead binds the
+// stable port assigned to it in scripts/lib/ports.sh (ADR-0016). Without that they
+// would all bind :8080 and only one could run at a time, which made reproducing a
+// cross-service bug — the orders checkout saga calls catalog and payment — mean
+// deploying the callees and giving up breakpoints in them. The registry also lets
+// each caller's <CALLEE>_URL ship a working default instead of a port the engineer
+// has to invent.
+func ListenAddr() string {
+	p := os.Getenv("PORT")
+	if p != "" {
+		return ":" + p
+	}
+	return ":8080"
 }

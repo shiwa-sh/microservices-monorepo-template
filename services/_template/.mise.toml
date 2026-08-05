@@ -4,14 +4,38 @@
 # Inner-loop config comes from .env (copy .env.example). Absent, tasks still run —
 # the service just falls back to its in-cluster defaults.
 [env]
+# The port this service binds when run natively. Register it in scripts/lib/ports.sh
+# FIRST and copy the number here — `mise run lint:ports` fails if the two disagree,
+# or if two services claim the same port. In-cluster is unaffected: the chart sets
+# no PORT, so pods still bind :8080.
+PORT = "80XX"
 _.file = ".env"
 
+[tasks.env]
+# Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why
+# it stops rather than continuing). Hidden: it runs as a dependency.
+hide = true
+run = "bash ../../scripts/env-ensure.sh"
+
+# Dependency components this service needs in the cluster (ADR-0016, ADR-0030).
+# Declare them here, with the service — the service knows its own dependencies and
+# a named profile never can. mise resolves the graph: the shared cluster:base edge
+# is deduped, independent components come up in parallel, and each one fast-exits
+# when already Ready. Trim this list to what the service actually reads: drop
+# dep:temporal if it has no worker, dep:postgres if it has no DATABASE_URL.
+#
+# Add `svc:<other>` for every OTHER SERVICE this one calls over HTTP. That is the
+# same declaration in the other direction — infrastructure vs. siblings — and it is
+# what makes the callee answer on the local port your <OTHER>_URL defaults to. Skip
+# it and the service starts cleanly, then fails on the first call that leaves it.
 [tasks.server]
 description = "Run the HTTP server against the locally port-forwarded deps"
+depends = ["env", "dep:postgres", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/server"
 
 [tasks.worker]
 description = "Run the Temporal worker"
+depends = ["env", "dep:postgres", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/worker"
 
 [tasks.test]
@@ -22,6 +46,7 @@ run = "golangci-lint run ./..."
 
 [tasks.migrate]
 description = "Run dbmate up against $DATABASE_URL"
+depends = ["env", "dep:postgres"]
 run = "dbmate --no-dump-schema up"
 
 [tasks.generate]

@@ -42,7 +42,9 @@ spec:
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
             - { name: http,  containerPort: {{ .Values.server.port }} }
+            {{- if .Values.server.adminPort }}
             - { name: admin, containerPort: {{ .Values.server.adminPort }} }
+            {{- end }}
           env:
             {{- include "service.otelEnv" . | nindent 12 }}
             {{- range $k, $v := .Values.env }}
@@ -54,8 +56,14 @@ spec:
             {{- end }}
           # readiness = deep (deps pinged) → gates Service traffic without restarting;
           # liveness = shallow (process alive) → never dep-aware (ADR-0011).
-          readinessProbe: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
-          livenessProbe:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
+          #
+          # Overridable because not every workload this chart deploys is a Go service
+          # with an admin port: the frontend is a Next standalone server with one
+          # port and no /readyz. The DEFAULTS are the Go contract, so overriding is a
+          # deliberate act by the one values file that needs to (ADR-0016 — same
+          # chart everywhere, differences expressed as values, never as a fork).
+          readinessProbe: {{- toYaml .Values.server.probes.readiness | nindent 12 }}
+          livenessProbe: {{- toYaml .Values.server.probes.liveness | nindent 12 }}
           resources: {{- toYaml .Values.server.resources | nindent 12 }}
           volumeMounts:
             - { name: tmp, mountPath: /tmp }

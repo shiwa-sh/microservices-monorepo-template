@@ -32,6 +32,54 @@ VALUES="infra/gitops/services/local/values/${SVC}.yaml"
 k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 
+# Bring up what this service declares it needs, before deploying it (ADR-0016,
+# ADR-0030). Without this a deploy onto a bare base silently CrashLoops: orders
+# wants Temporal and OpenFGA, catalog's values mount openfga-creds and point at an
+# in-cluster OpenFGA URL, and every service chart mounts a <svc>-db secret. The
+# dependency list is the service's own — the same declaration its native tasks use
+# — so the two paths cannot disagree about what the service needs.
+#
+# This is the failure mode we explicitly chose not to inherit: Tilt lets you enable
+# a subset and documents that it does NOT consider dependencies, which turns "why
+# is my service CrashLooping" into a scavenger hunt.
+# Read the declaration straight out of the service's own config rather than asking
+# mise to resolve it — `mise tasks deps` only resolves from inside the service
+# directory, and grepping the source of truth keeps this script explicit.
+deps="$(grep -o 'dep:[a-z-]*' "${SVC_DIR}/.mise.toml" | sort -u || true)"
+# db-secrets is an in-cluster-only need: a natively-run service reads .env instead,
+# so it is not in the service's own task graph and is added on this path alone.
+for dep in $deps dep:db-secrets; do
+  bash scripts/dep-apply.sh "${dep#dep:}"
+done
+
+# The sibling services this one calls, from the same declaration (svc:*). In-cluster
+# they resolve by DNS, so they must be PRESENT — but they must not be port-forwarded
+# the way the native path forwards them, so this recurses into deploy rather than
+# calling svc-apply.sh. A deployed orders whose catalog is missing is the same
+# scavenger hunt as one whose Temporal is missing; only the symptom moves (a failing
+# checkout instead of a CrashLoop).
+#
+# DEPLOYING_SERVICES carries the visited set through the recursion. Service call
+# graphs are supposed to be acyclic, but nothing enforces that, and an accidental
+# cycle here would fork-bomb rather than fail — so it is cut off explicitly.
+svcs="$(grep -o 'svc:[a-z-]*' "${SVC_DIR}/.mise.toml" | sort -u || true)"
+export DEPLOYING_SERVICES="${DEPLOYING_SERVICES:-} ${SVC}"
+for s in $svcs; do
+  name="${s#svc:}"
+  case " ${DEPLOYING_SERVICES} " in
+  *" ${name} "*)
+    echo "→ ${name} already in this deploy chain — skipping (cycle guard)"
+    continue
+    ;;
+  esac
+  if k rollout status "deploy/${name}-server" --timeout=0 >/dev/null 2>&1; then
+    echo "  ${name} already deployed — skipping"
+  else
+    echo "→ ${SVC} calls ${name}; deploying it first"
+    bash scripts/service-deploy.sh "$name"
+  fi
+done
+
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
 SET=(--set "image.repository=${SVC}-server" --set "image.tag=${TAG}")
 

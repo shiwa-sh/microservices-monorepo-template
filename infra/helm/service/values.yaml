@@ -79,7 +79,14 @@ worker:
 server:
   replicas: 2
   port: 8080
-  adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0011)
+  adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0011). Set to null for
+                        # a workload with no second port (the frontend).
+  # The Go service contract (ADR-0011): deep readiness on the admin port, shallow
+  # liveness. Override only for a workload that genuinely cannot serve these — see
+  # the note in templates/deployment-server.yaml.
+  probes:
+    readiness: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
+    liveness:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
   # ADR-0020, sized from measurement (2026-07-26, ADR-0027 load suite).
   #
   # The cpu LIMIT that used to be here (500m) is deliberately GONE. Measured peaks:

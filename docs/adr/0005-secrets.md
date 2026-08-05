@@ -51,7 +51,7 @@ Service authors reference secrets by name in the service's Helm values, exactly 
 
 ### Local decryption
 
-`mise run secrets:age` once, after which `mise run cluster:lite` and any `sops decrypt` invocation works without further configuration.
+`mise run secrets:age` once, after which `mise run cluster:base` and any `sops decrypt` invocation works without further configuration.
 
 Engineers run services locally against decrypted secrets via:
 

@@ -82,34 +82,79 @@ run = "bash scripts/cluster-ensure.sh"
 
 [tasks."cluster:cilium"]
 # Install Cilium as the CNI (ADR-0003). Needs the cluster first. Internal plumbing
-# (a dependency node for cluster:lite), not a command you run directly — hence hidden.
+# (a dependency node for cluster:base), not a command you run directly — hence hidden.
 hide = true
 depends = ["cluster:ensure"]
 run = "bash scripts/cilium-install.sh"
 
-[tasks."cluster:lite"]
-# Inner loop (ADR-0016): cluster + CNI + lightweight deps (Postgres/Temporal/
-# OpenFGA), then run the service you are changing NATIVELY (no Skaffold, no watch).
-# Ordering is the dependency graph: cluster:ensure → cluster:cilium → this apply.
-# Next steps (dev:forward, db:migrate, go run …) are in docs/dev-loop.md.
-depends = ["cluster:cilium"]
-run = "kubectl --context k3d-${CLUSTER:-platform} apply -f infra/local/deps.yaml"
+[tasks."cluster:base"]
+# The local floor (ADR-0016, ADR-0030): Traefik + cert-manager + Postgres + Kratos
+# + Oathkeeper, plus the host edge glue and the seeded test identities. Everything
+# above it is opt-in and declared by the service that needs it — there are no named
+# profiles. You rarely run this by hand: a service's own tasks depend on it.
+run = "bash scripts/cluster-base.sh"
 
 [tasks."cluster:full"]
 # Full local platform via ArgoCD (ADR-0004, ADR-0016): syncs committed master.
 # Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
 run = "bash scripts/cluster-full.sh"
 
-[tasks."cluster:edge"]
-# The `edge` profile (ADR-0016, ADR-0029): the tier for building authenticated UI.
-# Traefik + cert-manager + Kratos + Oathkeeper + Postgres are REAL and the frontend
-# runs natively on :3000, with its production auth path and no development-only auth
-# code. Temporal, OpenFGA, CNPG, observability and ArgoCD are absent.
+# ── Opt-in dependency components ──────────────────────────────────────────────
+# One task per label slice of infra/local/deps.yaml. Services declare these in
+# their own .mise.toml; mise dedupes the shared cluster:base edge, so a service
+# needing three components still brings the floor up once. Every one of them
+# fast-exits when already Ready — see the guard in scripts/dep-apply.sh, which is
+# what keeps the graph cheap to re-enter.
+[tasks."dep:postgres"]
+# In the floor already (Kratos needs a store); declared anyway so a service's
+# dependencies read as its own, not as something base happens to provide.
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh postgres"
+
+[tasks."dep:temporal"]
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh temporal"
+
+[tasks."dep:openfga"]
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh openfga"
+
+[tasks."dep:db-secrets"]
+# The per-service DB secrets the service chart mounts via envFrom. Needed by the
+# IN-CLUSTER path only: a natively-run service reads .env instead.
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh db-secrets"
+
+# ── Sibling services ──────────────────────────────────────────────────────────
+# `dep:*` covers the infrastructure a service needs; these cover the OTHER SERVICES
+# it calls. Same shape, same guard, same reason: the service knows its own callees
+# and a named profile never can (ADR-0016, ADR-0030).
 #
-# INCOMPLETE: the API mock that replaces the application services on /api is not
-# wired up yet, so nothing serves /api on this tier. Logging in works end to end;
-# any route that fetches application data does not. See docs/dev-loop.md.
-run = "bash scripts/cluster-edge.sh"
+# Each one makes the callee answer on its registered local port
+# (scripts/lib/ports.sh), which is what lets the caller's .env.example ship a
+# working CATALOG_URL instead of a commented-out suggestion. Deploying is the
+# DEFAULT because the usual case is working on the caller, where the callees should
+# be opaque; run a callee natively yourself and svc:* sees the port answered and
+# stays out of the way.
+[tasks."svc:authz"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh authz"
+
+[tasks."svc:catalog"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh catalog"
+
+[tasks."svc:orders"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh orders"
+
+[tasks."svc:orgs"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh orgs"
+
+[tasks."svc:payment"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh payment"
 
 [tasks."cluster:edge-glue"]
 # Re-stamp the host-only frontend edge glue: the last-resort catch-all `/` → host
@@ -117,9 +162,10 @@ run = "bash scripts/cluster-edge.sh"
 # that cannot be GitOps-managed (the bridge IP is discovered at runtime and moves
 # across restarts), so a stop/start or reboot loses it → Traefik 404 at /.
 #
-# Internal plumbing, not a tier: cluster:ensure (start), cluster:heal (reboot) and
-# cluster:edge all run it automatically. Hidden for the same reason cluster:cilium
-# is — invoke it by hand only to self-heal a 404/502 at / without a full restart.
+# Internal plumbing: cluster:ensure (start), cluster:heal (reboot) and cluster:base
+# all run it automatically. Hidden for the same reason cluster:cilium is — invoke it
+# by hand only to self-heal a 404/502 at / without a full restart. To route a
+# NATIVE service (not the frontend) through the edge, use service:dev instead.
 hide = true
 run = "bash scripts/cluster-edge-glue.sh"
 
@@ -176,27 +222,27 @@ run = "bash scripts/dev-forward.sh"
 
 [tasks."dev:frontend"]
 # The host-run `next dev` the local edge routes `/` to (ADR-0014/0016). Long-running
-# — use a separate terminal. Two env vars are what make a host process behave like
+# — use a separate terminal. One env var is what makes a host process behave like
 # the in-cluster frontend; see docs/dev-loop.md:
-#   EDGE_ORIGIN                 where server components fetch — the edge, not a cluster
-#                               DNS name the host cannot resolve; the /api IngressRoutes
-#                               match on Host(dev.localtest.me), so it is the public
-#                               origin. next.config.mjs also derives the server-action
-#                               CSRF allowlist from it.
-#   NODE_TLS_REJECT_UNAUTHORIZED  the local wildcard cert is self-signed by the
-#                               SelfSigned ClusterIssuer (a leaf, not a CA), so it
-#                               cannot be trusted via NODE_EXTRA_CA_CERTS. Local only:
-#                               deployed envs get Let's Encrypt certs and set neither.
-dir = "apps/frontend"
-env = { EDGE_ORIGIN = "https://dev.localtest.me:8443", NODE_TLS_REJECT_UNAUTHORIZED = "0" }
-run = "bun run next dev -H 0.0.0.0"
+#   EDGE_PUBLIC_ORIGIN  where server components fetch — the edge, not a cluster DNS
+#                       name the host cannot resolve. The /api IngressRoutes match on
+#                       Host(dev.localtest.me), and next.config.mjs derives the
+#                       server-action CSRF allowlist from this. On the host the public
+#                       and internal origins are the same, so EDGE_INTERNAL_ORIGIN is
+#                       left unset and server-fetch falls back to this one.
+#
+# NODE_TLS_REJECT_UNAUTHORIZED is deliberately GONE. The local wildcard is now issued
+# by a real local CA, so the script extracts that CA and trusts exactly it — the same
+# mechanism the in-cluster image uses, with nothing unverified on either path.
+env = { EDGE_PUBLIC_ORIGIN = "https://dev.localtest.me:8443" }
+run = "bash scripts/dev-frontend.sh"
 
 [tasks."db:migrate"]
 run = "bash scripts/db-migrate.sh"
 
 [tasks."auth:seed"]
 # Seed the committed deterministic test identities (ADR-0018) into a running Kratos.
-# cluster:edge does this for you; run it alone after a Kratos reinstall.
+# cluster:base does this for you; run it alone after a Kratos reinstall.
 run = "bash scripts/identity-seed.sh"
 
 # ── Code generation ───────────────────────────────────────────────────────────
@@ -256,7 +302,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -273,6 +319,20 @@ run = "bash scripts/lint-sql.sh"
 
 [tasks."lint:openapi"]
 run = "bash scripts/lint-openapi.sh"
+
+[tasks."lint:service-contract"]
+# ADR-0016 gate: every service provides the same artifacts, because the platform
+# DISCOVERS services through those artifacts. Most sharply, the ApplicationSet
+# generates one Argo app per values file, so a missing values file means the service
+# is absent from that environment with nothing to notice — how authz ended up
+# undeployed in dev while Oathkeeper called it by DNS.
+run = "bash scripts/lint-service-contract.sh"
+
+[tasks."lint:ports"]
+# Local port registry gate (ADR-0016): ports unique, every service registered, and
+# each service's .mise.toml binding what the registry assigns it. A drift there
+# fails at runtime as a bare connection-refused, so it is caught at lint instead.
+run = "bash scripts/lint-ports.sh"
 
 [tasks."lint:api-audience"]
 # Audience↔exposure gate (ADR-0008): a spec's info.x-audience must match whether the
@@ -316,7 +376,7 @@ run = "bash scripts/lint-node-scope.sh"
 # Auth single-source guard (ADR-0009/0010/0029): fails if kratos/oathkeeper config
 # is re-inlined into the Ory chart values instead of living in infra/auth/*, or if
 # the frontend grows development-only auth code (a session bypass in proxy.ts or
-# src/lib/auth/ — local UI work logs in for real via cluster:edge).
+# src/lib/auth/ — local UI work logs in for real via cluster:base).
 run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]
@@ -377,14 +437,38 @@ git diff --exit-code
 """
 
 # ── Deploy to cluster (working-tree overrides) ────────────────────────────────
+[tasks."cluster:add"]
+# One verb for "put this in the cluster" (ADR-0030). Resolves <name> to a service
+# or a platform chart and dispatches; errors if a name is both. Dependency
+# components are NOT nouns here — they are graph-internal (`dep:*`), which is what
+# keeps `postgres` (a platform chart AND a deps.yaml slice) unambiguous.
+#   mise run cluster:add -- orders     # a service, from the working tree
+#   mise run cluster:add -- ory        # a platform chart, from the working tree
+run = "bash scripts/cluster-add.sh"
+
+[tasks."cluster:remove"]
+# The counterpart. Uninstalls the release AND restores ArgoCD auto-sync, which the
+# add path paused — without that, remove leaves the thing gone *and* unmanaged.
+#   mise run cluster:remove -- orders
+run = "bash scripts/cluster-remove.sh"
+
 [tasks."service:deploy"]
-# One-shot in-cluster deploy of a service from the working tree (no watch).
+# One-shot in-cluster deploy of a service from the working tree (no watch). Brings
+# up the service's declared dependency components first. Prefer cluster:add.
 #   mise run service:deploy -- <svc>
 run = "bash scripts/service-deploy.sh"
 
 [tasks."service:undeploy"]
+# Prefer cluster:remove, which also restores GitOps.
 #   mise run service:undeploy -- <svc>
-run = "helm --kube-context k3d-${CLUSTER:-platform} uninstall -n platform"
+run = "bash scripts/cluster-remove.sh"
+
+[tasks."service:dev"]
+# Run a service NATIVELY behind the real edge: stamps the per-service edge glue
+# (an IngressRoute + an EndpointSlice at the docker-bridge gateway) so Traefik
+# routes to the host process, then hands you the command to run.
+#   mise run service:dev -- orders
+run = "bash scripts/service-dev.sh"
 
 [tasks."platform:deploy"]
 # One-shot working-tree overlay of a platform chart (rare infra iteration).

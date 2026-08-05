@@ -1,30 +1,33 @@
 #!/usr/bin/env bash
-# The `edge` local profile (ADR-0016 profiles, ADR-0029) — backs
-# `mise run cluster:edge`. The tier for building authenticated UI: the real
-# edge and the real identity stack, with application data served by the API mock.
+# `cluster:base` (ADR-0016, ADR-0030) — the local floor every service needs.
 #
-#   Traefik · cert-manager · Kratos · Oathkeeper · Postgres   real
-#   application services                      replaced by their OpenAPI contract
-#   Temporal · OpenFGA · CNPG · observability · ArgoCD   absent
+#   Traefik · cert-manager · Postgres · Kratos · Oathkeeper   real
+#   Temporal · OpenFGA · CNPG · observability · ArgoCD        absent, opt-in per service
 #
-# INCOMPLETE: the API mock that serves `/api` is not wired up yet, so this profile
-# currently brings up a real edge in front of nothing — every `/api` route 404s
-# until the mock lands. Everything else (TLS, Kratos, Oathkeeper, the host edge
-# glue, the seeded identities) is real and usable: you can log in for real today.
+# Everything above the floor is opt-in, declared by the service that needs it
+# (`dep:*` in each `services/<svc>/.mise.toml`) rather than by a named profile.
+# There is no `min`/`backend`/`edge`/`obs` tier: what is up is base ∪ the declared
+# dependencies of whatever you are running. See ADR-0016.
 #
-# So the frontend's auth path is byte-identical to production — there is no bypass,
-# no development provider, no NODE_ENV branch, because nothing needs one.
+# The identity stack is in the floor deliberately (ADR-0029's argument, generalised
+# from the frontend to every service): Kratos and Oathkeeper are cheap, and their
+# behaviour — cookies, CSRF, session expiry, the 401/403 — IS the contract every
+# service consumes. A service reached through this edge gets real Oathkeeper
+# identity headers; one curled directly is being handed forged ones. So the auth
+# path is byte-identical to production — no bypass, no development provider, no
+# NODE_ENV branch, because nothing needs one.
 #
-# A profile is a SELECTION, not a copy: every component here is installed from the
-# same chart and the same `infra/gitops/platform/local/values.yaml` overlay that
-# cluster:full uses. This script names which ones, and nothing else — there is no
-# second values file to drift.
+# This is a SELECTION, not a copy: every component is installed from the same chart
+# and the same `infra/gitops/platform/local/values.yaml` overlay that cluster:full
+# uses. This script names which ones, and nothing else — no second values file to
+# drift.
 #
 # Not ArgoCD-driven, deliberately: Argo is the full tier's engine (ADR-0016), and
-# this is an inner-loop tier. Same reasoning as cluster:lite's imperative apply.
+# this is the inner loop.
 #
-# Related task: `mise run cluster:edge-glue` re-stamps the host edge glue alone
-# (hidden; this script and the start/reboot paths already run it for you).
+# Related: `scripts/dep-apply.sh` adds one opt-in component on top of this floor;
+# `mise run cluster:edge-glue` re-stamps the host edge glue alone (hidden; this
+# script and the start/reboot paths already run it for you).
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -43,8 +46,9 @@ bash scripts/cluster-ensure.sh
 bash scripts/cilium-install.sh
 
 # 2. Postgres only, out of the shared dependency manifest. Temporal and OpenFGA
-#    live in the same file and are skipped by label — they render no page, and the
-#    tier's whole point is not paying for them (ADR-0029).
+#    live in the same file and are skipped by label — they are opt-in, added by the
+#    services that declare them (`dep:temporal`, `dep:openfga`). Postgres is in the
+#    floor because Kratos needs a store, so every base has one anyway.
 step "applying the postgres dependency stand-in (Kratos's store)"
 k apply -f infra/local/deps.yaml -l 'local.platform/component in (base,postgres)'
 k -n "$NS" rollout status deploy/postgres --timeout=180s
@@ -108,9 +112,13 @@ h upgrade --install ory infra/helm/platform/ory \
   --set-file 'kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json' \
   --set-file 'oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json'
 
-# 7. The API mock that replaces the application services on `/api` belongs here
-#    (ADR-0029), stamping the committed `internal.json` projection into the cluster
-#    on every run. Not implemented yet — see the INCOMPLETE note in the header.
+# 7. Make the env host resolve to Traefik from inside the cluster, so a pod that
+#    dials the edge reaches the edge and not its own loopback. Needed by anything
+#    running in-cluster that calls through the edge — the frontend above all.
+step "rewriting ${DOMAIN} to the edge in CoreDNS"
+k apply -f infra/local/coredns-rewrite.yaml
+k -n kube-system rollout restart deploy/coredns
+k -n kube-system rollout status deploy/coredns --timeout=120s
 
 # 8. Host edge glue: the catch-all `/` route to the host `next dev` and the
 #    docker-bridge EndpointSlice. cluster-ensure.sh skips it on a brand-new cluster
@@ -130,18 +138,22 @@ login_email="$(bun --silent -e \
 
 cat <<EOF
 
-✓ cluster:edge up — real edge + real identity.
-  Frontend:      bun run --cwd apps/frontend dev     (host :3000, reached via the edge)
+✓ cluster:base up — real edge + real identity + Postgres.
+
+  Add what you need on top — nothing else is running:
+    cd services/<svc> && mise run server    native, pulls its own deps in
+    mise run cluster:add -- <svc>           in-cluster, from the working tree
+
   Open:          https://${DOMAIN}:8443/
   Log in as:     ${login_email}
                  (password: e2e/fixtures/identities.ts — sessions last 7 days)
   Teardown:      mise run cluster:stop  (keep cache) / cluster:delete (delete)
 
-  ⚠ No API mock yet: nothing serves /api on this tier, so any route that fetches
-    application data will fail. The auth path is real and complete — logging in,
-    CSRF, expiry and the Oathkeeper 401/403 all behave as they do in production.
+  Base alone serves no application data: /api routes 404 until you add the service
+  behind them. The auth path is complete — logging in, CSRF, expiry and the
+  Oathkeeper 401/403 all behave as they do in production.
 
-  This tier is also stateless by design: once the mock lands, a create will not be
-  reflected by the next read and no workflow progresses. Persistence, Temporal and
-  authorization decisions are exercised against real services (cluster:full).
+  Persistence here is ephemeral (the Postgres stand-in has no volume) and no
+  workflow runs without dep:temporal. Assert persistence, Temporal behaviour and
+  authorization decisions against real services on cluster:full.
 EOF

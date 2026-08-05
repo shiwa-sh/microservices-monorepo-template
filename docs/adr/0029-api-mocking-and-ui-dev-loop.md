@@ -85,7 +85,7 @@ provides identity**. Conflating them is what produces an authentication bypass.
   they are the real server stubs with in-memory storage behind them. Rejected because the cost is
   *per service*: at ~100 services this is a parallel implementation of the platform.
 - **No mock at all** — the honest baseline. Running four demo Go services natively is tractable and
-  is what `cluster:lite` is for. It does not survive the target scale, and it does not help an
+  is what the inner loop is for. It does not survive the target scale, and it does not help an
   engineer who is changing no service at all.
 
 ### What provides identity
@@ -157,35 +157,38 @@ The fix belongs in the contract. Examples in `services/<service>/openapi.yaml` m
 ([ADR-0014](0014-frontend.md)) — one investment, two consumers. Schema-generated mode stays
 available behind a flag for exploring a new endpoint before its examples exist.
 
-### The `edge` profile
+### UI work is the base cluster plus the mock
 
-[ADR-0016](0016-environment-parity.md) composes local environments from named profiles. `edge` is
-the profile for UI work: **the real edge and the real identity stack, with mocked application
-data.**
+[ADR-0016](0016-environment-parity.md) composes local environments from a `cluster:base` floor plus
+components each service declares. There is no `edge` profile — an earlier revision of this ADR named
+one, and it turned out to be exactly **the floor plus the mock**, which is how it is expressed now.
 
-| Component | State in `edge` | Why |
+That is not a rename. The reason the floor contains the identity stack at all is this ADR's
+argument, generalised: the edge and identity components stay real because they are cheap and their
+behaviour IS the contract. What was once a UI-specific tier is now what *every* service gets.
+
+| Component | State on `cluster:base` | Why |
 |---|---|---|
 | Traefik | real | routes `/api` to the mock and `/` to the host `next dev`; owns the same-origin contract |
 | Kratos | real | login, logout, CSRF, cookie attributes, 7-day expiry, AAL — none of it worth faking |
 | Oathkeeper | real | the `401`/`403` behaviour the mock cannot invent |
 | cert-manager | real | mints the wildcard TLS the edge serves; the same mechanism every environment uses |
 | Postgres (ephemeral) | real | Kratos's store; the label-selected slice of `infra/local/deps.yaml` |
-| **The mock** | serving `internal.json` | replaces every application service on `/api` |
-| Temporal, OpenFGA, CNPG, observability, Go services | absent | none of them renders a page |
+| **The mock** | added on top | replaces every application service on `/api` |
+| Temporal, OpenFGA, CNPG, observability, Go services | absent unless declared | none of them renders a page |
 
 The application's authentication path is **byte-identical to production**. There is no bypass, no
 development provider, no `NODE_ENV` branch, because nothing needs one.
 
-A second mode needs no profile at all: for landing pages and logged-out surfaces, the mock runs
-standalone and the auth stack stays down. That is not a third tier, it is the `edge` profile minus
-the part you are not exercising.
+A second mode is lighter still: for landing pages and logged-out surfaces, the mock runs standalone
+and the auth stack stays down. That is not a separate tier either, just less of the same one.
 
 ### Identity comes from a seeded real login
 
 A real Kratos needs a real identity, provisioned the same way locally and in CI. That bootstrap is
 the one [ADR-0018](0018-testing-strategy.md) defines — "a committed deterministic test-identity
 bootstrap (an AAL1 product user and an AAL2 operator), provisioned the same way in CI and locally."
-The `edge` profile consumes it rather than inventing a parallel development-only identity, and
+`cluster:base` seeds it rather than inventing a parallel development-only identity, and
 `scripts/auth-token.sh` performs the login by driving the real native login flow.
 
 Day to day this is close to free. Kratos sessions have a **7-day lifespan**
@@ -240,9 +243,10 @@ proxy.
   that a `2xx` response *has* an example; nothing enforces that the example is still *true* after a
   schema change. Mitigated by keeping examples minimal and by their being reviewed as part of the
   contract diff — a wrong example is a wrong contract, visible in the same PR that changed the schema.
-- **The `edge` profile is heavier than a bare container.** Traefik, cert-manager, Kratos, Oathkeeper,
-  and Postgres must be up to render an authenticated page. Accepted deliberately: that cost is what
-  buys the absence of every development-only auth branch.
+- **The floor is heavier than a bare container.** Traefik, cert-manager, Kratos, Oathkeeper and
+  Postgres must be up to render an authenticated page — and now to run any service at all. Accepted
+  deliberately: that cost is what buys the absence of every development-only auth branch, and what
+  lets a natively-run service receive real identity headers instead of forged ones.
 - **Two mocking mechanisms exist.** MSW at the test layer, Prism at the dev-loop layer. Mitigated by
   the layer boundary being explicit and by neither being permitted in e2e.
 
@@ -251,11 +255,12 @@ proxy.
 - `infra/local/mock.yaml` — the mock Deployment, Service, and the `/api` IngressRoute, carrying the
   real edge middleware chain plus the `/api` `stripPrefix` a real service route also applies. The
   spec ConfigMap is stamped from the committed projection on every run rather than baked in.
-- The `edge` profile: `cluster:edge`, which brings up the components above against the one
+- `cluster:base` brings up the components above against the one
   `infra/gitops/platform/local/values.yaml` overlay and the label-selected Postgres slice of
-  `infra/local/deps.yaml`; plus `mock:start` / `mock:stop` / `mock:logs` for the standalone mode.
+  `infra/local/deps.yaml`. The mock is added on top of it; plus `mock:start` / `mock:stop` /
+  `mock:logs` for the standalone mode.
 - `scripts/identity-seed.sh` (`auth:seed`) — the committed test identities from
-  [ADR-0018](0018-testing-strategy.md) provisioned into Kratos, consumed by both `edge` and the e2e
+  [ADR-0018](0018-testing-strategy.md) provisioned into Kratos, consumed by both `cluster:base` and the e2e
   setup project, with the credentials read from `e2e/fixtures/identities.ts` rather than repeated.
 - `example` on every `2xx` response schema in `services/*/openapi.yaml` — on the component schema
   where a `$ref` can inherit it, inline on list responses, whose unconstrained arrays would otherwise
@@ -271,7 +276,7 @@ proxy.
 - The mock's only input is the committed `internal.json` projection from `mise run gen:openapi-public`. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are forbidden — a mocked response shape that is not derivable from a committed OpenAPI artifact is a defect. `(review-only)`
 - The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers. Auth is enforced at the edge and is absent from the specs by design ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)). `(review-only)`
 - The application contains no development-only authentication code. In `apps/frontend/src/proxy.ts` and `src/lib/auth/`, a session bypass, a fake session object, or an environment-conditional branch **in the session path** is a review-blocker. (An environment-conditional branch that grants nothing is not — `proxy.ts` legitimately relaxes the CSP for `next dev`.) `(CI: lint:auth-inline)`
-- Authenticated local development uses the real Kratos in the `edge` profile with the committed test identity from [ADR-0018](0018-testing-strategy.md). Fake identity providers are not used for Kratos; they remain permitted for Hydra, which is a protocol boundary. `(review-only)`
+- Authenticated local development uses the real Kratos on `cluster:base` with the committed test identity from [ADR-0018](0018-testing-strategy.md). Fake identity providers are not used for Kratos; they remain permitted for Hydra, which is a protocol boundary. `(review-only)`
 - The mock runs examples-first, serving committed `example` / `examples` from the spec. Schema-generated responses are a flag-gated fallback for endpoints whose examples do not yet exist. `(review-only)`
 - The mock is forbidden in `mise run test`, `ci:affected`, and the e2e and visual suites, which run against real services ([ADR-0018](0018-testing-strategy.md)). `(review-only)`
 - The mock ships as a vendored container. It pins no Node in any `.mise.toml` and adds no `package.json`, lockfile, or `node_modules` to the repo. `(CI: lint:node-scope)`

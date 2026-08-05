@@ -11,10 +11,10 @@
 #     address gives a 502. Re-reading it every run self-heals both.
 # Idempotent; safe to run any time the cluster is up. Called by cluster-ensure.sh
 # (start path), cluster-heal.sh (reboot recovery), cluster-full.sh (bring-up) and
-# cluster-edge.sh (the `edge` profile) — hence the hidden `cluster:edge-glue` task:
+# cluster-base.sh — hence the hidden `cluster:edge-glue` task:
 # you never need to invoke it by hand except to self-heal a 404/502 at `/`.
 #
-# NOT to be confused with cluster-edge.sh, which is the `edge` PROFILE (ADR-0016):
+# NOT to be confused with cluster-base.sh, which is the whole local floor (ADR-0016):
 # a whole tier. This is the per-machine seam underneath it.
 set -euo pipefail
 
@@ -36,29 +36,55 @@ fi
 echo "→ applying host-specific edge glue"
 k apply -f infra/local/edge-auth.yaml
 
-# Stamp the EndpointSlice at the CURRENT docker-bridge gateway (the host, as seen
-# from a pod). Re-read every run so a bridge-IP change across restarts self-heals.
-GW="$(docker inspect "k3d-${CLUSTER}-server-0" \
-  --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}')"
-if [ -z "$GW" ]; then
-  echo "✗ could not determine docker-bridge gateway for k3d-${CLUSTER}-server-0" >&2
-  exit 1
-fi
-k apply -f - <<EOF
+# The docker-bridge gateway is the host as seen from a pod, and the only address a
+# pod can dial to reach a native process. Discovered at runtime and re-read every
+# run, so a bridge-IP change across restarts self-heals.
+bridge_gateway() {
+  local gw
+  gw="$(docker inspect "k3d-${CLUSTER}-server-0" \
+    --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}')"
+  [ -n "$gw" ] || {
+    echo "✗ could not determine docker-bridge gateway for k3d-${CLUSTER}-server-0" >&2
+    return 1
+  }
+  printf '%s' "$gw"
+}
+
+# Point one `<name>-dev` Service at the host. Parameterised so any natively-run
+# service can sit behind the real edge, not just the frontend — that is what makes
+# a native process receive real Oathkeeper identity headers instead of forged ones
+# (scripts/service-dev.sh is the caller for services; the frontend is stamped here
+# because every bring-up and restart path needs it).
+stamp_host_endpointslice() {
+  local name="$1" port="$2" gw="$3"
+  k apply -f - <<EOF
 apiVersion: discovery.k8s.io/v1
 kind: EndpointSlice
 metadata:
-  name: frontend-dev
+  name: ${name}-dev
   namespace: ${NS}
   labels:
-    kubernetes.io/service-name: frontend-dev
+    kubernetes.io/service-name: ${name}-dev
 addressType: IPv4
 ports:
   - name: http
-    port: 3000
+    port: ${port}
     protocol: TCP
 endpoints:
-  - addresses: ["${GW}"]
+  - addresses: ["${gw}"]
     conditions: { ready: true }
 EOF
-echo "✓ edge glue applied (frontend → host ${GW}:3000)"
+}
+
+GW="$(bridge_gateway)"
+
+# Called with a name/port pair: stamp just that one and stop (the service:dev
+# path). Called with no arguments: stamp the frontend, the catch-all every
+# bring-up needs.
+if [ "$#" -ge 2 ]; then
+  stamp_host_endpointslice "$1" "$2" "$GW"
+  echo "✓ edge glue applied (${1} → host ${GW}:${2})"
+else
+  stamp_host_endpointslice frontend 3000 "$GW"
+  echo "✓ edge glue applied (frontend → host ${GW}:3000)"
+fi

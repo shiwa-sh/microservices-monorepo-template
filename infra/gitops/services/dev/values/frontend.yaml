@@ -5,12 +5,21 @@ image:
 worker: { enabled: false }
 server:
   port: 3000
-  adminPort: 3001
+  # No admin port: a Next standalone server serves one port. This used to claim
+  # 3001, which nothing listened on — the chart's default probes hit /readyz and
+  # /livez there and would have failed had they ever been exercised.
+  adminPort: null
   replicas: 1
+  probes:
+    readiness: { httpGet: { path: /api/healthz, port: http }, initialDelaySeconds: 2, timeoutSeconds: 4 }
+    liveness:  { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
 ingress: { enabled: true, host: dev.example.com, pathPrefix: "/" }
 migrations: { enabled: false }
 # Server components call the edge, not a service directly: the /api routes match on
 # Host(<env host>) and Oathkeeper injects identity there (ADR-0009/0010/0014). Same
 # origin as `ingress.host` — the browser and the server hit the same URLs.
 env:
-  EDGE_ORIGIN: https://dev.example.com
+  EDGE_PUBLIC_ORIGIN: https://dev.example.com
+  # In-cluster the pod dials the edge directly; same host (the IngressRoutes match
+  # on it and the cert is issued for it), no browser-facing port.
+  EDGE_INTERNAL_ORIGIN: https://dev.example.com

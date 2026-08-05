@@ -1,0 +1,61 @@
+# Local values for the frontend (ADR-0016, ADR-0030).
+#
+# This file is what makes `mise run cluster:add -- frontend` possible at all — the
+# frontend was previously the ONLY service with no local values, so service-deploy.sh
+# hard-failed on it and no local run ever exercised the standalone Next server,
+# NODE_ENV=production, or the image CI builds and prod deploys. A Dockerfile or
+# standalone-output regression was only catchable after a push.
+#
+# Three things had to change before this file could work; all three are done and
+# none of them is local-only sugar:
+#   1. EDGE_ORIGIN split into public/internal (src/lib/server-fetch/server.ts) —
+#      the pod dials :443, the browser's CSRF allowlist needs :8443.
+#   2. A CoreDNS rewrite (infra/local/coredns-rewrite.yaml) so dev.localtest.me
+#      resolves to Traefik in-cluster instead of the pod's own loopback.
+#   3. A real local CA (infra/helm/platform/cert-manager/templates/issuers.yaml)
+#      so the edge cert can be TRUSTED rather than have verification disabled.
+#      This image sets no NODE_TLS_REJECT_UNAUTHORIZED — that is the point.
+#
+# The daily loop is still the host `next dev` behind the edge glue. Use this when
+# you need the production container: verifying the Dockerfile, standalone output,
+# or a production-only rendering difference.
+name: frontend
+image:
+  repository: frontend
+  tag: local
+  pullPolicy: IfNotPresent
+worker: { enabled: false }
+server:
+  port: 3000
+  # No admin port: a Next standalone server serves one port. The chart defaults
+  # probe /readyz and /livez on `admin`, so both are overridden below.
+  adminPort: null
+  replicas: 1
+  probes:
+    readiness: { httpGet: { path: /api/healthz, port: http }, initialDelaySeconds: 2, timeoutSeconds: 4 }
+    liveness:  { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { memory: "768Mi" }
+# Catch-all `/`. The glue route in infra/local/edge-auth.yaml holds priority 1 so
+# this one wins whenever it exists, and the host `next dev` takes over again as
+# soon as it is removed.
+ingress: { enabled: true, host: dev.localtest.me, pathPrefix: "/" }
+migrations: { enabled: false }
+otel: { deployEnv: local }
+env:
+  # The browser's origin — k3d maps host 8443 to Traefik's 443. next.config.mjs
+  # derives the server-action CSRF allowlist from this, so it must carry the port.
+  EDGE_PUBLIC_ORIGIN: https://dev.localtest.me:8443
+  # What this pod dials. Same host — the /api IngressRoutes match on it and the
+  # wildcard cert is issued for it — resolved to Traefik by the CoreDNS rewrite.
+  EDGE_INTERNAL_ORIGIN: https://dev.localtest.me
+  # Trust the local CA rather than disabling verification. The secret is mounted
+  # below; `ca.crt` is the anchor cert-manager writes there.
+  NODE_EXTRA_CA_CERTS: /etc/ssl/local-ca/ca.crt
+secrets:
+  # The chart names the volume after the Secret (secretName: .name), so `name` here
+  # IS the Secret cert-manager writes the CA into.
+  files:
+    - name: local-ca-tls
+      mountPath: /etc/ssl/local-ca

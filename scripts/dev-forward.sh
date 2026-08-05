@@ -4,7 +4,7 @@
 # reach them. Replaces the Skaffold `platform` module's port-forwards. Long-running
 # — run it in a separate terminal (or background) and leave it up while you iterate.
 #
-#   mise run cluster:lite      # once: cluster + lightweight deps
+#   mise run cluster:base      # once: the local floor (a service's tasks do this for you)
 #   mise run dev:forward     # this script, in its own terminal
 #   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 OPENFGA_API_URL=http://localhost:18080 \
 #     go run ./services/orders/cmd/server   # run the service natively
@@ -25,9 +25,9 @@ k port-forward svc/temporal 7233:7233 &
 pids+=($!)
 k port-forward svc/temporal 8233:8233 &
 pids+=($!)
-# Local 18080, not 8080: the service under test serves on 8080 and k3d maps host
-# 8080 to the edge — so the OpenFGA forward uses 18080 (matches OPENFGA_API_URL in
-# services/*/.env.example).
+# Local 18080, not 8080: k3d maps host 8080 to the edge, so the OpenFGA forward uses
+# 18080 (matches OPENFGA_API_URL in services/*/.env.example). Services themselves
+# bind their own registered ports (scripts/lib/ports.sh) and never collide here.
 k port-forward svc/openfga 18080:8080 &
 pids+=($!)
 

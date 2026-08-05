@@ -1,7 +1,24 @@
 [env]
+# The registered local port for this service (scripts/lib/ports.sh). Committed
+# rather than left to .env so that a sibling's <SVC>_URL default can rely on it,
+# and so two services can never quietly pick the same port. In-cluster is
+# unaffected — the chart sets no PORT, so pods still bind :8080.
+PORT = "8085"
 _.file = ".env"
 
+[tasks.env]
+# Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why
+# it stops rather than continuing). Hidden: it runs as a dependency.
+hide = true
+run = "bash ../../scripts/env-ensure.sh"
+
 [tasks.server]
+# Dependency components this service needs in the cluster (ADR-0016, ADR-0030).
+# Declared here, with the service, because the service knows its own dependencies
+# and a named profile never can. mise resolves the graph: the shared cluster:base
+# edge is deduped, independent components come up in parallel, and each one
+# fast-exits when already Ready.
+depends = ["env", "dep:openfga"]
 run = "go run ./cmd/server"
 
 [tasks.test]

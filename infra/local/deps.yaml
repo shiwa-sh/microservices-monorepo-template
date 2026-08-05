@@ -4,10 +4,16 @@
 # The production-grade versions (CNPG, the Temporal Helm chart, operator-backed
 # OpenFGA) are exercised by ArgoCD in staging/prod, not here.
 #
-# Every resource carries `local.platform/component`, so a profile (ADR-0016) can
-# apply a SLICE of this file rather than fork it — `kubectl apply -f` honours
-# `--selector`. cluster:lite applies all of it; the `edge` profile (ADR-0029) takes
-# `in (base,postgres)` alone, because Temporal and OpenFGA render no page.
+# Every resource carries `local.platform/component`, so a caller applies a SLICE of
+# this file rather than forking it — `kubectl apply -f` honours `--selector`. That
+# is what makes a component a SELECTION (ADR-0016): there is one manifest, and
+# nothing can drift from it.
+#
+# cluster:base takes `in (base,postgres)` — Kratos needs a store, so every base has
+# one. Everything else is opt-in, added by scripts/dep-apply.sh when a service
+# declares it (`dep:temporal`, `dep:openfga`, `dep:db-secrets` in the service's own
+# .mise.toml). There are no named profiles: what is up is base ∪ the declared
+# dependencies of whatever you are running.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -15,9 +21,9 @@ metadata:
   labels: { local.platform/component: base }
 ---
 # --- Postgres (plain image, ephemeral) -------------------------------------
-# `kratos` is here for the `edge` profile: that tier runs the real Kratos against
-# this stand-in instead of CNPG (ADR-0029). Unused by cluster:lite, and free — the
-# pod has no volume, so initdb re-runs on every start.
+# `kratos` is here because cluster:base runs the real Kratos against this stand-in
+# instead of CNPG (ADR-0029). Free either way — the pod has no volume, so initdb
+# re-runs on every start.
 apiVersion: v1
 kind: ConfigMap
 metadata:

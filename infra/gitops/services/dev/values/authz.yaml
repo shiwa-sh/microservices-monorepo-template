@@ -1,0 +1,39 @@
+# Dev values for the authz edge authorizer (ADR-0017).
+#
+# This file is what DEPLOYS authz to dev: the services ApplicationSet
+# (infra/gitops/bootstrap/appset-services.yaml) generates one Argo Application per
+# values file found here. Without it authz existed locally and nowhere else, while
+# infra/auth/oathkeeper/values.yaml pointed its remote_json authorizer at
+# http://authz-server.platform.svc.cluster.local/authorize in every environment —
+# so every ops-dashboard authorization check in dev resolved to a Service that was
+# never created. `mise run lint:service-contract` now fails on that shape.
+#
+# authz is INTERNAL: Oathkeeper calls it by service DNS, so it gets no /api edge
+# route (ingress off). It has no database (migrations off). It reads OpenFGA with
+# the SOPS-managed preshared key.
+name: authz
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/authz-server
+  tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+worker:
+  enabled: false
+server:
+  replicas: 1
+ingress:
+  enabled: false     # internal authorizer — no edge route
+migrations:
+  enabled: false     # no database
+# Not edge-exposed, so the chart's Traefik→server-port default must be off. Two
+# legitimate callers of the server port: Oathkeeper's remote_json authorizer (every
+# gated dashboard request), and the Lowdefy admin console's server-side
+# "authz-admin" connection (apps/admin/lowdefy.yaml), which POSTs to /operators
+# backend-to-backend rather than back through the edge.
+networkPolicy:
+  allowFromGateway: false
+  allowFrom: [oathkeeper, lowdefy]
+secrets:
+  envFrom: [openfga-creds]
+env:
+  OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
+  # Blank so libs/go/authz falls back to openfga-creds.preshared_key (envFrom).
+  OPENFGA_PRESHARED_KEY: ""

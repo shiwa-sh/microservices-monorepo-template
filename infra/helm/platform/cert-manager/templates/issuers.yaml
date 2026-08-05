@@ -1,12 +1,27 @@
 {{- if .Values.selfSigned.enabled }}
 # Local / non-public TLS (ADR-0016): cert-manager IS the mechanism in every env;
-# only the issuer differs. Locally a SelfSigned ClusterIssuer mints the same
-# wildcard secrets the edge consumes (wildcard-tls, wildcard-ops-tls) in the
-# platform namespace, where the IngressRoutes resolve them. This replaces the
-# imperative openssl block the old scripts/cluster-full.sh used.
+# only the issuer differs. Locally a local ROOT CA mints the wildcard secrets the
+# edge consumes (wildcard-tls, wildcard-ops-tls) in the platform namespace, where
+# the IngressRoutes resolve them. This replaces the imperative openssl block the
+# old scripts/cluster-full.sh used.
+#
+# ── Why a CA chain and not a self-signed leaf ─────────────────────────────────
+# This used to be `selfSigned: {}` issuing the wildcard directly. A self-signed
+# LEAF has no issuer to trust: you cannot put it in a trust store as an anchor, so
+# anything dialling the edge in-cluster had to disable verification outright
+# (NODE_TLS_REJECT_UNAUTHORIZED=0). That is survivable for a host `next dev` and
+# unacceptable in a container image — and it blocked the frontend from ever running
+# as its production image locally (ADR-0016, ADR-0030).
+#
+# So: a self-signed issuer mints a CA certificate (isCA: true), that CA becomes a
+# ClusterIssuer, and the wildcards are issued from it. `local-ca-tls` then holds a
+# real anchor that NODE_EXTRA_CA_CERTS (or any trust bundle) can consume, and no
+# verification is disabled anywhere.
 #
 # Resource sync-waves (relative to this app's sync): the Issuer/Certificates wait
-# for cert-manager's webhook (wave 0) to be Ready before they are admitted.
+# for cert-manager's webhook (wave 0) to be Ready before they are admitted. The CA
+# certificate is wave 1 and the issuer that depends on it wave 2, so the secret
+# exists before anything references it.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -15,6 +30,30 @@ metadata:
 spec:
   selfSigned: {}
 ---
+# The local root. Self-signed, but a CA — that is the whole difference.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: local-ca
+  namespace: platform
+  annotations: { argocd.argoproj.io/sync-wave: "1" }
+spec:
+  isCA: true
+  commonName: "{{ .Values.envHost }} local CA"
+  secretName: local-ca-tls
+  duration: 87600h    # 10y — a laptop CA nobody wants to rotate mid-sprint
+  privateKey: { algorithm: ECDSA, size: 256 }
+  issuerRef: { name: selfsigned, kind: ClusterIssuer }
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: local-ca
+  annotations: { argocd.argoproj.io/sync-wave: "2" }
+spec:
+  ca:
+    secretName: local-ca-tls
+---
 # Product tier `*.<host>` (+ apex). Locally both wildcard secrets carry the same
 # multi-SAN self-signed cert; deployed envs split them into two Let's Encrypt certs.
 apiVersion: cert-manager.io/v1
@@ -22,10 +61,10 @@ kind: Certificate
 metadata:
   name: wildcard
   namespace: platform
-  annotations: { argocd.argoproj.io/sync-wave: "1" }
+  annotations: { argocd.argoproj.io/sync-wave: "2" }
 spec:
   secretName: wildcard-tls
-  issuerRef: { name: selfsigned, kind: ClusterIssuer }
+  issuerRef: { name: local-ca, kind: ClusterIssuer }
   dnsNames:
     - "*.{{ .Values.envHost }}"
     - "{{ .Values.envHost }}"
@@ -38,10 +77,10 @@ kind: Certificate
 metadata:
   name: wildcard-ops
   namespace: platform
-  annotations: { argocd.argoproj.io/sync-wave: "1" }
+  annotations: { argocd.argoproj.io/sync-wave: "2" }
 spec:
   secretName: wildcard-ops-tls
-  issuerRef: { name: selfsigned, kind: ClusterIssuer }
+  issuerRef: { name: local-ca, kind: ClusterIssuer }
   dnsNames:
     - "*.{{ .Values.envHost }}"
     - "{{ .Values.envHost }}"

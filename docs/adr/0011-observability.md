@@ -135,7 +135,7 @@ High-cardinality labels (`user_id`, `request_id` as metric labels) destroy a met
 
 ### Local development
 
-Observability runs in the **full-platform tier** ([ADR-0016](0016-environment-parity.md)). `mise run cluster:full` brings up the real observability chart (`infra/helm/platform/observability`, the same one dev/staging/prod run) at a single replica, backed by in-cluster MinIO — so the backend wiring itself is validated, not just the service-side OTLP. The lightweight `mise run cluster:lite` inner loop carries only Postgres/Temporal/OpenFGA (no collector), since a natively-run service inspecting telemetry brings up the full tier.
+Observability runs in the **full-platform tier** ([ADR-0016](0016-environment-parity.md)). `mise run cluster:full` brings up the real observability chart (`infra/helm/platform/observability`, the same one dev/staging/prod run) at a single replica, backed by in-cluster MinIO — so the backend wiring itself is validated, not just the service-side OTLP. The inner loop carries no collector — only the floor plus whatever components a service declares — since a natively-run service inspecting telemetry brings up the full tier.
 
 Service code is unchanged between local and prod. The same `obs.Init` call works against the full-tier collector and the production stack; with neither running, the OTLP exporter simply has no collector to reach (`OTEL_SDK_DISABLED=true` in the inner-loop service values).
 

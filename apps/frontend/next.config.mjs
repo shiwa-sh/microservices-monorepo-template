@@ -2,8 +2,9 @@
 // Dockerfile. All first-party code lives inside the app, so no transpilePackages.
 
 // Server Actions CSRF allowlist (ADR-0009, ADR-0014), derived from the one edge
-// origin this app knows (EDGE_ORIGIN, see src/lib/server-fetch/server.ts) so the
-// two never drift. Next compares the list against `new URL(origin).host`, which
+// origin the BROWSER uses (EDGE_PUBLIC_ORIGIN) — deliberately not the internal
+// origin a pod dials, which differs by port in-cluster and would allowlist the
+// wrong host. See src/lib/server-fetch/server.ts for the split. Next compares the list against `new URL(origin).host`, which
 // INCLUDES the port — hence `.host`, not the bare hostname: a `dev.localtest.me`
 // entry can never match an `https://dev.localtest.me:8443` origin.
 //
@@ -11,9 +12,9 @@
 // and `/api` on the same origin, so that is already the common case and this is
 // defence in depth. Note it is BUILD-time: `output: "standalone"` freezes this
 // config into server.js, so a deployed image only carries an entry if the build
-// passed EDGE_ORIGIN — which pins that image to one env host and breaks the
+// passed EDGE_PUBLIC_ORIGIN — which pins that image to one env host and breaks the
 // build-once/promote-by-digest flow in ADR-0013. Leave it unset in CI builds.
-const edgeOrigin = process.env.EDGE_ORIGIN;
+const edgeOrigin = process.env.EDGE_PUBLIC_ORIGIN;
 const allowedOrigins = edgeOrigin ? [new URL(edgeOrigin).host] : [];
 
 /** @type {import('next').NextConfig} */

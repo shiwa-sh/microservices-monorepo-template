@@ -21,6 +21,33 @@ tags. Use `scripts/new-service.sh <name>` to do this automatically.
 | `.mise.toml`                  | Service-local tasks (`run`, `worker`, `test`, `migrate`, …) |
 | `Dockerfile`                  | Multi-stage build with `CMD` build arg (ADR-0002)           |
 
+## Checklist for a new service
+
+`scripts/new-service.sh` copies the skeleton; these are the things it cannot decide
+for you. The full rationale is the service contract in
+[ADR-0016](../../docs/adr/0016-environment-parity.md); `mise run lint:service-contract`
+fails on anything missed here.
+
+1. **Register a local port** in `scripts/lib/ports.sh`, and set the same `PORT` in
+   your `.mise.toml` (the skeleton ships `80XX` so it fails loudly until you do).
+   Ports must be unique; `:8080` is reserved for the k3d edge mapping.
+2. **Trim `dep:*`** to what the service actually reads — drop `dep:temporal` with no
+   worker, `dep:postgres` with no database.
+3. **Add `svc:*`** for every other service you call over HTTP. Miss one and the
+   service starts cleanly, then fails on the first call that leaves it.
+4. **Write `.env.example`** covering every variable you read. It is what seeds a
+   fresh clone's `.env`, so an unlisted variable becomes a silent default.
+5. **Add a values file per environment** under `infra/gitops/services/<env>/values/`.
+   This is the step that actually deploys you: the ApplicationSet generates one Argo
+   Application *per values file*, so skipping an environment means you are absent
+   there and nothing says so. If that is deliberate, declare
+   `# platform/not-deployed: <env>` in your `.mise.toml` instead.
+6. **Decide your edge exposure** in those values: `ingress.enabled` plus
+   `ingress.resources`, and `networkPolicy.allowFrom` for east-west callers. An
+   internal service must set `networkPolicy.allowFromGateway: false` — see
+   `services/authz` for a worked example.
+7. **Replace this README** with one describing what the service is for.
+
 ## Standard tasks
 
 ```sh
