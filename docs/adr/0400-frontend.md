@@ -15,7 +15,7 @@ This ADR is the single entry point for a newcomer working on the frontend.
 
 | Concern | Decision | ADR |
 | --- | --- | --- |
-| Framework | Next.js, one app, route groups `(landing\|panel\|devportal)` | [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md) |
+| App count and route groups | one app, route groups `(landing\|panel\|devportal)` | [ADR-0101](0101-monorepo.md) |
 | Language and runtime | TypeScript, Bun as the only JS runtime | [ADR-0100](0100-language-and-runtime.md) |
 | Workspaces | Bun workspaces, no Turborepo | [ADR-0101](0101-monorepo.md) |
 | API clients | generated from each service's spec | [ADR-0303](0303-api-contracts-and-lifecycle.md) |
@@ -45,7 +45,7 @@ This ADR is the single entry point for a newcomer working on the frontend.
 | Component catalogue | **an in-repo kitchen-sink route** | Storybook is useful and not load-bearing with one app where Figma is already the isolated visual catalogue. Re-evaluated if a second app lands or a design-system maintainer joins |
 | i18n | **deferred behind a trigger** | `next-intl` on day one is premature without a locale on the roadmap |
 
-**Next.js itself carries no recorded comparison.** It is asserted as context in [ADR-0100](0100-language-and-runtime.md) and treated as pinned here — a circular reference with no argument at either end. The comparison this ADR owes against TanStack Start, React Router, Astro, and SvelteKit, including the self-hosting posture given the vendor's governance, belongs in this section.
+**The framework is this ADR's to decide.** [ADR-0100](0100-language-and-runtime.md) picks the language and the runtime and stops there. The comparison against TanStack Start, React Router, Astro, and SvelteKit — including the self-hosting posture given the vendor's governance — belongs in this table.
 
 ## Decision
 

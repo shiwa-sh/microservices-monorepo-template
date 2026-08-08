@@ -28,7 +28,7 @@ Without one durable-execution platform, each grows its own machinery: outbox tab
 
 | Option | Model | Maturity | Verdict |
 | --- | --- | --- | --- |
-| **Temporal, self-hosted** | durable execution as a first-class primitive: activities, child workflows, signals, queries, timers, schedules, sagas in one model | mature Go SDK, Postgres-backed | **Chosen** |
+| **Temporal, self-hosted** | durable execution as a first-class primitive: activities, child workflows, signals, queries, timers, schedules, sagas in one model | first-party SDKs across the mainstream runtimes, Postgres-backed | **Chosen** |
 | Restate | similar durable-execution model with a simpler operational shape | young; SDK and saga ergonomics trail | Worth watching, not adopting |
 | Cadence | Temporal's predecessor | less momentum | No upside over Temporal |
 | DIY — outbox, queue, cron, retry loops | four mechanisms | ours to maintain | Re-implements Temporal poorly, four times |
