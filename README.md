@@ -179,9 +179,9 @@ The **Planned change** column names a replacement under consideration but not ye
 | Frontend | Next.js + TypeScript on Bun, one app with route groups | [0100](docs/adr/0100-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) | record the framework comparison |
 | Design system | Untitled UI on Tailwind v4 | [0400](docs/adr/0400-frontend.md) | |
 | Task runner | `mise` | [0101](docs/adr/0101-monorepo.md) | |
-| Machines | Debian stable, configured by Ansible | [0200](docs/adr/0200-cluster-topology.md) | Talos Linux |
+| Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) | |
 | Cloud resources | Terraform, per project | [0200](docs/adr/0200-cluster-topology.md) | OpenTofu |
-| Cluster | k3s in production, k3d locally | [0200](docs/adr/0200-cluster-topology.md) | kind locally |
+| Cluster | upstream Kubernetes shipped by Talos in production, k3d locally | [0200](docs/adr/0200-cluster-topology.md) | kind locally |
 | Deploy | Argo CD, the only mechanism; Helm charts, per-env values | [0201](docs/adr/0201-gitops.md) | Kustomize for first-party |
 | Network / policy | Cilium + Hubble, WireGuard, default-deny | [0200](docs/adr/0200-cluster-topology.md) | |
 | Resource governance | LimitRange, ResourceQuota, PriorityClass, PDB | [0204](docs/adr/0204-resource-management.md) | Kyverno admission |

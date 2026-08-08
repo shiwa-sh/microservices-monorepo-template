@@ -107,7 +107,7 @@ infra/
 ├── terraform/                # cluster + DNS + LB provisioning
 ├── helm/                     # Helm charts (ours + values for upstream)
 ├── gitops/                   # ArgoCD ApplicationSets + per-env values
-├── ansible/                  # host configuration
+├── talos/                    # node machine configs (ADR-0200)
 ├── auth/                     # Kratos, Hydra, OpenFGA config
 ├── gateway/                  # Traefik routing + rate limits
 └── observability/            # dashboards and alerts as code
@@ -249,8 +249,8 @@ Each step is its own ADR when triggered.
 | Step | Trigger | Seam | Cost if adopted late |
 | --- | --- | --- | --- |
 | Split the Go module | a service or library needs its own dependency line — external publication, divergent upgrade cadence, isolated security review | present: packages already sit at import paths that become module paths unchanged | grows with the number of cross-package imports that have to become versioned dependencies, so the later it happens the more of the repository it touches |
-| Adopt Nx or moon as a task orchestrator with caching and a project graph | the task graph outgrows mise, or hand-written affected detection stops being trustworthy | present: tasks are declarative and already named `group:member`, and both wrap them rather than replacing them | low, and flat — the wrapping is mechanical whenever it happens |
-| Adopt Pants, Bazel, or Nix | hermetic reproducible builds become a compliance requirement. Which of the three is the ADR that gets written then, not now | **none. This is a bet** ([ADR-0000](0000-platform-foundations.md)): each replaces the build rather than wrapping it, so every Dockerfile, task, and codegen step is rewritten | flat — the rewrite is the same size whenever it happens, which is what makes deferring it free |
+| Adopt Nx or moon as a task orchestrator with caching and a project graph | the task graph outgrows mise, or hand-written affected detection stops being trustworthy | present: tasks are declarative and already named `group:member`, and both wrap them rather than replacing them | low, and proportional to package count rather than compounding — each wrap is mechanical, and nothing accumulates that makes the next one harder |
+| Adopt Pants, Bazel, or Nix | hermetic reproducible builds become a compliance requirement. Which of the three is the ADR that gets written then, not now | **none. This is a bet** ([ADR-0000](0000-platform-foundations.md)): each replaces the build rather than wrapping it, so every Dockerfile, task, and codegen step is rewritten | **grows with the fleet.** Every build target, Dockerfile, and codegen step has to be described to the new system, so the migration is proportional to a repository that is expected to get larger. The trigger is a compliance requirement, and those arrive with dates — so the risk of waiting is doing a fleet-sized migration to someone else's deadline. What the delay buys is never paying for a build system the trigger may never demand |
 
 ## Consequences
 

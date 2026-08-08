@@ -12,7 +12,7 @@ The real floor. Every environment runs these; a project removes one only by writ
 
 | Component | Concern | ADR |
 | --- | --- | --- |
-| k3s | Kubernetes runtime | [0200](adr/0200-cluster-topology.md) |
+| Talos Linux | node OS and Kubernetes runtime, as one artefact | [0200](adr/0200-cluster-topology.md) |
 | Cilium (+ WireGuard, default-deny) | CNI, east-west encryption, network policy | [0200](adr/0200-cluster-topology.md) |
 | Traefik | Ingress / edge routing | [0305](adr/0305-edge-auth-and-traffic-policy.md) |
 | cert-manager | TLS certificate lifecycle | [0200](adr/0200-cluster-topology.md) |

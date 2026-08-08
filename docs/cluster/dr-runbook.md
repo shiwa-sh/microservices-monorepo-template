@@ -14,10 +14,11 @@ Recovering from full cluster loss. The targets and the backup design are [ADR-02
 cd infra/terraform/environments/<env>
 terraform apply
 
-# 2. Bootstrap k3s + the in-cluster age key (against the Terraform-produced
-#    hosts, or the committed inventory of pre-provided hosts).
-cd ../../../ansible
-ansible-playbook -i inventory/<env> bootstrap.yml
+# 2. Apply the Talos machine configs and bootstrap the cluster, plus the
+#    in-cluster age key (against the Terraform-produced nodes, or the
+#    committed inventory of pre-provided Talos nodes).
+cd ../../../talos
+terraform apply
 
 # 3. Re-install ArgoCD's root Application; ArgoCD reconciles everything else.
 kubectl apply -f infra/gitops/bootstrap/root-application.yaml
