@@ -200,7 +200,16 @@ ADR numbers are allocated in blocks of a hundred, one block per layer, sequentia
 
 ### Enforcement annotations
 
-Every Rule ends with how it is enforced, so a reader distinguishes a hard invariant from an aspiration: `(CI: <lint>)`, `(review-only)`, or `(ref: <standard>)`.
+Every Rule ends with how it is enforced, so a reader distinguishes a hard invariant from an aspiration.
+
+| Annotation | Means |
+| --- | --- |
+| `(CI: <task>)` | a named `mise` task or workflow rejects the violation |
+| `(enforced: <policy>)` | admission control rejects it in the cluster, which CI cannot bypass |
+| `(review-only)` | a human applies it |
+| `(ref: <standard>)` | the adopted external standard is the rule |
+
+The annotation names an enforcement that **exists**. An unbuilt check is `(review-only)` until the day it runs, because a rule advertising a gate nobody wrote is weaker than one that admits it is reviewed.
 
 ## Consequences
 
@@ -230,7 +239,7 @@ Every Rule ends with how it is enforced, so a reader distinguishes a hard invari
 - Tables are compact — one space inside each pipe, a bare `---` delimiter — never column-padded. `(CI: lint:md)`
 - An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section. `(review-only)`
 - An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule. `(review-only)`
-- Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. `(CI: lint:md)`
+- Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. `(review-only)`
 - No committed file links to a local working file. `(CI: lint:md)`
 - ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md). `(review-only)`
 - Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(review-only; ref: OTel semconv)`
@@ -243,4 +252,4 @@ Every Rule ends with how it is enforced, so a reader distinguishes a hard invari
 - An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`. `(review-only)`
 - No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses. A generated project rewrites that README, so duplication there is expected and correct. `(review-only)`
 - A term enters the [ADR-0000](0000-platform-foundations.md) vocabulary only when the ADR set uses it, and only if the repo does not already use that word in another sense. `(review-only)`
-- Every ADR Rule is annotated with its enforcement: `(CI: <lint>)`, `(review-only)`, or `(ref: <standard>)`. `(review-only)`
+- Every ADR Rule is annotated with its enforcement: `(CI: <task>)`, `(enforced: <policy>)`, `(review-only)`, or `(ref: <standard>)`. The annotation names an enforcement that exists; an unbuilt check is `(review-only)`. `(review-only)`

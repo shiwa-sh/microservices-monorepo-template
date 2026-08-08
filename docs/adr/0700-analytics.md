@@ -126,7 +126,7 @@ Postgres as a row store is the floor, not a ceiling claim.
 ## Rules
 
 - The frontend has exactly one browser telemetry agent. A second analytics SDK is not added — it mints a second session identity and breaks error-to-journey correlation. `(review-only)`
-- Marketing events are emitted under the reserved `marketing.*` namespace and routed out of the logs pipeline at the collector. A `marketing.*` event reaching Loki is a defect. `(CI: to be added with the routing connector)`
+- Marketing events are emitted under the reserved `marketing.*` namespace and routed out of the logs pipeline at the collector. A `marketing.*` event reaching Loki is a defect. `(review-only)`
 - Analytics storage is a first-party service on the existing cluster. A dedicated analytics datastore joins the platform only on the documented ClickHouse trigger. `(review-only)`
 - The marketing panel is a route group on the product origin, page-gated by `Checker` in addition to the session gate. Marketing surfaces on the ops tier are not created. `(review-only)`
 - The events table carries a declared data class and schema-level PII tags, and is reached by the erasure and DSAR workflows. Raw IP addresses are never stored. `(review-only)`
