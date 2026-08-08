@@ -41,6 +41,54 @@ Most of what a house style would say is already published. Re-deriving it produc
 
 Diátaxis classifies an ADR as **explanation plus reference**. It is not a tutorial and not a how-to: it records a decision and its constraints, and never walks a reader through a task.
 
+### ADR structure
+
+Sections appear in this order. A section with nothing to say is omitted, not filled.
+
+| # | Section | Contains |
+| --- | --- | --- |
+| 1 | Header | Status, Date, Deciders, Related |
+| 2 | Context | The problem and the constraints inherited from earlier ADRs |
+| 3 | Decision drivers | What is being optimised for, in priority order — see *A driver is a property, not an answer* |
+| 4 | Considered options | A comparison table against the alternatives. Mandatory ([ADR-0000](0000-platform-foundations.md), principle 7) |
+| 5 | Decision | Declarative. "We use X. We do not use Y." |
+| 6 | Consequences | Positive, Negative / Risks. No `Follow-ups` — see *An ADR is law, not a plan* |
+| 7 | Rules | Flat, greppable, normative bullets derived from the decision |
+
+The comparison table uses prose cells where every option answers the same questions. It is not a scoring grid: the trade-offs are qualitative, and numeric scores manufacture false precision.
+
+[ADR-0000](0000-platform-foundations.md) is the one exemption. It chooses no technology, so it has no options to compare and no single decision to state; it carries the thesis, principles, process, prior art, and vocabulary instead. Every other ADR uses the order above.
+
+### A driver is a property, not an answer
+
+A driver states what the decision is being optimised for. It is written so that someone who does not yet know the outcome could apply it and reach one.
+
+Two failures make a driver useless, and both read as reasoning:
+
+| Failure | Example | Instead |
+| --- | --- | --- |
+| **The driver names its own answer** | "One repo-wide release version, because the repo ships as a unit" | "The unit of versioning is the unit of shipping" — the property, which the version line then follows from |
+| **The driver caricatures the loser** | "Keyless over key management. A team this size should not operate a signing-key HSM" — when the alternative was a key in the secret store already running | State the property, and let the option lose on what it actually is |
+
+Both failures produce a Considered options table whose verdicts cite a driver written to eliminate them. That is circular, and it reads as rigour.
+
+The test: swap the chosen option for a rejected one and re-read the drivers. If they now sound wrong rather than unmet, they are describing the answer instead of the problem.
+
+### An ADR is law, not a plan
+
+An ADR states what is true of this platform. It never states what someone intends to do about it. **"Deployments reference images by digest" is law; "wire the digest check into CI" is a task.** Both describe something absent from the repo, so the difference is where the obligation sits.
+
+| An ADR's Rule | A working-file task |
+| --- | --- |
+| Holds indefinitely | Completes, and is then deleted |
+| Is violated by code | Is *unmet* by an empty repo, which is not a violation |
+| Binds every reader, including a generated project's | Binds one person in one repo |
+| A reviewer cites it to reject a PR | A reviewer cannot cite it at all |
+
+**A gap between an ADR and the repo does not weaken the ADR.** An unbuilt artefact is unfinished work, not an unfinished decision. Recording the gap inside the ADR converts a standing rule into a status report, which is what guarantees it goes stale.
+
+Gaps go in a **local working file, never committed** — `*.local.md`, ignored by `.gitignore`, described in [`AGENTS.md`](../../AGENTS.md). A tracked plan is inherited by every generated project, which then carries a backlog belonging to someone else; as per-engineer working state, committing it also makes one person's queue everyone's merge conflict. No committed file links to it: a link that resolves in one clone dangles in every other.
+
 ### Density
 
 An ADR is a high-density technical document. Every word carries meaning or is deleted.
@@ -73,20 +121,6 @@ The last two rot. Nothing forces their update, and a figure without a date reads
 
 The argument almost never needs the figure. "A floor of a couple of dozen components, fixed regardless of service count" carries the same weight as an exact tally and cannot go stale. Where a figure is load-bearing, it is a threshold, or it states the conditions it was taken under and where to take it again.
 
-### Line breaks
-
-**Markdown is not hard-wrapped.** One line per paragraph, list item, or table row; a line ends only where the content does. `MD013` is disabled in `.rumdl.toml` for this reason.
-
-Hard wrapping costs more than it looks. Editing one word reflows the paragraph, so the diff shows every line after it and review cannot see what changed. The wrap column is also a per-author choice, which is how a repo ends up with three of them.
-
-The reader's line length is the reader's business: an editor soft-wraps, and so does every renderer.
-
-### Tables
-
-Tables are **compact**, never column-padded: one space inside each pipe, and a bare `---` delimiter regardless of column width. `MD060` enforces it and `mise run format:md` applies it.
-
-Padding is the same trap as hard wrapping. Widening one cell reflows every row, so a one-word edit arrives as a whole-table diff. It also has to be redone by hand on every subsequent edit, which is why the padded tables in this repo were a minority that drifted.
-
 ### Banned constructs
 
 | Banned | Example found in this repo | Write instead |
@@ -106,57 +140,15 @@ Padding is the same trap as hard wrapping. Widening one cell reflows every row, 
 
 Deleting a word is always in scope for a documentation PR and never needs its own justification.
 
-### An ADR is law, not a plan
+### Line breaks and tables
 
-An ADR states what is true of this platform. It never states what someone intends to do about it.
+**Markdown is not hard-wrapped.** One line per paragraph, list item, or table row; a line ends only where the content does. `MD013` is disabled in `.rumdl.toml` for this reason.
 
-The two are easy to confuse because both describe something absent from the repo, and the difference is where the obligation sits. **"Deployments reference images by digest" binds every future deploy whether or not one exists today.** "Wire the digest check into CI" binds an engineer, on a date, and is stale the moment the work lands or is dropped.
+**Tables are compact**, never column-padded: one space inside each pipe, and a bare `---` delimiter regardless of column width. `MD060` enforces it and `mise run format:md` applies it.
 
-| An ADR's Rule | A working-file task |
-| --- | --- |
-| Holds indefinitely | Completes, and is then deleted |
-| Is violated by code | Is *unmet* by an empty repo, which is not a violation |
-| Binds every reader, including a generated project's | Binds one person in one repo |
-| A reviewer cites it to reject a PR | A reviewer cannot cite it at all |
+Both rules protect the diff. Reflowing a paragraph or widening a column rewrites every line after it, so a one-word edit arrives as a whole-file change and review cannot see what changed. Padding also has to be redone by hand on every later edit, and a wrap column is a per-author choice, which is how a repo ends up with three of them.
 
-**A gap between an ADR and the repo does not weaken the ADR.** The decision is binding from the day it is accepted; an unbuilt artefact is unfinished work, not an unfinished decision. Recording the gap inside the ADR converts a standing rule into a status report, which is the one thing that guarantees it goes stale.
-
-Gaps are recorded in a **local working file, never committed** — `*.local.md`, ignored by `.gitignore`, described in [`AGENTS.md`](../../AGENTS.md). Two reasons it stays out of the repo. A tracked plan is inherited by every generated project, which then carries a backlog belonging to someone else. And a plan is per-engineer working state, so committing it makes one person's queue everyone's merge conflict.
-
-No file under `docs/` links to a local working file. A link that resolves in one clone and dangles in every other is worse than no link.
-
-### A driver is a property, not an answer
-
-A driver states what the decision is being optimised for. It is written so that someone who does not yet know the outcome could apply it and reach one.
-
-Two failures make a driver useless, and both read as reasoning:
-
-| Failure | Example | Instead |
-| --- | --- | --- |
-| **The driver names its own answer** | "One repo-wide release version, because the repo ships as a unit" | "The unit of versioning is the unit of shipping" — the property, which the version line then follows from |
-| **The driver caricatures the loser** | "Keyless over key management. A team this size should not operate a signing-key HSM" — when the alternative was a key in the secret store already running | State the property, and let the option lose on what it actually is |
-
-**A driver that only makes sense once you know the decision was written backwards.** Both failures produce a Considered options table whose verdicts cite a driver written to eliminate them, which is circular and reads as rigour.
-
-The test: swap the chosen option for a rejected one and re-read the drivers. If they now sound wrong rather than unmet, they are describing the answer instead of the problem.
-
-### ADR structure
-
-Sections appear in this order. A section with nothing to say is omitted, not filled.
-
-| # | Section | Contains |
-| --- | --- | --- |
-| 1 | Header | Status, Date, Deciders, Related |
-| 2 | Context | The problem and the constraints inherited from earlier ADRs |
-| 3 | Decision drivers | What is being optimised for, in priority order — see *A driver is a property, not an answer* |
-| 4 | Considered options | A comparison table against the alternatives. Mandatory ([ADR-0000](0000-platform-foundations.md), principle 7) |
-| 5 | Decision | Declarative. "We use X. We do not use Y." |
-| 6 | Consequences | Positive, Negative / Risks. No `Follow-ups` — see *An ADR is law, not a plan* |
-| 7 | Rules | Flat, greppable, normative bullets derived from the decision |
-
-The comparison table uses prose cells where every option answers the same questions. It is not a scoring grid: the trade-offs are qualitative, and numeric scores manufacture false precision.
-
-[ADR-0000](0000-platform-foundations.md) is the one exemption. It chooses no technology, so it has no options to compare and no single decision to state; it carries the thesis, principles, process, prior art, and vocabulary instead. Every other ADR uses the order above.
+The reader's line length is the reader's business: editors and renderers both soft-wrap.
 
 ### Structured logs
 
