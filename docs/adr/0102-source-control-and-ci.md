@@ -9,28 +9,27 @@
 
 [ADR-0000](0000-platform-foundations.md) principle 3 makes source control and CI a first-class decision rather than a signup. A forge bundles four concerns a managed provider hides: the repository, the review record, the pipeline, and the identity that signs artefacts.
 
-That last one makes the forge the platform's **trust root**. [ADR-0104](0104-supply-chain-security.md) signs every image with the CI workflow's OIDC identity, so the forge defines what "provably built by us" means.
+The pipeline is where artefacts are built and signed ([ADR-0104](0104-supply-chain-security.md)), so whoever runs it decides what "built by us" can be proven against.
 
-Every workflow under `.github/workflows/` runs on provider-hosted runners. That is the largest standing distance between the stated axis-B position and what executes.
+A managed forge is the one dependency that cannot be reconciled with principle 3 by pinning or by a contract, because the trust root is the thing being outsourced.
 
 ## Decision drivers
 
 1. **Operational sovereignty** ([ADR-0000](0000-platform-foundations.md), principle 3). Source, review, and build run on infrastructure the organisation controls.
 2. **Thinnest viable platform** (principle 2). A forge is one component. A suite that arrives with its own datastore fleet is a different purchase.
-3. **The forge stays cheap to leave** (principle 4). CI logic lives in `mise run ci:*` ([ADR-0101](0101-monorepo.md)), so workflow YAML is a thin caller and portability is structural.
-4. **One primitive per concern** (principle 5). The forge runs the pipelines. A separate CI engine is a second system.
-5. **A CI identity keyless signing can use** ([ADR-0104](0104-supply-chain-security.md)).
+3. **Exit cost stays low** (principle 4). Whatever is chosen, the pipeline definition must not become where build logic lives, because then leaving means rewriting it rather than re-pointing it.
+4. **One primitive per concern** (principle 5). Source, review, and pipelines are one purchase or several, and each additional system is operational surface the platform team carries.
+5. **The build environment is part of the supply chain** ([ADR-0104](0104-supply-chain-security.md)). Whoever runs the pipeline can alter what is built, whatever is signed afterwards.
 
 ## Considered options
 
 | Option | Component weight | Pipelines | Governance | Verdict |
 | --- | --- | --- | --- | --- |
-| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit (Codeberg e.V.), AGPL | **Chosen.** The only option that satisfies drivers 1–4 together |
+| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+ since v9.0](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together |
 | Gitea + Gitea Actions | identical | identical | company-controlled | Functionally equivalent. Provenance is *recorded evidence about exit cost* (principle 4), and the governing body is the only discriminator between two otherwise equal choices |
 | GitLab CE | a suite — Gitaly, Redis, Sidekiq, its own Postgres, several web services | mature and complete | company-controlled, open-core | Rejected by principle 2, as [ADR-0000](0000-platform-foundations.md) already records. It replaces one component with a platform |
-| Managed forge (the status quo) | none | hosted runners | third-party | Fails driver 1. It is the position this ADR exists to close |
 | Self-hosted forge + separate CI engine | two components | Woodpecker, Tekton, or Argo Workflows | varies | Rejected by principle 5, as [ADR-0000](0000-platform-foundations.md) already records: a second system beside the forge |
-| Do nothing | none | hosted | third-party | The honest baseline. It leaves axis B asserted rather than held, and leaves the signing identity in a third party's control |
+| A managed forge — the do-nothing baseline | none | hosted runners | third-party | Fails driver 1 outright. It leaves axis B asserted rather than held, and the identity that signs artefacts in a third party's control |
 
 Forgejo and Gitea are the same software lineage and score identically on every technical row. Principle 4 says provenance does not veto a choice but is recorded; here it is the only distinguishing evidence, so it decides.
 
@@ -54,18 +53,13 @@ A generated project needs CI from its first commit, before any cluster exists to
 | --- | --- |
 | **Trigger** | the platform cluster serves its first environment |
 | **Seam** | ✅ the thin-YAML rule above. Moving is a re-targeting of the same `mise run ci:*` calls, not a rewrite of pipeline logic |
-| **Cost if adopted late** | source, review history, and the signing identity stay with a third party. Migration cost does not grow with the delay, so waiting is cheap — but the sovereignty claim is not true until it lands |
+| **Cost if adopted late** | the pipeline migration is flat — the thin-YAML rule makes it a re-target rather than a rewrite. **The review record is not flat.** Pull requests, review comments, and issues are forge-native and do not travel with a `git push`, so that body grows for as long as the decision waits. Sovereignty is also asserted rather than held until it lands |
 
 ### Signing identity
 
-[ADR-0104](0104-supply-chain-security.md) chooses cosign keyless, which needs the runner to mint an OIDC token a public Fulcio instance will accept. That is a property of the pipeline platform, not of cosign.
+[ADR-0104](0104-supply-chain-security.md) signs with a key pair held in SOPS rather than against a third-party certificate authority, precisely so the signing identity does not depend on which forge runs the pipeline. Moving the forge re-targets the workflow and leaves the trust root untouched.
 
-| Case | Signing |
-| --- | --- |
-| The runner mints an accepted OIDC token | keyless, unchanged. [ADR-0104](0104-supply-chain-security.md) holds as written |
-| It does not | a cosign key pair held in SOPS ([ADR-0202](0202-secrets.md)), which reintroduces the key custody [ADR-0104](0104-supply-chain-security.md) driver 2 removes |
-
-The second case is a **real cost of this decision**, not a footnote: the fallback trades a hosted trust root for a key the platform team must rotate. It is verified before the migration trigger fires, never after.
+Forgejo v15.0 LTS does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/v15.0/user/actions/security-openid-connect/), alongside ephemeral runners. That capability is available for anything wanting a short-lived workload identity; it is not what signs images.
 
 ## Consequences
 
@@ -79,7 +73,6 @@ The second case is a **real cost of this decision**, not a footnote: the fallbac
 
 - **The forge joins Core**, and a forge outage blocks merges and builds. Argo CD keeps reconciling from the last synced commit, so a forge outage does not stop the running system.
 - **Self-hosted runners are compute the platform team owns**, including their cache and their isolation. Untrusted-PR execution is a policy question a public repository must answer before enabling it.
-- **The keyless-signing fallback may reintroduce key custody**, reversing an [ADR-0104](0104-supply-chain-security.md) driver.
 - **Forgejo's pipeline feature set trails the provider it imitates.** The thin-YAML rule bounds the exposure: the surface used is checkout, setup, and a task call.
 
 ## Rules
