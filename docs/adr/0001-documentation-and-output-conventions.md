@@ -101,7 +101,7 @@ Padding is the same trap as hard wrapping. Widening one cell reflows every row, 
 | **Rhetorical questions** | "But is the pod actually running the new code?" | The answer, as a statement |
 | **Dated section headings** | `## Implementation (2026-07-26)` | An undated heading |
 | **Planned work** — a `Follow-ups` list, a `TODO`, a roadmap | "`tools/lint-prose` for the intensifier and hedge lists" | Nothing. State the law and stop. The gap belongs in a working file |
-| **The implementation's status** | "tracked in", "not yet wired", "lands in a later phase" | The rule, unqualified. Whether the artefact exists is not the ADR's subject |
+| **The implementation's status** | "tracked in", "not yet wired", "lands in a later phase", "the status quo", a count of what exists so far | The rule, unqualified. Whether the artefact exists is not the ADR's subject, and an option loses on its merits rather than on being what happens to run |
 | **A link to an untracked file** | ``[`plan.md`](plan.md)`` | Nothing. The file is absent from every other clone |
 
 Deleting a word is always in scope for a documentation PR and never needs its own justification.
@@ -125,6 +125,21 @@ Gaps are recorded in a **local working file, never committed** — `*.local.md`,
 
 No file under `docs/` links to a local working file. A link that resolves in one clone and dangles in every other is worse than no link.
 
+### A driver is a property, not an answer
+
+A driver states what the decision is being optimised for. It is written so that someone who does not yet know the outcome could apply it and reach one.
+
+Two failures make a driver useless, and both read as reasoning:
+
+| Failure | Example | Instead |
+| --- | --- | --- |
+| **The driver names its own answer** | "One repo-wide release version, because the repo ships as a unit" | "The unit of versioning is the unit of shipping" — the property, which the version line then follows from |
+| **The driver caricatures the loser** | "Keyless over key management. A team this size should not operate a signing-key HSM" — when the alternative was a key in the secret store already running | State the property, and let the option lose on what it actually is |
+
+**A driver that only makes sense once you know the decision was written backwards.** Both failures produce a Considered options table whose verdicts cite a driver written to eliminate them, which is circular and reads as rigour.
+
+The test: swap the chosen option for a rejected one and re-read the drivers. If they now sound wrong rather than unmet, they are describing the answer instead of the problem.
+
 ### ADR structure
 
 Sections appear in this order. A section with nothing to say is omitted, not filled.
@@ -133,7 +148,7 @@ Sections appear in this order. A section with nothing to say is omitted, not fil
 | --- | --- | --- |
 | 1 | Header | Status, Date, Deciders, Related |
 | 2 | Context | The problem and the constraints inherited from earlier ADRs |
-| 3 | Decision drivers | What is being optimised for, in priority order |
+| 3 | Decision drivers | What is being optimised for, in priority order — see *A driver is a property, not an answer* |
 | 4 | Considered options | A comparison table against the alternatives. Mandatory ([ADR-0000](0000-platform-foundations.md), principle 7) |
 | 5 | Decision | Declarative. "We use X. We do not use Y." |
 | 6 | Consequences | Positive, Negative / Risks. No `Follow-ups` — see *An ADR is law, not a plan* |
@@ -238,6 +253,7 @@ The annotation names an enforcement that **exists**. An unbuilt check is `(revie
 - Markdown is not hard-wrapped: one line per paragraph, list item, or table row. `(CI: lint:md)`
 - Tables are compact — one space inside each pipe, a bare `---` delimiter — never column-padded. `(CI: lint:md)`
 - An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section. `(review-only)`
+- A decision driver states a property being optimised for, never the chosen option restated and never a rejected option's worst form. Swapping the winner for a loser must leave the drivers unmet, not wrong. `(review-only)`
 - An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule. `(review-only)`
 - Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. `(review-only)`
 - No committed file links to a local working file. `(CI: lint:md)`

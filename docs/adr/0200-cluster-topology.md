@@ -91,10 +91,10 @@ The cost of self-hosting is operational, and the machine configuration under `in
 
 | Concern | Mechanism |
 | --- | --- |
-| Configuration | a machine config document per node role, committed, applied by the `siderolabs/talos` Terraform provider |
+| Configuration | a machine config document per node role, committed, applied by the [`siderolabs/talos`](https://registry.terraform.io/providers/siderolabs/talos/latest) Terraform provider |
 | OS upgrade | `talosctl upgrade` — an A/B image swap with rollback, one node at a time |
 | Kubernetes upgrade | `talosctl upgrade-k8s`, versioned independently of the OS |
-| Anything outside the base image — drivers, iSCSI, GPU | a system extension baked into a custom installer image through Image Factory, referenced by schematic and pinned like any other artefact ([ADR-0104](0104-supply-chain-security.md)) |
+| Anything outside the base image — drivers, iSCSI, GPU | a system extension baked into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/v1.13/learn-more/image-factory), referenced by schematic and pinned like any other artefact ([ADR-0104](0104-supply-chain-security.md)) |
 | Machine secrets | the cluster CA and `talosconfig`, SOPS-encrypted in git like every other secret ([ADR-0202](0202-secrets.md)) |
 
 Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell, and a one-off manual fix are unavailable by construction, which is the property being bought rather than a limitation being tolerated.
@@ -132,7 +132,7 @@ Traefik  (TLS via cert-manager, L7 routing, rate limiting)
 
 ### Cluster networking
 
-Cilium is the CNI from day one. The machine config sets `cluster.network.cni.name: none` and `cluster.proxy.disabled: true`, so Talos ships neither its default CNI nor kube-proxy, and Cilium provides both. Cilium is delivered as an inline manifest in the machine config rather than installed afterwards: a node reports `NotReady` until a CNI runs, and a cluster left without one reboots to retry, so shipping it with the bootstrap removes a timed race. Argo CD adopts the release afterwards for upgrades. **CNI cannot be hot-swapped on a live cluster**, so the security posture is set at bootstrap rather than retrofitted.
+Cilium is the CNI from day one. The [machine config](https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium) sets `cluster.network.cni.name: none` and `cluster.proxy.disabled: true`, so Talos ships neither its default CNI nor kube-proxy, and Cilium provides both. Cilium is delivered as an inline manifest in the machine config rather than installed afterwards: a node reports `NotReady` until a CNI runs, and a cluster left without one reboots to retry, so shipping it with the bootstrap removes a timed race. Argo CD adopts the release afterwards for upgrades. **CNI cannot be hot-swapped on a live cluster**, so the security posture is set at bootstrap rather than retrofitted.
 
 Three Talos properties constrain how Cilium is configured, and each is an invariant rather than a preference:
 
@@ -140,7 +140,7 @@ Three Talos properties constrain how Cilium is configured, and each is an invari
 | --- | --- |
 | Workloads may not load kernel modules | `SYS_MODULE` is dropped from Cilium's default capability set |
 | kube-proxy is absent | Cilium is given the API server host and port directly, because there is no in-cluster Service through which to discover it |
-| **KubeSpan is not enabled** | Talos's own WireGuard mesh intercepts inter-node traffic that Cilium's eBPF datapath expects on the primary interface, producing asymmetric routing and broken cross-node pod traffic. East-west encryption is Cilium's, once |
+| **[KubeSpan](https://docs.siderolabs.com/talos/v1.9/networking/kubespan) is not enabled** | Talos's own WireGuard mesh intercepts inter-node traffic that Cilium's eBPF datapath expects on the primary interface, producing asymmetric routing and broken cross-node pod traffic. East-west encryption is Cilium's, once |
 
 Three postures are on from day one and are checked invariants:
 
@@ -164,7 +164,7 @@ Cilium covers CNI and mesh as one component: sidecarless eBPF gives transparent 
 | Object, production | an external S3-compatible bucket per environment. **No MinIO in production** | unchanged |
 | Object, non-prod | in-cluster MinIO exposing the same S3 API ([ADR-0205](0205-environment-parity.md)) | unchanged |
 
-**The storage trigger is also an image change.** Longhorn on Talos needs the `iscsi-tools` and `util-linux-tools` system extensions baked into the installer image, a data path under `/var/mnt`, and a disk separate from the install disk. That is schematic work at the OS layer, which is part of why block storage at scale is a trigger rather than a default.
+**The storage trigger is also an image change.** [Longhorn on Talos](https://longhorn.io/docs/1.12.0/advanced-resources/os-distro-specific/talos-linux-support/) needs the `iscsi-tools` and `util-linux-tools` system extensions baked into the installer image, a data path under `/var/mnt`, and a disk separate from the install disk. That is schematic work at the OS layer, which is part of why block storage at scale is a trigger rather than a default.
 
 Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a local TSDB and needs none; its Mimir Scale swap does ([ADR-0500](0500-observability.md)). Offloading durability to an external bucket eliminates a stateful component from production.
 

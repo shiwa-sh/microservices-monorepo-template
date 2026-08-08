@@ -131,16 +131,15 @@ Each principle is **anchored** to an external standard, or explicitly marked **l
 
 *Consequence, stated plainly.* Axis B at maximum removes a set of services that are otherwise invisible defaults: transactional email delivery ([ADR-0307](0307-outbound-email.md)), alert routing ([ADR-0502](0502-alerting-and-on-call.md)), source control and CI ([ADR-0102](0102-source-control-and-ci.md)), image registry ([ADR-0105](0105-image-registry.md)), object storage ([ADR-0200](0200-cluster-topology.md)), and single sign-on across platform consoles ([ADR-0304](0304-identity-and-authorization.md)). Each is a first-class decision here rather than a signup. Some — outbound email deliverability in particular — carry costs that engineering effort cannot fully retire.
 
-*Where axis B is not maximal.* Maximum is a position, not a claim of zero external dependencies. Six remain, each recorded rather than discovered later.
+*Where axis B is not maximal.* Maximum is a position, not a claim of zero external dependencies. Five remain, each recorded rather than discovered later.
 
 | Dependency | Why it stays | Blast radius if it fails |
 | --- | --- | --- |
 | Compute and network provider | [ADR-0200](0200-cluster-topology.md) runs on plain instances, which someone provisions. Sovereignty is over the *stack*, not the metal | total for that environment. Mitigated by the provider-neutral bootstrap, which is what makes the substrate replaceable |
-| Sigstore public Fulcio and Rekor | [ADR-0104](0104-supply-chain-security.md) trades key custody for a hosted trust root, deliberately | signing blocks; running does not. A private Sigstore deployment is the exit, at the cost the keyless choice avoided |
 | Public ACME certificate authority | [ADR-0200](0200-cluster-topology.md) issues wildcards through cert-manager against a public CA | renewals fail, with the certificate lifetime as the buffer. A private CA is the exit, at the cost of distributing a trust anchor |
 | DNS registrar and authoritative DNS | the domain is delegated, and DNS-01 needs a provider API | edge unreachable, and issuance blocked. This is the least substitutable item on the list |
 | Upstream package and image sources | Go modules, npm, Helm charts, and base images are fetched from where their publishers put them | builds fail; running does not. Digest pins ([ADR-0104](0104-supply-chain-security.md)) make what already runs immune |
-| Escalation and paging | no mature self-hosted layer exists ([ADR-0502](0502-alerting-and-on-call.md)) | deferred rather than depended on. Nothing pages today |
+| Escalation and paging | no mature self-hosted layer exists ([ADR-0502](0502-alerting-and-on-call.md)) | deferred rather than depended on. Nothing pages |
 
 None of these is a soft exit from principle 3. Each is a dependency at a layer the platform does not claim to own, or a recorded concession with a named cost. A dependency that is not on this list and not decided in an ADR is a defect.
 

@@ -32,8 +32,8 @@ A per-component SemVer line would therefore encode a compatibility promise **no 
 
 | Option | What the number signals | Human judgement per release | Verdict |
 | --- | --- | --- | --- |
-| **CalVer `vYYYY.0M.MICRO`, one repo-wide line** | when it shipped | none — it is the date | **Chosen.** It answers the only question asked of a release version |
-| SemVer, one repo-wide line | a compatibility contract | bump level, every release | The contract has no independent pinner, so the signal is addressed to nobody and the judgement call is pure cost |
+| **[CalVer](https://calver.org/) `vYYYY.0M.MICRO`, one repo-wide line** | when it shipped | none — it is the date | **Chosen.** It answers the only question asked of a release version |
+| [SemVer](https://semver.org/), one repo-wide line | a compatibility contract | bump level, every release | The contract has no independent pinner, so the signal is addressed to nobody and the judgement call is pure cost |
 | SemVer per component, prefixed tag namespaces | per-component compatibility | one judgement per component | Multiplies the same unread promise by the component count, plus tag bookkeeping |
 | Git SHA only, no human version | nothing | none | Deploy identity is already the SHA. A changelog and a release note need a label a human can say aloud |
 

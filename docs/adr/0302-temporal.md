@@ -74,7 +74,7 @@ A job stays on the outbox only while **all four** hold. The moment one fails, it
 3. best-effort — losing or double-running it is acceptable, so at-least-once dispatch with an idempotent handler suffices,
 4. no compensation on failure.
 
-Two systems exercise Temporal so far, which is not enough usage to harden a blanket "all async is a workflow" rule. Temporal is the default; the outbox is the sanctioned lighter path for the trivial case; the blanket rule is revisited once more workflows exist.
+Temporal is the default and the outbox is the sanctioned lighter path for the trivial case. A blanket "all async is a workflow" rule is not adopted: it would forbid the four-condition case above on principle rather than on cost, and the four conditions are narrow enough to police.
 
 ### Architecture: co-located workflows, HTTP between services
 
