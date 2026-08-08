@@ -183,14 +183,6 @@ Rehearsed quarterly alongside the backup restore drill.
 - **Bucket fees grow with retention.** Mitigated by lifecycle policies moving to a cold tier after 30 days.
 - **CNI is set at bootstrap and cannot be changed live.** This is why the security posture is decided here rather than deferred.
 
-### Follow-ups
-
-- `infra/terraform/modules/<provider>/`, added only when a project provisions its own infrastructure.
-- `infra/ansible/roles/` for `k3s_server`, `cilium`, `hardening`, `unattended_upgrades`, `node_exporter`, plus an inventory template for pre-provided hosts.
-- `infra/helm/platform/{cilium,traefik,cert-manager,minio}/`.
-- `docs/cluster/dr-runbook.md`.
-- The quarterly DR drill as a Temporal `Schedule`.
-
 ## Rules
 
 - Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped when infrastructure is pre-provided. `(review-only)`

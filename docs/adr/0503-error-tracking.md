@@ -95,13 +95,6 @@ The seam is real and the cost of waiting is bounded, which makes this a deferral
 - **The fingerprint is ours to get right.** Too coarse merges distinct faults; too fine mints a new fault per release. It is centralised in the `obs` helpers so it is tuned in one place, and it carries unit tests.
 - **Grouping is a query, not a landing page.** An engineer runs a dashboard rather than opening an inbox.
 
-### Follow-ups
-
-- `error.fingerprint` in `libs/go/observability` and in the frontend's Faro wiring, with tests over the normalisation.
-- `errors_total{service, kind}` in the `obs` metric helpers, with `kind` allow-listed.
-- An errors-by-fingerprint dashboard, and the scheduled window comparison behind the novelty alert.
-- Source-map retention per release, and a symbolication task.
-
 ## Rules
 
 - A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK. `(review-only)`

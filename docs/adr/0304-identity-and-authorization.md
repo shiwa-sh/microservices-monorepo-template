@@ -238,14 +238,6 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - **Dual-write discipline must be enforced.** A direct write that skips the workflow is a silent authz bug. Mitigated by lint, a review checklist, and integration tests asserting OpenFGA state after every workflow.
 - **The coarse ops gate is a claim, not a policy check.** An operator whose access should have been revoked keeps it until their session expires or the trait is removed. Accepted deliberately, so the dashboards survive an authz outage.
 
-### Follow-ups
-
-- `infra/helm/platform/ory/` and `infra/helm/platform/openfga/`.
-- `infra/auth/oathkeeper/` access rules: validate, strip, inject.
-- `libs/go/authmw/` and `libs/go/authz/`.
-- `services/orgs/` scaffold and `tools/auth-conformance/`.
-- `docs/auth/jwt-validation.md`.
-
 ## Rules
 
 - Human identity is owned by Ory Kratos. There is no alternate user store. `(review-only)`

@@ -132,15 +132,6 @@ Because the spec already describes every resource, a page needing shaping the ge
 - **The generated directory inflates PR diffs** on spec changes. Mitigated by the same committed-and-drift-checked convention applied to every other generated artifact. Generated pages are deliberately plain; anything richer is a custom page.
 - **It is a Node island** ([ADR-0100](0100-language-and-runtime.md)), installed and run rather than built, so the runtime is upstream's choice. Confined to this app's image and its optional local tasks.
 
-### Follow-ups
-
-- `infra/helm/platform/lowdefy/` values, with connection configuration from secrets.
-- `apps/admin/lowdefy.yaml` with menu structure and theme.
-- `tools/admin-gen/` with unit tests, its task, and its drift check. A ruleset rule constraining `x-admin` to the two valid values is a possible hardening.
-- Read-only role provisioning in the Postgres chart, referenced by per-service values.
-- The ops IngressRoute and forward-auth, including identity-header forwarding.
-- pgweb as a Core ops component at its own origin, run read-only and wired to those roles.
-
 ## Rules
 
 - The internal admin tool is Lowdefy, self-hosted and deployed via Helm and Argo CD. `(review-only)`

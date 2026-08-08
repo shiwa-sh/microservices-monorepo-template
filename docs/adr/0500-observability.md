@@ -165,15 +165,6 @@ Service code is unchanged between local and production: the same `obs.Init` work
 - **Profiling scrape scope is first-party only.** Third-party components without pprof endpoints are not profiled; their health is covered by metrics and logs.
 - **Alerts route but nothing pages.** [ADR-0502](0502-alerting-and-on-call.md) ships the routing tree and leaves escalation as a recorded concession, so an overnight incident is found in the morning.
 
-### Follow-ups
-
-- `libs/go/observability/` with `Init`, helpers, and redaction.
-- `libs/go/{httpmw,dbmw,temporalmw,authmw}/`.
-- `infra/helm/platform/observability/` with the backends, Pyroscope and Alloy, and the collector DaemonSet. Mimir and the gateway tier are per-project add-ons rather than default releases.
-- `services/_template/` default dashboard and alerts, plus the shared baselines.
-- The `faro` receiver and its Traefik route, and the dev-only local shim.
-- Cardinality alerts, and the quarterly audit as a Temporal `Schedule`.
-
 ## Rules
 
 - Every service initialises observability with `obs.Init`. Direct OTel SDK use in service code is not permitted. `(CI: ci-lint)`

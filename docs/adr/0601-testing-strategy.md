@@ -172,17 +172,6 @@ The CI gate is committed accepted-snapshot diffing against baselines in `e2e/vis
 - **Scenario rot.** A scenario driving `/api/orders` breaks when that contract changes and is not on the per-PR path. Mitigated by label-gated `perf:smoke` and the nightly run.
 - **JavaScript reappears outside the sanctioned island.** Bounded by the no-Node, no-npm, no-lockfile rule and by keeping `perf/` out of the Bun workspace.
 
-### Follow-ups
-
-- `e2e/` Playwright workspace: `playwright.config.ts`, `platform/`, `frontend/`, `visual/`, `preflight/`.
-- `perf/` workspace: `.mise.toml` (k6 pin and tasks), `lib/`, `scenarios/browse.js`, `scenarios/checkout.js`, `seed/`.
-- Root tasks `e2e`, `e2e:smoke`, `perf`, `perf:smoke`, `perf:stress`, `perf:seed`.
-- `infra/observability/dashboards/load-test.json` and its `kustomization.yaml` entry.
-- `docs/perf/runbook.md` — how to run one, how to read it, how to record a baseline.
-- k6-operator recorded as a Scale swap in [`docs/operational-surface.md`](../operational-surface.md).
-- Committed test-identity bootstrap wired into the e2e setup project.
-- Nightly and label-gated CI lanes for both suites.
-
 ## Rules
 
 - Playwright (TypeScript) is the only browser e2e and visual-regression tool. Cypress, WebdriverIO, Selenium, and pure-Go browser libraries are not used. `(review-only)`

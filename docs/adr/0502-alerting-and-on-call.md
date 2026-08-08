@@ -83,13 +83,6 @@ This is a **deferral, not a bet**: the seam exists, and it is the receiver inter
 - **Email as a `ticket` receiver depends on [ADR-0307](0307-outbound-email.md).** An outbound-mail failure degrades alerting, so mail-path alerts route to the webhook rather than to email.
 - **Alert fatigue is the failure mode**, and no component prevents it. The `page`/`ticket` rule is review-enforced, which is weaker than a linter.
 
-### Follow-ups
-
-- `infra/helm/platform/alertmanager/` with the committed routing tree and receivers.
-- `severity` on every existing rule in `infra/observability/alerts/`, and the `Watchdog` rule.
-- A committed-silence workflow for maintenance windows, referenced from [`docs/gitops/runbook.md`](../gitops/runbook.md).
-- Alert-quality review in the quarterly audit [ADR-0500](0500-observability.md) already schedules.
-
 ## Rules
 
 - Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used. `(review-only)`

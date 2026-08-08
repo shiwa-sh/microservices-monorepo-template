@@ -29,7 +29,7 @@ A hundred slots per layer rather than ten, because more than one block filled pa
 | --- | --- | --- |
 | [0000](0000-platform-foundations.md) | Platform Foundations | The three axes and this platform's position on them, the ten principles, and the ADR process |
 | [0001](0001-documentation-and-output-conventions.md) | Documentation & Output Conventions | How docs, ADRs, logs, CLI output, and code comments are written |
-| [0003](0003-naming-and-identifiers.md) | Naming & Identifiers | The slug grammar and the global-namespace backstop |
+| [0003](0003-naming-and-identifiers.md) | Naming & Identifiers | The resource slug grammar, entity identifiers, and casing per surface |
 
 ### 01xx — Repository and delivery
 
@@ -96,7 +96,7 @@ A hundred slots per layer rather than ten, because more than one block filled pa
 
 ## Reserved
 
-These numbers are held for decisions recorded in [`plan.md`](../../plan.md) and not yet written.
+These numbers are held so the decisions below land in their layer's block without renumbering the set.
 
 | ADR | Title |
 | --- | --- |

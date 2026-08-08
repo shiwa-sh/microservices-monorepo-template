@@ -163,15 +163,6 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 - **Argo CD itself can fail.** Mitigated by an HA install in production. Downtime blocks new syncs; running workloads are unaffected.
 - **Sync waves gate on custom health checks we maintain.** A bug there produces a false ordering guarantee, which is worse than none. Mitigated by the checks being small, committed, and exercised on every local full-tier bring-up.
 
-### Follow-ups
-
-- `infra/helm/platform/argocd/` values — HA in production, single replica elsewhere.
-- `infra/helm/service/` shared chart.
-- `infra/gitops/bootstrap/root-application.yaml` and the four ApplicationSets.
-- `tools/promote/` opening the values-bump PR for dev and staging on merge, and for production on a release tag.
-- `helm template` snapshot tests, `helm lint`, and `kubeconform` in CI.
-- `docs/gitops/runbook.md` covering sync failures, drift, rollback, and fresh-cluster bootstrap.
-
 ## Rules
 
 - Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step. `(review-only)`

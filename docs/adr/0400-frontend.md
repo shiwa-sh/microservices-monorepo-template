@@ -45,7 +45,7 @@ This ADR is the single entry point for a newcomer working on the frontend.
 | Component catalogue | **an in-repo kitchen-sink route** | Storybook is useful and not load-bearing with one app where Figma is already the isolated visual catalogue. Re-evaluated if a second app lands or a design-system maintainer joins |
 | i18n | **deferred behind a trigger** | `next-intl` on day one is premature without a locale on the roadmap |
 
-**Next.js itself carries no recorded comparison.** It is asserted as context in [ADR-0100](0100-language-and-runtime.md) and treated as pinned here — a circular reference with no argument at either end. Comparing it against TanStack Start, React Router, Astro, and SvelteKit, including the self-hosting posture given the vendor's governance, is tracked in [`plan.md`](../../plan.md) and lands in this section.
+**Next.js itself carries no recorded comparison.** It is asserted as context in [ADR-0100](0100-language-and-runtime.md) and treated as pinned here — a circular reference with no argument at either end. The comparison this ADR owes against TanStack Start, React Router, Astro, and SvelteKit, including the self-hosting posture given the vendor's governance, belongs in this section.
 
 ## Decision
 
@@ -202,17 +202,6 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - **The OpenTelemetry web SDK is heavier than Faro alone.** Accepted; browser-to-service trace continuity is worth the bytes, and the perf gates keep it honest.
 - **Deferring i18n risks a painful retrofit.** Mitigated by the one-file-per-route-group string layout.
 - **Server Actions are relatively new.** Mitigated by limiting them to single-service mutations.
-
-### Follow-ups
-
-- The app scaffold with four route groups, the proxy, and `loading`/`error` baselines.
-- Vendored Untitled UI source, the stylesheets, and the class-composition utilities.
-- `src/lib/server-fetch/` with the server-only fetcher and query glue.
-- The zod-schema generator, its task, and its inclusion in the drift check.
-- `biome.jsonc`, the bundle budget, and the Lighthouse configuration.
-- The Bun-only Dockerfile with standalone output.
-- `src/lib/observability/` wiring web tracing, Faro, and structured server logging.
-- The Traefik ingest route for browser telemetry, and the dev-only shim handler.
 
 ## Rules
 

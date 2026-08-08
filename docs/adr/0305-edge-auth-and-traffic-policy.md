@@ -117,13 +117,6 @@ Scalar's request console is why the dev portal is same-origin with `/api` ([ADR-
 - **Per-API-key quotas are unavailable on day one.** Accepted, and reintroduced per project when a monetised public API is real.
 - **Oathkeeper is one more component to operate.** Accepted; it shares the Ory operational model.
 
-### Follow-ups
-
-- `infra/helm/platform/ory/` extended with Oathkeeper.
-- `infra/auth/oathkeeper/` access rules and the CSRF Origin-check rule.
-- `infra/gateway/` middleware and routes for `/api`, rate limiting, and static security headers.
-- `docs/gateway/runbook.md` covering edge rules, rate-limit changes, and the public-API gateway add-on.
-
 ## Rules
 
 - The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default. `(review-only)`

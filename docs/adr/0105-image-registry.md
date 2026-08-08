@@ -68,12 +68,6 @@ Harbor loses on component weight rather than on capability. Its replication, quo
 - **No web UI worth the name.** Inspecting an image is a `crane` or `cosign` call. Accepted: image inspection is an engineer's task, not an operator's dashboard ([ADR-0501](0501-operator-uis-and-dashboards.md)).
 - **Robot credentials are long-lived** where the forge cannot mint short-lived ones, which is the same constraint [ADR-0102](0102-source-control-and-ci.md) records for signing identity.
 
-### Follow-ups
-
-- `infra/helm/platform/zot/` with the committed config, per-environment values, and the object-storage backend.
-- Push credentials for the pipeline and pull credentials for the cluster, both under SOPS.
-- The garbage-collection schedule, and its interaction with digest pins still referenced by a production values file.
-
 ## Rules
 
 - Images are stored in a self-hosted zot registry backed by object storage. `(review-only)`

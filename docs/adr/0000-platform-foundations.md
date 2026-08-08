@@ -279,10 +279,6 @@ Used consistently across all ADRs. If a term is ambiguous in a later ADR, this g
 - **The list is longer than most people hold in their head.** The mitigation is that most are anchored to standards a reader may already know, and that every one names what it rejected — a criterion with a casualty is easier to recall than an abstraction.
 - Strong opinions reduce flexibility. A team that needs to deviate justifies it in a new ADR.
 
-### Follow-ups
-
-None — this ADR is the root.
-
 ## Rules
 
 ### Process

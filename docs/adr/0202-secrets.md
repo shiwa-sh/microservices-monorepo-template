@@ -98,14 +98,6 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 - **The ops-recovery key is a high-value target.** Mitigated by offline storage on hardware tokens and annual rotation.
 - **Credentials are static.** Rotation is a procedure rather than an expiry. Dynamic short-lived credentials are the one thing the rejected options buy, and adopting them is a separate decision with its own operational cost.
 
-### Follow-ups
-
-- `infra/helm/platform/sops-operator/`.
-- `.sops.yaml` with creation rules and the initial recipient list.
-- `scripts/secrets-rotate.sh` for offboarding and bulk rotation.
-- Cluster-key bootstrap, called from the node provisioning role.
-- `docs/secrets/runbook.md` covering onboarding, offboarding, cluster-key rotation, and ops-recovery.
-
 ## Rules
 
 - Plaintext secret values do not appear in any committed file. `(CI: lint:secrets)`

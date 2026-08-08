@@ -65,3 +65,6 @@ crash.log
 
 # Rumble cache
 .rumdl_cache
+
+# Local-only working files, never committed (AGENTS.md)
+*.local.md

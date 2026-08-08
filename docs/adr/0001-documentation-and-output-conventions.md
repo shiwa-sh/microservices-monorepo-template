@@ -100,8 +100,30 @@ Padding is the same trap as hard wrapping. Widening one cell reflows every row, 
 | **Meta-commentary** | "It is worth knowing", "Note that", "It should be noted" | State the thing |
 | **Rhetorical questions** | "But is the pod actually running the new code?" | The answer, as a statement |
 | **Dated section headings** | `## Implementation (2026-07-26)` | An undated heading |
+| **Planned work** — a `Follow-ups` list, a `TODO`, a roadmap | "`tools/lint-prose` for the intensifier and hedge lists" | Nothing. State the law and stop. The gap belongs in a working file |
+| **The implementation's status** | "tracked in", "not yet wired", "lands in a later phase" | The rule, unqualified. Whether the artefact exists is not the ADR's subject |
+| **A link to an untracked file** | ``[`plan.md`](plan.md)`` | Nothing. The file is absent from every other clone |
 
 Deleting a word is always in scope for a documentation PR and never needs its own justification.
+
+### An ADR is law, not a plan
+
+An ADR states what is true of this platform. It never states what someone intends to do about it.
+
+The two are easy to confuse because both describe something absent from the repo, and the difference is where the obligation sits. **"Deployments reference images by digest" binds every future deploy whether or not one exists today.** "Wire the digest check into CI" binds an engineer, on a date, and is stale the moment the work lands or is dropped.
+
+| An ADR's Rule | A working-file task |
+| --- | --- |
+| Holds indefinitely | Completes, and is then deleted |
+| Is violated by code | Is *unmet* by an empty repo, which is not a violation |
+| Binds every reader, including a generated project's | Binds one person in one repo |
+| A reviewer cites it to reject a PR | A reviewer cannot cite it at all |
+
+**A gap between an ADR and the repo does not weaken the ADR.** The decision is binding from the day it is accepted; an unbuilt artefact is unfinished work, not an unfinished decision. Recording the gap inside the ADR converts a standing rule into a status report, which is the one thing that guarantees it goes stale.
+
+Gaps are recorded in a **local working file, never committed** — `*.local.md`, ignored by `.gitignore`, described in [`AGENTS.md`](../../AGENTS.md). Two reasons it stays out of the repo. A tracked plan is inherited by every generated project, which then carries a backlog belonging to someone else. And a plan is per-engineer working state, so committing it makes one person's queue everyone's merge conflict.
+
+No file under `docs/` links to a local working file. A link that resolves in one clone and dangles in every other is worse than no link.
 
 ### ADR structure
 
@@ -114,7 +136,7 @@ Sections appear in this order. A section with nothing to say is omitted, not fil
 | 3 | Decision drivers | What is being optimised for, in priority order |
 | 4 | Considered options | A comparison table against the alternatives. Mandatory ([ADR-0000](0000-platform-foundations.md), principle 7) |
 | 5 | Decision | Declarative. "We use X. We do not use Y." |
-| 6 | Consequences | Positive, Negative / Risks, Follow-ups |
+| 6 | Consequences | Positive, Negative / Risks. No `Follow-ups` — see *An ADR is law, not a plan* |
 | 7 | Rules | Flat, greppable, normative bullets derived from the decision |
 
 The comparison table uses prose cells where every option answers the same questions. It is not a scoring grid: the trade-offs are qualitative, and numeric scores manufacture false precision.
@@ -195,12 +217,6 @@ Every Rule ends with how it is enforced, so a reader distinguishes a hard invari
 - Density and comment rules are review-only until a linter exists. The banned-constructs list is written to be grep-shaped so that lint is a later addition, not a redesign.
 - Terse prose loses nuance a longer version would carry. Accepted: nuance that matters becomes a table row, and nuance that does not becomes deletion.
 
-### Follow-ups
-
-- `tools/lint-prose` for the intensifier, hedge, and meta-commentary lists.
-- A comment-refactor pass over existing Go and TypeScript sources (`plan.md`).
-- `AGENTS.md` carries the hard rules plus a pointer here.
-
 ## Rules
 
 - Prose follows the Google developer-docs voice (second person, present tense, active) and ISO 24495-1 plain language, organised by Diátaxis genre. An ADR is explanation plus reference, never a tutorial. `(ref: Google dev-docs, ISO 24495-1, Diátaxis)`
@@ -213,6 +229,9 @@ Every Rule ends with how it is enforced, so a reader distinguishes a hard invari
 - Markdown is not hard-wrapped: one line per paragraph, list item, or table row. `(CI: lint:md)`
 - Tables are compact — one space inside each pipe, a bare `---` delimiter — never column-padded. `(CI: lint:md)`
 - An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section. `(review-only)`
+- An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule. `(review-only)`
+- Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. `(CI: lint:md)`
+- No committed file links to a local working file. `(CI: lint:md)`
 - ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md). `(review-only)`
 - Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(review-only; ref: OTel semconv)`
 - Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(review-only; ref: clig.dev)`

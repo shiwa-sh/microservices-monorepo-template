@@ -70,11 +70,6 @@ Node runs vendored third-party tools, never code we author and never a backend r
 - Verbose error handling is accepted. No bespoke error-handling DSLs.
 - Every Rust or Python service is a permanent operational tax: a separate toolchain, codegen pipeline, CI cache, and hire profile. The per-service ADR requirement makes adoption deliberate.
 
-### Follow-ups
-
-- `.golangci.yml` at repo root, with rules referenced from other ADRs.
-- `docs/adr/_template-escape-hatch.md` for escape-hatch services.
-
 ## Rules
 
 - Every backend service is written in Go unless an ADR sanctions an escape hatch. `(review-only)`

@@ -209,15 +209,6 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 - **Per-activity latency in the tens of milliseconds** rules workflows out of sub-100ms request paths. The scope rule already excludes those.
 - **One worker deployment per service multiplies pod count.** Accepted; it preserves ownership.
 
-### Follow-ups
-
-- `infra/helm/platform/temporal/` with Postgres backing.
-- `libs/go/temporalmw/` for shared client config, default retry policies, tracing middleware, and replay-test scaffolding.
-- `dep:temporal` bringing up Temporal when a service declares it.
-- `golangci-lint` configured with `workflowcheck`.
-- `docs/temporal/long-running.md`, initially empty.
-- The `WorkflowHandle` schema declared inline in each service's spec.
-
 ## Rules
 
 - Temporal is the platform's durable-execution mechanism and the default async primitive. No DLQs, ad-hoc retry loops, or cron jobs for business-meaningful periodic work. `(review-only)`

@@ -171,7 +171,7 @@ Principle 4 is worth reading twice, because it is the one most often misread as 
 
 Every row is a decision recorded in an ADR, with a comparison against the alternatives: options considered, what each was judged on, why the alternatives lost, and what would reopen it. A tool with no recorded comparison is an assumption, not a decision.
 
-The **Planned change** column is work scoped in [`plan.md`](plan.md) and not yet decided in an ADR. Where it is empty, the current column is the whole story.
+The **Planned change** column names a replacement under consideration but not yet decided in an ADR. Where it is empty, the current column is the whole story.
 
 | Concern | Current decision | ADR | Planned change |
 | --- | --- | --- | --- |
@@ -288,5 +288,5 @@ This template borrows its framing rather than inventing it:
 ## Using this repo
 
 - **It is a template, not a product.** Fork it and own your copy. There is no support channel and no compatibility promise.
-- **Generated projects** track upstream via Copier's 3-way merge, scoped in [`plan.md`](plan.md).
+- **Generated projects** track upstream via Copier's 3-way merge.
 - **Disagreement is expected.** The ADRs record reasoning precisely so you can overturn a decision on purpose rather than by accident. If a comparison table is wrong, that is the most useful issue you can open.

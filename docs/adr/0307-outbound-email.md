@@ -77,14 +77,6 @@ Posteo, Mailbox.org, and comparable privacy-focused providers are frequently pro
 - **A reputation incident is slow to reverse.** The trigger above exists so the swap happens on a measurement rather than after a month of silent failures.
 - **Mail is a third-party-observable side channel.** Content is minimal by construction: links and codes, never personal data ([ADR-0301](0301-data-lifecycle-privacy.md)).
 
-### Follow-ups
-
-- `infra/helm/platform/maddy/` with the committed configuration, per-environment values, and the SOPS-encrypted DKIM key.
-- Mailpit in the local and non-production tiers, wired to Kratos, closing the unwired sink in [ADR-0601](0601-testing-strategy.md).
-- Delivery metrics — accepted, deferred, bounced, complained — and an alert on the bounce rate ([ADR-0500](0500-observability.md)).
-- A DMARC aggregate-report destination, and the `p=none` to `p=reject` promotion.
-- The dedicated egress IP and its `PTR` record in the environment's provisioning.
-
 ## Rules
 
 - Outbound mail leaves through a self-hosted maddy submission endpoint on a dedicated IP with a matching `PTR` record. `(review-only)`

@@ -133,13 +133,6 @@ There is no signal overlap. Every application signal is Grafana's; the live flow
 - `view` blocks secrets, exec, and port-forward, but log tailing still exposes any sensitive value an application logs, and pod specs and ConfigMaps expose inline env literals. Gated behind operator plus AAL2.
 - Headlamp is one more always-on component to patch in every environment. Accepted as Core operational surface; a project removes it with `enabled: false` in the env overlay.
 
-### Follow-ups
-
-- `infra/helm/platform/headlamp/` with the read-only ClusterRole and the flag gate.
-- `headlamp.ops.<host>` IngressRoute and Oathkeeper rule ([docs/gateway/runbook.md](../gateway/runbook.md)).
-- `dashboard:headlamp` and `dashboard:hubble` grants in the OpenFGA schema.
-- The e2e dashboard-provisioning test asserts the `overview` uid alongside the existing ones.
-
 ## Rules
 
 - Application observability — overview, SLO/RED, resources, logs, traces, profiling — is owned by the Grafana stack, and dashboards live as JSON under `infra/observability/dashboards/`. `(review-only)`

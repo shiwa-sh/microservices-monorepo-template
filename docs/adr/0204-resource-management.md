@@ -98,12 +98,6 @@ Recorded so the documentation and the cluster agree.
 - **`ResourceQuota` can block a deploy when a namespace is full.** Intended back-pressure, and it must be a legible failure rather than a silently pending pod. `lint:resource-governance` prints per-namespace utilisation on every CI run so the cap is approached knowingly.
 - **Kyverno is listed as a Core component in [`docs/operational-surface.md`](../operational-surface.md) and [ADR-0104](0104-supply-chain-security.md) but is not deployed**, and appears nowhere in `infra/`. That removes the admission-time mutation that would otherwise stamp `priorityClassName` onto charts which cannot express it. This ADR depends on the gap; closing it belongs to [ADR-0104](0104-supply-chain-security.md).
 
-### Follow-ups
-
-- Per-environment `ResourceQuota` overrides. The committed caps are sized for the single-node local tier.
-- Enable the declared-but-disabled PDBs as components gain replicas.
-- Re-derive requests and limits after any material traffic change. Tempo is the one to watch, since its memory scales with trace ingest rate.
-
 ## Rules
 
 - Every container declares CPU and memory requests and a memory limit, or lands in a namespace whose `LimitRange` supplies them. A container with neither is a defect. `(CI: lint:resource-governance)`

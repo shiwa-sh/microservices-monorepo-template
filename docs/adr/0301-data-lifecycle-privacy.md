@@ -52,12 +52,6 @@ Anonymise-versus-hard-delete is a per-category decision, recorded with the data 
 - **Every service must implement erasure and DSAR activities for the data it owns.** Accepted: it is the same per-service dual-write discipline authz already requires.
 - **A new service can silently omit them**, and the omission surfaces only on the first request that needs it. Mitigated by the data-class registry being the checklist a new service is reviewed against.
 
-### Follow-ups
-
-- The data-class and retention registry, and the schema-level PII tagging convention.
-- Erasure and DSAR workflows in the owning services, plus the retention `Schedule`.
-- `docs/data/lifecycle.md` with the classes, retention periods, and the procedures.
-
 ## Rules
 
 - Every stored data category has a declared class and retention period, enforced by a Temporal `Schedule`. `(review-only)`

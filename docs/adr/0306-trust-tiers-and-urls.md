@@ -160,12 +160,6 @@ The service API is a **flat resource namespace** — the URL names the resource,
 - **Subdomain-takeover hygiene matters more.** Dangling ops DNS must not be left claimable.
 - **The ops tier depends on one edge auth path.** Its failure locks operators out of every dashboard at once, which is why break-glass is a written procedure ([`docs/ops/break-glass.md`](../ops/break-glass.md)) rather than improvisation.
 
-### Follow-ups
-
-- The tier split in `infra/gateway`, the per-tool chart values, and the two-wildcard Certificate.
-- The ops-tier forward-auth enforcing the coarse gate, with the optional per-tool refinement.
-- Break-glass recovery for a full auth-plane outage, cross-linked from the cluster bring-up banner.
-
 ## Rules
 
 - Surfaces belong to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. `(review-only)`

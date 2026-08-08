@@ -82,13 +82,6 @@ The second case is a **real cost of this decision**, not a footnote: the fallbac
 - **The keyless-signing fallback may reintroduce key custody**, reversing an [ADR-0104](0104-supply-chain-security.md) driver.
 - **Forgejo's pipeline feature set trails the provider it imitates.** The thin-YAML rule bounds the exposure: the surface used is checkout, setup, and a task call.
 
-### Follow-ups
-
-- `infra/helm/platform/forgejo/` with its chart, values per environment, and its CNPG database.
-- Runner provisioning, and the isolation policy for pull requests from outside the organisation.
-- Verify the runner's OIDC token against Fulcio, and record the outcome in [ADR-0104](0104-supply-chain-security.md).
-- Migrate `.github/workflows/` to the forge, and retire whichever set does not survive.
-
 ## Rules
 
 - The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster. `(review-only)`

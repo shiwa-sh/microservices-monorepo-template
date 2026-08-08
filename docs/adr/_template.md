@@ -10,6 +10,7 @@ Written to ADR-0001. Before merging, check:
   - Every word is load-bearing. No intensifiers, hedges, meta-commentary, or chronology.
   - Three or more items sharing two or more attributes are a table.
   - A fact appears in exactly one ADR; everywhere else is a link.
+  - Standing law only. No Follow-ups, no roadmap, no TODO, no note on whether the artefact exists yet — gaps go in a local *.local.md working file, which nothing committed links to.
   - Every number survives the doubling test. No illustrative figures, no counting live state that lives elsewhere.
   - Written for whoever maintains this platform, not for a prospective adopter. Selection guidance goes in README.md.
   - A section with nothing to say is omitted, not padded.
@@ -61,10 +62,6 @@ For anything deferred, state all three fields, or it is not a deferral:
 ### Negative / Risks
 
 - **The cost, stated plainly.** How it is mitigated, or that it is accepted and why.
-
-### Follow-ups
-
-- Artefacts this decision implies that do not exist yet.
 
 ## Rules
 

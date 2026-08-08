@@ -69,12 +69,6 @@ The digest-pin rule reinforces [ADR-0103](0103-release-and-versioning.md): produ
 - **Keyless signing depends on the CI OIDC provider and a transparency log**, which is a third-party trust root at maximal sovereignty ([ADR-0000](0000-platform-foundations.md), *Where axis B is not maximal*). An outage blocks signing, not running. Mitigated by signing on release rather than on every reconcile.
 - **An admission gate can block a deploy during an incident.** The break-glass path is documented in [`docs/ops/break-glass.md`](../ops/break-glass.md) rather than left to improvisation.
 
-### Follow-ups
-
-- cosign sign, syft SBOM, and SLSA provenance steps in the image workflow.
-- `infra/helm/platform/kyverno/` with the verify-signature and require-digest policies.
-- The third-party image allow-list and its digest pins.
-
 ## Rules
 
 - Every first-party image is cosign-signed keyless in CI and carries an SBOM and a provenance attestation. `(CI: image-workflow)`

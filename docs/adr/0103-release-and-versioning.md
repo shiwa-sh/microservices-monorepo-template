@@ -143,15 +143,6 @@ The release commit goes through the standard build path on `master`, producing `
 - **An unrelated change rides the same release number.** Accepted — the repo ships as a unit, so "everything as of this date" is what the number should mean.
 - **`cocogitto` is used for a fraction of its capability.** Accepted; bump mode is opted into per artifact if external publishing ever grows.
 
-### Follow-ups
-
-- `cog.toml` at repo root: configured scopes, hooks, changelog template, bump computation disabled.
-- `mise run release` wiring, computing the next CalVer.
-- Lefthook `commit-msg` hook running `cog verify`.
-- The top-level `CHANGELOG.md`, created by the first release.
-- `.github/workflows/promote-on-release.yml`: label images with CalVer, bump production values, create the release.
-- Lint rejecting non-SHA image tags in Helm values and GitOps manifests.
-
 ## Rules
 
 - Every commit on `master` is a valid Conventional Commit. Breaking markers headline the changelog and flag review; under CalVer they compute no version bump. `(CI: ci-lint)`

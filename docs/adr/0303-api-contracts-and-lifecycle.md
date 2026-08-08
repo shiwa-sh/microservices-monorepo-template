@@ -170,13 +170,6 @@ Nothing below is built or operated until then.
 - Cross-service shapes are duplicated across self-contained specs. Mitigated by their small, stable surface; a bundler step restores a single source if drift appears.
 - The default cannot serve an out-of-lockstep consumer. Accepted — that consumer is the documented trigger.
 
-### Follow-ups
-
-- The `mise run gen:*` task family wrapping `scripts/gen-*.sh`.
-- `mise run gen:openapi-public`, emitting the merged bundles the Scalar portals consume: the dev-portal bundle keeps operations at audience `>= internal`, the public bundle keeps only `public`.
-- `oasdiff` wired as a labelling step in CI, not a version gate.
-- When the flag is added: `Api-Version` negotiation, the N-1 response-compat layer, `Deprecation`/`Sunset`/`Link` emission, and `docs/api-versions.md` recording which release dates are contract boundaries.
-
 ## Rules
 
 - The contract source of truth is OpenAPI 3.1, one file per HTTP service at `services/<service>/openapi.yaml`, and every HTTP service generates its server with ogen. East-west control-plane services are included. Only a service with no HTTP surface ships no spec. `(CI: lint:openapi)`

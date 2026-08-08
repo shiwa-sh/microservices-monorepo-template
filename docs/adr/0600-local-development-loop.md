@@ -293,15 +293,6 @@ A short enumerated set of manifests has no production analogue:
 - **Two mocking mechanisms exist** — MSW at the test layer, Prism at the dev-loop layer. Bounded by an explicit layer boundary and by neither being permitted in e2e.
 - **Re-evaluate at the ~20-service ceiling**, or if the graph outgrows a declaration plus one shared installer. Both are visible, not gradual.
 
-### Follow-ups
-
-- `cluster:base`, `cluster:add`, `cluster:remove`, `cluster:full`, and `mock:start`/`mock:stop`/`mock:logs`.
-- `infra/local/mock.yaml`, the mock's Deployment, Service, and IngressRoute.
-- `scripts/identity-seed.sh` (`auth:seed`), consumed by both `cluster:base` and the e2e setup project, reading credentials from `e2e/fixtures/identities.ts`.
-- `example` on every `2xx` response schema in `services/*/openapi.yaml`, and `response-example-required` in the vacuum ruleset.
-- `lint:auth-inline` extended to fail on development-only auth code in the frontend.
-- `docs/dev-loop.md` — which mode to pick, how to log in, and what the tier deliberately cannot tell you.
-
 ## Rules
 
 - Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles. `(review-only)`

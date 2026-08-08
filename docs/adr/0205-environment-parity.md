@@ -90,11 +90,6 @@ In-cluster object storage in production would co-locate data and its backups on 
 - **Non-prod backups are not recovery guarantees.** Stated here so the MinIO convenience is never mistaken for one.
 - **Local secrets are committed.** Safe only while the local age key decrypts nothing real; a real credential in a local secret file is a leak, not a shortcut.
 
-### Follow-ups
-
-- `infra/gitops/platform/<env>/values.yaml` for every environment, local included.
-- Ephemeral PR preview environments reusing the full-tier configuration.
-
 ## Rules
 
 - Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay. `(review-only)`

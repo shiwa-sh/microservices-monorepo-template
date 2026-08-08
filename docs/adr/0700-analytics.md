@@ -123,17 +123,6 @@ Postgres as a row store is the floor, not a ceiling claim.
 - **Funnel SQL is work a free hosted tier would have given away.** Accepted in exchange for the correlation requirement and zero operational surface.
 - **A routing-connector mistake sends identity-bearing events into Loki.** This is one line of configuration away at all times and needs a standing test, not review vigilance.
 
-### Follow-ups
-
-- `services/analytics/` scaffold: event schema, partitioning, rollup `Schedule`, spec.
-- The data-class registry entry, schema-level PII tags, and erasure and DSAR activities for the new store.
-- The routing connector, and a test asserting no `marketing.*` event reaches Loki.
-- The route group, its session entry, the authorization type, and assertions covering grant and denial.
-- The consent gate in the frontend, and legal sign-off on the purpose split.
-- A test proving event de-duplication does not corrupt click counts.
-- The ClickHouse Scale row in [`docs/operational-surface.md`](../operational-surface.md).
-- `docs/marketing/analytics.md`: the event taxonomy and a query cookbook.
-
 ## Rules
 
 - The frontend has exactly one browser telemetry agent. A second analytics SDK is not added — it mints a second session identity and breaks error-to-journey correlation. `(review-only)`

@@ -238,16 +238,6 @@ The day-one stack is sized for roughly 30–50 services with disciplined depende
 - **Committed generated code inflates repo size.** Mitigated by routine `git gc` and `git repack`.
 - **A single `go build ./...` compiles more than one service needs.** The native build cache absorbs it, and affected detection keeps CI proportional to PR size.
 
-### Follow-ups
-
-- `tools/affected/` with unit tests.
-- Root `.mise.toml`, `package.json`, and `go.mod`.
-- `services/_template/` service skeleton.
-- `.github/workflows/{lint,test,build,ci-drift,publish,promote-on-merge,promote-on-release,e2e}.yml`.
-- `depguard` rule preventing `services/<X>/` from importing `services/<Y>/`.
-- Lint rule preventing cross-route-group imports in `apps/frontend/`.
-- Renovate config for the single Go module.
-
 ## Rules
 
 - The repo is a single Go module rooted at `go.mod`. There are no per-service or per-library `go.mod` files and no `go.work`. `(CI: ci-lint)`
