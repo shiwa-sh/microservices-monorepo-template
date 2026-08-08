@@ -1,10 +1,10 @@
-# Disaster recovery runbook (ADR-0003)
+# Disaster recovery runbook
 
-Target RTO: 30 min. RPO ≈ WAL archive interval (minutes).
+Recovering from full cluster loss. The targets and the backup design are [ADR-0200](../adr/0200-cluster-topology.md).
 
 ## Detection
 
-Uptime Kuma pages on-call within 1-2 minutes of total cluster loss.
+**Nothing pages anyone.** Alertmanager routes a firing alert to email or to the webhook receiver by its `severity` ([ADR-0502](../adr/0502-alerting-and-on-call.md)), and no escalation service is attached to that webhook. An overnight incident is found in the morning. Attaching a paging service is the gap to close before an on-call rotation exists.
 
 ## Recovery
 

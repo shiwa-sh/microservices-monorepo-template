@@ -1,25 +1,13 @@
 # dev platform secrets
 
-This directory is synced by the `dev-secrets` Application (the `secrets`
-ApplicationSet, [ADR-0004](../../../../../docs/adr/0004-gitops.md), sync-wave 1). The
-base-tier sops-operator reconciles the `SopsSecret` CR here into native Kubernetes
-Secrets that the data + core platform tiers consume ([ADR-0005](../../../../../docs/adr/0005-secrets.md)).
+This directory is synced by the `dev-secrets` Application (the `secrets` ApplicationSet, [ADR-0201](../../../../../docs/adr/0201-gitops.md), sync-wave 1). The base-tier sops-operator reconciles the `SopsSecret` CR here into native Kubernetes Secrets that the data + core platform tiers consume ([ADR-0202](../../../../../docs/adr/0202-secrets.md)).
 
-**The template ships this README, not the secret.** A template repo cannot carry
-real cluster secrets, and the `dev` cluster key in `.sops.yaml` is a placeholder.
-Until you add `platform.enc.yaml` below, the Application syncs to zero resources
-(Healthy, empty) and the platform charts that reference these Secrets stay in
-`CreateContainerConfigError`.
+**The template ships this README, not the secret.** A template repo cannot carry real cluster secrets, and the `dev` cluster key in `.sops.yaml` is a placeholder. Until you add `platform.enc.yaml` below, the Application syncs to zero resources (Healthy, empty) and the platform charts that reference these Secrets stay in `CreateContainerConfigError`.
 
 ## Adopt
 
-1. Generate the `dev` cluster age key and replace the `cluster_dev` placeholder in
-   `.sops.yaml` with its public half; plant the private half in-cluster (see
-   `docs/secrets/runbook.md` / the Ansible bootstrap role).
-2. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and
-   encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/dev/secrets/platform.enc.yaml`.
-   The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values
-   (the CR structure stays readable) to `cluster_dev` + engineers + ops-recovery.
+1. Generate the `dev` cluster age key and replace the `cluster_dev` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/secrets/runbook.md` / the Ansible bootstrap role).
+2. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/dev/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_dev` + engineers + ops-recovery.
 3. Commit. Argo delivers it and the operator materialises the Secrets.
 
 ## `platform.enc.yaml` skeleton

@@ -4,7 +4,8 @@
 # Rules: https://github.com/rvben/rumdl
 
 [global]
-# Prose is hand-wrapped inconsistently; enforcing a column would only cause churn.
+# Prose is not hard-wrapped: one line per paragraph, list item, or table row, so a
+# reflow never shows up as a diff. A column limit would fight that (ADR-0001).
 disable = ["MD013"]
 exclude = [
   "node_modules",
@@ -31,5 +32,9 @@ siblings-only = true
 [MD029]
 style = "ordered"
 
+# Tables are compact, never column-padded: one space inside each pipe and a bare
+# `---` delimiter. Padding makes every cell edit reflow the whole table, and the
+# rule ships disabled upstream, which is why alignment had drifted (ADR-0001).
 [MD060]
-style = "aligned"
+enabled = true
+style = "compact"
