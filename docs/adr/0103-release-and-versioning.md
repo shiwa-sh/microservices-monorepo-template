@@ -19,14 +19,16 @@ A per-component SemVer line would therefore encode a compatibility promise **no 
 
 ## Decision drivers
 
-1. **One repo-wide release version**, because the repo ships as a unit. A co-shipped product is versioned by *when* it shipped.
-2. **Versions are release labels, not compatibility promises.** Breaking-change handling for the API belongs to [ADR-0303](0303-api-contracts-and-lifecycle.md), not to a version number.
-3. **Conventional Commits are mandatory.** They drive the changelog and mark breaking changes for review.
-4. **Deploy identity stays SHA-based.** The release version is an additional human label on the same image, never a replacement.
-5. **Releases are explicit acts.** Merging to `master` deploys dev and staging; cutting a release tag promotes production.
+1. **The unit of versioning is the unit of shipping.** GitOps rolls one SHA through every environment and production moves as a whole, so a version line finer than that describes a boundary the system does not have.
+2. **A version signals something to someone, or it signals nothing.** Whatever the number promises, some consumer has to be in a position to read it and act on it.
+3. **Commit history is an input, not only a record.** The changelog and the breaking-change signal are derived from it, so its format has to be machine-readable and enforced at write time rather than tidied afterwards.
+4. **Deploy identity stays SHA-based** ([ADR-0101](0101-monorepo.md)). Inherited, not decided here: any release label is additional to the image identity, never a replacement for it.
+5. **The promotion boundary is a choice, not a default.** Dev and staging deploy continuously from `master` ([ADR-0201](0201-gitops.md)); whether production follows automatically is this ADR's to decide.
 6. **The running build's identity is provable**, not inferred from the pipeline having succeeded.
 
 ## Considered options
+
+### The version line
 
 | Option | What the number signals | Human judgement per release | Verdict |
 | --- | --- | --- | --- |
@@ -35,7 +37,33 @@ A per-component SemVer line would therefore encode a compatibility promise **no 
 | SemVer per component, prefixed tag namespaces | per-component compatibility | one judgement per component | Multiplies the same unread promise by the component count, plus tag bookkeeping |
 | Git SHA only, no human version | nothing | none | Deploy identity is already the SHA. A changelog and a release note need a label a human can say aloud |
 
-**Escape hatch.** If a library, SDK, or service is ever extracted and published for external consumers to pin, *that artifact* adopts SemVer with its own prefixed tag at that point, because an external pinner does need the breaking signal. It is introduced when a real external consumer exists, not before.
+Driver 2 is what decides this row: SemVer's number is addressed to a pinner, and there is none.
+
+**Escape hatch.** If a library, SDK, or service is extracted and published for external consumers to pin, *that artifact* adopts SemVer with its own prefixed tag, because an external pinner does need the breaking signal.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | an artifact is published for a consumer outside this repository to pin |
+| **Seam** | present: the repo-wide line is unprefixed, so a namespaced tag coexists with it rather than replacing it, and the chosen tooling supports per-package tagging as configuration |
+| **Cost if adopted late** | paid by the first external consumer, who pins a CalVer tag that promises them nothing. The retrofit cannot start at `v1.0.0` honestly, because versions they already depend on exist |
+
+### Commit convention
+
+| Option | Machine-readable | How a breaking change is marked | Verdict |
+| --- | --- | --- | --- |
+| **Conventional Commits** | **a specified grammar with parsers in every ecosystem** | `!` after the type or scope, or a `BREAKING CHANGE:` footer | **Chosen.** Driver 3: the changelog and the breaking signal are derived rather than curated |
+| Free-form messages, changelog written by hand | no | by whoever remembers | Makes the changelog a release-time authoring task and the breaking signal a matter of memory |
+| gitmoji | a prefix set, with no grammar behind it | no defined marker | Expressive and popular, and there is nothing for a gate to key off |
+| A house prefix scheme | as far as we build it | as far as we build it | The same grammar, authored and maintained here, with no third-party parser to inherit |
+
+### Release tooling
+
+| Option | Computes the version | Enforces the grammar | Verdict |
+| --- | --- | --- | --- |
+| **cocogitto, changelog-only** | not used — CalVer comes from the date | **yes, at `commit-msg` and in CI** | **Chosen.** One binary covers enforcement and changelog rendering, and the version it could compute is not wanted |
+| commitlint | no | yes | The same enforcement as a Node program, which [ADR-0100](0100-language-and-runtime.md) bars for authored tooling |
+| release-please | yes, inferring SemVer bumps from commit history | no | Its entire value is bump inference, which the version-line decision above makes moot |
+| changesets | yes, per package, from author-written intent files | no | Built for independently published packages, which the same decision rules out |
 
 ## Decision
 
@@ -51,7 +79,7 @@ Every commit on `master` follows the [Conventional Commits](https://www.conventi
 
 Under CalVer a breaking marker computes no version bump. It headlines the changelog, flags the change for review, and for the API surface it is the signal [ADR-0303](0303-api-contracts-and-lifecycle.md) keys off.
 
-`cocogitto` enforces the format through a lefthook `commit-msg` hook, and CI re-runs `cog check` on the PR's commit range. A squash-merge produces one commit whose title is a valid Conventional Commit. Merge commits are not used.
+`cocogitto` enforces the format through a lefthook `commit-msg` hook, and CI re-runs `cog check` over the pull request's commit range as part of `mise run ci:lint` ([ADR-0102](0102-source-control-and-ci.md) keeps CI logic in tasks rather than workflow steps). A squash-merge produces one commit whose title is a valid Conventional Commit. Merge commits are not used.
 
 ### One repo-wide CalVer line
 
@@ -145,9 +173,9 @@ The release commit goes through the standard build path on `master`, producing `
 
 ## Rules
 
-- Every commit on `master` is a valid Conventional Commit. Breaking markers headline the changelog and flag review; under CalVer they compute no version bump. `(CI: ci-lint)`
+- Every commit on `master` is a valid Conventional Commit. Breaking markers headline the changelog and flag review; under CalVer they compute no version bump. `(CI: ci:lint)`
 - The repository has one release version, CalVer `vYYYY.0M.MICRO`. There are no per-component version lines or prefixed tag namespaces. `(review-only)`
-- Images are deployed by `<service>:<git-sha>`, and production pins by digest. One immutable CalVer label is published per release for human reference. Moving tags are never published. `(CI: lint:floating-tags)`
+- Beyond the build tag ([ADR-0101](0101-monorepo.md)), production pins by digest and exactly one immutable CalVer label is published per release for human reference. Moving tags are never published. `(CI: lint:floating-tags)`
 - Releases are cut by `mise run release`. There is no auto-release on merge. A release tag triggers the production deploy; dev and staging deploy continuously from `master`. `(review-only)`
 - The repo owns one committed top-level `CHANGELOG.md`, regenerated by cocogitto in changelog-only mode. `(review-only)`
 - Hotfixes branch from the release tag, not from `master`. `(review-only)`
