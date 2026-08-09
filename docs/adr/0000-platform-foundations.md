@@ -137,7 +137,7 @@ Each principle is **anchored** to an external standard, or explicitly marked **l
 | --- | --- | --- |
 | Compute and network provider | [ADR-0200](0200-cluster-topology.md) runs on plain instances, which someone provisions. Sovereignty is over the *stack*, not the metal | total for that environment. Mitigated by the provider-neutral bootstrap, which is what makes the substrate replaceable |
 | Public ACME certificate authority | [ADR-0200](0200-cluster-topology.md) issues wildcards through cert-manager against a public CA | renewals fail, with the certificate lifetime as the buffer. A private CA is the exit, at the cost of distributing a trust anchor |
-| DNS registrar and authoritative DNS | the domain is delegated, and DNS-01 needs a provider API | edge unreachable, and issuance blocked. This is the least substitutable item on the list |
+| DNS registrar and authoritative DNS | the domain is delegated, DNS-01 needs a provider API, and outbound mail needs `PTR` delegation ([ADR-0307](0307-outbound-email.md)) | edge unreachable, issuance blocked, and mail undeliverable. This is the least substitutable item on the list — the registrar half cannot be self-hosted at all, and the zone data is public, so sovereignty has little to buy here |
 | Upstream package and image sources | Go modules, npm, Helm charts, and base images are fetched from where their publishers put them | builds fail; running does not. Digest pins ([ADR-0104](0104-supply-chain-security.md)) make what already runs immune |
 | Escalation and paging | no mature self-hosted layer exists ([ADR-0502](0502-alerting-and-on-call.md)) | deferred rather than depended on. Nothing pages |
 

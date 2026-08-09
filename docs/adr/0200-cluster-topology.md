@@ -148,6 +148,8 @@ Traefik  (TLS via cert-manager, L7 routing, rate limiting)
 
 **DNS.** One wildcard `A` record per environment points at the LB IP, and cert-manager requests one wildcard certificate per environment via DNS-01. `external-dns` is not used, because the wildcard absorbs new services.
 
+Two provider capabilities are therefore requirements rather than conveniences, and both are verified before an environment is provisioned. **A DNS provider API that cert-manager supports**, without which DNS-01 issuance has no path. **Reverse-DNS (`PTR`) delegation on the mail egress IP**, which [ADR-0307](0307-outbound-email.md) needs to match maddy's HELO name — not every provider offers it, and where it is offered it is often manual, request-only, or unavailable for load-balancer addresses. Both are cheap to confirm at provider selection and expensive to discover afterwards: a missing `PTR` surfaces as mail being rejected at first send, not as a failed deploy.
+
 ### Cluster networking
 
 Cilium is the CNI from day one. The [machine config](https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium) sets `cluster.network.cni.name: none` and `cluster.proxy.disabled: true`, so Talos ships neither its default CNI nor kube-proxy, and Cilium provides both. Cilium is delivered as an inline manifest in the machine config rather than installed afterwards: a node reports `NotReady` until a CNI runs, and a cluster left without one reboots to retry, so shipping it with the bootstrap removes a timed race. Argo CD adopts the release afterwards for upgrades. **CNI cannot be hot-swapped on a live cluster**, so the security posture is set at bootstrap rather than retrofitted.
