@@ -32,6 +32,8 @@ At axis B maximal the registry is a first-class decision. It also sits on the cr
 
 Harbor loses on component weight rather than on capability. Its replication, quota, and multi-tenancy features answer a problem a single platform team with one registry does not have, and its Postgres and Redis are exactly the "always-on floor is the budget" cost principle 2 is written to stop.
 
+**No forge's bundled registry is eligible, whichever forge is chosen.** GitLab and Forgejo both ship one, so a bundled registry reads as free in component count. It is not: an artefact store inside the build system couples every pod start to forge availability, and makes the system that produces an image the system that stores what vouches for it ([ADR-0104](0104-supply-chain-security.md)). Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that a forge outage does not stop the running system, and it is why the registry is a decision the forge cannot settle.
+
 ## Decision
 
 | Concern | Decision |
