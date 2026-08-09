@@ -22,17 +22,25 @@ Service-to-service calls bypass the edge entirely and are gated by Cilium Networ
 
 1. **One identity shape for every request.** A handler reads identity the same way whether the call came from a browser or another service. No "JWT here, headers there".
 2. **Services are auth-free in their handlers.** Identity arrives pre-validated.
-3. **Consistent with the identity stack already deployed** ([ADR-0304](0304-identity-and-authorization.md)), rather than a parallel control plane.
-4. **Operational simplicity.** No second datastore, no plugin runtime, no gateway-specific config codegen.
+3. **The edge reads the credential the identity provider issues**, with no translation layer standing between them. [ADR-0304](0304-identity-and-authorization.md) settles what that credential is.
+4. **The edge adds no state.** Whatever sits here is on the path of every request, so a datastore behind it is a datastore in front of everything.
+5. **Authorization lives in one place.** A policy language at the edge is a second place a permission decision can be written.
 
 ## Considered options
 
-| Option | Extra components | Config source | Verdict |
-| --- | --- | --- | --- |
-| **Ory Oathkeeper as ForwardAuth** | **none** — a single Go binary with no datastore | declarative YAML access rules in git | **Chosen.** Validates Kratos sessions and Hydra JWTs, and mutates requests to strip and inject identity headers. Consolidates into the Ory stack already run |
-| Tyk or Kong | a control plane, a datastore, a plugin runtime | gateway-specific codegen | Rich API management whose one unique value here — edge OpenAPI validation — is redundant with in-service validation. The rest goes unused. Reserved as a per-project add-on for a monetised public API |
-| Traefik Enterprise OIDC middleware | none | Traefik CRDs | Closes the JWT gap in Traefik OSS, and is a paid tier ([ADR-0000](0000-platform-foundations.md), principle 3) |
-| A DIY ForwardAuth service | one first-party service | our code | Viable, and it puts auth-critical validation code under our ownership. Oathkeeper is hardened and declarative |
+| Option | Added components | Reads a Kratos browser session | Identity passed onward as | Verdict |
+| --- | --- | --- | --- | --- |
+| **Ory Oathkeeper as ForwardAuth** | **none beyond one Go binary**, no datastore | **yes**, and Hydra JWTs through the same rule set | mutated trusted headers, one shape for every route | **Chosen.** Declarative YAML access rules in git, and the only option that reads both credential formats this platform issues without a hop in between |
+| Plain Traefik `ForwardAuth` to Kratos `/sessions/whoami` | **none at all** | yes | nothing — `whoami` authenticates but does not mutate the request | The zero-component baseline, and the row that prices the chosen one. Without mutation every service must strip client-supplied identity headers itself, and there is no rule language to mark a route public |
+| oauth2-proxy | one | **no — it speaks OIDC**, and Kratos issues browser sessions rather than OIDC tokens | OIDC claims as headers | The reflexive answer to this problem, and it needs Hydra in front of Kratos before it has anything to validate. That adds an OAuth2 round trip to first-party browser traffic to satisfy a proxy rather than a requirement |
+| Authelia | one, plus a session store | no — it carries its own identity model | headers | An identity provider with a forward-auth front-end. Adopting it re-decides [ADR-0304](0304-identity-and-authorization.md) rather than serving it |
+| Pomerium | one, plus its own state | no — OIDC | headers, with per-route policy | The strongest alternative on expressiveness. Same OIDC mismatch, and its policy language is a second home for authorization, against driver 5 |
+| Envoy `ext_authz` | Envoy at the edge, beside or instead of Traefik | through a service we write | whatever that service sets | A mechanism rather than a product: it re-poses the question as *what runs behind it*, and swapping the ingress is a bigger change than this decision |
+| Tyk or Kong | a control plane, a datastore, a plugin runtime | through a plugin | plugin-defined | Rich API management whose one unique value here — edge OpenAPI validation — is redundant with in-service validation ([ADR-0303](0303-api-contracts-and-lifecycle.md)) |
+| Traefik's commercial OIDC middleware | none | no — OIDC | headers | Closes the JWT gap in Traefik's open distribution, and is a paid tier ([ADR-0000](0000-platform-foundations.md), principle 3) |
+| A DIY ForwardAuth service | one first-party service | yes, once written | ours | Viable, and it puts auth-critical validation under our ownership. Oathkeeper is the same shape, declarative, and maintained by someone else |
+
+**The OIDC mismatch is what eliminates most of the field.** Kratos issues browser sessions, not OIDC tokens; Hydra issues OAuth2 tokens for third-party clients ([ADR-0304](0304-identity-and-authorization.md)). Every proxy above that expects an OIDC provider therefore needs Hydra inserted into the first-party browser path, which is an OAuth2 flow added to serve the proxy rather than any consumer.
 
 ## Decision
 
@@ -57,7 +65,13 @@ This is the single request shape: every service, edge-origin or internal, reads 
 
 Traefik's middleware throttles auth-sensitive routes — login, signup, password reset — per source from day one, as a security control independent of any public API.
 
-Per-API-key tiered quotas are a full-API-management feature. A project shipping a monetised public API adds a gateway for its own routes at that point, behind a per-project flag.
+**Per-API-key tiered quotas are deferred.** They are a full-API-management feature, and nothing else in the gateway is wanted.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | a project bills for API access, so a caller's quota differs by contract rather than by route |
+| **Seam** | ✓ the public API is already a distinct audience with its own routes ([ADR-0303](0303-api-contracts-and-lifecycle.md)), so a gateway is placed in front of those routes only, behind a per-project flag. First-party browser traffic keeps the path above |
+| **Cost if adopted late** | the API has already been billed against counters kept somewhere else — usually in a service — and those become the migration, not the gateway |
 
 ### Security headers and Origin policy
 
@@ -119,14 +133,14 @@ Scalar's request console is why the dev portal is same-origin with `/api` ([ADR-
 
 ## Rules
 
-- The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default. `(review-only)`
-- Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. `(CI: lint:strip-headers)`
+- The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default.
+- Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. `(CI: lint:authz)`
 - Every request carries identity in the same header shape. Services read identity from headers and never parse a token. `(CI: lint:auth-inline)`
-- Service-to-service calls bypass the edge, forward the identity headers, and are gated by NetworkPolicy. No token is on the internal path. `(review-only)`
-- Request-schema validation is service-side. There is no edge schema validation. `(review-only)`
-- Rate limiting on auth-sensitive routes is Traefik middleware in `infra/gateway/`. `(review-only)`
-- Static browser-security headers are a Traefik middleware on all responses; the per-request CSP nonce is the frontend's. `(review-only)`
-- Cookie-authenticated state-changing requests are Origin-checked by an Oathkeeper rule. Bearer-token traffic is exempt. `(review-only)`
-- The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. `(CI: lint:api-resources)`
-- Hydra is deployed only for projects exposing a public API or external machine clients. `(review-only)`
-- A project needing tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default. `(review-only)`
+- Service-to-service calls bypass the edge, forward the identity headers, and are gated by NetworkPolicy. No token is on the internal path.
+- Request-schema validation is service-side. There is no edge schema validation.
+- Rate limiting on auth-sensitive routes is Traefik middleware in `infra/gateway/`.
+- Static browser-security headers are a Traefik middleware on all responses; the per-request CSP nonce is the frontend's.
+- Cookie-authenticated state-changing requests are Origin-checked by an Oathkeeper rule. Bearer-token traffic is exempt.
+- The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. `(CI: lint:service-contract)`
+- Hydra is deployed only for projects exposing a public API or external machine clients.
+- A project needing tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default.

@@ -11,19 +11,20 @@
 
 ## Decision drivers
 
-1. **Parity is at the artifact layer.** Same charts, same images, same code, same commands. Divergence is a per-env value, never a forked manifest or chart logic branching on environment.
-2. **Composition over forks.** A new environment is a values selection, not a script.
-3. **Uphold the ADRs parity would otherwise erode** — [ADR-0200](0200-cluster-topology.md)'s external bucket and off-cluster backups in production, and [ADR-0202](0202-secrets.md)'s single secret mechanism everywhere.
-4. **A parity claim must be checkable**, so what may differ is enumerated rather than judged case by case.
+1. **The production path is the most-exercised path.** Whatever runs in production must be what every other tier runs, or the tiers below validate something production does not do.
+2. **A new environment costs a selection, not a script.**
+3. **The divergence surface is enumerable**, so what may differ is a list rather than a case-by-case judgement.
+4. **Drift is visible before it breaks something**, not at the moment an environment diverges in production.
 
 ## Considered options
 
-| Option | Divergence expressed as | Why not |
-| --- | --- | --- |
-| **One chart set, per-env values overlays** | `infra/gitops/platform/<env>/values.yaml` | **Chosen** — the divergence surface is one file per environment, diffable and reviewable |
-| Per-environment chart forks | separate chart directories | Every upstream change is applied N times, and drift is invisible until an environment breaks |
-| Chart logic branching on environment | `{{ if eq .Values.env "prod" }}` | Moves the divergence into templates where it cannot be reviewed as configuration, and makes the production path the least-exercised one |
-| A different stack locally (Compose) | a parallel definition | A second definition of the system that drifts silently. The local tier would validate something production does not run |
+| Option | Divergence expressed as | Exercises the production path elsewhere | Cost of an upstream change | Verdict |
+| --- | --- | --- | --- | --- |
+| **One chart set, per-env values overlays** | one values file per environment | yes — every tier renders the same templates | once | **Chosen.** The divergence surface is one diffable file per environment |
+| Kustomize overlays on a shared base | a base plus a patch directory per environment | yes | once, plus re-checking that each patch still matches the base | Patches match the base structurally, so an upstream change can silently no-op one and the divergence becomes invisible. [ADR-0201](0201-gitops.md) rejects the templating layer for the same reason |
+| Per-environment chart forks | separate chart directories | no — each fork is exercised only by its own environment | once per fork | Drift is invisible until an environment breaks |
+| Chart logic branching on environment | `{{ if eq .Values.env "prod" }}` | **no — the production branch is the least-exercised code in the repo** | once, and every branch re-reasoned | Moves divergence into templates, where it cannot be reviewed as configuration |
+| A different stack locally, such as Compose | a parallel definition | no | twice, in two languages | A second definition of the system that drifts silently. The local tier would validate something production does not run |
 
 ## Decision
 
@@ -92,10 +93,10 @@ In-cluster object storage in production would co-locate data and its backups on 
 
 ## Rules
 
-- Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay. `(review-only)`
-- Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier. `(review-only)`
-- The Kubernetes API, service chart, service images, and env contract are identical in every tier. `(review-only)`
-- Object storage is the S3 API everywhere; production uses an external bucket, and in-cluster object storage is not run in production. `(review-only)`
-- Backups are off-cluster and mandatory in production ([ADR-0200](0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee. `(review-only)`
-- SOPS is the secret mechanism in every environment, including local. `(CI: lint:secrets)`
-- Certificates are issued by cert-manager in every environment and are verified, never bypassed. `(review-only)`
+- Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay.
+- Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier.
+- The Kubernetes API, service chart, service images, and env contract are identical in every tier.
+- Object storage is the S3 API everywhere; production uses an external bucket, and in-cluster object storage is not run in production.
+- Backups are off-cluster and mandatory in production ([ADR-0200](0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
+- SOPS is the secret mechanism in every environment, including local.
+- Certificates are issued by cert-manager in every environment and are verified, never bypassed.

@@ -282,26 +282,26 @@ Used consistently across all ADRs. If a term is ambiguous in a later ADR, this g
 
 ### Process
 
-- An ADR exists for every decision that binds more than one service or is hard to reverse. `(review-only)`
-- An ADR follows the structure, numbering, and prose rules of [ADR-0001](0001-documentation-and-output-conventions.md). `(review-only)`
-- **No tool is adopted without a recorded comparison against its alternatives** (principle 7). The comparison is a table with prose cells, not a scoring grid, at a depth set by that tool's exit cost. `(review-only)`
-- An accepted ADR is binding on every service. Per-service deviation requires a new ADR. `(review-only)`
-- A decision is unambiguous: no "or Y in some cases" without a measurable trigger. `(review-only)`
-- Nothing is "temporary." Either commit, or defer behind a hard trigger — and record the trigger, whether a **seam** exists, and the cost of adopting late. A deferral without a seam is a **bet** and is labelled one. `(review-only)`
+- An ADR exists for every decision that binds more than one service or is hard to reverse.
+- An ADR follows the structure, numbering, and prose rules of [ADR-0001](0001-documentation-and-output-conventions.md).
+- **No tool is adopted without a recorded comparison against its alternatives** (principle 7). The comparison is a table with prose cells, not a scoring grid, at a depth set by that tool's exit cost.
+- An accepted ADR is binding on every service. Per-service deviation requires a new ADR.
+- A decision is unambiguous: no "or Y in some cases" without a measurable trigger.
+- Nothing is "temporary." Either commit, or defer behind a hard trigger — and record the trigger, whether a **seam** exists, and the cost of adopting late. A deferral without a seam is a **bet** and is labelled one.
 
 ### Selection
 
-- Configuration lives in this repo, not in the component. UI-only state is not allowed for anything reconciled into a cluster, and not for a component's own configuration either. `(review-only)`
-- Platform components are tiered Core / Scale / Opt-in in [`docs/operational-surface.md`](../operational-surface.md). A component joins Core only when no existing Core component covers its concern; a Scale variant replaces its Core counterpart only on the measured trigger documented there. `(review-only)`
-- Every component runs on infrastructure we control. Managed services are not adopted to reclaim operational budget. `(review-only)`
-- Novelty is spent by exit cost: freely where abandonment costs days, conservatively where it costs months and customer data. `(review-only)`
-- One primitive per concern. Parallel mechanisms for the same problem require an ADR that retires the incumbent. `(review-only)`
+- Configuration lives in this repo, not in the component. UI-only state is not allowed for anything reconciled into a cluster, and not for a component's own configuration either.
+- Platform components are tiered Core / Scale / Opt-in in [`docs/operational-surface.md`](../operational-surface.md). A component joins Core only when no existing Core component covers its concern; a Scale variant replaces its Core counterpart only on the measured trigger documented there.
+- Every component runs on infrastructure we control. Managed services are not adopted to reclaim operational budget.
+- Novelty is spent by exit cost: freely where abandonment costs days, conservatively where it costs months and customer data.
+- One primitive per concern. Parallel mechanisms for the same problem require an ADR that retires the incumbent.
 - Go and TypeScript only. No tool may assume a runtime that is not pinned in `.mise.toml`. `(CI: lint:node-scope)`
-- Licence, governing body, and project maturity are **recorded** for every component and **do not veto** a choice. `(review-only)`
+- Licence, governing body, and project maturity are **recorded** for every component and **do not veto** a choice.
 
 ### Construction
 
-- Local and production differ in topology only. Charts, code, and commands do not diverge. `(review-only)`
-- Generated code is committed and drift-checked in CI. `(CI: ci-drift)`
-- Service-to-service communication is HTTP via generated OpenAPI clients. Shared databases, shared code, and cross-service workflow calls are forbidden. `(CI: ci-lint)`
-- Local development uses the same Helm charts, container images, and commands as production. Topology may differ; interface may not. `(review-only)`
+- Local and production differ in topology only. Charts, code, and commands do not diverge.
+- Generated code is committed and drift-checked in CI. `(CI: ci:gen)`
+- Service-to-service communication is HTTP via generated OpenAPI clients. Shared databases, shared code, and cross-service workflow calls are forbidden. `(CI: ci:lint)`
+- Local development uses the same Helm charts, container images, and commands as production. Topology may differ; interface may not.

@@ -25,7 +25,7 @@ A managed forge is the one dependency that cannot be reconciled with principle 3
 
 | Option | Component weight | Pipelines | Governance | Verdict |
 | --- | --- | --- | --- | --- |
-| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+ since v9.0](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together |
+| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together |
 | Gitea + Gitea Actions | identical | identical | company-controlled | Functionally equivalent. Provenance is *recorded evidence about exit cost* (principle 4), and the governing body is the only discriminator between two otherwise equal choices |
 | GitLab CE | a suite — Gitaly, Redis, Sidekiq, its own Postgres, several web services | mature and complete | company-controlled, open-core | Rejected by principle 2, as [ADR-0000](0000-platform-foundations.md) already records. It replaces one component with a platform |
 | Self-hosted forge + separate CI engine | two components | Woodpecker, Tekton, or Argo Workflows | varies | Rejected by principle 5, as [ADR-0000](0000-platform-foundations.md) already records: a second system beside the forge |
@@ -52,14 +52,14 @@ A generated project needs CI from its first commit, before any cluster exists to
 | Field | Value |
 | --- | --- |
 | **Trigger** | the platform cluster serves its first environment |
-| **Seam** | ✅ the thin-YAML rule above. Moving is a re-targeting of the same `mise run ci:*` calls, not a rewrite of pipeline logic |
+| **Seam** | ✓ the thin-YAML rule above. Moving is a re-targeting of the same `mise run ci:*` calls, not a rewrite of pipeline logic |
 | **Cost if adopted late** | the pipeline migration is flat — the thin-YAML rule makes it a re-target rather than a rewrite. **The review record is not flat.** Pull requests, review comments, and issues are forge-native and do not travel with a `git push`, so that body grows for as long as the decision waits. Sovereignty is also asserted rather than held until it lands |
 
 ### Signing identity
 
 [ADR-0104](0104-supply-chain-security.md) signs with a key pair held in SOPS rather than against a third-party certificate authority, precisely so the signing identity does not depend on which forge runs the pipeline. Moving the forge re-targets the workflow and leaves the trust root untouched.
 
-Forgejo v15.0 LTS does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/v15.0/user/actions/security-openid-connect/), alongside ephemeral runners. That capability is available for anything wanting a short-lived workload identity; it is not what signs images.
+Forgejo does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/latest/user/actions/security-openid-connect/), alongside ephemeral runners. That capability is available for anything wanting a short-lived workload identity; it is not what signs images.
 
 ## Consequences
 
@@ -77,8 +77,8 @@ Forgejo v15.0 LTS does mint [per-job OIDC tokens for Actions](https://forgejo.or
 
 ## Rules
 
-- The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster. `(review-only)`
-- Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](0000-platform-foundations.md), principle 5). `(review-only)`
-- Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. `(review-only)`
-- Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1). `(review-only)`
-- Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the forge's package registry. `(review-only)`
+- The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster.
+- Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](0000-platform-foundations.md), principle 5).
+- Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
+- Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1).
+- Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the forge's package registry.

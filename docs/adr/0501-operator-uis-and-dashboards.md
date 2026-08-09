@@ -35,7 +35,7 @@ Without a stated dashboard structure, a growing dashboard set invites two failur
 | Option | Service map | Dashboards as code | Footprint | Verdict |
 | --- | --- | --- | --- | --- |
 | **Grafana stack + bundled Hubble UI** | Hubble UI, live | JSON in git | zero marginal — both already run | **Chosen** |
-| Coroot Community Edition (Apache-2.0) | keyed by Deployment, no name collapse | **UI-only click-ops state in ClickHouse** — not in git, not reviewable, invisible to Argo | five always-on components plus ClickHouse | Rejected. Fails driver 2 outright, and duplicates most of the Grafana stack. CE also has no SSO/RBAC, ~7-day retention, requires tracefs/debugfs mounts, and exposes no stable query API for the acceptance gauge ([ADR-0601](0601-testing-strategy.md)). Its eBPF extras are real, but instrumented services already ship richer OTLP |
+| Coroot Community Edition (Apache-2.0) | keyed by Deployment, no name collapse | **UI-only click-ops state in ClickHouse** — not in git, not reviewable, invisible to Argo | five always-on components plus ClickHouse | Rejected. Fails driver 2 outright, and duplicates most of the Grafana stack. CE also has no SSO/RBAC, ~7-day retention, requires tracefs/debugfs mounts, and exposes no stable query API for the acceptance gauge ([ADR-0601](0601-testing-strategy.md)). Its eBPF extras cover uninstrumented workloads, which instrumented services already exceed through OTLP |
 | Isovalent/Cisco Enterprise Hubble | maintained, no collapse defect | n/a | n/a | Commercial ([ADR-0000](0000-platform-foundations.md), principle 3) |
 | No map at all | `hubble` CLI answers point queries only | n/a | zero | The UI is free once Hubble runs |
 
@@ -53,7 +53,9 @@ Both candidate feeds fail structurally, so no Grafana service-map dashboard is b
 | Option | Shared web origin | Verdict |
 | --- | --- | --- |
 | **Headlamp** (CNCF Sandbox, Apache-2.0) | yes, OIDC/header aware | **Chosen** — one in-cluster deployment, drops into the existing ops-origin pattern |
-| k9s | no — a TUI | No shared origin, no edge gating |
+| k9s | no — a TUI | No shared origin, no edge gating. It is what an engineer with cluster credentials already uses, which is the point: this row is about the operator who has none |
+| Lens, or its OpenLens build | no — a desktop application | Per-workstation install and per-workstation credentials, so access is granted by distributing kubeconfigs rather than by an edge session |
+| Skooner | yes | A lighter in-cluster dashboard with a service-account token model rather than a forward-auth one, and a smaller maintainer base than the chosen option |
 | Kubernetes Dashboard | yes | Token-handling design and past-CVE history, unwanted on an ops origin |
 
 ## Decision
@@ -91,7 +93,7 @@ Served at `hubble.ops.<host>` behind the ops forward-auth — the operator claim
 Two accepted defects:
 
 - **It collapses workloads sharing `app.kubernetes.io/name` into one card** — all Temporal roles render as one "temporal" node. Cosmetic: the map serves topology, and per-workload detail is Grafana's, where `k8s_deployment_name` distinguishes roles.
-- **Upstream is in maintenance mode** (v0.13.5, April 2024). Accepted against the liveness criterion because it is a read-only viewer over data already collected — abandonment costs the view, not the data, which makes it a control-plane risk under [ADR-0000](0000-platform-foundations.md) principle 4. If it breaks outright, this ADR is revisited.
+- **Its upstream release cadence is slow.** Accepted against the liveness criterion because it is a read-only viewer over data already collected, so abandonment costs the view and not the data. Under [ADR-0000](0000-platform-foundations.md) principle 4 that is a low exit cost: the flows remain readable through the Hubble CLI and the drop metrics in Grafana.
 
 ### Headlamp owns pod-level debugging
 
@@ -135,11 +137,11 @@ There is no signal overlap. Every application signal is Grafana's; the live flow
 
 ## Rules
 
-- Application observability — overview, SLO/RED, resources, logs, traces, profiling — is owned by the Grafana stack, and dashboards live as JSON under `infra/observability/dashboards/`. `(review-only)`
-- Dashboards occupy the L1 → L1.5 → L2 → L3 funnel; `overview.json` is the Grafana home dashboard and every one of its panels either turns red or links down a level. `(review-only)`
-- A question that fits no level in the funnel is a Grafana Explore query, not a committed dashboard. `(review-only)`
-- The service map is the bundled Hubble UI at `hubble.ops.<host>` behind the ops forward-auth. No separate APM suite is deployed. `(review-only)`
-- No Grafana service-map dashboard is built from Tempo `service_graphs` or the Hubble `flow` metric; both fail structurally. Re-adding one requires revisiting this ADR. `(review-only)`
-- The Hubble `drop` metric stays enabled for history and alerting; the `flow`, `tcp`, `http`, and `dns` metrics stay off. `(review-only)`
-- The Kubernetes debug UI is Headlamp, a Core component deployed via Helm and Argo CD in every environment at `headlamp.ops.<host>` behind the ops forward-auth. `(review-only)`
-- Headlamp runs with a read-only ClusterRole. It is a debugging surface, not a control surface; desired-state changes go through git and Argo CD, never a UI. `(review-only)`
+- Application observability — overview, SLO/RED, resources, logs, traces, profiling — is owned by the Grafana stack, and dashboards live as JSON under `infra/observability/dashboards/`.
+- Dashboards occupy the L1 → L1.5 → L2 → L3 funnel; `overview.json` is the Grafana home dashboard and every one of its panels either turns red or links down a level.
+- A question that fits no level in the funnel is a Grafana Explore query, not a committed dashboard.
+- The service map is the bundled Hubble UI at `hubble.ops.<host>` behind the ops forward-auth. No separate APM suite is deployed.
+- No Grafana service-map dashboard is built from Tempo `service_graphs` or the Hubble `flow` metric; both fail structurally. Re-adding one requires revisiting this ADR.
+- The Hubble `drop` metric stays enabled for history and alerting; the `flow`, `tcp`, `http`, and `dns` metrics stay off.
+- The Kubernetes debug UI is Headlamp, a Core component deployed via Helm and Argo CD in every environment at `headlamp.ops.<host>` behind the ops forward-auth.
+- Headlamp runs with a read-only ClusterRole. It is a debugging surface, not a control surface; desired-state changes go through git and Argo CD, never a UI.

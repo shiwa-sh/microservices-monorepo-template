@@ -34,16 +34,21 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 | --- | --- | --- | --- | --- |
 | **Prometheus rules + Alertmanager** | native rule files, already shipped | Alertmanager's routing tree, as a committed config | one Go binary, no datastore | **Chosen.** It is the receiver the rule files were always written for |
 | Grafana unified alerting | rules become Grafana objects, provisionable as YAML | built into Grafana, already Core | none — Grafana is already running | Zero marginal weight and rejected on principle 5: alert state moves into Grafana's database, and evaluation splits between two engines while [ADR-0500](0500-observability.md)'s rule files still exist |
-| Rule files with no receiver | yes | none | none | The current state. Driver 1 rules it out |
+| Rule files with no receiver — the honest baseline | yes | none | none | An alert that evaluates and reaches nobody. Driver 1 rules it out |
 
 ### Escalation and paging
 
-| Option | Self-hosted | Rotation, escalation, acknowledgement | Verdict |
-| --- | --- | --- | --- |
-| **A managed paging service, reached by webhook** | no | yes, including phone and app delivery | **Chosen as the sanctioned concession**, exactly where [ADR-0000](0000-platform-foundations.md) ranks it |
-| Grafana OnCall | yes | yes | The one credible self-hosted escalation layer. Its open-source distribution carries governance risk that must be re-verified before adoption, which is itself the evidence behind ADR-0000's ranking |
-| Email and chat only | yes | none — no rotation, no acknowledgement, no escalation | Sufficient for a team that does not yet have a rotation, and honest about what it is not. **This is the default the template ships** |
-| Build a rotation and escalation service | yes | whatever we write | Rejected. This is an incident-management product, not platform glue |
+| Option | Self-hosted | Rotation, escalation, acknowledgement | Reaches a phone | Verdict |
+| --- | --- | --- | --- | --- |
+| **A managed paging service, reached by webhook** | no | yes | yes | **Chosen as the sanctioned concession**, exactly where [ADR-0000](0000-platform-foundations.md) ranks it |
+| Grafana OnCall | **no longer** | yes | it never did without Grafana's cloud | The self-hosted answer the field used to have. Its open-source distribution entered maintenance in March 2025 and was **archived in March 2026**, with the repository read-only and phone and SMS delivery withdrawn from OSS users. It is the direct evidence behind ADR-0000's ranking of this component |
+| Keep | yes | alert enrichment, correlation, and workflows; not a rotation calendar | no | Answers the tier above this one — deduplicating and enriching alerts — and leaves "whose phone rings at 03:00" unanswered |
+| LinkedIn Oncall | yes | **rotation calendars only** | no | A scheduling system with no alert path. Pairing it with a delivery tool rebuilds the product from two halves and an integration nobody maintains |
+| ntfy or Gotify as a receiver | yes | none — delivery only | push notification, not a call | The honest self-hosted delivery floor. It moves a notification to a device without knowing who is on duty or noticing that nobody acknowledged |
+| Email and chat only | yes | none | no | Sufficient where no rotation exists, and honest about what it is not. It is the template default |
+| Build a rotation and escalation service | yes | whatever we write | whatever we integrate | An incident-management product, not platform glue |
+
+**There is no longer a credible self-hosted escalation layer**, which is a stronger statement than this ADR could previously make and is why driver 5 exists. The concession is not a preference between comparable options; it is the absence of one.
 
 ## Decision
 
@@ -63,7 +68,7 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 | Field | Value |
 | --- | --- |
 | **Trigger** | the platform commits to a response-time obligation outside working hours — an availability target with consequences, or the first paying customer contract that names one |
-| **Seam** | ✅ Alertmanager's webhook receiver. Attaching a paging service is a receiver's URL and a credential; alert rules, severities, and the routing tree are unchanged |
+| **Seam** | ✓ Alertmanager's webhook receiver. Attaching a paging service is a receiver's URL and a credential; alert rules, severities, and the routing tree are unchanged |
 | **Cost if adopted late** | overnight incidents are found in the morning. Bounded by the `page`/`ticket` split already being in the rules, so nothing is re-authored when the pager arrives |
 
 This is a **deferral, not a bet**: the seam exists, and it is the receiver interface every paging vendor implements.
@@ -79,15 +84,15 @@ This is a **deferral, not a bet**: the seam exists, and it is the receiver inter
 ### Negative / Risks
 
 - **Alertmanager joins Core**, adding a component whose own failure is silent. Its `Watchdog` alert — a rule that always fires and is expected to arrive continuously — is the standard answer, and a missing Watchdog is what a paging service watches for once one exists.
-- **Nothing pages anyone until the trigger fires.** Stated plainly: this platform detects overnight incidents in the morning. That is a deliberate position at the current team size, not an oversight.
+- **Nothing pages anyone until the trigger fires.** This platform detects overnight incidents in the morning. That is a deliberate position, not an oversight: a rotation nobody is rostered onto is a page that wakes no one.
 - **Email as a `ticket` receiver depends on [ADR-0307](0307-outbound-email.md).** An outbound-mail failure degrades alerting, so mail-path alerts route to the webhook rather than to email.
 - **Alert fatigue is the failure mode**, and no component prevents it. The `page`/`ticket` rule is review-enforced, which is weaker than a linter.
 
 ## Rules
 
-- Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used. `(review-only)`
-- Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state ([ADR-0000](0000-platform-foundations.md), principle 1). `(review-only)`
-- Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes. `(review-only)`
-- Maintenance silences are committed, time-bounded, and expire on their own. `(review-only)`
-- No on-call rotation is claimed until a paging receiver is attached to the webhook. `(review-only)`
-- Alerts about the outbound-mail path do not route through email. `(review-only)`
+- Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used.
+- Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state ([ADR-0000](0000-platform-foundations.md), principle 1).
+- Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes.
+- Maintenance silences are committed, time-bounded, and expire on their own.
+- No on-call rotation is claimed until a paging receiver is attached to the webhook.
+- Alerts about the outbound-mail path do not route through email.

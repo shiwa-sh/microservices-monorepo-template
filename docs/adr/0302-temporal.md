@@ -21,19 +21,25 @@ Without one durable-execution platform, each grows its own machinery: outbox tab
 
 1. **One reliability primitive, not five.** No coexistence of DLQ, cron, and ad-hoc retries with a workflow engine. One sanctioned lighter path is the single deliberate exception, bounded below.
 2. **Service boundaries stay HTTP and OpenAPI.** A workflow engine must not become the cross-service bus.
-3. **Operationally cheap per workflow.** Adding one must cost less than building the same reliability by hand.
-4. **Self-host** ([ADR-0000](0000-platform-foundations.md), principle 3).
+3. **Adding the second workflow costs much less than the first.** Whatever is adopted must make reliability a library call rather than a design exercise, or the fleet reverts to hand-rolled retries.
+4. **A workflow is written in the service's own language**, not in a separate modelling notation maintained beside it.
+5. **Operational sovereignty** ([ADR-0000](0000-platform-foundations.md), principle 3).
 
 ## Considered options
 
-| Option | Model | Maturity | Verdict |
+### The engine
+
+| Option | Workflow is authored as | Added datastores | Verdict |
 | --- | --- | --- | --- |
-| **Temporal, self-hosted** | durable execution as a first-class primitive: activities, child workflows, signals, queries, timers, schedules, sagas in one model | first-party SDKs across the mainstream runtimes, Postgres-backed | **Chosen** |
-| Restate | similar durable-execution model with a simpler operational shape | young; SDK and saga ergonomics trail | Worth watching, not adopting |
-| Cadence | Temporal's predecessor | less momentum | No upside over Temporal |
-| DIY — outbox, queue, cron, retry loops | four mechanisms | ours to maintain | Re-implements Temporal poorly, four times |
-| Kubernetes Jobs, CronJobs, Argo Workflows | pipeline DAGs | mature | Not business workflows. Retained for pure infrastructure tasks |
-| Temporal Cloud | managed | mature | Excluded by driver 4. Client call sites stay cloud-neutral, so the position is reversible by deploy |
+| **Temporal, self-hosted** | ordinary Go, replayed deterministically | none — a database on the existing Postgres cluster | **Chosen.** Activities, child workflows, signals, queries, timers, schedules, and sagas in one model, with first-party SDKs across the mainstream runtimes |
+| Restate | ordinary code, similar model | its own embedded log | A simpler operational shape and a genuinely close model. Younger, with a smaller operator population, and the saga and long-timer ergonomics this platform leans on are the newest part of it |
+| Cadence | as Temporal, its predecessor | Cassandra or a SQL store | No upside over the project that succeeded it |
+| Netflix / Orkes Conductor | **a JSON DAG definition**, with workers in any language | Elasticsearch plus a persistence store | Fails driver 4: the workflow is a document, so the logic lives beside the code rather than in it. The search dependency is also a second datastore |
+| Camunda 8 / Zeebe | **BPMN**, authored in a modeller | Elasticsearch or OpenSearch, plus brokers and gateways | The most capable engine here for a process a non-engineer must read, which is not this platform's problem. BPMN is driver 4's exact failure, and the component set is a platform of its own |
+| Windmill, Inngest, DBOS | varies — scripts, functions, or a library over Postgres | varies | Lighter, and each answers a narrower slice: scheduled scripts, event-driven functions, or single-database transactions. None covers cross-service sagas with timers, which is the case that motivates this ADR |
+| DIY — outbox, queue, cron, retry loops | four mechanisms | none new | Re-implements Temporal poorly, four times, once per service |
+| Kubernetes Jobs, CronJobs, Argo Workflows | pipeline DAGs | none new | Not business workflows. Retained for pure infrastructure tasks |
+| Temporal Cloud | as Temporal | none | Fails driver 5. Client call sites stay cloud-neutral, so the position is reversible by deploy rather than by rewrite |
 
 ## Decision
 
@@ -137,9 +143,17 @@ A longer wall-clock is permitted and requires:
 
 The failure mode: a workflow started before a deploy is resumed by a worker running after it, and if the code no longer replays the recorded history the execution dies with a non-determinism error. A short wall-clock shrinks the exposure window without closing it — a thirty-second checkout can still be mid-flight when a worker rolls.
 
+| Option | In-flight work on deploy | Cost per workflow author | Added components | Verdict |
+| --- | --- | --- | --- | --- |
+| **Worker Deployment Versioning, reconciled by the Temporal Worker Controller** | pinned to the version that started it | none in the ordinary case | **one controller with an admission webhook** | **Chosen.** Driver 3: the reliability is bought once, at the platform layer, instead of per workflow |
+| `workflow.GetVersion` patching only | survives, if every divergence is guarded | **a patch branch per change, retained until no history references it** | none | The mechanism versioning replaces. It scales with the number of changes rather than the number of workflows, and a missed guard is a non-determinism error in production |
+| Build-ID versioning without the controller | pinned, until the old pods go | none | none | Temporal has the versioning APIs, so this is the same routing behaviour. It fails on the second row below: a rolling `Deployment` deletes the pinned version's pods the moment rollout completes |
+| Versioning driven from CI rather than a reconciler | pinned | none | none | Version registration and promotion are one-shot at deploy time, and draining is a state that changes long after the pipeline exits |
+| No versioning; keep workflows short | exposed for the duration of a workflow | a wall-clock budget per workflow | none | The honest baseline. It shrinks the window without closing it — a thirty-second checkout can still be mid-flight when a worker rolls |
+
 **Workers run versioned, and workflows are Pinned by default.** Each worker declares a Worker Deployment Version — a deployment name plus a Build ID. The server routes new executions to whichever version is Current, and a Pinned execution runs start to finish on the version that began it. A deploy therefore cannot break in-flight work, and the ordinary case needs no `workflow.GetVersion`. Temporal's own guidance makes versioning, not patching, the production default.
 
-Four consequences, each of which has produced an incident:
+The controller is a real cost, and four properties are why a chart cannot replace it:
 
 | Consequence | Detail |
 | --- | --- |
@@ -159,9 +173,17 @@ Distinct from replay safety and routinely confused with it: when a worker pod is
 | Legacy pattern | Replacement |
 | --- | --- |
 | Multi-step or cross-service outbox machinery | Workflows. The database write and the downstream effect are activities in one workflow. The transactional outbox survives only for the trivial best-effort case |
-| Event bus (NATS, Kafka) | **Not adopted.** HTTP plus signals via webhook callbacks cover cross-service notification. A true pub/sub fan-out need gets its own ADR |
+| Event bus (NATS, Kafka) | **Not adopted.** HTTP plus signals via webhook callbacks cover cross-service notification, and the deferral below governs the case they do not |
 | Kubernetes `CronJob` for business-meaningful work | Temporal `Schedule`. `CronJob` remains for pure infrastructure |
 | Background queues | Workflows on a `background-tq` queue, except trivial best-effort jobs on the outbox seam |
+
+**A publish-subscribe bus is deferred.**
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | one event has three or more independent consumers whose identities the producer should not know, or a consumer needs to replay an event stream it was not running for |
+| **Seam** | ⚠ **a bet.** Cross-service notification is point-to-point today — an HTTP call or a signal naming its target — so adopting a bus rewrites the producers, not just the transport. Nothing here is publishing to a topic that a broker could simply back |
+| **Cost if adopted late** | every producer already names its consumers, so the fan-out has been encoded into N call sites that each have to be found and inverted |
 
 ### Operational shape
 
@@ -196,7 +218,7 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 
 - One reliability primitive answers four problems, learned once, with no second runtime to operate.
 - Saga compensation becomes routine rather than bespoke.
-- Hand-rolled multi-step outbox machinery disappears; the outbox survives only as the deliberate lighter path.
+- Multi-step outbox machinery has no place to live; the outbox survives only as the deliberate lighter path.
 - Authz dual-write risk is structurally solved rather than policed.
 - Service boundaries remain HTTP and OpenAPI.
 
@@ -211,22 +233,22 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 
 ## Rules
 
-- Temporal is the platform's durable-execution mechanism and the default async primitive. No DLQs, ad-hoc retry loops, or cron jobs for business-meaningful periodic work. `(review-only)`
-- A workflow exists if the operation matches at least one of the five scope criteria. A trivial best-effort job matching none may use the outbox seam. `(review-only)`
-- Workflows, activities, and the worker for a service live under `services/<service>/`. There is no top-level workflow directory. `(CI: ci-lint)`
-- Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are not used. `(CI: ci-lint)`
-- Cross-service result waiting is polling, a webhook callback, or fire-and-forget. Direct cross-service signals are not used. `(review-only)`
-- Activities are placed by ownership and are never shared across services as a domain wrapper. `(review-only)`
-- A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/temporal/long-running.md` with replay tests. `(review-only)`
-- Workers run with versioning enabled and a default behaviour of Pinned. Disabling it is permitted only where the SDK forbids the combination, and obliges that service to a documented patching plan. `(review-only)`
-- A versioned worker is a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`. `(review-only)`
-- Build IDs and the deployment and build-ID environment variables are set by the controller alone. `(review-only)`
-- Sunset delays are only lengthened, never shortened toward zero. `(review-only)`
-- A workflow opting into `AutoUpgrade` owes a `workflow.GetVersion` patching plan and replay tests. `(review-only)`
-- Worker graceful-stop is configured, and `terminationGracePeriodSeconds` is derived from the worker stop timeout rather than set independently. `(review-only)`
-- Workflow code is deterministic and side effects go through activities. `(CI: ci-lint)`
-- Activities are idempotent and accept retries. `(review-only)`
-- Workflow IDs encode business intent, not opaque UUIDs. `(review-only)`
-- Activity inputs and outputs stay in kilobytes; larger payloads go through the bucket by reference. `(review-only)`
-- Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is reserved for pure infrastructure. `(review-only)`
-- Temporal Cloud is not used. `(review-only)`
+- Temporal is the platform's durable-execution mechanism and the default async primitive. No DLQs, ad-hoc retry loops, or cron jobs for business-meaningful periodic work.
+- A workflow exists if the operation matches at least one of the five scope criteria. A trivial best-effort job matching none may use the outbox seam.
+- Workflows, activities, and the worker for a service live under `services/<service>/`. There is no top-level workflow directory. `(CI: ci:lint)`
+- Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are not used. `(CI: ci:lint)`
+- Cross-service result waiting is polling, a webhook callback, or fire-and-forget. Direct cross-service signals are not used.
+- Activities are placed by ownership and are never shared across services as a domain wrapper.
+- A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/temporal/long-running.md` with replay tests.
+- Workers run with versioning enabled and a default behaviour of Pinned. Disabling it is permitted only where the SDK forbids the combination, and obliges that service to a documented patching plan.
+- A versioned worker is a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`.
+- Build IDs and the deployment and build-ID environment variables are set by the controller alone.
+- Sunset delays are only lengthened, never shortened toward zero.
+- A workflow opting into `AutoUpgrade` owes a `workflow.GetVersion` patching plan and replay tests.
+- Worker graceful-stop is configured, and `terminationGracePeriodSeconds` is derived from the worker stop timeout rather than set independently.
+- Workflow code is deterministic and side effects go through activities. `(CI: ci:lint)`
+- Activities are idempotent and accept retries.
+- Workflow IDs encode business intent, not opaque UUIDs.
+- Activity inputs and outputs stay in kilobytes; larger payloads go through the bucket by reference.
+- Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is reserved for pure infrastructure.
+- Temporal Cloud is not used.

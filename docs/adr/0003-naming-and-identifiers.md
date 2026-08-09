@@ -272,29 +272,29 @@ One table, so no surface is left to precedent. Where another ADR owns the naming
 
 ### Resource names
 
-- Every named resource derives from `{project}-{env}-{role}[-{n}]`. Shared infrastructure not tied to a product — a team proxy, an internal forge, a registry mirror — is modelled as its own project with its own slug and follows the same grammar. `(review-only)`
-- A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. `(CI: lint:naming)`
-- The project slug is 6–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. `(CI: lint:naming)`
-- `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. `(CI: lint:naming)`
-- `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. `(review-only)`
-- The same string is used in files and in every provider's console. Where a namespace rejects hyphens, the compact form — the slug with hyphens removed — is used, and no other transformation is applied. `(review-only)`
-- A name records only facts that are constant for the life of the resource. Owner, cost centre, and application metadata are Kubernetes labels, OTel resource attributes, or provider tags. `(review-only)`
-- A true provider-global collision is resolved by appending a random `[a-z0-9]{4}` token to the project slug, never a descriptive or per-resource suffix. `(review-only)`
-- The full slug is required where names cross the cluster boundary — provider resources, Kubernetes contexts, SSH aliases, `age` recipients. In-cluster hostnames and namespaces drop the implied `{project}-{env}`. `(review-only)`
-- SSH key pairs are named `{project}-{env}` on an engineer's laptop. Where several engineers' public keys share a namespace, each carries a `{handle}` owner segment. `(review-only)`
+- Every named resource derives from `{project}-{env}-{role}[-{n}]`. Shared infrastructure not tied to a product — a team proxy, an internal forge, a registry mirror — is modelled as its own project with its own slug and follows the same grammar.
+- A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters.
+- The project slug is 6–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended.
+- `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used.
+- `role` is a token from the table in this ADR. A new resource class adds a row in the same PR.
+- The same string is used in files and in every provider's console. Where a namespace rejects hyphens, the compact form — the slug with hyphens removed — is used, and no other transformation is applied.
+- A name records only facts that are constant for the life of the resource. Owner, cost centre, and application metadata are Kubernetes labels, OTel resource attributes, or provider tags.
+- A true provider-global collision is resolved by appending a random `[a-z0-9]{4}` token to the project slug, never a descriptive or per-resource suffix.
+- The full slug is required where names cross the cluster boundary — provider resources, Kubernetes contexts, SSH aliases, `age` recipients. In-cluster hostnames and namespaces drop the implied `{project}-{env}`.
+- SSH key pairs are named `{project}-{env}` on an engineer's laptop. Where several engineers' public keys share a namespace, each carries a `{handle}` owner segment.
 
 ### Identifiers
 
-- A primary key is a UUIDv7 in a Postgres `uuid` column, generated in application code. Sequential integer keys and UUIDv4 are not used. `(CI: lint:naming)`
-- An identifier crossing a service boundary is type-prefixed as `{prefix}_{base32 UUIDv7}`, where `prefix` is the singular form of the resource's collection noun. The bare UUID appears only in the database. `(review-only)`
-- An identifier is opaque to its consumer. No client parses, orders, or constructs one. `(review-only)`
-- An unguessable identifier is never treated as an access control. Every access is authorised per [ADR-0304](0304-identity-and-authorization.md). `(review-only)`
-- Cross-service correlation uses the W3C `traceparent`. No service mints its own request identifier. `(review-only; ref: W3C Trace Context)`
-- Client retry deduplication uses the `Idempotency-Key` request header. It is not reused as a Temporal Workflow ID. `(review-only)`
+- A primary key is a UUIDv7 in a Postgres `uuid` column, generated in application code. Sequential integer keys and UUIDv4 are not used.
+- An identifier crossing a service boundary is type-prefixed as `{prefix}_{base32 UUIDv7}`, where `prefix` is the singular form of the resource's collection noun. The bare UUID appears only in the database.
+- An identifier is opaque to its consumer. No client parses, orders, or constructs one.
+- An unguessable identifier is never treated as an access control. Every access is authorised per [ADR-0304](0304-identity-and-authorization.md).
+- Cross-service correlation uses the W3C `traceparent`. No service mints its own request identifier. `(ref: W3C Trace Context)`
+- Client retry deduplication uses the `Idempotency-Key` request header. It is not reused as a Temporal Workflow ID.
 
 ### Casing
 
-- Every surface uses the casing in the *Casing by surface* table. A surface absent from that table is added to it before it is used. `(review-only)`
-- JSON request and response fields are `snake_case` nouns, plural where repeated. `(CI: lint:naming)`
+- Every surface uses the casing in the *Casing by surface* table. A surface absent from that table is added to it before it is used.
+- JSON request and response fields are `snake_case` nouns, plural where repeated.
 - SQL tables are plural `snake_case` and columns are singular `snake_case`, and every identifier stays under 63 bytes. `(CI: lint:sql)`
-- Environment variables are `SCREAMING_SNAKE_CASE`. `(review-only)`
+- Environment variables are `SCREAMING_SNAKE_CASE`.

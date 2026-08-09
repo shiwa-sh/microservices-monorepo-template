@@ -30,10 +30,10 @@ The question is therefore not how to simulate the platform, but **which parts ar
 
 1. **The spec is the only source of mock behaviour.** A response shape not derivable from a committed OpenAPI artifact is not served.
 2. **No development-only code in the application**, and never in the authentication path. A branch in the app's authn gate that grants a session is production risk taken for developer convenience.
-3. **The cheapest tier that renders an authenticated page.** The goal is subtractive.
+3. **A tier costs what it runs.** The question for each component is whether keeping it real is cheaper than replacing it with its contract, so the design is subtractive.
 4. **Nothing new in any deployed environment.** This is local tooling: no chart, no environment, no image built from our source.
 5. **Coexistence with Helm and Argo CD.** A second orchestrator that wants to own the same resources is a conflict.
-6. **This is a template.** Every derived project inherits the toolchain, so a dependency here is heavier than in a normal repo. Active maintenance and an OSS licence are entry gates, not scoring columns; popularity is not a fitness measure.
+6. **A tool adopted here is inherited, not chosen.** Every derived project gets this toolchain without re-deciding it, so active maintenance and an OSS licence are entry gates rather than scoring columns. Popularity is not a fitness measure.
 
 ## Considered options
 
@@ -46,7 +46,21 @@ The question is therefore not how to simulate the platform, but **which parts ar
 | Shared cluster, one service local | the base cluster runs remotely; your service joins it | needs a platform team, and contention unless request-level isolation is built | Highest fidelity, and the destination past the ceiling below |
 | Cloud workspaces | the whole dev environment moves to a remote machine | cost per engineer, network-dependent, weakest local tooling | Orthogonal to parity |
 
-**The ~20-service ceiling is the trigger to revisit, and it is a real number.** "Run it all locally" is the consensus-correct choice below it and the consensus-wrong one above it. A project that grows past it moves to the third approach. The cheap thing to protect meanwhile is **trace-context propagation**, because request-level isolation (Lyft's staging overrides, Uber's SLATE, Signadot's sandboxes) is built on it. OTel is already wired; keeping propagation honest keeps that door open.
+### Local Kubernetes distribution
+
+The approach above says "a cluster on the laptop" and this row says which one. Every option runs the same charts ([ADR-0205](0205-environment-parity.md)), so the comparison is startup cost and how images get in.
+
+| Option | Node shape | Getting an image in | Distance from [ADR-0200](0200-cluster-topology.md)'s production distribution | Verdict |
+| --- | --- | --- | --- | --- |
+| **k3d** | k3s in Docker containers | `k3d image import`, or the built-in registry | k3s, not Talos-shipped upstream Kubernetes | **Chosen.** The fastest create-and-destroy cycle of the field, and a built-in registry means the image path is one command rather than a local registry to run |
+| kind | upstream Kubernetes in Docker | `kind load docker-image` | **upstream Kubernetes, as production runs** | The closest to production of the four, and slower to create and to load images into. Its advantage is the control plane the cluster actually runs, which matters for a Kubernetes-version-sensitive change and not for a service change |
+| minikube | a VM or a container, many drivers | `minikube image load`, or its Docker daemon | upstream, with its own addon layer | The most portable across host operating systems, and the heaviest per cluster. Its addons are a second source of cluster configuration, against parity |
+| Talos in Docker | **Talos, as production runs** | a local registry | **none — the same OS and distribution** | The highest fidelity available, and the fidelity is at the layer the inner loop does not exercise. Booting Talos nodes to iterate on a Go handler pays production's bootstrap cost on every recreate |
+| Docker Desktop or Orbstack Kubernetes | bundled with the host tool | shares the host image store, so no load step at all | upstream, vendor-managed | The best image path of the field and no cluster lifecycle to control: it is one cluster, tied to a specific desktop product, which [ADR-0205](0205-environment-parity.md)'s per-engineer recreate-freely lifecycle needs |
+
+**The distance from production is deliberate and bounded.** Parity is at the artifact layer, so what must match is the charts, the images, and the API — not the distribution ([ADR-0205](0205-environment-parity.md)). k3s and upstream Kubernetes are both conformant, so a chart that applies to one applies to the other, and the Talos-specific decisions in [ADR-0200](0200-cluster-topology.md) — machine config, system extensions, KubeSpan — have no laptop counterpart to diverge from. The failure this could hide is a Kubernetes-version or CNI-behaviour difference, which is what the CI e2e tier exists to catch on the real thing.
+
+**The ~20-service ceiling is the trigger to revisit.** "Run it all locally" is the consensus-correct choice below it and the consensus-wrong one above it. A project that grows past it moves to the third approach. The cheap thing to protect meanwhile is **trace-context propagation**, because request-level isolation (Lyft's staging overrides, Uber's SLATE, Signadot's sandboxes) is built on it. OTel is already wired; keeping propagation honest keeps that door open.
 
 ### Orchestrator
 
@@ -63,7 +77,7 @@ Live file sync is the headline feature of Skaffold, Tilt, DevSpace, and Okteto, 
 
 **Garden's convention is adopted; Garden is not.** Two independent reasons:
 
-- *Stewardship.* Incredibuild acquired Garden in November 2024 (~$65M, with an 11% staff cut). The OSS repository shows 4 commits in 90 days and no release since February 2026 — an order of magnitude below Tilt or Skaffold. That fails the maintenance gate for a template other projects build on.
+- *Stewardship.* Garden's open-source repository is under corporate ownership and its commit and release cadence trails Tilt's and Skaffold's by an order of magnitude. Driver 6 makes active maintenance an entry gate rather than a scoring column, and it is not met.
 - *Architecture.* Adopting Garden means adopting its whole config system: its own build, test, and deploy verbs and its own environment model. That does not sit beside Helm, Argo CD, and mise; it duplicates them, colliding with [ADR-0101](0101-monorepo.md) and [ADR-0201](0201-gitops.md). Two orchestrators would resolve a graph over six services.
 
 A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610) — real, and consisting mostly of readiness-gated ordering and image build/import. It does **not** win on graph resolution, the property that attracted us: mise already dedupes and parallelises. The three gnarliest pieces — docker-bridge discovery in the edge glue, SOPS secret materialisation, and the Argo pause/resume — have no Garden model and survive in bash either way.
@@ -77,7 +91,7 @@ A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610)
 | Gefyra | none | no | no | **no** — Docker only, which is the entire inner loop |
 | **Edge glue + port-forward** | none | no | no — a hand-copied `.env` | yes |
 
-**mirrord is the named next step**, not a dependency. Its no-cluster-component design matches the constraints and it closes the one weak cell: giving a natively-run process the pod's environment and files. Nothing is blocked on it.
+**mirrord is the option that closes the remaining weak cell** — giving a natively-run process the pod's environment and files — and its no-cluster-component design matches the constraints. It is compared here rather than adopted because the local-process seam works without it.
 
 ### API mock
 
@@ -295,19 +309,19 @@ A short enumerated set of manifests has no production analogue:
 
 ## Rules
 
-- Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles. `(review-only)`
+- Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles.
 - What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. `(CI: lint:service-contract)`
-- `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. `(review-only)`
+- `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied.
 - Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. `(CI: lint:ports)`
 - Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint:service-contract)`
-- Argo CD is the engine for `cluster:full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly. `(review-only)`
-- API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source. `(review-only)`
-- The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used. `(review-only)`
-- The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers. `(review-only)`
+- Argo CD is the engine for `cluster:full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly.
+- API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source.
+- The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used.
+- The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers.
 - The application contains no development-only authentication code. A session bypass, a fake session object, or an environment-conditional branch in the session path is a review-blocker. An environment-conditional branch that grants nothing is not. `(CI: lint:auth-inline)`
-- Authenticated local development uses the real Kratos with the committed test identity. Fake identity providers are not used for Kratos; they remain permitted for Hydra, which is a protocol boundary. `(review-only)`
-- The mock runs examples-first. Schema generation is a flag-gated fallback for endpoints whose examples do not yet exist. `(review-only)`
-- The mock is forbidden in `mise run test`, `ci:affected`, and the e2e and visual suites. `(review-only)`
+- Authenticated local development uses the real Kratos with the committed test identity. Fake identity providers are not used for Kratos; they remain permitted for Hydra, which is a protocol boundary.
+- The mock runs examples-first. Schema generation is a flag-gated fallback for endpoints whose examples do not yet exist.
+- The mock is forbidden in `mise run test`, `ci:affected`, and the e2e and visual suites.
 - The mock ships as a vendored container, adding no `package.json`, lockfile, or `node_modules`. `(CI: lint:node-scope)`
-- The mock is local tooling and joins no tier in [`docs/operational-surface.md`](../operational-surface.md). `(review-only)`
-- Statelessness is the tier's boundary: persistence, workflow progression, and authorization decisions are exercised against real services, never asserted against the mock. `(review-only)`
+- The mock is local tooling and joins no tier in [`docs/operational-surface.md`](../operational-surface.md).
+- Statelessness is the tier's boundary: persistence, workflow progression, and authorization decisions are exercised against real services, never asserted against the mock.

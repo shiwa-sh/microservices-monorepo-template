@@ -7,7 +7,7 @@
 
 ## Context
 
-One Next.js app under `apps/frontend/` is the front door for landing pages, the authenticated product panel, an internal admin entry point, and the developer portal, all as route groups. Earlier ADRs pin language, runtime, deployment, codegen, and auth integration. None pins how the app is built day to day.
+One Next.js app under `apps/frontend/` is the front door for landing pages, the authenticated product panel, and the developer portal, all as route groups. The internal admin console is a separate application ([ADR-0401](0401-internal-admin.md)). Earlier ADRs pin language, runtime, deployment, codegen, and auth integration. None pins how the app is built day to day.
 
 This ADR is the single entry point for a newcomer working on the frontend.
 
@@ -25,27 +25,47 @@ This ADR is the single entry point for a newcomer working on the frontend.
 
 ## Decision drivers
 
-1. **One stack for every route group.** Landing, panel, admin, and devportal share the same primitives.
-2. **Server-first.** Use Server Components and the generated SDK on the server where possible, shipping the smallest client bundle.
-3. **Figma-shaped.** The design system is the contract with design.
-4. **Per-consumer cost matters.** Adding a route group must not require a toolchain decision.
-5. **Boring defaults, strict gates.** Strong defaults make a small team productive; CI catches regressions.
+1. **One stack for every route group.** Landing, panel, and devportal share the same primitives, and adding a route group decides nothing new.
+2. **The generated SDK is called from a server the platform runs.** A public marketing page, an authenticated panel, and an API console have different rendering needs, and the API credential must never reach the browser to satisfy any of them.
+3. **The design system is the contract with design**, so the primitive library's fidelity to the design tool is a capability, not a preference.
+4. **Running it is a container in this cluster**, with no build-time or runtime dependency on the vendor's hosting.
+5. **Governance is recorded, not decisive** ([ADR-0000](0000-platform-foundations.md), principle 4). Exit cost sets how much a vendor relationship is allowed to weigh.
 
 ## Considered options
+
+### Framework
+
+Every option below is MIT and self-hostable as a container, so the column that matters is what self-hosting *costs* — which features quietly assume the vendor's platform.
+
+| Option | Server rendering model | Cost of self-hosting | Governance | Verdict |
+| --- | --- | --- | --- | --- |
+| **Next.js, App Router** | Server Components by default, with a client boundary opt-in | `output: standalone` is a first-party target. Image optimisation and incremental regeneration need a cache and a resizer that the vendor otherwise supplies | **Vercel** | **Chosen.** The server-first model is driver 2 as a default rather than an assembly job, and its self-hosting gaps are a cache and a resizer, both replaceable and both inside the cluster |
+| TanStack Start | client-first, with server functions | no vendor path to depend on | TanStack, vendor-neutral, community-funded | **The strongest alternative on driver 5** — the only option here outside a hosting vendor's orbit. Younger, and its server story is server functions rather than a component-level boundary, which puts driver 2 back in the author's hands on every page |
+| React Router, which absorbed Remix | loaders and actions per route, client rendering by default | none — it was built to run anywhere | Shopify | Mature, and the model is a data-router rather than a server-component one. Choosing it accepts a larger client bundle on the marketing routes to gain nothing the panel needs |
+| SvelteKit | server load functions, compiled output, smallest bundles | none; adapters target plain Node | Svelte, with its creator employed by **Vercel** | The best bundle sizes in the field. It is not React, so [ADR-0401](0401-internal-admin.md)'s console, the component library, and the hiring pool all change with it |
+| Nuxt | Vue, server routes via Nitro | none; Nitro targets a plain Node server | Nuxt is MIT and independently governed; **NuxtLabs was acquired by Vercel in 2025** | As SvelteKit: a different component ecosystem for no gain the panel can name. Notable for driver 5 — moving away from Vercel is not what picking it buys |
+| Astro | islands, static by default | none | Astro Technology Company | Correct for the landing routes and wrong for the panel. Adopting it means two frameworks, which is driver 1 |
+| A single-page app plus a separate static site | none | none | n/a | The honest baseline. Two build pipelines, two deploy targets, and the API credential has nowhere to live but the browser |
+
+**Driver 5 does not rescue any of them.** Vercel employs the Next.js team, acquired NuxtLabs, and employs Svelte's creator, so three of the six options sit in one vendor's orbit and only TanStack Start is outside it. Since every option is MIT and runs as a container here, the governance column records a relationship rather than a dependency: the exit from Next.js is a rewrite of routing and data loading, which is expensive because of the framework's shape, not because of who funds it.
+
+### Everything else
 
 | Concern | Chosen | Rejected, and why |
 | --- | --- | --- |
 | Router | **App Router** | Pages Router does not fit the server-heavy, small-bundle goal |
-| Styling | **Tailwind v4, CSS-first** | CSS Modules and CSS-in-JS are viable, and the design contract is in Tailwind tokens, so mixing systems doubles the design-system surface |
-| Primitives | **Untitled UI** | shadcn/ui is a strong contender, and Untitled UI's Figma compatibility is the load-bearing requirement. Untitled tokens could layer onto shadcn primitives later if a primitive is missing |
+| Styling | **Tailwind, wired CSS-first** | CSS Modules and CSS-in-JS are viable, and the design contract is in Tailwind tokens, so mixing systems doubles the design-system surface |
+| Primitives | **Untitled UI React**, vendored as source, built on React Aria Components | shadcn/ui is the strong contender and the same shape — copied source over headless primitives — and driver 3 decides it on Figma fidelity. Radix plus Tailwind by hand is the same thing without the components. Mantine and Park UI ship their own design language, which is the contract this driver reserves for design. **Its Figma kit and the PRO component tiers are commercial**; the React library is MIT, and only the MIT part is vendored |
 | Lint and format | **Biome only** | Biome plus a minimal ESLint for the Next plugin is second-best. One tool wins; the Next-specific rules that matter are caught by `next build`, Lighthouse-CI, and the typed `next/image` and `next/font` APIs |
 | Unit test runner | **`bun test`** | Vitest and Jest duplicate a Jest-compatible runner the only JS runtime already ships |
-| Spec renderer | **Scalar** | Redoc's request console is paywalled, which negates the same-origin "try it" the URL layout was built for. A docs platform (Fern, Mintlify) is a separate stateful service duplicating the SDK codegen. **Stoplight Elements** is the fallback if Scalar's release churn outweighs its momentum |
+| Spec renderer | **Scalar** | Redoc's request console is paywalled, which negates the same-origin "try it" the URL layout was built for. A docs platform (Fern, Mintlify) is a separate stateful service duplicating the SDK codegen. **Stoplight Elements** is the equivalent-capability alternative, and the two are interchangeable because both render the same committed spec |
 | Feature flags | **OpenFeature SDK, noop provider** | Vercel `flags` is runtime-specific and wrong for an in-cluster Bun runtime |
-| Component catalogue | **an in-repo kitchen-sink route** | Storybook is useful and not load-bearing with one app where Figma is already the isolated visual catalogue. Re-evaluated if a second app lands or a design-system maintainer joins |
+| Component catalogue | **an in-repo kitchen-sink route** | Storybook is useful and not load-bearing with one app, where Figma is already the isolated visual catalogue. The deferral below carries the condition |
 | i18n | **deferred behind a trigger** | `next-intl` on day one is premature without a locale on the roadmap |
-
-**The framework is this ADR's to decide.** [ADR-0100](0100-language-and-runtime.md) picks the language and the runtime and stops there. The comparison against TanStack Start, React Router, Astro, and SvelteKit — including the self-hosting posture given the vendor's governance — belongs in this table.
+| Server-state fetching | **TanStack Query** for client-side reads | RSC-only means every interactive refetch becomes a route transition. SWR is lighter and lacks the mutation and invalidation model the panel uses |
+| Client state | **Zustand** for the little that outlives a component tree | Jotai and Valtio are equivalent at this size, and the decision is which one rather than whether. XState is right for genuinely stateful flows and is a modelling commitment the panel does not need. Redux and MobX are on nobody's shortlist here |
+| Forms | **`react-hook-form`** | TanStack Form is the closer competitor and is younger; Conform is server-action-first, which couples form code to one framework's action model |
+| Browser telemetry | **Grafana Faro** through the collector | The OTel web SDK alone has no session or web-vitals story, and a Sentry browser SDK implies the error backend [ADR-0503](0503-error-tracking.md) declines |
 
 ## Decision
 
@@ -71,7 +91,7 @@ Untitled UI's integration is followed exactly, so a component copied from upstre
 
 | Element | Decision |
 | --- | --- |
-| System | Tailwind v4, wired CSS-first with no config file. CSS Modules and CSS-in-JS are not used in app code; third-party components shipping their own styles are the exception |
+| System | Tailwind, wired CSS-first with no config file. CSS Modules and CSS-in-JS are not used in app code; third-party components shipping their own styles are the exception |
 | Tokens | Untitled UI's committed token file, imported by the global stylesheet. **There is no JS token mirror** — a TypeScript consumer needing a raw value reads the CSS variable |
 | Plugins and variants | the global stylesheet registers the React Aria state-variant and animate plugins and declares Untitled's custom variants |
 | Class composition | Untitled's `cx` and `sortCx`. Hand-written `cn()` helpers are not added |
@@ -124,7 +144,7 @@ The **public docs portal** is anonymous with no login, the norm for public API d
 | --- | --- |
 | Forms | `react-hook-form` for orchestration, `zod` for schemas. Schemas for spec operations are generated and committed, drift-checked in CI. One `<Form>` primitive wires all three; hand-rolled form wiring is a review-blocker |
 | URL state | `nuqs` for filters, pagination, tab selection |
-| Client-only state | Zustand, for state genuinely outliving a component tree. Redux and MobX are not used |
+| Client-only state | Zustand, for state that outlives a component tree. Redux and MobX are not used |
 | React Context | theming and per-route-group session bootstrapping only, never cross-cutting state |
 | Session | the Next.js proxy checks the Kratos session on `(panel)` and `(devportal)`; `(landing)` is public except its auth subtree. The proxy forwards a session-id header to server components, which never call Kratos directly |
 | Tokens | the frontend never mints, decodes, or validates JWTs. Server-component calls attach the user's cookie, and Oathkeeper validates it at the edge |
@@ -171,11 +191,11 @@ The browser side of [ADR-0500](0500-observability.md) is wired here.
 
 ### Deferred capabilities
 
-| Capability | Trigger | Seam |
-| --- | --- | --- |
-| i18n via `next-intl` | the first non-English locale on the roadmap | all strings already live in one file per route group, so the migration is mechanical |
-| A concrete feature-flag backend | the first gradual-rollout requirement | application code already calls flags through the OpenFeature API against a noop provider, so only the provider changes |
-| Storybook and a hosted visual review UI | the kitchen-sink route stops scaling | both consume the same committed components and baselines |
+| Capability | Trigger | Seam | Cost if adopted late |
+| --- | --- | --- | --- |
+| i18n via `next-intl` | a second locale is committed to | ✓ all strings already live in one file per route group, so the migration is mechanical | every string added in the meantime has to be found, and the ones interpolated inline are the ones the extraction misses |
+| A concrete feature-flag backend | a change needs to reach some users before others | ✓ application code already calls flags through the OpenFeature API against a noop provider, so only the provider changes | none of consequence — this is why the noop provider is wired on day one rather than the API being added later |
+| Storybook and a hosted visual review UI | a component is edited by someone who does not run the app, or a visual regression reaches `master` twice | ⚠ **a bet.** Both consume the same committed components, which is an input format rather than a slot: nothing today renders a component in isolation, so adopting Storybook means writing the stories, not enabling a path | the component set has grown to whatever size made the kitchen-sink route stop working, and every story is written at once against components never designed to render standalone |
 
 ### Build and local development
 
@@ -196,40 +216,39 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 
 ### Negative / Risks
 
-- **The framework choice has no recorded comparison**, which is the largest undocumented commitment in the repo. It is the one gap in this ADR's *Considered options*, and it is tracked rather than papered over.
 - **Biome lacks Next-specific lints.** Mitigated by `next build`, Lighthouse-CI, and the typed asset APIs. A different enforcement surface, not a behavioural gap.
 - **Untitled UI source is vendored and committed**, so upgrading is a real PR. Mitigated by keeping the upstream layout verbatim, tracking bumps, and taking them yearly.
 - **The OpenTelemetry web SDK is heavier than Faro alone.** Accepted; browser-to-service trace continuity is worth the bytes, and the perf gates keep it honest.
 - **Deferring i18n risks a painful retrofit.** Mitigated by the one-file-per-route-group string layout.
-- **Server Actions are relatively new.** Mitigated by limiting them to single-service mutations.
+- **A Server Action is an implicit endpoint.** Its surface is defined by what the function accepts rather than by a spec, so it is limited to single-service mutations and never becomes an ad-hoc API for another consumer.
 
 ## Rules
 
-- The frontend is one Next.js App-Router application. Pages Router is not used. `(review-only)`
-- Server Components are the default, and `"use client"` is added at the smallest interactivity boundary. `(review-only)`
-- Server Actions are permitted only for mutations against the route group's owning service. Cross-service mutations use the REST API and the workflow-handle pattern. `(review-only)`
-- Every route segment ships `loading.tsx` and `error.tsx`; every route-group root also ships `not-found.tsx`. `(CI: ci-lint)`
-- First-party frontend code lives in the app. A `libs/ts/*` package is created only for a second consumer or a generated artifact. `(review-only)`
-- Server components fetch through the server-only fetcher; client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. `(CI: ci-lint)`
-- Hand-written request and response types are not declared; only generated types are used, and form schemas are generated from the spec. `(CI: ci-drift)`
-- Tailwind v4 is the styling system, wired CSS-first. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. `(CI: ci-lint)`
-- Design tokens come from the committed Untitled UI token file. There is no JS token mirror, and tokens are not redefined per route group. `(review-only)`
-- Class composition uses `cx` and `sortCx`. Hand-written helpers are not added. `(CI: ci-lint)`
-- Primitives are the vendored Untitled UI source, composed by explicit path and never duplicated. `(review-only)`
-- A primitive added under `src/components/` is added to the kitchen-sink page in the same PR. `(review-only)`
-- Icons come from the Untitled UI icon set. Another set requires an ADR amendment. `(review-only)`
-- Forms use react-hook-form and zod through the shared `<Form>` primitive. `(review-only)`
-- URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. `(CI: ci-lint)`
+- The frontend is one Next.js App-Router application. Pages Router is not used.
+- Server Components are the default, and `"use client"` is added at the smallest interactivity boundary.
+- Server Actions are permitted only for mutations against the route group's owning service. Cross-service mutations use the REST API and the workflow-handle pattern.
+- Every route segment ships `loading.tsx` and `error.tsx`; every route-group root also ships `not-found.tsx`. `(CI: ci:lint)`
+- First-party frontend code lives in the app. A `libs/ts/*` package is created only for a second consumer or a generated artifact.
+- Server components fetch through the server-only fetcher; client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. `(CI: ci:lint)`
+- Hand-written request and response types are not declared; only generated types are used, and form schemas are generated from the spec. `(CI: ci:gen)`
+- Tailwind is the styling system, wired CSS-first with no config file. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. `(CI: ci:lint)`
+- Design tokens come from the committed Untitled UI token file. There is no JS token mirror, and tokens are not redefined per route group.
+- Class composition uses `cx` and `sortCx`. Hand-written helpers are not added. `(CI: ci:lint)`
+- Primitives are the vendored Untitled UI source, composed by explicit path and never duplicated.
+- A primitive added under `src/components/` is added to the kitchen-sink page in the same PR.
+- Icons come from the Untitled UI icon set. Another set requires an ADR amendment.
+- Forms use react-hook-form and zod through the shared `<Form>` primitive.
+- URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. `(CI: ci:lint)`
 - The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. `(CI: lint:auth-inline)`
-- CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin. `(review-only)`
-- CSRF rests on the SameSite cookie, Kratos's built-in protection, and the Server Actions Origin check. Hand-rolled CSRF tokens are not added. `(review-only)`
-- Biome is the only lint and format tool. ESLint is not installed. `(CI: ci-lint)`
-- `bun test` covers unit and component tests. Vitest and Jest are not used. `(review-only)`
+- CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin.
+- CSRF rests on the SameSite cookie, Kratos's built-in protection, and the Server Actions Origin check. Hand-rolled CSRF tokens are not added.
+- Biome is the only lint and format tool. ESLint is not installed. `(CI: ci:lint)`
+- `bun test` covers unit and component tests. Vitest and Jest are not used.
 - The frontend contains no development-only authentication code. `(CI: lint:auth-inline)`
-- Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector. `(review-only)`
-- Server logs are structured JSON to stdout. `(CI: ci-lint)`
-- Bundle budgets and the Lighthouse thresholds are merge gates. `(CI: ci-build)`
-- Images go through `next/image` and fonts through `next/font`. `(CI: ci-lint)`
-- No i18n library is adopted; strings live in one file per route group. `(review-only)`
-- Feature flags go through the OpenFeature API with a noop provider. `(review-only)`
+- Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector.
+- Server logs are structured JSON to stdout. `(CI: ci:lint)`
+- Bundle budgets and the Lighthouse thresholds are merge gates.
+- Images go through `next/image` and fonts through `next/font`. `(CI: ci:lint)`
+- No i18n library is adopted; strings live in one file per route group.
+- Feature flags go through the OpenFeature API with a noop provider.
 - The container runs the standalone build under Bun, and installs no Node. `(CI: lint:node-scope)`

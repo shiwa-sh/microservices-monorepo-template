@@ -16,7 +16,7 @@ Testing answers two separable questions, and conflating them produces a suite th
 | **Is it correct?** | works / broken | approximately one user |
 | **What does it cost, and where does it break?** | within budget / regressed / saturated | deliberately past the knee |
 
-Three accepted decisions depend on the second answer. [ADR-0204](0204-resource-management.md) requires CPU and memory requests per container and makes HPA opt-in "on a documented sustained-load signal", both `(review-only)` because nothing produces the number. [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) built the apparatus to observe saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — which has never been made to fire. [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative and otherwise unmeasured.
+Three accepted decisions depend on the second answer. [ADR-0204](0204-resource-management.md) requires CPU and memory requests per container and makes HPA opt-in "on a documented sustained-load signal", both because nothing produces the number. [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) define the apparatus that observes saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — and an alert nobody has seen fire is an alert nobody knows the shape of. [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative, and this is what quantifies it.
 
 Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At approximately one user the cost is entirely platform. The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
 
@@ -52,6 +52,26 @@ Measured on `cluster:full`, one node, during the e2e suite, and re-derivable fro
 | JMeter | JVM | **GUI-authored XML blob** | its own | Reviews as a blob, against config-as-code ([ADR-0000](0000-platform-foundations.md), principle 1) |
 | Vegeta | none — Go | URL list | its own | A constant-rate URL hitter. The interesting path is multi-step and stateful, which it models only by shelling around it |
 | Write one in Go | none | Go | ours | Reimplements VU scheduling, ramping executors, percentile aggregation, and threshold evaluation to avoid one pinned binary |
+
+### Where a service integration test gets its dependencies
+
+| Option | Postgres, Temporal, OpenFGA come from | Fidelity to production | Cost per run | Verdict |
+| --- | --- | --- | --- | --- |
+| **`cluster:base` plus the service's declared components** | the same charts production runs ([ADR-0205](0205-environment-parity.md)) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** The dependencies are already declared per service for deployment, so the test environment is derived from the deploy manifest rather than described twice |
+| testcontainers-go | a container per dependency, started by the test process | plain images: no CNPG, no operator behaviour, no NetworkPolicy | one container set per package, torn down after | The industry default for Go service tests, and it would require each service to declare its dependencies a second time in Go. It also cannot exercise the operator-managed behaviour — failover, pooler, seeded authz model — that this platform's data tier actually has |
+| A shared long-lived test database | a persistent environment | high | none per run, and cross-test interference forever | State leaks between runs, and a failing test becomes a question about who else was running |
+| Mocks at the repository boundary | nothing | none — the SQL is never executed | fastest | It tests the code against its own assumptions about Postgres, which is the layer these tests exist to check |
+
+**testcontainers is the strongest rejected option**, and the reason is specific: this platform's dependencies are operator-managed, so a plain `postgres:17` container is not what production runs. Where the platform to be tested against is plain images, that verdict reverses.
+
+### Contract testing
+
+| Option | What it verifies | Where the truth lives | Verdict |
+| --- | --- | --- | --- |
+| **The generated client, compiled against the spec** | that consumer and provider agree, at build time | the OpenAPI spec ([ADR-0303](0303-api-contracts-and-lifecycle.md)) | **Chosen by inheritance.** Every consumer calls through generated code, and CI fails on stale generation, so a contract break is a compile error rather than a test failure |
+| Pact, or another consumer-driven contract broker | that a consumer's expectations still hold | consumer-written pacts, plus a broker to store them | Consumer-driven contracts solve a problem this repo does not have: consumers that ship separately from providers. Here they ship in the same commit ([ADR-0103](0103-release-and-versioning.md)), and the broker is a component |
+| Microcks as a contract test | that a running provider matches the spec | the spec | Already compared as a mock in [ADR-0600](0600-local-development-loop.md) and rejected there on its MongoDB dependency; the same cost applies here |
+| schemathesis or another spec-fuzzer | that the provider handles inputs the spec permits | the spec | Genuinely additive rather than an alternative: it tests robustness where the generated client tests agreement |
 
 ### Runtime for the Playwright runner
 
@@ -174,26 +194,26 @@ The CI gate is committed accepted-snapshot diffing against baselines in `e2e/vis
 
 ## Rules
 
-- Playwright (TypeScript) is the only browser e2e and visual-regression tool. Cypress, WebdriverIO, Selenium, and pure-Go browser libraries are not used. `(review-only)`
-- All e2e and visual tests live in the repo-root `e2e/` workspace under one Playwright config. `(review-only)`
-- The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone. `(review-only)`
-- Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests. `(review-only)`
-- E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](0600-local-development-loop.md)). `(CI: lint:mock-scope)`
-- Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. `(review-only)`
-- Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate. `(review-only)`
-- E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state. `(review-only)`
+- Playwright (TypeScript) is the only browser e2e and visual-regression tool. Cypress, WebdriverIO, Selenium, and pure-Go browser libraries are not used.
+- All e2e and visual tests live in the repo-root `e2e/` workspace under one Playwright config.
+- The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone.
+- Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests.
+- E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](0600-local-development-loop.md)).
+- Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code.
+- Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate.
+- E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state.
 - Node is permitted solely as the Playwright runner, pinned in `e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. `(CI: lint:node-scope)`
-- k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and hand-rolled generators are not used. `(review-only)`
-- Performance tests live in `perf/` as committed JavaScript, never a GUI-authored or recorded plan. `(review-only)`
+- k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and hand-rolled generators are not used.
+- Performance tests live in `perf/` as committed JavaScript, never a GUI-authored or recorded plan.
 - `perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. `(CI: lint:node-scope)`
-- The k6 binary is pinned in `perf/.mise.toml`, never in the root `[tools]`. `(review-only)`
-- Load metrics reach Prometheus as an OTLP push through the OTel collector. A private metrics store, exporter sidecar, or remote-write receiver is not introduced. `(review-only)`
-- Load series are namespaced `k6_*` and carry `service_name="k6"`; k6's `url`, `name`, and `error` tags are not exported, and request identity is a bounded `endpoint` route-template tag. `(review-only)`
-- k6 runs with `--no-usage-report`. `(review-only)`
-- Every scenario declares thresholds and the exit code is the verdict. A scenario without thresholds is a defect. `(review-only)`
-- Load shapes are `PROFILE`-selected data, not duplicated scenario files. `(review-only)`
-- Scenarios drive the edge, not port-forwarded pods, so the gateway and forward-auth hop are inside the measurement. `(review-only)`
-- Performance suites are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge. `(review-only)`
-- Results from a co-hosted generator are reported as relative regression signals, never absolute capacity figures. `(review-only)`
-- Load against a shared environment requires an explicit target; `perf/` defaults to nothing but the local edge. `(review-only)`
-- The full e2e and perf suites run nightly (activity-gated) and pre-release; smoke suites run per-PR only when labelled. Neither is part of `ci:affected`. `(review-only)`
+- The k6 binary is pinned in `perf/.mise.toml`, never in the root `[tools]`.
+- Load metrics reach Prometheus as an OTLP push through the OTel collector. A private metrics store, exporter sidecar, or remote-write receiver is not introduced.
+- Load series are namespaced `k6_*` and carry `service_name="k6"`; k6's `url`, `name`, and `error` tags are not exported, and request identity is a bounded `endpoint` route-template tag.
+- k6 runs with `--no-usage-report`.
+- Every scenario declares thresholds and the exit code is the verdict. A scenario without thresholds is a defect.
+- Load shapes are `PROFILE`-selected data, not duplicated scenario files.
+- Scenarios drive the edge, not port-forwarded pods, so the gateway and forward-auth hop are inside the measurement.
+- Performance suites are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge.
+- Results from a co-hosted generator are reported as relative regression signals, never absolute capacity figures.
+- Load against a shared environment requires an explicit target; `perf/` defaults to nothing but the local edge.
+- The full e2e and perf suites run nightly (activity-gated) and pre-release; smoke suites run per-PR only when labelled. Neither is part of `ci:affected`.

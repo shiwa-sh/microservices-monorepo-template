@@ -19,7 +19,7 @@ This ADR fixes where each lives, how one operator login covers the ops tier, and
 ## Decision drivers
 
 1. **Browser-enforced origin isolation between tiers.** A flaw in one origin must not read or script another. The boundary is the same-origin policy, not path discipline.
-2. **One operator session across ops tools.** Operators use several dashboards in a sitting and log in once, with a second factor.
+2. **Logins are paid during an incident.** An investigation crosses several dashboards, so the number of authentications it costs is a property of the layout, not a preference.
 3. **Least authority, not least cookie.** A logged-in session grants no ops tool by itself.
 4. **Predictable, wildcard-friendly names** ([ADR-0003](0003-naming-and-identifiers.md)).
 5. **Parity** ([ADR-0205](0205-environment-parity.md)). The same scheme, host-parameterised, everywhere.
@@ -33,14 +33,15 @@ This ADR fixes where each lives, how one operator login covers the ops tier, and
 | **A subdomain per tool under a shared `ops.` label** | **each origin is distinct**: cookies, storage, CSP, and rate-limit scope isolated by construction | none — every tool is served at a root | **Chosen** |
 | Paths on the product origin | **none** — path segments share cookies, `localStorage`, and the DOM, so a flaw in code we do not control executes in the same origin as the product session | a per-tool fight: Hubble UI's router is hardwired to basename `/` and 404s under any prefix, Grafana needs sub-path serving, Argo CD and the Temporal UI have their own quirks | Both problems are disqualifying |
 | A flat subdomain per tool, no `ops.` label | per-tool isolation, and see below | none | The only domain covering all of them is the product origin itself, so a shared ops cookie would reach product and re-merge the tiers |
+| Paths on the product origin with `__Host-` cookies per tool | **none between tools** — the prefix binds a cookie to the host, not to a path, so every tool still shares one origin | the same per-tool fight | The cheap middle option, and it does not exist: `__Host-` hardens a cookie against subdomain injection and grants no path isolation, because the same-origin policy has no path dimension |
 | A separate registrable domain for ops | strongest — no shared parent | none, plus a second certificate authority chain and DNS zone | Warranted only where the parent-scoped cookie is itself the threat. Recorded as the hardening path |
 
 ### How ops origins are named
 
-| Option | Verdict |
-| --- | --- |
-| **After the tool, lowercased** — `grafana`, `hubble`, `temporal` | **Chosen.** One sentence, no judgement calls |
-| After the concept — `o11y`, `map`, `workflows`, `s3` | The theory is that a concept name survives swapping the tool behind it. It does not hold: swapping a network-flow UI for an APM suite changes the concept too, and a single tool's concept drifts as it grows features. Concept naming produces renames on tool changes *and* naming debates in between. It also lets a hostname stake a territorial claim — one asserting ownership of "observability" frames a complementary second tool as a rival for the name rather than a different question-answerer |
+| Option | Survives swapping the tool | Naming decision per tool | Verdict |
+| --- | --- | --- | --- |
+| **After the tool, lowercased** — `grafana`, `hubble`, `temporal` | no — the URL moves with the tool | none; the name is already chosen | **Chosen.** One sentence, no judgement calls, and the rename happens only on an event that is already a migration |
+| After the concept — `o11y`, `map`, `workflows`, `s3` | **claimed, but no** | one debate per tool | The theory is that a concept name outlives the tool. It does not hold: swapping a network-flow UI for an APM suite changes the concept too, and a tool's concept drifts as it grows features. Concept naming produces renames on tool changes *and* naming debates in between. It also lets a hostname stake a territorial claim — one asserting ownership of "observability" frames a complementary second tool as a rival for the name rather than as a different question-answerer |
 
 Two accepted costs: `pgweb.ops` is less self-evident than `db.ops` to a newcomer, and the URL moves when the tool does. The first is answered by the table below naming the concern next to every host; the second would have happened under concept naming anyway.
 
@@ -98,7 +99,13 @@ The `ops.` segment is the mechanism that makes "one operator login, isolated fro
 
 **The property deliberately traded away is token-level isolation.** The session token is sent across the whole subtree, so an XSS on the high-surface product origin could ride an *operator's* session into the ops tools. The product-origin CSP ([ADR-0400](0400-frontend.md)) is the compensating control.
 
-**Hardening upgrade.** To isolate the token too, keep the product cookie host-only on the apex and have the ops tier mint its own scoped session via OIDC behind one ops-tier auth proxy — per tier, not per tool. One Kratos instance cannot issue two differently-scoped cookies, and the apex cannot set a cookie on the sibling subtree, so OIDC is the mechanism. **This upgrade becomes mandatory if any non-first-party origin is ever hosted under `<host>`.**
+**Isolating the token too is a deferred hardening.** Keep the product cookie host-only on the apex and have the ops tier mint its own scoped session via OIDC behind one ops-tier auth proxy — per tier, not per tool. One Kratos instance cannot issue two differently-scoped cookies, and the apex cannot set a cookie on the sibling subtree, so OIDC is the mechanism.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | any non-first-party origin is hosted under `<host>`. At that point this stops being a hardening and becomes mandatory |
+| **Seam** | ✓ every ops route already passes one forward-auth middleware ([ADR-0305](0305-edge-auth-and-traffic-policy.md)), so the change is what that middleware validates. No tool is reconfigured, and no URL moves |
+| **Cost if adopted late** | the shared parent-scoped cookie has already been readable by the newly added origin for as long as it has been hosted, and no later scoping retracts a token that has already been sent |
 
 ### Authorization is split by who owns the code
 
@@ -119,10 +126,10 @@ The ops gate's two layers, and why the coarse one deliberately makes no authz ca
 
 Two independent axes decide where a surface lives, and conflating them is the mistake this rule prevents.
 
-- **SEO favours an apex subdirectory**, because a subdomain is treated as a separate site whose authority is not shared with the root.
-- **Trust isolation favours a separate origin.**
+- **Discoverability favours an apex subdirectory.** Google states it handles subdomains and subdirectories equivalently for ranking, so this is not a ranking claim: a subdirectory keeps one host, one certificate, and one analytics property, and it is same-origin with `/api`, which is what makes a "try it" console work without CORS.
+- **Trust isolation favours a separate origin**, and that is a browser guarantee rather than a preference.
 
-They conflict only for anonymous content, and one rule resolves it: **the SEO axis applies only to surfaces that are both anonymous and indexable. Anything behind a login is `noindex` and is placed on trust grounds alone.**
+They conflict only for anonymous content, and one rule resolves it: **the first axis applies only to surfaces that are both anonymous and indexable. Anything behind a login is `noindex` and is placed on trust grounds alone.**
 
 | Surface | Placement | Deciding axis |
 | --- | --- | --- |
@@ -131,11 +138,17 @@ They conflict only for anonymous content, and one rule resolves it: **the SEO ax
 | Dev portal — audience `>= internal` | apex subdirectory | behind the session and `Checker`; same-origin with `/api`, so "try it" needs no CORS |
 | Partner credential dashboard | its own subdomain, separate auth realm | behind login, so `noindex`; a non-Kratos realm must not share the apex session cookie |
 
-The public docs portal is anonymous; only credential management is authenticated. This is a **deferred external third tier**: internal-only projects have exactly the product and ops tiers.
+**The external third tier is deferred.** An internal-only project has exactly the product and ops tiers, and the rows above describe where the third one lands when it exists.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | a party outside the organisation is issued credentials against the API |
+| **Seam** | ✓ the tier is a third host under the same wildcard and the same edge, and its auth realm is a second Oathkeeper rule set rather than a change to the first ([ADR-0305](0305-edge-auth-and-traffic-policy.md)). Nothing in the product or ops tiers moves |
+| **Cost if adopted late** | partner credentials have already been issued through whatever surface existed, usually the product origin, so the separation begins by migrating live credentials and the sessions holding them |
 
 ### The API path
 
-The service API is a **flat resource namespace** — the URL names the resource, not the service that owns it today. This is the Stripe and GitHub facade: a caller sees one coherent surface, and which service serves a route is an internal detail that can change without breaking a URL.
+The service API is a **flat resource namespace** — the URL names the resource, not the service that owns it. This is the Stripe and GitHub facade: a caller sees one coherent surface, and which service serves a route is an internal detail that can change without breaking a URL.
 
 **Collision governance.** One flat namespace means two services cannot both own a resource prefix. That is a feature — a name collision is a genuine domain-modelling conflict — and it is enforced by CI rather than left to chance. The edge route table is the ownership registry ([ADR-0305](0305-edge-auth-and-traffic-policy.md)).
 
@@ -162,14 +175,14 @@ The service API is a **flat resource namespace** — the URL names the resource,
 
 ## Rules
 
-- Surfaces belong to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. `(review-only)`
-- A project shipping a public API adds a deferred external tier: public docs on an apex subdirectory and the partner credential dashboard on its own subdomain. `(review-only)`
-- Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never merely because a surface is public. `(review-only)`
-- The public API docs portal is anonymous; only credential management is authenticated. `(review-only)`
-- The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint:api-resources)`
-- The path holds for the public API too. A distinct origin is used only for hard credential isolation — which needs a separate registrable domain, since a parent-scoped cookie reaches a subdomain — or separate edge infrastructure at scale. `(review-only)`
-- Ops-tier hostnames are `{tool}.ops.<host>`, named after the tool, lowercase, matching the naming charset. `(review-only)`
-- The default is one session cookie scoped to the parent host, with tier isolation enforced by per-tool authorization and an AAL2 requirement on the ops tier. This is permitted only while every origin under `<host>` is first-party and edge-gated. `(review-only)`
-- Splitting the cookie is the optional token-isolation upgrade and is mandatory if any non-first-party origin is hosted under `<host>`. `(review-only)`
-- Each environment provisions both wildcard certificates. `(review-only)`
-- A bare authenticated session never grants ops-tool access. `(review-only)`
+- Surfaces belong to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain.
+- A project shipping a public API adds a deferred external tier: public docs on an apex subdirectory and the partner credential dashboard on its own subdomain.
+- Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never merely because a surface is public.
+- The public API docs portal is anonymous; only credential management is authenticated.
+- The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint:service-contract)`
+- The path holds for the public API too. A distinct origin is used only for hard credential isolation — which needs a separate registrable domain, since a parent-scoped cookie reaches a subdomain — or separate edge infrastructure at scale.
+- Ops-tier hostnames are `{tool}.ops.<host>`, named after the tool, lowercase, matching the naming charset.
+- The default is one session cookie scoped to the parent host, with tier isolation enforced by per-tool authorization and an AAL2 requirement on the ops tier. This is permitted only while every origin under `<host>` is first-party and edge-gated.
+- Splitting the cookie is the optional token-isolation upgrade and is mandatory if any non-first-party origin is hosted under `<host>`.
+- Each environment provisions both wildcard certificates.
+- A bare authenticated session never grants ops-tool access.

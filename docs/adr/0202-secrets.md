@@ -18,13 +18,15 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 
 ## Considered options
 
-| Option | Stateful component | Diff reviewability | Verdict |
-| --- | --- | --- | --- |
-| **SOPS + age** | none — the operator is stateless | **per-value**: structure stays readable, values are encrypted blobs | **Chosen** |
-| SOPS + GPG | none | same | Key-server and web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
-| sealed-secrets | a controller with its own key | **whole-manifest**: the diff is one opaque blob, so a one-field change is unreviewable | Loses the property that makes encrypted config reviewable |
-| Vault or OpenBao | **a stateful service to run, unseal, back up, and upgrade** | n/a | Fails driver 4. Its real prize is dynamic short-lived credentials, which is a separate question from storing static config |
-| External Secrets Operator | a controller plus **an external store** | n/a | The external store is the managed service driver 1 excludes |
+| Option | Added stateful component | An engineer can decrypt locally | Diff granularity | Verdict |
+| --- | --- | --- | --- | --- |
+| **SOPS + age** | none — the operator is stateless | **yes**, with that engineer's own key | per-value: structure stays readable, values are encrypted blobs | **Chosen.** The only option that holds drivers 3 and 4 together |
+| SOPS + GPG | none | yes | per-value | Key-server and web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
+| sealed-secrets | a controller holding a key it generates, backs up, and rotates | **no — the encryption is one-way by design** | per-value: `encryptedData` is a per-key map. Ciphertext is non-deterministic, so re-sealing rewrites untouched values too | Fails driver 3. An engineer cannot read a committed secret or run against one, so local and cluster need different mechanisms |
+| Vault or OpenBao | **a service to run, unseal, back up, and upgrade** | through the service | n/a | Fails driver 4. Its real prize is dynamic short-lived credentials, which is a separate question from storing static config |
+| External Secrets Operator | a controller **plus a store to back it** | through that store | n/a | Driver 1 is satisfiable — OpenBao and Infisical self-host. It fails driver 4 harder than the row above: the same stateful store, and a sync controller on top |
+| A provider secret manager, synced in | none in-cluster beyond a controller | through the provider | n/a | Fails driver 1 outright: the secret path leaves infrastructure we control, and the provider becomes a bootstrap dependency |
+| Uncommitted `kubectl create secret` — the honest baseline | none | n/a — nothing is committed | n/a — the values are not in git | An environment stops being reproducible from the repo, and each value survives only in the shell history of whoever created it |
 
 ## Decision
 
@@ -48,7 +50,7 @@ Those per-env files reach the cluster through the `secrets` ApplicationSet at sy
 
 ### In-cluster decryption
 
-The **sops-operator** watches CRDs referencing SOPS-encrypted files and produces native Kubernetes `Secret` objects. Argo CD reconciles the encrypted file with the rest of the manifests, the operator decrypts and creates the `Secret`, and the pod consumes it through standard `envFrom` or `volumeMounts`.
+[**sops-secrets-operator**](https://github.com/isindir/sops-secrets-operator) watches `SopsSecret` custom resources holding SOPS-encrypted values and produces native Kubernetes `Secret` objects. Argo CD reconciles the encrypted file with the rest of the manifests, the operator decrypts and creates the `Secret`, and the pod consumes it through standard `envFrom` or `volumeMounts`.
 
 Service authors reference secrets by Kubernetes Secret name in Helm values, exactly as they would any other Secret. The encryption layer is invisible to the service.
 
@@ -92,7 +94,7 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 
 ### Negative / Risks
 
-- **Offboarding requires re-encrypting every file and rotating every secret.** Until the rotation script below exists, both are manual and the [secrets runbook](../secrets/runbook.md) carries the steps.
+- **Offboarding requires re-encrypting every file and rotating every secret.** The scope of the work is set by how many secrets one engineer could read, which is every secret in the repo. The [secrets runbook](../secrets/runbook.md) carries the steps.
 - **A lost engineer key loses that engineer's access.** Acceptable: regenerate, PR the new public key, re-onboard.
 - **A compromised cluster key exposes that environment's secrets on any subsequent git access.** Mitigated by the rotation procedure and by limiting cluster keys to env-scoped files.
 - **The ops-recovery key is a high-value target.** Mitigated by offline storage on hardware tokens and annual rotation.
@@ -100,12 +102,12 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 
 ## Rules
 
-- Plaintext secret values do not appear in any committed file. `(CI: lint:secrets)`
-- All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`. `(CI: lint:secrets)`
-- Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. `(review-only)`
-- Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to. `(review-only)`
-- Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime. `(review-only)`
-- Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read. `(review-only)`
-- Rotation on offboarding is mandatory regardless of the circumstances of departure. `(review-only)`
-- The ops-recovery private key is never online and never on a single machine, and is rotated annually. `(review-only)`
-- Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used. `(review-only)`
+- Plaintext secret values do not appear in any committed file.
+- All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`.
+- Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key.
+- Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to.
+- Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime.
+- Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read.
+- Rotation on offboarding is mandatory regardless of the circumstances of departure.
+- The ops-recovery private key is never online and never on a single machine, and is rotated annually.
+- Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used.

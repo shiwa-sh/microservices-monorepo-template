@@ -119,6 +119,20 @@ A number is stated when the number **is** the decision. One test settles it:
 
 The last two rot. Nothing forces their update, and a figure without a date reads as current, so a reader draws a conclusion that stopped being true. A count of components, files, ADRs, or services belongs to the registry that owns them — [`docs/operational-surface.md`](../operational-surface.md) for platform components, [`README.md`](README.md) for the ADR set.
 
+### Versions
+
+**A tool's release version is not stated.** Upgrading a dependency must not require editing an ADR, and a version in prose goes stale silently while the lockfile that contradicts it does not. The pin lives where a machine reads it — a lockfile, `.mise.toml`, or the chart that installs the thing.
+
+Three kinds of number look like a tool version and are not:
+
+| Stated | Kind | Example |
+| --- | --- | --- |
+| Yes | **A specification or format version** | OpenAPI 3.1, OCI 1.1, UUIDv7, RFC 9562. It names the contract an option is judged against, not the implementation |
+| Yes | **A licence identifier** | Apache-2.0, BUSL 1.1. The number is part of the licence's name |
+| Yes | **A capability boundary the decision turns on** | "the referrers API arrived in Distribution's 3.x line". Stated as a **floor**, never a pin, so a later release keeps the sentence true |
+
+Everything else is the tool's own business. A capability is described by what it does — "Forgejo mints per-job OIDC tokens for Actions" — because that stays true across upgrades, while "Forgejo v15.0 LTS does" stops being the reason anyone reads the line.
+
 The argument almost never needs the figure. "A floor of a couple of dozen components, fixed regardless of service count" carries the same weight as an exact tally and cannot go stale. Where a figure is load-bearing, it is a threshold, or it states the conditions it was taken under and where to take it again.
 
 ### Banned constructs
@@ -207,16 +221,17 @@ ADR numbers are allocated in blocks of a hundred, one block per layer, sequentia
 
 ### Enforcement annotations
 
-Every Rule ends with how it is enforced, so a reader distinguishes a hard invariant from an aspiration.
+A Rule that is machine-checkable names the mechanism, so a reader can go and read the check.
 
 | Annotation | Means |
 | --- | --- |
 | `(CI: <task>)` | a named `mise` task or workflow rejects the violation |
 | `(enforced: <policy>)` | admission control rejects it in the cluster, which CI cannot bypass |
-| `(review-only)` | a human applies it |
 | `(ref: <standard>)` | the adopted external standard is the rule |
 
-The annotation names an enforcement that **exists**. An unbuilt check is `(review-only)` until the day it runs, because a rule advertising a gate nobody wrote is weaker than one that admits it is reviewed.
+**An unannotated Rule is not a weaker Rule.** The annotation is a pointer to a mechanism, not a status report on one, so its absence says only that no gate names this rule — the ordinary case, and the reason a human reads a diff. Marking rules as human-enforced would put the build state of the check inside the law, which is the thing *An ADR is law, not a plan* forbids.
+
+The mechanism named is one the ADR set decides on. A task or policy that appears in no decision and nowhere in the repo is not an annotation, it is a wish, and it is left off.
 
 ## Consequences
 
@@ -230,34 +245,35 @@ The annotation names an enforcement that **exists**. An unbuilt check is `(revie
 ### Negative / Risks
 
 - Adopted standards evolve upstream and a citation can drift. Mitigated by making only the deltas normative.
-- Density and comment rules are review-only until a linter exists. The banned-constructs list is written to be grep-shaped so that lint is a later addition, not a redesign.
+- Most of these rules are read by a person rather than a task. The banned-constructs list is written to be grep-shaped, so a linter is an addition rather than a redesign.
 - Terse prose loses nuance a longer version would carry. Accepted: nuance that matters becomes a table row, and nuance that does not becomes deletion.
 
 ## Rules
 
 - Prose follows the Google developer-docs voice (second person, present tense, active) and ISO 24495-1 plain language, organised by Diátaxis genre. An ADR is explanation plus reference, never a tutorial. `(ref: Google dev-docs, ISO 24495-1, Diátaxis)`
-- Every word is load-bearing. A clause whose deletion does not change the meaning is deleted. `(review-only)`
-- Three or more items sharing two or more attributes are a table; three or more parallel items are a list. `(review-only)`
-- Intensifiers, hedges, meta-commentary, rhetorical questions, and chronology are not used in template docs. `(review-only)`
-- Figurative language is limited to the [ADR-0000](0000-platform-foundations.md) vocabulary. `(review-only)`
-- A number is stated only if doubling it would change the decision: a threshold, a measurement that set a value, or a count of what is on the same page. An illustrative figure becomes the shape it demonstrates, and a count of live state elsewhere becomes a link to its registry. `(review-only)`
-- A fact appears in exactly one ADR. Every other mention is a link. `(review-only)`
+- Every word is load-bearing. A clause whose deletion does not change the meaning is deleted.
+- Three or more items sharing two or more attributes are a table; three or more parallel items are a list.
+- Intensifiers, hedges, meta-commentary, rhetorical questions, and chronology are not used in template docs.
+- Figurative language is limited to the [ADR-0000](0000-platform-foundations.md) vocabulary.
+- A number is stated only if doubling it would change the decision: a threshold, a measurement that set a value, or a count of what is on the same page. An illustrative figure becomes the shape it demonstrates, and a count of live state elsewhere becomes a link to its registry.
+- A tool's release version is not stated. A specification version, a licence identifier, and a capability boundary stated as a floor are not tool versions. The pin lives in the lockfile, `.mise.toml`, or the chart.
+- A fact appears in exactly one ADR. Every other mention is a link.
 - Markdown is not hard-wrapped: one line per paragraph, list item, or table row. `(CI: lint:md)`
 - Tables are compact — one space inside each pipe, a bare `---` delimiter — never column-padded. `(CI: lint:md)`
-- An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section. `(review-only)`
-- A decision driver states a property being optimised for, never the chosen option restated and never a rejected option's worst form. Swapping the winner for a loser must leave the drivers unmet, not wrong. `(review-only)`
-- An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule. `(review-only)`
-- Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. `(review-only)`
+- An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section.
+- A decision driver states a property being optimised for, never the chosen option restated and never a rejected option's worst form. Swapping the winner for a loser must leave the drivers unmet, not wrong.
+- An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule.
+- Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed.
 - No committed file links to a local working file. `(CI: lint:md)`
-- ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md). `(review-only)`
-- Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(review-only; ref: OTel semconv)`
-- Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(review-only; ref: clig.dev)`
-- Code comments explain why, not what, in present tense, and cite `ADR-XXXX` when load-bearing. `(review-only)`
-- Commented-out code, changelog/author/date comments, and decorative banners are not committed. `(review-only)`
-- A `TODO` cites an issue or an ADR. `(review-only)`
-- A comment that exists to explain confusing code is a defect; the code is rewritten. `(review-only)`
-- Template docs are final-state facts: no change-history, no `Supersedes`/`Amends` chains, no `Proposed → Accepted` narrative, a uniform date, and full-rewrite-over-patch. **`(scope: template repo only)`** — a generated project keeps honest ADR history. `(review-only)`
-- An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`. `(review-only)`
-- No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses. A generated project rewrites that README, so duplication there is expected and correct. `(review-only)`
-- A term enters the [ADR-0000](0000-platform-foundations.md) vocabulary only when the ADR set uses it, and only if the repo does not already use that word in another sense. `(review-only)`
-- Every ADR Rule is annotated with its enforcement: `(CI: <task>)`, `(enforced: <policy>)`, `(review-only)`, or `(ref: <standard>)`. The annotation names an enforcement that exists; an unbuilt check is `(review-only)`. `(review-only)`
+- ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md).
+- Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(ref: OTel semconv)`
+- Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(ref: clig.dev)`
+- Code comments explain why, not what, in present tense, and cite `ADR-XXXX` when load-bearing.
+- Commented-out code, changelog/author/date comments, and decorative banners are not committed.
+- A `TODO` cites an issue or an ADR.
+- A comment that exists to explain confusing code is a defect; the code is rewritten.
+- Template docs are final-state facts: no change-history, no `Supersedes`/`Amends` chains, no `Proposed → Accepted` narrative, a uniform date, and full-rewrite-over-patch. **`(scope: template repo only)`** — a generated project keeps honest ADR history.
+- An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`.
+- No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses. A generated project rewrites that README, so duplication there is expected and correct.
+- A term enters the [ADR-0000](0000-platform-foundations.md) vocabulary only when the ADR set uses it, and only if the repo does not already use that word in another sense.
+- A Rule that a task, a policy, or a standard enforces names it: `(CI: <task>)`, `(enforced: <policy>)`, or `(ref: <standard>)`. A Rule with no such mechanism carries no annotation, and is not thereby weaker.

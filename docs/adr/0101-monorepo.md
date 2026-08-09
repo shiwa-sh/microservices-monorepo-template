@@ -73,7 +73,9 @@ Two questions are bundled here, and the discriminator is that most candidates an
 | Turborepo | Task orchestration and remote caching for JavaScript. Its value needs multiple frontend applications, and there is one |
 | Nx for JavaScript only | Splits task invocation across two tools, which driver 1 forbids. Considered above as the repo-wide runner instead |
 
-## Repository layout
+## Decision
+
+### Repository layout
 
 ```text
 go.mod                        # single Go module for the entire repo
@@ -123,8 +125,6 @@ docs/                         # ADRs, runbooks, conventions
 | `services/` stays spelled out | `svc` already means a Kubernetes Service here and is the per-service metavariable in docs. Directory names abbreviate only when unambiguous |
 | `infra/` holds both IaC and the configuration of what it deploys | One top-level directory removes the recurring "infra or ops?" question |
 | `tools/` holds repo-local Go programs only | It is not a shell-script drawer. External tools are installed by mise |
-
-## Decision
 
 ### mise is the single entry point
 
@@ -275,17 +275,17 @@ Each step is its own ADR when triggered.
 
 ## Rules
 
-- The fleet lives in one repository. Moving any part of it to a second repository requires its own ADR. `(review-only)`
-- The repo is a single Go module rooted at `go.mod`. There are no per-service or per-library `go.mod` files and no `go.work`. `(CI: ci-lint)`
+- The fleet lives in one repository. Moving any part of it to a second repository requires its own ADR.
+- The repo is a single Go module rooted at `go.mod`. There are no per-service or per-library `go.mod` files and no `go.work`. `(CI: ci:lint)`
 - Every backend service lives at `services/<name>/`; every shared Go package under `libs/go/<name>/`; every shared TypeScript library under `libs/ts/<name>/`. `(CI: lint:service-contract)`
-- Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci-drift)`
-- The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. `(review-only)`
+- Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci:gen)`
+- The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR.
 - Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. `(CI: lint:service-contract)`
-- A task name is `group:member`, grouped by the axis worth listing together. `(review-only)`
+- A task name is `group:member`, grouped by the axis worth listing together.
 - Every external tool is pinned: developer and CI tools in `.mise.toml`, runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint:floating-tags)`
-- A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci-drift)`
-- A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci-affected)`
+- A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci:gen)`
+- A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci:affected)`
 - Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. `(CI: lint:floating-tags)`
-- `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. `(CI: ci-lint)`
-- Route groups inside `apps/frontend/` do not import from each other. `(CI: ci-lint)`
-- Build-graph and hermetic-build tools — Nx, moon, Pants, Bazel, Nix — are not used on day one. Adoption requires its own ADR. `(review-only)`
+- `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. `(CI: ci:lint)`
+- Route groups inside `apps/frontend/` do not import from each other. `(CI: ci:lint)`
+- Build-graph and hermetic-build tools — Nx, moon, Pants, Bazel, Nix — are not used on day one. Adoption requires its own ADR.

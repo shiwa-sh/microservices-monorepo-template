@@ -126,13 +126,13 @@ Every escape-hatch service carries its own ADR recording the measured need, and 
 
 ## Rules
 
-- Every backend service is written in Go. Another language requires its own ADR admitting the service under a documented escape hatch. `(review-only)`
-- The Go version is pinned by the root `.mise.toml` and no service overrides it. Only a release still receiving upstream security fixes is pinned — the two most recent major releases ([Go release policy](https://go.dev/doc/devel/release)). `(CI: ci-lint)`
-- A monetary amount is the shared money type, never a floating-point number — `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. `(review-only)`
-- The frontend is TypeScript. `(review-only)`
+- Every backend service is written in Go. Another language requires its own ADR admitting the service under a documented escape hatch.
+- The Go version is pinned by the root `.mise.toml` and no service overrides it. Only a release still receiving upstream security fixes is pinned — the two most recent major releases ([Go release policy](https://go.dev/doc/devel/release)). `(CI: ci:lint)`
+- A monetary amount is the shared money type, never a floating-point number — `numeric` in the database, a string in the OpenAPI schema, and a string on the wire.
+- The frontend is TypeScript.
 - Bun is the only JS runtime for code we author. No Go service image, the frontend image, or any artifact built from our own source installs Node. `(CI: lint:node-scope)`
 - Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config against the root `[env] NODE_VERSION`; an island shipping as a container pins no Node at all. A fourth Node island requires amending this ADR. `(CI: lint:node-scope)`
-- A Rust service requires its own ADR recording measured Go inadequacy or a Rust-native canonical ecosystem, and how the service satisfies [ADR-0500](0500-observability.md). `(review-only)`
-- A Python service requires its own ADR and is admitted only where the library ecosystem is the reason the service exists. `(review-only)`
-- JVM, .NET, and JavaScript backends are not permitted, with or without an ADR. `(review-only)`
-- Cross-language sharing happens through generated OpenAPI clients, never a shared in-process runtime. `(review-only)`
+- A Rust service requires its own ADR recording measured Go inadequacy or a Rust-native canonical ecosystem, and how the service satisfies [ADR-0500](0500-observability.md).
+- A Python service requires its own ADR and is admitted only where the library ecosystem is the reason the service exists.
+- JVM, .NET, and JavaScript backends are not permitted, with or without an ADR.
+- Cross-language sharing happens through generated OpenAPI clients, never a shared in-process runtime.

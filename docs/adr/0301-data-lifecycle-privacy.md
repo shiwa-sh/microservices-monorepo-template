@@ -13,29 +13,33 @@ A multi-tenant application at meaningful monthly actives has retention, right-to
 
 ## Decision drivers
 
-1. **Erasure and export must be correct across stores** — the application database *and* OpenFGA ([ADR-0304](0304-identity-and-authorization.md)) — or a user is deleted while still appearing in authz tuples.
-2. **A durable, auditable process**, not a hand-run script. The same reliability primitive as every other cross-store mutation ([ADR-0302](0302-temporal.md)).
-3. **Retention is declared, not incidental.** Data has a class and a lifespan.
-4. **PII is identifiable**, so retention and redaction can target it mechanically.
+1. **Erasure and export must be correct across stores** — the application database *and* OpenFGA ([ADR-0304](0304-identity-and-authorization.md)) — or a subject is deleted while still appearing in authz tuples.
+2. **A half-completed erasure is worse than an unstarted one.** The obligation has a deadline, so the process must survive a partial failure and resume, not restart from an unknown point.
+3. **One execution answers "is this subject erased".** Whatever runs it must be able to say so without correlating several services' logs.
+4. **Retention is declared, not incidental.** Every stored category has a class and a lifespan.
+5. **PII is identifiable by a machine**, so retention, export, and redaction target it mechanically rather than by memory.
 
 ## Considered options
 
-| Option | Cross-store correctness | Auditable | Verdict |
-| --- | --- | --- | --- |
-| **Temporal workflows for erasure, DSAR, and retention** | activities span every owning service and OpenFGA in one execution | the event history is the audit trail | **Chosen** |
-| A scheduled script per service | each service deletes its own rows; nothing coordinates OpenFGA | logs only | Produces exactly the failure driver 1 names |
-| Database-level cascade deletes | within one database only | none | OpenFGA is not in the database, and neither is another service's data |
-| Manual runbook on request | depends on the operator | a ticket | Unbounded latency, and correctness varies by who runs it |
+| Option | Survives a partial failure | Spans stores outside one database | Answers "is it done" | Verdict |
+| --- | --- | --- | --- | --- |
+| **Temporal workflows for erasure, DSAR, and retention** | yes — each activity retries, and the execution resumes where it stopped | yes, including OpenFGA | one execution, and its event history is the audit trail | **Chosen.** The obligation is a long-running, multi-store, deadline-bearing mutation, which is the shape [ADR-0302](0302-temporal.md) already buys a primitive for |
+| Outbox events, consumed per service | yes, per hop | yes, eventually | no — by correlating every consumer | No single execution owns the request. [ADR-0302](0302-temporal.md) keeps the outbox for fire-and-forget work, and a statutory deadline is not fire-and-forget |
+| A dedicated erasure service calling each owning service's API | only once it implements its own retries, timers, and state | yes | its own store, once built | This is Temporal's job description rebuilt inside one service, against a Temporal that is already Core |
+| Change-data-capture, such as Debezium | yes | yes | no — the same correlation problem, plus a connector | Adds a component and a second delivery path to answer a question the platform can already ask directly |
+| A scheduled script per service | no | no — nothing coordinates OpenFGA | logs only | Produces exactly the failure driver 1 names |
+| Database-level cascade deletes | within one transaction | no | none | OpenFGA is not in the database, and neither is another service's data |
+| A manual runbook on request — the honest baseline | no | only as far as the operator is thorough | a ticket | Unbounded latency, and correctness varies by who runs it |
 
 ## Decision
 
 | Concern | Mechanism |
 | --- | --- |
 | **Data classes** | Every stored category is classified — operational, PII, audit, telemetry — with a declared retention period. Telemetry retention belongs to [ADR-0500](0500-observability.md), backups to [ADR-0200](0200-cluster-topology.md); this ADR owns application data |
-| **PII tagging** | Columns holding personal data are annotated at the schema level, so erasure, export, and redaction target them mechanically rather than by memory |
+| **PII tagging** | A column holding personal data carries `COMMENT ON COLUMN … IS 'pii:<class>'` in the migration that creates it ([ADR-0300](0300-data.md)). The tag lives in the DDL, travels with the schema, and is readable from `pg_description`, so erasure, export, and redaction enumerate their targets by query rather than by memory |
 | **Right to erasure** | A Temporal workflow erases or anonymises the subject's rows across every owning service **and** removes the corresponding OpenFGA tuples, as dual-write activities |
 | **Subject access and portability** | A Temporal workflow gathers the subject's data across services through their APIs ([ADR-0303](0303-api-contracts-and-lifecycle.md)) and produces an export |
-| **Retention enforcement** | A Temporal `Schedule` prunes or anonymises data past its class's retention and opens a tracking record |
+| **Retention enforcement** | A Temporal `Schedule` prunes or anonymises data past its class's retention. Each run's event history is the record that it happened, and to what |
 
 Anonymise-versus-hard-delete is a per-category decision, recorded with the data class. Audit data may carry a retention obligation that an erasure request cannot override.
 
@@ -54,7 +58,7 @@ Anonymise-versus-hard-delete is a per-category decision, recorded with the data 
 
 ## Rules
 
-- Every stored data category has a declared class and retention period, enforced by a Temporal `Schedule`. `(review-only)`
-- Personal data columns are tagged at the schema level so erasure, export, and redaction target them mechanically. `(review-only)`
-- Right-to-erasure and DSAR run as Temporal workflows acting across every owning service **and** OpenFGA. A raw multi-store delete script is not used. `(review-only)`
-- Anonymise-versus-delete is recorded per data class, never decided per request. `(review-only)`
+- Every stored data category has a declared class and retention period, enforced by a Temporal `Schedule`.
+- A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query.
+- Right-to-erasure and DSAR run as Temporal workflows acting across every owning service **and** OpenFGA. A raw multi-store delete script is not used.
+- Anonymise-versus-delete is recorded per data class, never decided per request.

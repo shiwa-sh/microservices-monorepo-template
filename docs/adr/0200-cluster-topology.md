@@ -13,11 +13,13 @@ This ADR answers where production runs, what shape a cluster has on day one and 
 
 ## Decision drivers
 
-1. **Self-host** ([ADR-0000](0000-platform-foundations.md), principle 3). No managed Kubernetes.
-2. **Cost predictability across a growing fleet.** Per-cluster, per-load-balancer, and per-volume fees compound on managed Kubernetes.
-3. **Parity at the manifest layer.** Topology may differ; charts, code, and commands do not.
-4. **Boring by default, novel where it removes a class of failure.** ([ADR-0000](0000-platform-foundations.md), *spend novelty by exit cost*.) The widely-operated component is the default. A less common one is adopted where it eliminates a category of failure rather than improving on one, and the ADR says which category.
-5. **Growth follows measurable triggers**, not judgement.
+1. **Operational sovereignty** ([ADR-0000](0000-platform-foundations.md), principle 3). Nobody outside the organisation can change the terms on which the control plane runs, and per-cluster, per-load-balancer and per-volume fees do not compound across a growing fleet.
+2. **A node matches its description.** The gap between what a host is declared to be and what it has become is a failure class in its own right, and one this layer can remove rather than monitor.
+3. **The pod network is not a trust boundary by default.** Whatever provides the CNI decides whether a compromised pod can reach Postgres, and that is settled at bootstrap.
+4. **Boring by default, novel where it removes a class of failure** ([ADR-0000](0000-platform-foundations.md), *spend novelty by exit cost*). A less widely operated component is adopted where it eliminates a category of failure rather than improving on one, and the ADR names the category.
+5. **Losing one node is not downtime.**
+
+Manifest-layer parity is a constraint inherited from [ADR-0205](0205-environment-parity.md) rather than a driver here: topology may differ between environments, charts and commands may not.
 
 ## Considered options
 
@@ -31,7 +33,7 @@ This ADR answers where production runs, what shape a cluster has on day one and 
 | Bottlerocket | disabled by default, reachable through an admin container | API-driven, closest in spirit to Talos | installed separately | The nearest philosophical match. Its platform support is AWS-centric and bare metal is poorly documented, which driver 1 makes decisive |
 | Debian stable, converged by Ansible | full | playbooks converging a mutable host | k3s, installed by playbook | The honest baseline. A node matches its description only to the degree the playbooks are complete, and re-running them is the only evidence |
 
-**The node was the last mutable thing in the system.** Cluster state is reconciled from git ([ADR-0201](0201-gitops.md)), pods run on a base with no shell and no package manager ([ADR-0101](0101-monorepo.md)), and the pod network is default-deny. Against that posture the host shell is the remaining escalation path and the remaining source of drift, and an immutable node collapses the description and the thing described into one object. That is the failure class driver 4 requires naming.
+**The node is the only mutable thing left in the system.** Cluster state is reconciled from git ([ADR-0201](0201-gitops.md)), pods run on a base with no shell and no package manager ([ADR-0101](0101-monorepo.md)), and the pod network is default-deny. Against that posture the host shell is the one remaining escalation path and the one remaining source of drift, and an immutable node collapses the description and the thing described into a single object. That is the failure class driver 4 requires naming.
 
 Driver 4 also admits the cost: this is a less widely operated OS than Debian, and the ADR pays for it in *Consequences* rather than pretending otherwise.
 
@@ -39,34 +41,50 @@ Driver 4 also admits the cost: this is a less widely operated OS than Debian, an
 
 Linkerd is not a CNI and not a Cilium substitute — it rides on top of a CNI through per-pod sidecars. The day-one decision is therefore at the CNI layer, compared on security capability.
 
-| Capability | flannel only | flannel + Linkerd | **Cilium + WireGuard** |
-| --- | --- | --- | --- |
-| L3/L4 default-deny segmentation | **none — flat network** | meshed app traffic only | all pods |
-| Data-tier protection (Postgres, MinIO, OpenFGA) | wide open | only if the data tier is meshed, which is fiddly | NetworkPolicy |
-| Cryptographic workload identity | — | mTLS certs, meshed only | label identity; SPIFFE optional later |
-| Encryption in transit, east-west | **plaintext** | meshed only | all pods, WireGuard |
-| L7 authz by route and method | — | fine-grained | coarse, via Envoy — already covered by Oathkeeper and OpenFGA |
-| Egress control, DNS/FQDN, metadata SSRF | — | not Linkerd's concern | FQDN and L3 egress |
+| Capability | flannel only | Calico | flannel + Linkerd | **Cilium + WireGuard** |
+| --- | --- | --- | --- | --- |
+| L3/L4 default-deny segmentation | **none — flat network** | all pods | meshed app traffic only | all pods |
+| Data-tier protection (Postgres, MinIO, OpenFGA) | wide open | NetworkPolicy | only if the data tier is meshed, which is fiddly | NetworkPolicy |
+| Cryptographic workload identity | — | — | mTLS certs, meshed only | label identity; SPIFFE optional later |
+| Encryption in transit, east-west | **plaintext** | WireGuard, and it does not also replace kube-proxy | meshed only | all pods, WireGuard |
+| L7 authz by route and method | — | limited, and Envoy-based in the paid tier | fine-grained | coarse, via Envoy — already covered by Oathkeeper and OpenFGA |
+| Egress control, DNS/FQDN, metadata SSRF | — | FQDN egress in the paid tier | not Linkerd's concern | FQDN and L3 egress in the open distribution |
+| Per-flow visibility | — | a separate collector | mesh-only | Hubble, from the same datapath |
 
-**flannel silently ignores applied NetworkPolicy objects**, which is worse than having no policy because it grants false confidence. Between the two real options, Cilium wins on **breadth**: the controls it adds map onto the highest-frequency cluster attacks — lateral movement to Postgres, and metadata-endpoint credential theft. The controls Linkerd adds over Cilium are depth *behind* those, and the L7 layer is already covered at the edge and in-app. Linkerd would additionally leak the data tier unless the stateful components are meshed, which the Job-heavy bootstrap makes painful.
+**flannel ships no NetworkPolicy controller**, so the API server accepts a policy and nothing enforces it — worse than having no policy, because it grants false confidence. Calico is the closest real alternative and loses on scope rather than on capability: its FQDN egress and L7 controls sit in the paid tier, and it leaves kube-proxy in place, which the Talos configuration below removes. Between the remaining options, Cilium wins on **breadth**: the controls it adds map onto the highest-frequency cluster attacks — lateral movement to Postgres, and metadata-endpoint credential theft. The controls Linkerd adds over Cilium are depth *behind* those, and the L7 layer is already covered at the edge and in-app. Linkerd would additionally leak the data tier unless the stateful components are meshed, which the Job-heavy bootstrap makes painful.
 
 A sidecar mesh also adds one proxy container per pod on the hot path, against [ADR-0000](0000-platform-foundations.md)'s per-service cost principle.
 
 ### Kubernetes distribution
 
-| Option | Verdict |
-| --- | --- |
-| **Upstream Kubernetes, shipped by Talos** | **Chosen** — the distribution and the OS are one artefact with one upgrade path, and there is no separate installer to operate |
-| k3s | A single binary bundling Traefik, ServiceLB, `local-path`, and CoreDNS as replaceable defaults. Those bundles are the real loss in this decision, and each is replaceable by a chart this repository already commits. The lighter footprint it is known for belongs to its single-node SQLite configuration, which three-node HA forecloses by requiring etcd; at this topology its own documentation quotes the same control-plane node size Talos does. **Resources do not decide this row in either direction.** Nor is it a smaller Kubernetes to graduate from later — it is conformant, so no capability trigger would ever fire |
-| Managed Kubernetes (EKS, GKE, AKS) | Excluded by driver 1, and by per-cluster fees compounding across environments |
-| Full upstream kubeadm | The same upstream Kubernetes with an installer to operate, which is the part Talos removes |
+| Option | Installer to operate | Coupling to the node OS | What it bundles | Verdict |
+| --- | --- | --- | --- | --- |
+| **Upstream Kubernetes, shipped by Talos** | none | one artefact, one upgrade path | nothing beyond Kubernetes | **Chosen.** The distribution and the OS upgrade together, and there is no installer standing between them |
+| k3s | its own | independent | Traefik, ServiceLB, `local-path`, CoreDNS, all replaceable | Those bundles are the real loss here, and each is replaceable by a chart this repository already commits. Its lighter footprint belongs to the single-node SQLite configuration, which three-node HA forecloses by requiring etcd. **Resources decide this row in neither direction**, and it is conformant, so it is not a smaller Kubernetes to graduate from later |
+| k0s | its own | independent | nothing | k3s without the bundles, which removes the only real distinction from the chosen option while keeping the separate installer |
+| Full upstream kubeadm | its own | independent | nothing | The same upstream Kubernetes with an installer to operate, which is the part Talos removes |
+| Managed Kubernetes (EKS, GKE, AKS) | none — the provider's | none | the provider's opinions | Fails driver 1: the terms on which the control plane runs are the provider's, and per-cluster fees compound across environments |
 
 ### Day-one node count
 
-| Option | Failure behaviour | Verdict |
-| --- | --- | --- |
-| **Three nodes, embedded etcd** | tolerates single-node loss with no downtime | **Chosen.** Embedded-etcd HA needs three, and this removes the later rebuild-to-HA migration entirely |
-| One node | multi-minute downtime on any node failure | The thesis cannot accept that even at the smallest scale |
+| Option | Failure behaviour | Migration to HA later | Verdict |
+| --- | --- | --- | --- |
+| **Three nodes, embedded etcd** | tolerates single-node loss with no downtime | none needed | **Chosen.** Embedded-etcd quorum needs three, and starting there removes the rebuild entirely |
+| One node | multi-minute downtime on any node failure | a rebuild, with a data migration | Fails driver 5 at every scale |
+| Two nodes | **worse than one** — no quorum, and two failure domains to lose it in | a rebuild | Even quorum is the classic mistake this row exists to name |
+| Three nodes, etcd on dedicated hosts | as chosen | none | The same guarantee for more machines. It becomes right when etcd contends with workloads, which is a growth trigger rather than a day-one shape |
+
+### Block storage
+
+Object storage carries the durable data ([ADR-0205](0205-environment-parity.md)), so this decides only the volumes that back a pod between reschedules.
+
+| Option | Added components | Survives node loss | Talos cost | Verdict |
+| --- | --- | --- | --- | --- |
+| **`local-path-provisioner`** | one small provisioner | **no** — a volume is pinned to its node | none: a directory under `/var`, the writable path | **Chosen.** The durable data is already off-cluster, so replication here would be paid twice |
+| Longhorn | a controller, per-node engines, and a UI | yes, replicated | `iscsi-tools` and `util-linux-tools` extensions, a data path under `/var/mnt`, and a separate disk | The answer once a volume is too large to lose. It is the storage trigger below, and it is an OS-image change rather than a chart |
+| OpenEBS Mayastor | a control plane and per-node data planes | yes | hugepages and a dedicated device | Longhorn's guarantee at higher performance and higher operational surface, for a workload profile no component here has |
+| Rook-Ceph | a full Ceph cluster | yes, strongly | extensions plus dedicated disks | A distributed storage system to operate, which principle 2 refuses for volumes that hold no durable data |
+| A provider CSI driver | none in-cluster | yes | none | Fails driver 1, and re-couples the cluster to one provider's API |
 
 ## Decision
 
@@ -79,7 +97,7 @@ Production runs on **plain compute instances**, never a provider's managed Kuber
 | Project provisions its own infrastructure | Terraform under `infra/terraform/` creates instances, network, LB, DNS, firewall, and bucket, isolating the provider behind a stable interface. Swapping providers is a module swap, not a topology change | created |
 | Infrastructure is pre-provided | Terraform is skipped. The machine configs are applied to existing Talos nodes named in a committed inventory | referenced by configuration |
 
-**The dividing line is provisioning only.** Everything downstream — machine configuration, Kubernetes, Cilium, Argo CD — is identical. Terraform is a per-project tool, not deployed or run by default.
+**The dividing line is provisioning only.** Everything downstream — machine configuration, Kubernetes, Cilium, Argo CD — is identical. Terraform belongs to the project that owns its infrastructure, and the second mode never invokes it.
 
 **Pre-provided means pre-provided Talos.** Talos is installed by booting its own image, not converged onto a running general-purpose distribution, so this mode requires nodes already running Talos and reachable on its API. A pre-provided fleet running anything else is a reprovision, not a configuration step.
 
@@ -94,7 +112,7 @@ The cost of self-hosting is operational, and the machine configuration under `in
 | Configuration | a machine config document per node role, committed, applied by the [`siderolabs/talos`](https://registry.terraform.io/providers/siderolabs/talos/latest) Terraform provider |
 | OS upgrade | `talosctl upgrade` — an A/B image swap with rollback, one node at a time |
 | Kubernetes upgrade | `talosctl upgrade-k8s`, versioned independently of the OS |
-| Anything outside the base image — drivers, iSCSI, GPU | a system extension baked into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/v1.13/learn-more/image-factory), referenced by schematic and pinned like any other artefact ([ADR-0104](0104-supply-chain-security.md)) |
+| Anything outside the base image — drivers, iSCSI, GPU | a system extension baked into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory), referenced by schematic and pinned like any other artefact ([ADR-0104](0104-supply-chain-security.md)) |
 | Machine secrets | the cluster CA and `talosconfig`, SOPS-encrypted in git like every other secret ([ADR-0202](0202-secrets.md)) |
 
 Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell, and a one-off manual fix are unavailable by construction, which is the property being bought rather than a limitation being tolerated.
@@ -103,13 +121,13 @@ Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell,
 
 Day one, per environment: three compute nodes running Talos, with etcd on all three. All workloads run on this set, sized for many cores and generous NVMe.
 
-Each growth trigger is tied to a measurable signal and lands in a follow-up ADR when it fires.
+Each growth step is a deferral, and carries all three fields.
 
-| Trigger | Signal | Response |
-| --- | --- | --- |
-| Resource pressure | sustained CPU or memory above 70% for 7 days across the node set | add worker agents; keep the control plane at three |
-| Storage scale | any PVC exceeding 50% of node disk | adopt Longhorn as the default storage class; existing volumes migrate per workload |
-| Compliance segregation | regulated data with an isolation requirement | a dedicated cluster for that workload |
+| Trigger | Response | Seam | Cost if adopted late |
+| --- | --- | --- | --- |
+| Sustained CPU or memory above 70% for 7 days across the node set | add worker agents; the control plane stays at three | ✓ a worker's machine config is a committed document and joining is an apply. No workload is pinned to a node | capacity is added under pressure rather than ahead of it, so the window is an incident rather than a change |
+| Any PVC exceeding 50% of node disk | Longhorn becomes the default storage class | ⚠ **a bet.** Longhorn needs system extensions, a `/var/mnt` data path, and a separate disk, so adopting it rebuilds the installer image and reprovisions every node. There is no slot waiting for it | every existing volume migrates per workload while the schematic changes underneath, which is two migrations at once rather than one |
+| Regulated data carrying an isolation requirement | a dedicated cluster for that workload | ✓ every environment is already one cluster built from the same committed configuration, so another is a values selection ([ADR-0205](0205-environment-parity.md)) | the regulated data has already been co-resident, which no later separation undoes |
 
 ### Traffic flow
 
@@ -140,7 +158,7 @@ Three Talos properties constrain how Cilium is configured, and each is an invari
 | --- | --- |
 | Workloads may not load kernel modules | `SYS_MODULE` is dropped from Cilium's default capability set |
 | kube-proxy is absent | Cilium is given the API server host and port directly, because there is no in-cluster Service through which to discover it |
-| **[KubeSpan](https://docs.siderolabs.com/talos/v1.9/networking/kubespan) is not enabled** | Talos's own WireGuard mesh intercepts inter-node traffic that Cilium's eBPF datapath expects on the primary interface, producing asymmetric routing and broken cross-node pod traffic. East-west encryption is Cilium's, once |
+| **[KubeSpan](https://docs.siderolabs.com/talos/latest/networking/kubespan) is not enabled** | Talos's own WireGuard mesh intercepts inter-node traffic that Cilium's eBPF datapath expects on the primary interface, producing asymmetric routing and broken cross-node pod traffic. East-west encryption is Cilium's, once |
 
 Three postures are on from day one and are checked invariants:
 
@@ -164,7 +182,7 @@ Cilium covers CNI and mesh as one component: sidecarless eBPF gives transparent 
 | Object, production | an external S3-compatible bucket per environment. **No MinIO in production** | unchanged |
 | Object, non-prod | in-cluster MinIO exposing the same S3 API ([ADR-0205](0205-environment-parity.md)) | unchanged |
 
-**The storage trigger is also an image change.** [Longhorn on Talos](https://longhorn.io/docs/1.12.0/advanced-resources/os-distro-specific/talos-linux-support/) needs the `iscsi-tools` and `util-linux-tools` system extensions baked into the installer image, a data path under `/var/mnt`, and a disk separate from the install disk. That is schematic work at the OS layer, which is part of why block storage at scale is a trigger rather than a default.
+**The storage trigger is an image change, not a chart change** — [Longhorn on Talos](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/) requires work at the OS layer, which is why the deferral above is labelled a bet rather than a seam.
 
 Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a local TSDB and needs none; its Mimir Scale swap does ([ADR-0500](0500-observability.md)). Offloading durability to an external bucket eliminates a stateful component from production.
 
@@ -235,20 +253,20 @@ Rehearsed quarterly alongside the backup restore drill.
 
 ## Rules
 
-- Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped when infrastructure is pre-provided. `(review-only)`
-- Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node. `(review-only)`
-- Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger. `(review-only)`
-- Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory. `(review-only)`
-- Ingress is Traefik with TLS from cert-manager. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. `(review-only)`
-- Object storage in production is an external S3-compatible bucket. Non-prod uses in-cluster MinIO behind the same API. `(review-only)`
-- Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. `(review-only)`
-- The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. `(review-only)`
-- CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy. `(review-only)`
-- KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic. `(review-only)`
+- Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped when infrastructure is pre-provided.
+- Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node.
+- Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger.
+- Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory.
+- Ingress is Traefik with TLS from cert-manager. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway.
+- Object storage in production is an external S3-compatible bucket. Non-prod uses in-cluster MinIO behind the same API.
+- Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly.
+- The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires.
+- CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy.
+- KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic.
 - Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. `(enforced: CiliumNetworkPolicy)`
-- WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped. `(review-only)`
+- WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped.
 - A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. `(enforced: CiliumNetworkPolicy)`
-- A new cluster bootstraps with the machine-config apply then the Argo CD root Application. There is no configuration-management step between them and no further manual steps. `(review-only)`
-- Growth beyond the day-one topology happens only on a documented trigger firing, captured in a new ADR. `(review-only)`
-- No dedicated service mesh is deployed. Sidecar meshes are ruled out by per-service resource cost and component count. `(review-only)`
+- A new cluster bootstraps with the machine-config apply then the Argo CD root Application. There is no configuration-management step between them and no further manual steps.
+- Growth beyond the day-one topology happens only on one of the documented triggers firing.
+- No dedicated service mesh is deployed. Sidecar meshes are ruled out by per-service resource cost and component count.
 - Cilium NetworkPolicy is the internal service-to-service trust boundary, and each service declares its allowed callers. `(CI: lint:service-contract)`

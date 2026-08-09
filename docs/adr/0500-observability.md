@@ -19,18 +19,32 @@ This ADR answers: which signals, which backend, how they are collected, and what
 2. **OpenTelemetry first.** Instrumentation is vendor-neutral, so backends stay replaceable.
 3. **Pre-wired defaults in shared libraries.** Service code makes one call and gets everything.
 4. **Self-host** ([ADR-0000](0000-platform-foundations.md), principle 3).
-5. **Boring storage.** Mature, well-understood backends.
+5. **The query language outlives the backend.** A dashboard, an alert rule, and an engineer's muscle memory are all written in it, so a proprietary one is the real lock-in.
 6. **Cross-signal correlation.** A log links to its trace, a trace to its profile, a metric to trace exemplars.
 
 ## Considered options
 
+### The backend stack
+
 | Option | Dashboards and alerts as code | Signals covered | Query language | Verdict |
 | --- | --- | --- | --- | --- |
 | **Grafana stack — Loki, Prometheus, Tempo, Pyroscope** | **JSON and YAML files in git**, reconciled by Argo | all four, plus browser RUM through a Faro receiver | PromQL, LogQL, TraceQL — portable | **Chosen** |
-| SigNoz | **UI-only click-ops state in ClickHouse** | three; no continuous profiling | its own | Consolidating four components into one is genuinely attractive at a fixed operational budget, which is why this was reopened. It fails driver 1 outright — the same driver that rejects Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)) — and additionally loses continuous profiling and the Faro RUM receiver |
+| VictoriaMetrics, VictoriaLogs, VictoriaTraces | files, and Grafana stays the UI | three; no continuous profiling | **PromQL-compatible** plus MetricsQL | The serious challenger on operational weight: markedly lower resource use than Prometheus plus Loki at the same retention, and it keeps driver 5 because Grafana and PromQL are unchanged. It loses on completeness — profiling has no counterpart, so Pyroscope stays and the consolidation is partial — and the components are on different maturity footings, with the traces backend the youngest part |
+| SigNoz | **UI-only click-ops state in ClickHouse** | three; no continuous profiling | its own | Consolidating four components into one is the strongest case any option here makes against a fixed operational budget. It fails driver 1 outright — the same driver that rejects Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)) — and additionally loses continuous profiling and the Faro RUM receiver |
 | OpenObserve | **UI-only click-ops state** | three | its own | Same failure as SigNoz on driver 1, with a non-portable query language on top |
-| Elastic stack | index templates and dashboards exportable, and the working source of truth is the UI | three | its own | Heavier operationally than the whole Grafana stack, and the licence history is a governance risk |
+| Elastic stack | index templates and dashboards exportable, and the working source of truth is the UI | three | its own | Heavier operationally than the whole Grafana stack, and its query language is the one that does not travel. Elasticsearch offers AGPL-3.0 again since 2024, so the licence is no longer the objection |
 | One vendor's managed platform | n/a | all | proprietary | Excluded by driver 4 |
+
+### The collection tier
+
+| Option | Added workloads | Enrichment with pod metadata | Verdict |
+| --- | --- | --- | --- |
+| **OTel Collector as a DaemonSet** | one per node | at the node, from the kubelet | **Chosen.** Every service emits to `localhost:4317`, which makes the destination a collector concern rather than an application one |
+| DaemonSet plus a gateway Deployment | one per node, plus a tier | as above | The right shape once spans must be held to sample on outcome. It is the deferral below, and adding it changes no service |
+| A gateway Deployment only | one tier | **no** — the collector is off-node, so pod attributes have to be sent by the workload | Pushes resource-attribute correctness into every service, which is exactly what driver 3 removes |
+| Grafana Alloy for everything | one per node | yes | Already run for `pprof` scraping, and it is a Grafana-flavoured distribution of the same collector. Using it for OTLP too would trade the vendor-neutral collector for a vendor's build, against driver 2 |
+| Vector | one per node | yes for logs | Excellent at logs and not an OTLP-native traces or profiles path, so it would cover one signal of four |
+| Direct from SDK to backend | none | in each service | Every service learns every backend's address and protocol, and a backend change becomes a fleet-wide redeploy |
 
 The deciding property is the same one that decided identity ([ADR-0304](0304-identity-and-authorization.md)) and the operator UIs: **a component whose configuration lives in its own database is invisible to review and to Argo.** Applying that to observability but not to identity, or the reverse, would be the inconsistency.
 
@@ -88,13 +102,27 @@ Service authors never touch the OTel SDK. Custom spans and counters go through `
 
 Sizing: production runs Loki and Tempo at two replicas each and Grafana at two, with Prometheus single — its HA story is the Mimir swap, not replica count. Non-prod runs single replicas; failure tolerance for observability there is not worth the resources.
 
-**Scale seam.** When metrics need multi-tenant isolation, HA, or long-retention durability, the swap is **Mimir**: Prometheus-compatible, same query API, same dashboards, same alert rules, so the swap changes storage configuration rather than instrumentation. Loki and Tempo have the same seam into their own microservices modes.
+**Mimir is the metrics scale swap.**
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | Prometheus's active-series count crosses the paging threshold below and adding memory is no longer the cheap answer, or a retention obligation exceeds what one local TSDB holds |
+| **Seam** | ✓ Prometheus-compatible: the same query API, dashboards, and alert rules, so the change is storage configuration and no instrumentation moves |
+| **Cost if adopted late** | the series that forced it have already been dropped or the TSDB has already been trimmed, so the history the migration was meant to preserve is the part already lost |
+
+Loki and Tempo have the same seam into their own microservices modes: object storage already holds the data, so the split is a values change rather than a data migration.
 
 ### Collection: one collector tier
 
 The OTel Collector runs as a **DaemonSet** on every node. Services send OTLP to `localhost:4317`. The agent batches, enriches with Kubernetes resource attributes, applies head sampling, enforces resource limits, and exports directly to the backends. There is no gateway deployment.
 
-**Deferred: tail sampling.** **Trigger:** trace volume justifying holding spans to promote slow traces after the fact. **Seam:** services only ever emit to `localhost:4317`, so adding the gateway tier is a deploy, not a code change.
+**Tail sampling is deferred.**
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | a latency investigation fails because head sampling discarded the slow traces, twice |
+| **Seam** | ✓ services only ever emit to `localhost:4317`, so adding the gateway tier is a deploy and a collector config change. No service is touched |
+| **Cost if adopted late** | none structurally, and the investigations that prompted it are already over — tail sampling cannot recover a span that was never kept |
 
 **Logs follow a distinct path.** Services write structured JSON to **stdout**, and the agent reads the pod log files, parses, attaches attributes, and forwards. Stdout-first means logs survive even when the OTel SDK fails to start.
 
@@ -167,15 +195,15 @@ Service code is unchanged between local and production: the same `obs.Init` work
 
 ## Rules
 
-- Every service initialises observability with `obs.Init`. Direct OTel SDK use in service code is not permitted. `(CI: ci-lint)`
-- Every service imports the pre-wired middleware by default. `(review-only)`
+- Every service initialises observability with `obs.Init`. Direct OTel SDK use in service code is not permitted. `(CI: ci:lint)`
+- Every service imports the pre-wired middleware by default.
 - Logs are structured JSON to stdout. `fmt.Println` and unstructured loggers are not used. `(CI: lint:log-vocab)`
-- Log levels follow the conventions table, and `DEBUG` is off in production. `(review-only)`
-- Metrics use the `obs` helpers with allow-listed labels. High-cardinality attributes are not used as metric labels. `(CI: ci-lint)`
-- Trace context is propagated via W3C `traceparent`; the edge preserves it and Temporal middleware propagates it. `(review-only)`
-- PII is never written to logs, metrics, traces, or profiles. `(review-only)`
-- Sampling is configured centrally. Service authors do not set sampling rates. `(review-only)`
-- Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made; changes are PRs. `(review-only)`
-- The backend is the Grafana stack plus a single-tier collector. Alternate backends require an ADR. `(review-only)`
-- Long-term log and trace data lives in the off-cluster bucket; local volumes hold hot cache only. `(review-only)`
+- Log levels follow the conventions table, and `DEBUG` is off in production.
+- Metrics use the `obs` helpers with allow-listed labels. High-cardinality attributes are not used as metric labels. `(CI: ci:lint)`
+- Trace context is propagated via W3C `traceparent`; the edge preserves it and Temporal middleware propagates it.
+- PII is never written to logs, metrics, traces, or profiles.
+- Sampling is configured centrally. Service authors do not set sampling rates.
+- Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made; changes are PRs.
+- The backend is the Grafana stack plus a single-tier collector. Alternate backends require an ADR.
+- Long-term log and trace data lives in the off-cluster bucket; local volumes hold hot cache only.
 - Every service exposes `/livez` and `/readyz` on the admin port, and liveness never consults dependencies. `(CI: lint:service-contract)`

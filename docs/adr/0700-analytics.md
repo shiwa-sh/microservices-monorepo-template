@@ -25,8 +25,8 @@ So the decision is not which analytics tool. It is **which store holds Faro's ev
 
 ## Decision drivers
 
-1. **Correlation by construction, not by join.** One browser agent means one session identity.
-2. **This platform makes services cheap and components expensive.** A platform component pays the full resource, supply-chain, network-policy, and backup tax. Capability belongs in a service.
+1. **An error is connectable to the journey that produced it**, without correlating on timestamp and IP.
+2. **A platform component costs more than a service here.** A component pays the full resource, supply-chain, network-policy, and backup tax; a service inherits all of it from the template.
 3. **PII discipline is already decided.** An analytics store satisfies [ADR-0301](0301-data-lifecycle-privacy.md) on day one rather than being retrofitted.
 4. **Marketing must self-serve without ops-tier access.** Marketing are not operators, and Grafana is not their tool ([ADR-0306](0306-trust-tiers-and-urls.md)).
 5. **Collection stays vendor-neutral.** The backend is the replaceable part.
@@ -36,8 +36,11 @@ So the decision is not which analytics tool. It is **which store holds Faro's ev
 | Option | Session identity | Components added | Verdict |
 | --- | --- | --- | --- |
 | **Faro events into a first-party service on the existing Postgres** | **shared with ops telemetry** | **none** | **Chosen** |
-| Umami, Plausible CE, Matomo, Rybbit, OpenPanel | **its own, separate from Faro's** | a datastore the platform does not have — ClickHouse or MariaDB | The correlation requirement fails regardless of feature set. Matomo's headline features are paid plugins rather than free core |
-| PostHog self-hosted | its own | roughly eight mostly-stateful systems against a Core floor of about 23, plus a self-authored and permanently self-maintained chart | Kubernetes self-host is sunset upstream, leaving an unversioned image shipping continuously from master — irreconcilable with [ADR-0104](0104-supply-chain-security.md)'s digest-pin and signature admission, which exists precisely to forbid floating dependencies |
+| Umami | **its own, separate from Faro's** | **none — it runs on PostgreSQL**, which the platform already has | The cheapest self-hosted product here on component weight, and it still fails the correlation requirement: its session identity is its own, so a funnel step cannot join to a trace or an error. Privacy-first page and event analytics, without the product-analytics questions this ADR exists to answer |
+| Plausible CE | its own | **ClickHouse in addition to PostgreSQL** | As Umami on correlation, and it brings the datastore Umami does not |
+| Matomo | its own | MariaDB | As above, plus a second SQL engine to operate. Its funnel, cohort, and heatmap features are paid Marketplace plugins rather than free core, which is most of what would justify it |
+| Rybbit, OpenPanel | its own | ClickHouse | Newer entrants in the same shape: a ClickHouse-backed product-analytics server with its own identity, so they lose the same way with less operating history |
+| PostHog self-hosted | its own | a fleet of mostly-stateful systems — comparable to the entire Core floor in [`operational-surface.md`](../operational-surface.md) — plus a self-authored and permanently self-maintained chart | Kubernetes self-host is sunset upstream, leaving an unversioned image shipping continuously from master — irreconcilable with [ADR-0104](0104-supply-chain-security.md)'s digest-pin and signature admission, which exists precisely to forbid floating dependencies |
 | PostHog Cloud | native OpenTelemetry ingest, ids auto-attached, a direct jump from exception to replay | none | **The closest product fit.** Rejected as the default because the data leaves the estate and it means operating two RUM agents on one frontend. **Retained as the documented escape hatch** |
 | OpenReplay self-hosted | its own | a 2 vCPU / 8 GB / 50 GB floor plus bundled Postgres, Redis, and ClickHouse | Maintained charts, versioned releases, and the best replay in the category. Correlation to our traces is integration work rather than a native join. Reconsidered only if the replay trigger fires |
 | Loki as the analytics store | shared | none | Viable for a first week and not as an endpoint: no funnel step joins, and routing identity-bearing events into the log store would breach [ADR-0500](0500-observability.md)'s PII rule |
@@ -125,10 +128,10 @@ Postgres as a row store is the floor, not a ceiling claim.
 
 ## Rules
 
-- The frontend has exactly one browser telemetry agent. A second analytics SDK is not added — it mints a second session identity and breaks error-to-journey correlation. `(review-only)`
-- Marketing events are emitted under the reserved `marketing.*` namespace and routed out of the logs pipeline at the collector. A `marketing.*` event reaching Loki is a defect. `(review-only)`
-- Analytics storage is a first-party service on the existing cluster. A dedicated analytics datastore joins the platform only on the documented ClickHouse trigger. `(review-only)`
-- The marketing panel is a route group on the product origin, page-gated by `Checker` in addition to the session gate. Marketing surfaces on the ops tier are not created. `(review-only)`
-- The events table carries a declared data class and schema-level PII tags, and is reached by the erasure and DSAR workflows. Raw IP addresses are never stored. `(review-only)`
-- Session replay ships only after the documented incident trigger fires, and through its own ADR. `(review-only)`
-- The `marketing.*` emitters stay disabled until the consent purpose split has legal sign-off. `(review-only)`
+- The frontend has exactly one browser telemetry agent. A second analytics SDK is not added — it mints a second session identity and breaks error-to-journey correlation.
+- Marketing events are emitted under the reserved `marketing.*` namespace and routed out of the logs pipeline at the collector. A `marketing.*` event reaching Loki is a defect.
+- Analytics storage is a first-party service on the existing cluster. A dedicated analytics datastore joins the platform only on the documented ClickHouse trigger.
+- The marketing panel is a route group on the product origin, page-gated by `Checker` in addition to the session gate. Marketing surfaces on the ops tier are not created.
+- The events table carries a declared data class and schema-level PII tags, and is reached by the erasure and DSAR workflows. Raw IP addresses are never stored.
+- Session replay ships only after the documented incident trigger fires, and through its own ADR.
+- The `marketing.*` emitters stay disabled until the consent purpose split has legal sign-off.

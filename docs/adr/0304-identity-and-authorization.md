@@ -29,7 +29,7 @@ The decision splits into three: the identity provider, the OAuth2 authorization 
 1. **Configuration lives in the repository** ([ADR-0000](0000-platform-foundations.md), principle 1). Identity schemas, OAuth2 clients, and authz models are files, not database state.
 2. **Headless identity provider**, required by the UI constraint.
 3. **Polyglot-tolerant integration contracts.** Auth is a *protocol* contract — token format, header names, validation rules — expressible in any language.
-4. **Operational shape consistent with the platform**: Go binaries on Postgres.
+4. **No new runtime and no new datastore** on the always-on floor for this concern ([ADR-0100](0100-language-and-runtime.md), [ADR-0300](0300-data.md)).
 
 ## Considered options
 
@@ -39,15 +39,26 @@ The decision splits into three: the identity provider, the OAuth2 authorization 
 | --- | --- | --- | --- |
 | **Ory Kratos** | fully headless self-service flows | **JSON Schema identity files and YAML in git** | **Chosen.** Go, Apache-2.0, the reference implementation of the headless pattern |
 | Zitadel | a genuine headless Session API covering password, MFA, passkeys, and external IdPs | **its own event-sourced database**, Terraform provider notwithstanding | Rejected on driver 1 — the same driver that rejected Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)). Secondary: its own guide makes hosted login the default and states it was "designed with security in mind, which limits the customization capabilities", and its headline customization story is forking a beta Next.js app, which the UI constraint excludes by name |
-| Keycloak | custom UI through the Authentication Sessions API, a minority path | realm import/export, with drift back to the database | The most mature OSS provider, at a JVM footprint incompatible with [ADR-0100](0100-language-and-runtime.md), and extension work in Java |
+| Keycloak | themes, or the Admin and Account REST APIs — not a first-class headless self-service flow | realm import/export, with drift back to the database | The most mature OSS provider, at a JVM footprint incompatible with [ADR-0100](0100-language-and-runtime.md), and extension work in Java |
 | Authentik | flow-based | database | Python, Django, Celery, and Redis is a third runtime and three components. B2C self-service flows are less mature |
+| SuperTokens | fully headless — the recipe model is API-first, with the UI entirely the caller's | **its own core service and database**, with configuration partly in code and partly in that store | The closest competitor to Kratos on driver 2, and it splits configuration between the SDK's initialisation code and the core's state, so no single committed file describes the identity setup |
+| Logto | headless Management and Experience APIs | its own database, with a Terraform provider over the management API | Fails driver 1 the same way Zitadel does: the API is the source of truth and git holds a script that talks to it |
+| Casdoor | headless API, though the UI is the primary surface | database, with configuration objects | Broad protocol coverage across a wide feature surface, and the same database-as-truth problem |
 
 ### OAuth2 and OIDC server
 
-| Option | Verdict |
-| --- | --- |
-| **Ory Hydra** | **Chosen** — Go on Postgres, headless, and it integrates with Kratos for consent flows |
-| Build our own | Excluded by [ADR-0000](0000-platform-foundations.md): security-critical infrastructure is not hand-rolled |
+Needed only when a third-party client obtains its own credentials; first-party browsers use Kratos sessions.
+
+| Option | Added runtime and datastore | Consent flow integrates with the chosen IdP | Config source of truth | Verdict |
+| --- | --- | --- | --- | --- |
+| **Ory Hydra** | none — Go on the existing Postgres | **yes, first-party with Kratos** | YAML plus committed client definitions | **Chosen.** The only option that adds an OAuth2 server without also adding a second identity system |
+| Keycloak | a JVM, and its own store | it *is* the IdP, so the question dissolves — and so does Kratos | realm import, drifting to the database | Adopting it here re-decides the row above, and [ADR-0100](0100-language-and-runtime.md) bars the runtime |
+| Zitadel | its own event-sourced store | as above, it replaces Kratos | its own database | Same: it is an IdP that also does OAuth2, not an OAuth2 server for someone else's IdP |
+| Authentik | Python, Django, Celery, Redis | as above | database | Same shape, heavier |
+| Dex | none — Go, and it can run storage-less | **no** — Dex federates *upstream* identity providers; it issues tokens for users it does not own | committed YAML, the best of the field on driver 1 | The thinnest by far, and it is a federating proxy rather than an authorization server with its own consent and client management |
+| Authelia | Go, plus a session store | no — its own identity model | committed YAML | An access-control portal that gained an OIDC provider, and its user model is not Kratos's |
+| Build our own | none | n/a | ours | Excluded by [ADR-0000](0000-platform-foundations.md): security-critical infrastructure is not hand-rolled |
+| Ship no OAuth2 server — the honest baseline | none | n/a | n/a | Correct until a third party needs credentials, which is why Hydra is flag-gated Opt-in rather than Core ([`operational-surface.md`](../operational-surface.md)) |
 
 ### Authorization engine
 
@@ -58,9 +69,9 @@ Day-one requirements are ReBAC, not flat RBAC: cross-org sharing, role per org p
 | **OpenFGA** | Zanzibar ReBAC; ABAC through CEL conditions and contextual tuples; reverse index via `ListObjects` and `ListUsers` | **CNCF** — vendor-neutral, multi-vendor contributors | single Go binary on Postgres; `.fga` DSL, `fga model test` in CI, official Go SDK behind a seam | **Chosen.** Matches SpiceDB on capability and operational shape, and wins on governance. Contextual tuples also let a check read data at request time, easing the sync the dual write carries |
 | SpiceDB | Zanzibar ReBAC; ABAC through CEL caveats; strongest reverse-index and `Watch` APIs; `ZedToken` consistency | single-vendor | single Go binary on Postgres | The credible fallback, equal on capability. Loses only on governance, and its consistency edge bites only at large scale |
 | Ory Keto | Zanzibar ReBAC; ABAC only through OPL; no conditions, `Watch`, or batch | single-vendor, some features source-available | fits the existing Ory stack | The thinnest feature set of the mature engines, with licence-gated extras and no offsetting advantage |
-| Permify | ReBAC plus first-class ABAC; native multi-tenancy | single-vendor, recently acquired; smaller community | Go on Postgres | Capable, and narrower adoption plus just-changed ownership make it a weaker long-term bet |
-| Topaz | ReBAC directory **plus full OPA/Rego** — the most expressive; weak reverse-index and large-scale query APIs | sponsor wound down; community-maintained; pre-1.0 | edge or sidecar with an embedded directory, so authz data must be replicated to every instance | The richest policy language, pre-1.0 with no vendor, and the worst data-sync story of the field |
-| Casbin | PERM-model **library** with role inheritance; **no relationship-graph traversal and no reverse index** | Apache, vendor-neutral | in-process; polyglot ports must agree on matcher semantics | Not a Zanzibar engine, so it is weakest at exactly the day-one requirements |
+| Permify | ReBAC plus first-class ABAC; native multi-tenancy | single-vendor, under corporate ownership; smaller community | Go on Postgres | Capable, and narrower adoption against a vendor-neutral option of equal capability makes it the weaker long-term bet |
+| Topaz | ReBAC directory **plus full OPA/Rego** — the most expressive; weak reverse-index and large-scale query APIs | community-maintained, without a sponsoring vendor; pre-1.0 | edge or sidecar with an embedded directory, so authz data must be replicated to every instance | The richest policy language, and the worst data-sync story of the field |
+| Casbin | PERM-model **library** with role inheritance and implicit-permission queries; **no relationship-graph traversal and no reverse index over resources** | Apache, vendor-neutral | in-process; polyglot ports must agree on matcher semantics | Not a Zanzibar engine. It answers "what may this user do" well and "which resources can this user see" only by enumeration, which is the day-one requirement |
 | In-process RBAC per service | hand-rolled | ours | diverges per service | The complex cases exist from day one, and migrating to a Zanzibar engine later is a per-feature data migration |
 
 Any two Zanzibar engines are interchangeable at the architecture level: the `Checker` seam in `libs/go/authz/` is engine-agnostic, so reopening this decision touches one library, the model file, and the chart — not the services.
@@ -116,7 +127,7 @@ Hydra is not used for internal service-to-service calls, which carry no token. W
 
 ### B2B organisations: an `orgs` service on top of Kratos
 
-Kratos stores identities, not organisations. Multi-tenancy is a first-party `services/orgs/` owning organisations and memberships, the active organisation for a session, and org-level invitations and SSO connection records. It is built ahead of the first B2B feature.
+Kratos stores identities, not organisations. Multi-tenancy is a first-party `services/orgs/` owning organisations and memberships, the active organisation for a session, and org-level invitations and SSO connection records. The service exists whether or not a B2B feature does, because retrofitting an organisation boundary through every table and tuple is the migration this avoids.
 
 **The organisation is the unit of authorization.** Every protected resource in the model belongs to an `org`, and a user only ever acts through a role in some org. A user with zero orgs is an account that can own nothing.
 
@@ -174,7 +185,13 @@ That is flat RBAC, running on the engine that also does L2 and L3, so nobody eve
 
 SpiceDB's `ZedToken` gives per-request read-after-write consistency. OpenFGA has no equivalent ([openfga/roadmap#67]), offering only a coarse `HIGHER_CONSISTENCY` flag.
 
-This is not a day-one concern: it bites only at large, heavily replicated scale, and nothing here depends on it — the `Checker` runs at default consistency and the dual write threads no token. **Trigger to revisit:** an instance grows large *and* the roadmap issue is still open. **Seam:** `HIGHER_CONSISTENCY` on the reads that need it.
+This is not a day-one concern: it bites only at large, heavily replicated scale, and nothing here depends on it — the `Checker` runs at default consistency and the dual write threads no token.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | a read-after-write staleness bug is observed in production — a user completing a mutation and then being denied the resource it granted |
+| **Seam** | ✓ every read goes through `Checker`, so raising consistency is a per-call-site argument inside one library, not a change in any service |
+| **Cost if adopted late** | the failure has already reached users as an intermittent permission error, which is the hardest class of authz bug to attribute |
 
 [openfga/roadmap#67]: https://github.com/openfga/roadmap/issues/67
 
@@ -204,7 +221,7 @@ A conformance suite at `tools/auth-conformance/` ships with the repo: identity-h
 | Layer | Mechanism |
 | --- | --- |
 | **Coarse gate, mandatory** | The ops-tier Oathkeeper requires `X-Roles` to contain `operator` plus an **AAL2** session. It reads only the session and its claims and makes **no OpenFGA call** — deliberately, so the debugging surface does not share fate with the product authorization plane. An OpenFGA outage must not lock every operator out of the dashboards needed to diagnose it ([`docs/ops/break-glass.md`](../ops/break-glass.md)) |
-| **Fine gate, optional** | The route adds the `remote_json` authorizer calling `Checker`, modelling each tool as a `dashboard` resource. Deferrable while the operator population is small enough to enumerate, so the `dashboard` resource is optional on day one |
+| **Fine gate, optional** | The route adds the `remote_json` authorizer calling `Checker`, modelling each tool as a `dashboard` resource. Deferred until an operator should reach some tools and not others — until then the coarse gate expresses the same policy. The seam is the authorizer field on one route; the cost of waiting is that every operator has held access to every tool up to that point |
 
 This is the only sanctioned edge-side permission decision. Product surfaces decide in-service through `Checker`.
 
@@ -240,22 +257,22 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 
 ## Rules
 
-- Human identity is owned by Ory Kratos. There is no alternate user store. `(review-only)`
-- External tokens are issued by Ory Hydra, deployed only for projects exposing a public API. No service issues its own tokens. `(review-only)`
-- The login UI is the Next.js app driving Kratos self-service flows. Hosted pages are not used. `(review-only)`
-- The password policy is `min_password_length: 12` plus `identifier_similarity_check_enabled: true` in every environment. The breach check is off by default and enabled per environment where the egress exists. Enabling it where the egress does not exist is not done, because it fails open silently. `(review-only)`
-- The session cookie is `SameSite=Lax`, `Secure`, `HttpOnly`. `(review-only)`
-- B2B organisations are owned by `services/orgs/`; other services consult its HTTP API. `(CI: ci-lint)`
-- Every protected resource belongs to an `org`, and a user acts only through a role in an org. Every identity gets a personal org at registration through the `RegisterUser` dual write. A single shared default org is not used. `(review-only)`
-- Changing the tenancy model is confined to the registration webhook path and is a deliberate per-project decision. `(review-only)`
-- Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. `(CI: ci-lint)`
+- Human identity is owned by Ory Kratos. There is no alternate user store.
+- External tokens are issued by Ory Hydra, deployed only for projects exposing a public API. No service issues its own tokens.
+- The login UI is the Next.js app driving Kratos self-service flows. Hosted pages are not used.
+- The password policy is `min_password_length: 12` plus `identifier_similarity_check_enabled: true` in every environment. The breach check is off by default and enabled per environment where the egress exists. Enabling it where the egress does not exist is not done, because it fails open silently.
+- The session cookie is `SameSite=Lax`, `Secure`, `HttpOnly`.
+- B2B organisations are owned by `services/orgs/`; other services consult its HTTP API. `(CI: ci:lint)`
+- Every protected resource belongs to an `org`, and a user acts only through a role in an org. Every identity gets a personal org at registration through the `RegisterUser` dual write. A single shared default org is not used.
+- Changing the tenancy model is confined to the registration webhook path and is a deliberate per-project decision.
+- Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. `(CI: ci:lint)`
 - The OpenFGA schema is one global file. Per-service schemas are not used. `(CI: lint:authz)`
-- Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. `(CI: lint:authorizer)`
-- Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authorizer)`
-- Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer. `(review-only)`
-- A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine. `(review-only)`
+- Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. `(CI: lint:authz)`
+- Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
+- Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer.
+- A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.
 - Tokens are validated once at the edge; services do not validate tokens. `(CI: lint:auth-inline)`
-- Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. `(CI: lint:strip-headers)`
-- Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used. `(review-only)`
-- A non-Go service reads the identity headers through the same contract and passes `tools/auth-conformance/` before merging. `(review-only)`
-- Auth configuration is canonical only at `infra/auth/*` and is delivered to charts by file injection, never hand-copied inline into a chart's values. `(CI: ci-drift)`
+- Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. `(CI: lint:authz)`
+- Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used.
+- A non-Go service reads the identity headers through the same contract and passes `tools/auth-conformance/` before merging.
+- Auth configuration is canonical only at `infra/auth/*` and is delivered to charts by file injection, never hand-copied inline into a chart's values. `(CI: ci:gen)`

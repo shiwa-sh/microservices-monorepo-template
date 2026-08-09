@@ -13,19 +13,42 @@ This ADR answers how code reaches a cluster, how "what runs in production" stays
 
 ## Decision drivers
 
-1. **Pull, not push.** Clusters reconcile themselves against git, and CI never holds cluster credentials.
-2. **Same artifact across environments.** An image built once is promoted by SHA, never rebuilt per environment.
-3. **Manifest reuse, not duplication.** One chart per concern, environment differences in values.
+1. **The cluster reconciles itself.** Nothing outside the cluster holds credentials to it, and divergence from the declared state is reported rather than assumed away.
+2. **Onboarding cost stays flat as the fleet grows.** Adding the Nth service must not add an Nth hand-written deploy manifest.
+3. **Bootstrap order is expressible.** A CNI before any pod, a secret operator before the secrets, a database before its consumers.
 4. **PRs are the audit log.** Every change to what runs in production is a merged PR, and rollback is `git revert`.
-5. **No secret values in git** ([ADR-0202](0202-secrets.md)).
+5. **One chart per concern, differences in values.** Environment variation must not become a second copy of the manifest.
+
+Two constraints are inherited rather than decided here, and select nothing below because every option satisfies them: an image is built once and promoted by SHA ([ADR-0101](0101-monorepo.md)), and no secret value reaches git in plaintext ([ADR-0202](0202-secrets.md)).
 
 ## Considered options
+
+### The controller
 
 | Option | Fleet fan-out | Ordered bootstrap | Operator UI | Verdict |
 | --- | --- | --- | --- | --- |
 | **Argo CD** | **ApplicationSet generators** — git-directory, list, cluster — fan out across the fleet without a manifest per service | sync waves, health checks, pre/post-sync hooks | strong; it is the "what is deployed" answer on call | **Chosen.** Apache-2.0, CNCF graduated |
-| Flux | Kustomization and HelmRelease per target, or a generator written by hand | dependsOn | none first-party | The fan-out gap is the deciding one: onboarding a service must not require writing a manifest |
-| CI pushes with `helm upgrade` | n/a | script order | none | CI holds cluster credentials, and drift is invisible. Fails drivers 1 and 4 |
+| Flux | Kustomization and HelmRelease per target, or a generator written by hand | `dependsOn` | none first-party | Driver 2 decides it: onboarding a service must not require writing a manifest |
+| Flux with a third-party UI | as above | as above | Flamingo renders Flux resources through Argo's UI | Adds a second project to the floor to recover what the other option ships, and leaves driver 2 unanswered |
+| CI pushes with `helm upgrade` | n/a | script order | none | CI holds cluster credentials and drift is invisible. Fails drivers 1 and 4 |
+
+### Templating
+
+| Option | Environment differences | Cost of the Nth service | Verdict |
+| --- | --- | --- | --- |
+| **Helm values** | one values file per target | one values file against a shared chart | **Chosen.** Driver 5 in its cheapest form, and the ecosystem ships charts, so third-party components need no translation |
+| Kustomize overlays | a base plus a patch directory per environment | a base plus one overlay directory per environment | Patches match the base structurally, so a base change can silently no-op a patch. Directories multiply by services × environments, against driver 2 |
+| Helm rendered, then Kustomize post-render | both | both | Two templating systems for one concern, which principle 5 refuses |
+| CUE, Timoni, or jsonnet | typed and composable | strong | A third language in the deploy layer, and every upstream component still arrives as a chart to be wrapped |
+| A manifest per environment — the honest baseline | copies | three copies | Driver 5 exists to refuse exactly this |
+
+### Ordering generated Applications
+
+| Option | Ordering it can express | Effect on sync policy | Verdict |
+| --- | --- | --- | --- |
+| **Four ApplicationSets under a root app-of-apps** | between tiers, by sync wave on the root's children | none — each generated Application keeps its own automated sync | **Chosen.** Ordering lands at the only granularity Argo sequences, and the sync policy stays per-environment |
+| One ApplicationSet, sync waves on the generated Applications | **none** — the waves are inert, see below | none | The intuitive reading of the feature, and it does not work |
+| One ApplicationSet with `RollingSync` progressive syncs | between steps within the set | **forces automated sync off** on every generated Application | Purpose-built for ordering, and it buys that ordering by removing the continuous reconciliation driver 1 is here for |
 
 ## Decision
 
@@ -46,7 +69,15 @@ infra/
     └── services/<env>/values/<svc>.yaml
 ```
 
-A single repo lets one PR change service code, its chart values, and its deploy state atomically. Splitting into a separate deploy-state repo is a future ADR, triggered when deploy-noise PRs measurably hurt code review.
+A single repo lets one PR change service code, its chart values, and its deploy state atomically.
+
+**Splitting out a deploy-state repo is deferred.**
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | values-bump PRs outnumber code PRs on `master`, or a code review is opened against a diff that is more than half values bumps |
+| **Seam** | ✓ deploy state is already one subtree, `infra/gitops/`, and every Application's `source` names a repo URL and a path. Moving it changes those URLs and the CI job that opens bump PRs |
+| **Cost if adopted late** | history for the moved subtree either splits or is rewritten, and every open values-bump PR is invalidated at the cut. The cost grows with the number of environments, not with time |
 
 ### Templating
 
@@ -57,7 +88,7 @@ A single repo lets one PR change service code, its chart values, and its deploy 
 
 The shared chart parameterises image, ports, replicas, environment variables, ingress paths, resource requests and limits, the Temporal worker, the migration init container, and secret references.
 
-Kustomize is not used: Helm values cover environment differences. A case that genuinely cannot be expressed as values gets its own ADR.
+Kustomize is not used. A difference that cannot be expressed as a value is a chart change, not an overlay.
 
 Adding a service is the service folder ([ADR-0101](0101-monorepo.md)) plus one values file per environment. The ApplicationSet does the rest.
 
@@ -77,7 +108,7 @@ Four ApplicationSets per environment, ordered by sync wave on the root app-of-ap
 
 Cilium and Argo CD sit in the prod base tier and are excluded locally, where they are installed imperatively: a CNI must exist before any pod, and Argo cannot install itself.
 
-**Why four sets rather than sync waves inside one:** sync waves on the Applications a single ApplicationSet generates are **inert**. Those Applications are created by the ApplicationSet controller rather than synced as a parent's resources, so Argo never sequences them among themselves and applies them concurrently. Ordering exists only at the granularity of a root-app-of-apps child, so each tier is its own set.
+**Why the waves inside one set are inert:** Applications a single ApplicationSet generates are created by the ApplicationSet controller rather than synced as a parent's resources, so Argo never sequences them among themselves and applies them concurrently. Ordering exists only at the granularity of a root-app-of-apps child, which is why each tier is its own set.
 
 **What makes the waves real gates:** default ApplicationSet health reflects only successful templating. A custom health check on the `ApplicationSet` kind walks `.status.resources` and reports Progressing until every generated Application is Synced and Healthy, so wave 3 blocks until waves 0 through 2 are up. A companion health check on the CNPG `Cluster` kind makes the data-to-core gate honest — without it Argo reports the unknown CRD Healthy the instant it applies, and core starts against a Postgres that is not ready. Charts within a tier are still concurrent and must tolerate that.
 
@@ -116,7 +147,7 @@ The sync-window model batches deploys without ceremony: engineers merge freely, 
 | staging | auto | auto | `05:00 UTC, 1h` daily | true | true |
 | prod | **manual** | auto, on release tag | none, event-driven | false for platform, true for services | true |
 
-`manualSync: true` on the AppProject permits an ad-hoc `argocd app sync` outside the window for incident response.
+`manualSync: true` on the AppProject's sync window permits an ad-hoc `argocd app sync` outside it for incident response.
 
 **`selfHeal=false` for the production platform** so that a manual intervention during an incident stays visible rather than being silently reverted. Drift raises a notification.
 
@@ -157,7 +188,7 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 ### Negative / Risks
 
 - **The shared service chart is a coupling point.** A breaking change touches every service. Mitigated by chart versioning, CI rendering the chart against every service's values, and a chart-change review checklist.
-- **Single-repo deploy state mixes image-bump PRs with feature PRs.** Mitigated by a title prefix and a separate code owner on the GitOps tree. Splitting repos is a future ADR.
+- **Single-repo deploy state mixes image-bump PRs with feature PRs.** Mitigated by a title prefix and a separate code owner on the GitOps tree, and bounded by the split deferred above.
 - **Staging batches by window**, so merge-by-merge behaviour is not observable there. Accepted — it is the explicit goal, and a manual sync is available when the next window is too far away.
 - **A bad merge sits on `master` until the next staging window.** Mitigated by full CI on PRs and by dev continuously running `master`.
 - **Argo CD itself can fail.** Mitigated by an HA install in production. Downtime blocks new syncs; running workloads are unaffected.
@@ -165,13 +196,13 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 
 ## Rules
 
-- Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step. `(review-only)`
+- Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step.
 - Every backend service is deployed through the shared chart with per-env values files; platform components have one chart each. `(CI: lint:service-contract)`
-- Environment differences live in values files, never in chart logic conditioned on the environment name. `(review-only)`
-- An image is built once and promoted by updating values files. Rebuilding for another environment is not done. `(CI: ci-build)`
-- Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest. `(review-only)`
-- No environment is deployed by hand-opening a values-bump PR. `(review-only)`
-- Argo CD Image Updater and similar auto-promoters are not used. `(review-only)`
-- Production platform syncs are manual with `selfHeal=false`; production services sync automatically with `selfHeal=true`. `(review-only)`
-- Every Application and ApplicationSet carries a `retry` policy. `(review-only)`
-- Secret values never appear in git; manifests carry SOPS-encrypted files or references to the Secrets they produce. `(CI: lint:secrets)`
+- Environment differences live in values files, never in chart logic conditioned on the environment name.
+- An image is built once and promoted by updating values files. Rebuilding for another environment is not done. `(CI: publish)`
+- Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest.
+- No environment is deployed by hand-opening a values-bump PR.
+- Argo CD Image Updater and similar auto-promoters are not used.
+- Production platform syncs are manual with `selfHeal=false`; production services sync automatically with `selfHeal=true`.
+- Every Application and ApplicationSet carries a `retry` policy.
+- Secret values never appear in git; manifests carry SOPS-encrypted files or references to the Secrets they produce.

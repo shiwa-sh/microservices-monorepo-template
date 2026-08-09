@@ -7,7 +7,7 @@
 
 ## Context
 
-Operating a service fleet creates a steady demand for back-office screens. Without one, the work is done with `psql`, `curl`, and hand-started workflows — uneven, error-prone, and gated on engineers who know the right incantations.
+Operating a service fleet creates a steady demand for back-office screens. Absent a tool for it, that work is done with `psql`, `curl`, and hand-started workflows: uneven, error-prone, and gated on whoever knows the right incantations.
 
 The workload is concretely:
 
@@ -24,7 +24,7 @@ Each service owns its own database ([ADR-0300](0300-data.md)), and each spec alr
 1. **Declarative over imperative.** Admin pages are files in the repo, so editing a page is editing a file ([ADR-0000](0000-platform-foundations.md), principle 1).
 2. **REST through services, never direct SQL.** Admin convenience does not bypass service boundaries.
 3. **Generated from the spec, custom for the rest.** The specs describe every resource, so the bulk is generated.
-4. **Approachable by backend and platform engineers** — people who read YAML fluently and React reluctantly. A small change must be a small change.
+4. **A small change is a small change**, in the notation the people maintaining it already read all day. Admin screens are edited by backend and platform engineers between other work, not by a frontend team.
 5. **Zero new auth surface.** The edge authenticates; the tool trusts the upstream identity header.
 6. **One stateless container.** No new database, no new operator.
 
@@ -33,12 +33,24 @@ Each service owns its own database ([ADR-0300](0300-data.md)), and each spec alr
 | Option | Config format | Licence | Verdict |
 | --- | --- | --- | --- |
 | **Lowdefy** | **pure YAML**, roughly 30 lines per page | Apache-2.0 | **Chosen.** YAML is what these engineers already read daily for Helm, Kubernetes, mise, and GitOps, and it is dense and well-represented for LLM authoring. First-class REST and Postgres connectors, and stateless when external auth is used |
-| Appsmith | positional widget-tree JSON | Apache-2.0 | Not reviewable in a diff and not LLM-editable. OSS auth is limited |
-| ToolJet, Budibase, Retool | UI-authored | AGPL, GPL, or SaaS-first | Excluded on licence or hosting model |
+| **An `(admin)` route group in the existing frontend** | **React, in the app already being built** | n/a — first-party | **The baseline, and the real contender.** It adds no component and reuses the design system, session, and generated clients. It loses on driver 4: every CRUD screen is hand-written React by the people driver 4 describes as reluctant to write it, and the generated bulk in the chosen option is exactly that work. It also puts an operator-facing surface inside the product origin, against [ADR-0306](0306-trust-tiers-and-urls.md) |
+| Appsmith | positional widget-tree JSON | Apache-2.0 | Not reviewable in a diff and not LLM-editable. Its OSS authentication is limited |
+| Windmill | scripts plus a YAML app definition | AGPL-3.0 | The closest competitor on driver 1 — a real config-as-files story — and it is a workflow and job platform first, so adopting it puts a second execution engine beside Temporal ([ADR-0302](0302-temporal.md)) |
+| ToolJet | UI-authored | AGPL-3.0 | Excluded on the authoring model before the licence matters |
+| Budibase | UI-authored | GPL-3.0 | As above |
+| Retool | UI-authored | proprietary, SaaS-first | Fails principle 3 outright |
 | Refine, react-admin | **React** | MIT | Capable and type-safe against the generated clients, and the authoring surface is React. A "small change" lands in hooks and providers, which is the failure mode driver 4 exists to avoid |
-| NocoDB, Directus | UI-first | AGPL or BSL | Excluded on both authoring model and licence |
+| NocoDB | UI-first | AGPL-3.0 | A database UI rather than an application builder, and driver 2 forbids the direct-SQL shape it is best at |
+| Directus | UI-first | BUSL 1.1 | As above, and the licence is not OSI-approved |
 
-For the read-only database inspector: **pgweb**, a single Go binary running in `--readonly` mode, over pgAdmin, which is a stateful Python application against a single-binary toolchain ([ADR-0100](0100-language-and-runtime.md)). pgweb fits the same one-stateless-container shape as Lowdefy.
+### The read-only database inspector
+
+| Option | Shape | Read-only enforcement | Verdict |
+| --- | --- | --- | --- |
+| **pgweb** | a single Go binary | `--readonly` flag, plus a read-only database role | **Chosen.** The same one-stateless-container shape as Lowdefy, and two independent layers of read-only |
+| pgAdmin | a stateful Python application | none — it is a full client | Against a single-binary toolchain ([ADR-0100](0100-language-and-runtime.md)), and it offers write access that the role must then take back |
+| CloudBeaver | a Java server | connection-level | A heavier runtime again, for a superset of features break-glass does not use |
+| `psql` through `talosctl` and a pod | none | the role only | Always available and the actual fallback. It is not a UI, and the point of this row is that the inspector exists to save an operator from needing it during an incident |
 
 ## Decision
 
@@ -134,12 +146,12 @@ Because the spec already describes every resource, a page needing shaping the ge
 
 ## Rules
 
-- The internal admin tool is Lowdefy, self-hosted and deployed via Helm and Argo CD. `(review-only)`
-- Admin pages live as YAML in `apps/admin/`. The generated directory is never hand-edited. `(CI: ci-drift)`
-- **Every admin mutation goes through the service Go API, never raw SQL.** `(review-only)`
-- Direct Postgres connections — Lowdefy's and pgweb's — are read-only, used only for inspection the REST API cannot serve, and enforced read-only at the database-role level. `(review-only)`
-- Lowdefy's built-in auth and sessions are not used, and no datastore is deployed for it. `(review-only)`
-- The admin console is served on its own ops-tier origin behind the forward-auth. Fine-grained authorization is the `Checker` call inside the service APIs the pages call. `(review-only)`
+- The internal admin tool is Lowdefy, self-hosted and deployed via Helm and Argo CD.
+- Admin pages live as YAML in `apps/admin/`. The generated directory is never hand-edited. `(CI: ci:gen)`
+- **Every admin mutation goes through the service Go API, never raw SQL.**
+- Direct Postgres connections — Lowdefy's and pgweb's — are read-only, used only for inspection the REST API cannot serve, and enforced read-only at the database-role level.
+- Lowdefy's built-in auth and sessions are not used, and no datastore is deployed for it.
+- The admin console is served on its own ops-tier origin behind the forward-auth. Fine-grained authorization is the `Checker` call inside the service APIs the pages call.
 - Generated pages are determined by the spec markers. A service with neither marker gets no generated pages. `(CI: lint:openapi)`
-- `apps/admin/` is the only first-party application under `apps/` besides the frontend. A third requires its own ADR. `(review-only)`
+- `apps/admin/` is the only first-party application under `apps/` besides the frontend. A third requires its own ADR.
 - Lowdefy is pinned to a specific release tag. `(CI: lint:floating-tags)`

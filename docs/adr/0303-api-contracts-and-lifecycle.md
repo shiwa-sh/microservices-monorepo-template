@@ -22,10 +22,10 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 ## Decision drivers
 
 1. **One contract, two languages.** Go server and TS client from the same artifact.
-2. **Single validation surface.** One generated validator in the service; no parallel edge-validation config.
+2. **A request is validated once.** Two validators disagree eventually, and the disagreement is the bug.
 3. **Public API readiness.** Third-party consumers expect OpenAPI docs and SDKs.
-4. **Browser fit.** No proxies, no Envoy sidecars, no `grpc-web`.
-5. **Spec-first, enforced.** CI fails on stale generated code or hand-written shadow types.
+4. **A browser is a first-class client**, reaching the API without an intermediary that translates the protocol.
+5. **The spec and the running code cannot disagree.** Whatever is generated must be derivable, so drift is detectable rather than discovered.
 6. **Version machinery matches consumer reality.** A co-shipped consumer needs none; an uncontrolled one needs it.
 
 ## Considered options
@@ -36,7 +36,7 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 | --- | --- | --- | --- |
 | **OpenAPI 3.1 + ogen + openapi-typescript** | native `fetch` | docs and SDKs generated | **Chosen** — one spec drives server, both clients, docs, SDKs |
 | gRPC + `grpc-web` | needs an Envoy/Connect proxy, loses streaming semantics | expect OpenAPI anyway | a proxy tier plus a second IDL |
-| Connect-RPC (Buf) | speaks HTTP/JSON | workable | an RPC framework where OpenAPI/JSON already satisfies every consumer. Revisit only if a binary protocol is needed |
+| Connect-RPC (Buf) | speaks HTTP/JSON | workable | an RPC framework where OpenAPI and JSON already satisfy every consumer. Its advantage is a binary wire format, which the Context above rules out as a priority |
 | GraphQL | good | poor fit for service-to-service | a query planner is a platform component the budget does not hold ([ADR-0000](0000-platform-foundations.md)) |
 | tRPC | good | none | TypeScript-only; the backend is Go |
 
@@ -44,9 +44,23 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 
 | Option | URL stability | Why not |
 | --- | --- | --- |
-| **Date in a request header** (`Api-Version: 2026-07-01`) | flat resource URL preserved | **Chosen** — the dominant convention for continuously-evolving REST (Stripe, GitHub, Azure), and one calendar spans release and contract |
+| **Date in a request header** (`Api-Version: 2026-07-01`) | flat resource URL preserved | **Chosen** — the convention continuously-evolving REST APIs converge on, Stripe's `Stripe-Version` and GitHub's `X-GitHub-Api-Version` among them, and one calendar spans release and contract. Azure pins a version too, as a query parameter rather than a header, which forks the URL for a caching layer while leaving the path intact |
 | SemVer major in path (`/api/v2/...`) | forks the URL | Fights the topology-hidden flat URL ([ADR-0306](0306-trust-tiers-and-urls.md)). Its value is the breaking signal to an independent pinner, which pin-and-sunset already delivers |
 | Google AIP path-major | forks the URL | Exposes only the major and serves both from one backend — the same idea with a coarser label |
+| Query parameter (`?api-version=`) | path preserved, cache key forked | Azure's shape. A version in the query string is part of the cache key and of every logged URL, and it is trivially omitted by a caller, which makes the default version load-bearing |
+| `Accept` header content negotiation | flat resource URL preserved | The canonical REST answer, and it overloads a header whose job is representation. Media-type versioning also interacts badly with generated clients, which set `Accept` for content type rather than for contract age |
+
+### Go code generation
+
+| Option | Direction | What it generates | Where request validation lives | Verdict |
+| --- | --- | --- | --- | --- |
+| **ogen** | spec-first | the server itself, with typed handlers | **in the generated decoder**, from the same spec | **Chosen.** Driver 2 and driver 5 fall out of the design rather than being enforced on top of it |
+| oapi-codegen | spec-first | stubs *into* chi, echo, gin, or `net/http` | an optional middleware that reads the spec at runtime | The incumbent, and the closest alternative. Validation as runtime middleware means a second copy of the contract is consulted at request time rather than compiled into the types |
+| huma | **code-first** — the spec is emitted from Go types | the spec | struct tags | Inverts driver 5: the code becomes the source and the contract the artefact. Right when an API has one co-shipped consumer, wrong when a third party pins it |
+| OpenAPI Generator | spec-first | stubs in many languages | varies by generator | A JVM toolchain ([ADR-0100](0100-language-and-runtime.md)), and its Go output is among its weakest targets. Retained below for public SDKs, where breadth of language is the entire point |
+| Hand-written handlers plus a runtime spec validator | neither | nothing | a runtime check | Nothing forces the spec and the handlers to agree, which is driver 5 |
+
+On the TypeScript side `openapi-typescript` emits types only and `openapi-fetch` is a thin typed wrapper over `fetch`. The alternatives — orval, kubb, hey-api — generate a client *plus* framework-specific hooks, which couples the published SDK to whatever the frontend currently uses for data fetching ([ADR-0400](0400-frontend.md)).
 
 ## Decision
 
@@ -81,8 +95,8 @@ The service owning a resource is a hidden edge-routing detail. Because all specs
 | Output | Tool | Location |
 | --- | --- | --- |
 | Go server, client, types | `ogen` — type-safe, OpenTelemetry-instrumented | `libs/go/sdks/<service>/` |
-| TS client | `openapi-typescript` + `openapi-fetch`, ~6 KB runtime | `libs/ts/sdks/<service>/` |
-| Public SDKs | OpenAPI Generator | published per language as third-party consumers arrive |
+| TS client | `openapi-typescript` + `openapi-fetch` | `libs/ts/sdks/<service>/` |
+| Public SDKs | OpenAPI Generator | published per language for a consumer outside this repository |
 
 All generated artifacts are committed and drift-checked in CI ([ADR-0101](0101-monorepo.md)).
 
@@ -91,7 +105,7 @@ OpenAPI YAML is hand-written. TypeSpec and equivalent authoring layers are not u
 ### Workflow
 
 1. An API change is a PR to `services/<service>/openapi.yaml`.
-2. CI runs **vacuum** with the repo ruleset at `tools/codegen/openapi-ruleset.yaml` — style and breaking-change detection.
+2. CI runs **vacuum** with the repo ruleset at `tools/codegen/openapi-ruleset.yaml` — style and structural rules, including the resource-prefix collision check below.
 3. `mise run gen` regenerates the Go server, Go client, and TS client.
 4. CI fails if generated files are stale (`git diff --exit-code`).
 5. Hand-written code imports generated types and declares no parallel ones.
@@ -174,17 +188,17 @@ Nothing below is built or operated until then.
 
 - The contract source of truth is OpenAPI 3.1, one file per HTTP service at `services/<service>/openapi.yaml`, and every HTTP service generates its server with ogen. East-west control-plane services are included. Only a service with no HTTP surface ships no spec. `(CI: lint:openapi)`
 - Each spec is self-contained: cross-service shapes are declared inline in `components` and kept identical across services. Cross-file `$ref` is not used. `(CI: lint:openapi)`
-- An edge-exposed spec's `servers` url is `/api` and its paths are globally-unique resource nouns; the exposed URL carries no service segment and no version segment. An all-`cluster` service uses `servers: /`. `(CI: lint:api-resources)`
+- An edge-exposed spec's `servers` url is `/api` and its paths are globally-unique resource nouns; the exposed URL carries no service segment and no version segment. An all-`cluster` service uses `servers: /`. `(CI: lint:service-contract)`
 - Every spec declares `info.x-audience` on the ladder `cluster` | `internal` | `public`, default `cluster`; an operation may override it. It is documentation scoping, not access control. `(CI: lint:api-audience)`
 - A service is edge-exposed iff it has an `internal` or `public` operation; a `cluster`-only service has no `/api` route. `(CI: lint:api-audience)`
-- All clients and server stubs are generated from the spec and committed. `(CI: ci-drift)`
-- Hand-written code imports generated types. Parallel hand-written request and response types are not declared. `(CI: lint:api-wildcard)`
-- The service validates request schemas through the generated ogen server. The edge performs no schema validation and no business-rule validation. `(review-only)`
-- Server-Sent Events is the default streaming mechanism. A WebSocket endpoint carries a justification in the service README. `(review-only)`
-- gRPC, Connect-RPC, GraphQL, and tRPC are not used. `(review-only)`
-- OpenAPI YAML is hand-written. TypeSpec and equivalent authoring layers are not used. `(review-only)`
-- A spec change is a PR; merge is blocked on vacuum passing and on `mise run gen` producing no diff. `(CI: ci-contract, ci-drift)`
-- The API serves a single live version — the current production release. There is no version in the path or a header, and no support window. `(review-only)`
-- A breaking contract change ships in one PR with its co-shipped caller; the previous shape is not kept alive. `(review-only)`
-- `oasdiff` labels breaking changes for review. It is not a version gate. `(CI: ci-contract)`
-- Online versioning — date `Api-Version` header, N-1 window, `Deprecation`/`Sunset`/`Link`, and an N-1-bounded response-transformation layer — is deferred behind the out-of-lockstep-consumer trigger and is not operated in the default. `(review-only)`
+- All clients and server stubs are generated from the spec and committed. `(CI: ci:gen)`
+- Hand-written code imports generated types. Parallel hand-written request and response types are not declared. `(CI: lint:authz)`
+- The service validates request schemas through the generated ogen server. The edge performs no schema validation and no business-rule validation.
+- Server-Sent Events is the default streaming mechanism. A WebSocket endpoint carries a justification in the service README.
+- gRPC, Connect-RPC, GraphQL, and tRPC are not used.
+- OpenAPI YAML is hand-written. TypeSpec and equivalent authoring layers are not used.
+- A spec change is a PR; merge is blocked on vacuum passing and on `mise run gen` producing no diff. `(CI: ci:lint, ci:gen)`
+- The API serves a single live version — the current production release. There is no version in the path or a header, and no support window.
+- A breaking contract change ships in one PR with its co-shipped caller; the previous shape is not kept alive.
+- `oasdiff` labels breaking changes for review. It is not a version gate. `(CI: ci:lint)`
+- Online versioning — date `Api-Version` header, N-1 window, `Deprecation`/`Sunset`/`Link`, and an N-1-bounded response-transformation layer — is deferred behind the out-of-lockstep-consumer trigger and is not operated in the default.

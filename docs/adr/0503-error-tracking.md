@@ -35,9 +35,9 @@ The last row settles the shape of this decision. Issue lifecycle is a workflow p
 | Option | Added always-on components | Correlation with traces and logs | Licence | Verdict |
 | --- | --- | --- | --- | --- |
 | **OTel `exception.*` records in the existing backends** | **none** | native — same collector, same trace ids, same Grafana | — | **Chosen.** Buys grouping and novelty at no floor cost |
-| **GlitchTip** | Django app, Postgres, Redis | a copied trace id, by hand | AGPL-3.0 | The strongest self-hosted tracker for this platform's size, and Sentry-SDK-compatible so the ingest protocol is an exit. **Deferred to a Scale swap**, not rejected — see the trigger below |
+| **GlitchTip** | Django app, Postgres, Redis | a copied trace id, by hand | MIT | The strongest self-hosted tracker for this platform's size, and Sentry-SDK-compatible so the ingest protocol is an exit. **Deferred to a Scale swap**, not rejected — see the trigger below |
 | Sentry, self-hosted | Kafka, ClickHouse, Snuba, Relay, Redis, Postgres, and several worker classes | same island | **BUSL/FSL — not OSI open source** | Rejected twice over. It brings a datastore fleet and a message bus to the floor for one concern, and its licence makes it a governance dependency rather than a component we own. Upstream supports Compose; Kubernetes is a community chart |
-| Highlight.io | ClickHouse plus its own services | same island | Apache-2.0 | Genuinely open and genuinely capable, including session replay. It is a second observability platform beside the Grafana stack, which is the consolidation [ADR-0500](0500-observability.md) already refused when it rejected SigNoz |
+| Highlight.io | ClickHouse plus its own services | same island | Apache-2.0 | Open, capable, and including session replay. It is a second observability platform beside the Grafana stack, which is the consolidation [ADR-0500](0500-observability.md) already refused when it rejected SigNoz |
 | Sentry SaaS, Bugsnag, Rollbar | none | same island | proprietary | Fails principle 3, and stack traces are the payload most likely to carry user data. Would join the [ADR-0000](0000-platform-foundations.md) swap list rather than the floor |
 | Do nothing | none | native | — | The honest baseline. Errors remain findable and ungroupable, so a fault that fires constantly looks identical to one that fired once |
 
@@ -66,14 +66,14 @@ An error tracker owns a *second copy* of telemetry the collector already carries
 
 Grouping by fingerprint is a query. "This fingerprint has never been seen before" is state, and the floor holds no store for it.
 
-The default is a scheduled comparison of the current window's fingerprints against the previous window, emitting a `ticket`-severity alert on a set difference. That catches a new fault within the window and misses one that appeared and stopped inside it. Stated plainly rather than presented as parity.
+The default is a scheduled comparison of the current window's fingerprints against the previous window, emitting a `ticket`-severity alert on a set difference. That catches a new fault within the window and misses one that appeared and stopped inside it. That is a narrower guarantee than a tracker's persistent fingerprint store, not an equivalent one.
 
 ### GlitchTip is the Scale swap
 
 | Field | Value |
 | --- | --- |
 | **Trigger** | fingerprint triage becomes routine work rather than incident work — a recurring session spent grouping errors by hand — or the window comparison above misses a fault that reached a customer |
-| **Seam** | ✅ GlitchTip ingests the Sentry envelope protocol, and the collector can fan out to a second exporter. Adopting it adds a destination; it does not change how services record errors |
+| **Seam** | ✓ GlitchTip ingests the Sentry envelope protocol, and the collector can fan out to a second exporter. Adopting it adds a destination; it does not change how services record errors |
 | **Cost if adopted late** | triage stays manual and novelty stays window-bound. Nothing is re-instrumented, because the `exception.*` records GlitchTip needs are the ones already emitted |
 
 The seam is real and the cost of waiting is bounded, which makes this a deferral rather than a bet.
@@ -97,8 +97,8 @@ The seam is real and the cost of waiting is bounded, which makes this a deferral
 
 ## Rules
 
-- A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK. `(review-only)`
-- `error.fingerprint` is a span attribute and log structured metadata. It is never a Loki stream label and never a metric label. `(review-only)`
-- Error messages carry no interpolated user data; context is attributes ([ADR-0001](0001-documentation-and-output-conventions.md)). `(review-only)`
-- Errors are not tracked as issues anywhere but the forge. No component holds resolution state on an error. `(review-only)`
-- Source maps are build artefacts retained per release and are never served to the browser. `(review-only)`
+- A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK.
+- `error.fingerprint` is a span attribute and log structured metadata. It is never a Loki stream label and never a metric label.
+- Error messages carry no interpolated user data; context is attributes ([ADR-0001](0001-documentation-and-output-conventions.md)).
+- Errors are not tracked as issues anywhere but the forge. No component holds resolution state on an error.
+- Source maps are build artefacts retained per release and are never served to the browser.

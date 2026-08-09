@@ -19,7 +19,7 @@ Numbers are allocated in **blocks of a hundred, one block per layer**, sequentia
 | `06xx` | Development loop |
 | `07xx` | Product |
 
-A hundred slots per layer rather than ten, because more than one block filled past ten at the first sitting. The index below is the set; the blocks are not counted here, so adding an ADR touches one table.
+A hundred slots per layer rather than ten, so a layer can grow without renumbering the set. The index below is the set; the blocks are not counted here, so adding an ADR touches one table.
 
 ## The set
 
@@ -27,7 +27,7 @@ A hundred slots per layer rather than ten, because more than one block filled pa
 
 | ADR | Title | Decides |
 | --- | --- | --- |
-| [0000](0000-platform-foundations.md) | Platform Foundations | The three axes and this platform's position on them, the ten principles, and the ADR process |
+| [0000](0000-platform-foundations.md) | Platform Foundations | The three axes and this platform's position on them, the principles, and the ADR process |
 | [0001](0001-documentation-and-output-conventions.md) | Documentation & Output Conventions | How docs, ADRs, logs, CLI output, and code comments are written |
 | [0003](0003-naming-and-identifiers.md) | Naming & Identifiers | The resource slug grammar, entity identifiers, and casing per surface |
 
@@ -78,7 +78,7 @@ A hundred slots per layer rather than ten, because more than one block filled pa
 | --- | --- | --- |
 | [0500](0500-observability.md) | Observability | OpenTelemetry, the Grafana backend, cardinality discipline |
 | [0501](0501-operator-uis-and-dashboards.md) | Operator UIs & Dashboard Hierarchy | Which UI answers which question, and the L1–L3 funnel |
-| [0502](0502-alerting-and-on-call.md) | Alerting & On-Call | Where alerts route, and why nothing pages yet |
+| [0502](0502-alerting-and-on-call.md) | Alerting & On-Call | Where alerts route, and where escalation is conceded |
 | [0503](0503-error-tracking.md) | Error Tracking | Errors as OTel data, fingerprint grouping, and why no tracker joins the floor |
 
 ### 06xx — Development loop

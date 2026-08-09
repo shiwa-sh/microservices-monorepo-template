@@ -12,6 +12,8 @@ Written to ADR-0001. Before merging, check:
   - A fact appears in exactly one ADR; everywhere else is a link.
   - Standing law only. No Follow-ups, no roadmap, no TODO, no note on whether the artefact exists yet — gaps go in a local *.local.md working file, which nothing committed links to.
   - Every number survives the doubling test. No illustrative figures, no counting live state that lives elsewhere.
+  - No tool release versions. Spec versions, licence identifiers, and a capability boundary stated as a floor are fine; the pin lives in the lockfile or the chart. Prefer /latest/ in a documentation link.
+  - Drivers are properties. Swap the winner for a loser and re-read them: they must be unmet, not wrong.
   - Written for whoever maintains this platform, not for a prospective adopter. Selection guidance goes in README.md.
   - A section with nothing to say is omitted, not padded.
   - The number comes from the block your layer owns — see README.md.
@@ -65,8 +67,9 @@ For anything deferred, state all three fields, or it is not a deferral:
 
 ## Rules
 
-Flat, greppable, normative. Each ends with how it is enforced.
+Flat, greppable, normative. A rule that a task, a policy, or a standard enforces names it; one that nothing enforces carries no annotation and is not thereby weaker.
 
 - The rule, stated as a standing fact. `(CI: <task>)`
-- The rule, stated as a standing fact. `(review-only)`
 - The rule, stated as a standing fact. `(enforced: <admission policy>)`
+- The rule, stated as a standing fact. `(ref: <standard>)`
+- The rule, stated as a standing fact.
