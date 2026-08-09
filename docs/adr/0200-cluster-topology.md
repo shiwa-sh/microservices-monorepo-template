@@ -39,19 +39,29 @@ Driver 4 also admits the cost: this is a less widely operated OS than Debian, an
 
 ### East-west security, which is a CNI-level choice
 
-Linkerd is not a CNI and not a Cilium substitute — it rides on top of a CNI through per-pod sidecars. The day-one decision is therefore at the CNI layer, compared on security capability.
+**Neither layer adjacent to the CNI provides east-west security.** Linkerd sits above it, riding on a CNI through per-pod sidecars; Talos's own networking sits below it, on the host. The day-one decision is therefore at the CNI layer, compared on security capability.
 
-| Capability | flannel only | Calico | flannel + Linkerd | **Cilium + WireGuard** |
-| --- | --- | --- | --- | --- |
-| L3/L4 default-deny segmentation | **none — flat network** | all pods | meshed app traffic only | all pods |
-| Data-tier protection (Postgres, MinIO, OpenFGA) | wide open | NetworkPolicy | only if the data tier is meshed, which is fiddly | NetworkPolicy |
-| Cryptographic workload identity | — | — | mTLS certs, meshed only | label identity; SPIFFE optional later |
-| Encryption in transit, east-west | **plaintext** | WireGuard, and it does not also replace kube-proxy | meshed only | all pods, WireGuard |
-| L7 authz by route and method | — | limited, and Envoy-based in the paid tier | fine-grained | coarse, via Envoy — already covered by Oathkeeper and OpenFGA |
-| Egress control, DNS/FQDN, metadata SSRF | — | FQDN egress in the paid tier | not Linkerd's concern | FQDN and L3 egress in the open distribution |
-| Per-flow visibility | — | a separate collector | mesh-only | Hubble, from the same datapath |
+**Talos's networking is node-scoped.** The [host firewall](https://docs.siderolabs.com/talos/latest/networking/host-firewall) governs the node's own ports — kubelet, etcd, the API server — and never sees pod-to-pod traffic. KubeSpan encrypts links between nodes, so it segments nothing and does not touch same-node pod traffic. Both harden the machine; driver 3 is the network between pods.
 
-**flannel ships no NetworkPolicy controller**, so the API server accepts a policy and nothing enforces it — worse than having no policy, because it grants false confidence. Calico is the closest real alternative and loses on scope rather than on capability: its FQDN egress and L7 controls sit in the paid tier, and it leaves kube-proxy in place, which the Talos configuration below removes. Between the remaining options, Cilium wins on **breadth**: the controls it adds map onto the highest-frequency cluster attacks — lateral movement to Postgres, and metadata-endpoint credential theft. The controls Linkerd adds over Cilium are depth *behind* those, and the L7 layer is already covered at the edge and in-app. Linkerd would additionally leak the data tier unless the stateful components are meshed, which the Job-heavy bootstrap makes painful.
+| Capability | flannel only | Calico, eBPF dataplane | flannel + KubeSpan + Calico | flannel + Linkerd | **Cilium + WireGuard** |
+| --- | --- | --- | --- | --- | --- |
+| Components to operate | 1 | 1 | **3** | 2 | **1** |
+| L3/L4 default-deny segmentation | **none — flat network** | all pods | all pods | meshed app traffic only | all pods |
+| Data-tier protection (Postgres, MinIO, OpenFGA) | wide open | NetworkPolicy | NetworkPolicy | only if the data tier is meshed, which is fiddly | NetworkPolicy |
+| Cryptographic workload identity | — | — | — | mTLS certs, meshed only | label identity; SPIFFE optional later |
+| Encryption in transit, east-west | **plaintext** | all pods, WireGuard | node to node only | meshed only | all pods, WireGuard |
+| Services without kube-proxy | no | yes, in the eBPF dataplane | **no — policy-only mode is iptables** | no | yes |
+| L7 authz by route and method | — | limited, and Envoy-based in the paid tier | — | fine-grained | coarse, via Envoy — already covered by Oathkeeper and OpenFGA |
+| Egress control, DNS/FQDN, metadata SSRF | — | CIDR egress; **FQDN in the paid tier** | CIDR egress | not Linkerd's concern | FQDN and L3 egress in the open distribution |
+| Per-flow visibility | — | **denied-packet metrics; flow logs are paid** | — | mesh-only | Hubble, from the same datapath |
+
+**flannel ships no NetworkPolicy controller**, so the API server accepts a policy and nothing enforces it — worse than having no policy, because it grants false confidence.
+
+**Calico is the runner-up.** Its open distribution reaches parity on segmentation, WireGuard encryption of all pod traffic, and kube-proxy replacement through its eBPF dataplane. It loses on the two paid capabilities above, and this platform has committed to both: without FQDN egress a policy degrades to hand-maintained CIDR lists per external dependency, and [ADR-0501](0501-operator-uis-and-dashboards.md) commits a per-flow operator surface that this ADR uses as the audit trail for its own policies. Calico's compensating advantage is an iptables dataplane any engineer can inspect, and the eBPF mode required to drop kube-proxy forfeits it.
+
+**The middle column is Talos's defaults plus policy, and costs the most for the least.** Calico over flannel is policy-only mode, so the dataplane is iptables and kube-proxy stays — the saving it was reached for. KubeSpan additionally requires the [discovery service](https://docs.siderolabs.com/talos/latest/configure-your-talos-cluster/system-configuration/discovery), whose hosted endpoint is a third-party runtime dependency for east-west encryption and whose self-hosted build carries a commercial licence, which fails driver 1. Cilium's WireGuard is a config flag with nothing behind it.
+
+Cilium therefore wins on **breadth**: the controls it adds map onto the highest-frequency cluster attacks — lateral movement to Postgres, and metadata-endpoint credential theft — and it covers CNI, Services, encryption, and observability as one component. The controls Linkerd adds over it are depth *behind* those, and the L7 layer is already covered at the edge and in-app. Linkerd would additionally leak the data tier unless the stateful components are meshed, which the Job-heavy bootstrap makes painful.
 
 A sidecar mesh also adds one proxy container per pod on the hot path, against [ADR-0000](0000-platform-foundations.md)'s per-service cost principle.
 
@@ -265,6 +275,7 @@ Rehearsed quarterly alongside the backup restore drill.
 - The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires.
 - CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy.
 - KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic.
+- Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation.
 - Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. `(enforced: CiliumNetworkPolicy)`
 - WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped.
 - A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. `(enforced: CiliumNetworkPolicy)`
