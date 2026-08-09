@@ -15,6 +15,8 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 
 **Scope: outbound only.** The platform sends mail. It does not receive it, host mailboxes, or run IMAP, so the inbound half of every mail suite is out of scope.
 
+**Human mailboxes are a separate system, bought or self-hosted.** A team wanting `admin@example.com` as a real inbox needs correspondence — storage, IMAP, webmail, spam filtering, retention — which shares a domain with transactional sending and little else. The two coexist rather than merge: `MX` points at the mailbox system, `SPF` lists both senders, and each signs with its own `DKIM` selector. Needing mailboxes therefore never revises this decision; which system serves them is a separate choice, sketched under [If mailboxes are self-hosted](#if-mailboxes-are-self-hosted).
+
 ## Decision drivers
 
 1. **Operational sovereignty** ([ADR-0000](0000-platform-foundations.md), principle 3). Mail leaves infrastructure we control, as the product's own domain.
@@ -33,9 +35,9 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 | A relay-only client — msmtp, nullmailer, or Postfix as a null client | **no** — it relays through some other sender | none worth counting | none of the reputation work, because it does none of the sending | Not an alternative but a shape: it presumes the managed row below. Worth naming because "self-host the SMTP endpoint" and "own the deliverability" are separable, and only the second is expensive |
 | Stalwart | yes | one binary, broader scope | an inbound, JMAP, and mailbox surface we do not use | Capable and young. Rejected for carrying the inbound half this ADR scopes out |
 | Mailu / Mailcow | yes | a suite — several containers, a datastore, webmail, antispam | a full mail platform | Rejected by principle 2. These solve *running an email provider*, which is not the problem |
+| poste.io | yes | a suite in one container — Postfix, Dovecot, Rspamd, webmail, admin UI | a full mail platform, inbound included | Rejected by principle 2, alongside Mailu and Mailcow. Packaging the suite as a single container lowers the operational count but not the surface: mailboxes, IMAP, and antispam are still deployed and still out of scope |
 | Postal | yes | Ruby, MariaDB, RabbitMQ | a second datastore and a second message broker | Rejected by principles 2 and 5 |
 | Managed transactional provider (Postmark, SES, Mailgun) | yes | none | deliverability becomes someone else's problem, and recipient metadata leaves our control | **The sanctioned exit**, ranked first on [ADR-0000](0000-platform-foundations.md)'s swap list. Not the default, because principle 3 is a constraint rather than a preference |
-| A privacy-first mailbox host — Posteo, Mailbox.org | **no** | none | — | A different product category: these host human correspondence, do not carry custom sending domains, and offer no transactional API. Driver 1 requires mail to leave as the product's own domain, which rules the category out before any other criterion applies |
 | Do nothing — the honest baseline | n/a | none | — | Account verification and recovery have no delivery path, so identity is unusable |
 
 ## Decision
@@ -48,10 +50,42 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 | Signing key | the DKIM private key is SOPS-encrypted ([ADR-0202](0202-secrets.md)) |
 | Senders | Kratos ([ADR-0304](0304-identity-and-authorization.md)) and services, both via SMTP submission. No service embeds a provider SDK |
 | Retries | delivery is a Temporal activity where it must be tracked, and the outbox where fire-and-forget is honest ([ADR-0302](0302-temporal.md)) |
+| Human mailboxes | not a platform concern, and never the same sender as platform mail. Whether bought or self-hosted, they serve the domain's `MX` from their own egress IP and `DKIM` selector, independent of maddy |
 | Local and non-prod | **Mailpit** as a sink. Non-production never delivers to a real recipient |
 | Delivery observability | every send is a Temporal activity or an outbox row, so a submission failure is a failed activity with a retry history. Post-submission rejections arrive as DMARC aggregate reports, and the agent's logs are scraped like any other component's ([ADR-0500](0500-observability.md)). The signal that matters is the identity flow's completion rate: a verification mail that never lands shows up as a drop there, before a support ticket |
 
 **Every sender speaks SMTP.** That single rule is what makes the exit below a configuration change: no service imports a provider client, so the relay target is a host, a port, and a credential.
+
+### Platform mail and human mail are never the same sender
+
+Both may be self-hosted. They are still two senders, because merging them degrades the identity path in three ways:
+
+- **Reputation.** One compromised staff mailbox sending spam for an afternoon, or a forwarded newsletter drawing complaints, degrades the IP that delivers password resets. Account recovery has no fallback; staff mail does.
+- **Availability.** A suite upgrade, a full mailbox store, or a webmail CVE becomes an identity incident once the suite also carries platform mail.
+- **Exit.** [ADR-0000](0000-platform-foundations.md) ranks platform sending first to concede. Coupled to a mailbox system, that exit means unpicking a live correspondence system instead of changing three values.
+
+The separation only counts if it is physical:
+
+| Axis | Platform mail | Human mail |
+| --- | --- | --- |
+| Sender | maddy | the mailbox system |
+| Egress IP | dedicated, with its own `PTR` | its own, never shared with platform mail |
+| Envelope domain | `mail.example.com` | `example.com` |
+| DKIM selector | its own | its own |
+| `MX` | none — it sends only | points here |
+
+Sharing an egress IP or a signing domain forfeits the reputation argument entirely. Where a deployment cannot give platform mail its own IP, running maddy beside a suite buys nothing: let the suite send, and record the coupling as accepted rather than discovering it later.
+
+### If mailboxes are self-hosted
+
+Out of scope as a platform component, but the choice interacts with [ADR-0200](0200-cluster-topology.md) enough to be worth ranking. The verdicts in the options table above reject these as *platform senders*; this ranks them at the different job of hosting correspondence.
+
+| Suite | Shape | Runs in-cluster | Verdict |
+| --- | --- | --- | --- |
+| **Stalwart** | one Rust binary — SMTP, IMAP, JMAP, spam filtering, admin UI, no external datastore required | yes, one deployment and a volume | **Preferred.** The only candidate whose operational shape matches the rest of the platform. Young against the Dovecot lineage, which is the price |
+| **Mailu** | a container suite — Postfix, Dovecot, Rspamd, Roundcube, admin — with an official Helm chart | yes | The conservative pick: proven components, deployable in-cluster. Costs several workloads and a datastore where Stalwart costs one |
+| **Mailcow** | ~15 containers, Docker Compose only; Kubernetes is explicitly unsupported upstream | no | The best admin experience and deepest community of the four, but it wants a dedicated VM. Choose it only by accepting that machine as infrastructure outside the cluster |
+| **poste.io** | one container, proprietary core with the useful features behind a paid tier | yes | Rejected. Self-hosting a closed-source blob inverts the reason for self-hosting |
 
 ### The exit is pre-built, not deferred
 
@@ -83,6 +117,7 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 - Outbound mail leaves through a self-hosted maddy submission endpoint on a dedicated IP with a matching `PTR` record.
 - The platform sends mail and does not receive it. No inbound listener, mailbox, or IMAP surface is deployed.
 - Every sender speaks SMTP. No service embeds an email-provider SDK, so the relay target stays a configuration value.
+- Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain.
 - `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production.
 - Non-production environments deliver to a sink, never to a real recipient.
 - Mail bodies carry links and codes, never personal data ([ADR-0301](0301-data-lifecycle-privacy.md)).
