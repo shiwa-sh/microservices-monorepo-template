@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0302](0302-temporal.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md)
+- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0302](0302-temporal.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md)
 
 ## Context
 
@@ -76,7 +76,33 @@ Uniformity buys one mental model, one toolchain, and tooling (admin-gen, linters
 
 ### Specs are self-contained
 
-Cross-service shapes — the error envelope, common ID and time types, the workflow handle ([ADR-0302](0302-temporal.md)) — are declared in each spec's own `components`, not imported by cross-file `$ref`. No external file reference means no resolution step, and every spec stays portable across the codegen and lint tools. The shapes are duplicated by convention and kept identical.
+Cross-service shapes — the error envelope, common ID and time types, the workflow handle ([ADR-0302](0302-temporal.md)) — are declared in each spec's own `components`, not imported by cross-file `$ref`. No external file reference means no resolution step, and every spec stays portable across the codegen and lint tools. The shapes are duplicated across specs and held identical by a check, below.
+
+### The shared shapes
+
+Each of these appears in every spec, so it is fixed here rather than re-decided per service.
+
+**Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details**, served as `application/problem+json`.
+
+| Member | Value |
+| --- | --- |
+| `type` | `about:blank`, except where two errors share a status code and a client handles them differently. That case takes a URN — `urn:problem-type:<service>:<slug>` — never an `https` URL, because a dereferenceable type puts an error taxonomy into the public URL namespace [ADR-0306](0306-trust-tiers-and-urls.md) keeps flat |
+| `title` | a stable, human-readable summary. Does not vary with the instance |
+| `status` | the HTTP status, duplicated in the body |
+| `detail` | instance-specific and safe to show a user. Never a stack trace, a query, or an internal hostname |
+| `instance` | omitted. `trace_id` identifies the occurrence |
+| `trace_id` *(extension)* | the [Trace Context](https://www.w3.org/TR/trace-context/) trace-id of the failing request ([ADR-0500](0500-observability.md)), so a user-reported error reaches its trace |
+| `errors` *(extension)* | field-level validation failures, each a JSON Pointer and a message, populated from the ogen-generated validator |
+
+The edge produces errors too — Oathkeeper denies before a handler runs ([ADR-0305](0305-edge-auth-and-traffic-policy.md)) — and emits the same media type and the same members, so a generated client has one error branch rather than two.
+
+**Timestamps are [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339) with a literal `Z`.** `format: date-time` on the wire, UTC always, and an offset other than `Z` is rejected rather than converted. Columns are Postgres `timestamptz`. A duration is an integer field named for its unit — `timeout_seconds` — not an ISO 8601 duration string, which no generator maps to a useful type.
+
+**Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md)**, carried as a `string` with the prefix pattern declared in the schema. A bare UUID on the wire is a lint failure.
+
+### Keeping the shared shapes identical
+
+The canonical fragment is `tools/codegen/shared-components.yaml`. It is the source; a spec's copy is a copy, and `lint:openapi` fails when the two diverge. The duplication is deliberate and it is not trusted — the check is what makes "identical" a fact rather than a habit.
 
 ### URL shape: flat resource namespace
 
@@ -181,13 +207,17 @@ Nothing below is built or operated until then.
 
 - OpenAPI is awkward for discriminated unions and conditional schemas. Mitigated by vacuum rules enforcing flat schemas; complex polymorphism signals an over-coupled API surface.
 - The streaming story is pragmatic rather than unified. Mitigated by per-WebSocket justification.
-- Cross-service shapes are duplicated across self-contained specs. Mitigated by their small, stable surface; a bundler step restores a single source if drift appears.
+- Cross-service shapes are duplicated across self-contained specs. Mitigated by their small, stable surface and by the equality check against the canonical fragment; a bundler step restores a single source if the duplication ever outgrows it.
+- **A shared fragment is a coupling point.** Changing the error envelope or a common type regenerates every client at once, which is the price of one error branch instead of one per service.
 - The default cannot serve an out-of-lockstep consumer. Accepted — that consumer is the documented trigger.
 
 ## Rules
 
 - The contract source of truth is OpenAPI 3.1, one file per HTTP service at `services/<service>/openapi.yaml`, and every HTTP service generates its server with ogen. East-west control-plane services are included. Only a service with no HTTP surface ships no spec. `(CI: lint:openapi)`
 - Each spec is self-contained: cross-service shapes are declared inline in `components` and kept identical across services. Cross-file `$ref` is not used. `(CI: lint:openapi)`
+- Cross-service shapes come from `tools/codegen/shared-components.yaml`, and a spec's copy is checked against it. The fragment changes first; a spec's copy is never edited on its own. `(CI: lint:openapi)`
+- Errors are RFC 9457 problem details served as `application/problem+json`, by services and by the edge alike. `type` is `about:blank` except where two errors share a status code and a client handles them differently, which takes a `urn:problem-type:` URN. Every error carries `trace_id`. `detail` contains no stack trace, query, or internal hostname. `(CI: lint:openapi)`
+- Timestamps on the wire are RFC 3339 in UTC with a literal `Z`; a non-`Z` offset is rejected. A duration is an integer field named for its unit. Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md); a bare UUID is a lint failure. `(CI: lint:openapi)`
 - An edge-exposed spec's `servers` url is `/api` and its paths are globally-unique resource nouns; the exposed URL carries no service segment and no version segment. An all-`cluster` service uses `servers: /`. `(CI: lint:service-contract)`
 - Every spec declares `info.x-audience` on the ladder `cluster` | `internal` | `public`, default `cluster`; an operation may override it. It is documentation scoping, not access control. `(CI: lint:api-audience)`
 - A service is edge-exposed iff it has an `internal` or `public` operation; a `cluster`-only service has no `/api` route. `(CI: lint:api-audience)`
