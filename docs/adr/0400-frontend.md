@@ -201,6 +201,7 @@ The browser side of [ADR-0500](0500-observability.md) is wired here.
 
 - OpenTelemetry web tracing and fetch instrumentation initialise from a client-only entry. Trace IDs propagate on outbound fetches, joining the same trace as the upstream services.
 - **Grafana Faro** is the browser RUM agent. Web vitals, JS errors, and session traces forward through a Traefik-fronted ingest route on a vendor-neutral path to the collector's Faro receiver, landing in the same backends as services. Locally, where the dev server runs on the host with no edge, a dev-only route handler shims that path.
+- **Faro's session tracking is configured in-memory**, not against `sessionStorage` or `localStorage`. The session id lives for the page's lifetime and is never persisted, which keeps the ops path clear of ePrivacy Art. 5(3) and so outside the consent gate ([ADR-0700](0700-analytics.md)). A persistent identifier on this path is a defect, not a feature.
 - Server logs are structured JSON to stdout, enriched with the active trace id. `console.log` is lint-forbidden.
 - The build embeds the version so traces and errors are version-attributable ([ADR-0103](0103-release-and-versioning.md)).
 
@@ -265,7 +266,7 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - Biome is the only lint and format tool. ESLint is not installed. `(CI: ci:lint)`
 - `bun test` covers unit and component tests. Vitest and Jest are not used.
 - The frontend contains no development-only authentication code. `(CI: lint:auth-inline)`
-- Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector.
+- Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector. Faro's session id is in-memory and per-page; the ops path writes nothing to client-side storage ([ADR-0700](0700-analytics.md)).
 - Server logs are structured JSON to stdout. `(CI: ci:lint)`
 - Bundle budgets and the Lighthouse thresholds are merge gates.
 - Images go through `next/image` and fonts through `next/font`. `(CI: ci:lint)`
