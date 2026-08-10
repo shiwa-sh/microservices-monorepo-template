@@ -108,6 +108,8 @@ The session cookie is `SameSite=Lax`, `Secure`, and `HttpOnly`. That is the firs
 
 Two local controls are on everywhere, with no dependency outside the pod: **`min_password_length: 12`** and **`identifier_similarity_check_enabled: true`**, which rejects a password resembling the email or username.
 
+The shape follows [NIST SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html): length carries the strength, composition rules and forced rotation are absent because they push users toward predictable patterns, and the breach check below is 800-63B's compromised-credential screening. That document is also where the **AAL** levels used throughout this ADR are defined.
+
 **The HaveIBeenPwned breach check is off by default.** It is a genuine control — it catches the one class a length rule cannot, a long passphrase already in a breach corpus — and its cost is not the network policy:
 
 - **It needs world egress on every password operation.** Each registration, password login, and password change does a k-anonymity range lookup over HTTPS. Some deployments run on a closed network with no route to the internet, so the control cannot function there whatever the manifest says.

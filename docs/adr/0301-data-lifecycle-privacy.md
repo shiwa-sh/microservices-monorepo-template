@@ -11,10 +11,12 @@
 
 A multi-tenant application at meaningful monthly actives has retention, right-to-erasure, and portability obligations that cannot be retrofitted cheaply once data has accreted across services.
 
+Those obligations are [GDPR](https://eur-lex.europa.eu/eli/reg/2016/679/oj) Art. 15 (access), Art. 17 (erasure), Art. 20 (portability), and Art. 5(1)(e) (storage limitation). They are named here because they set the deadline and the scope this ADR builds machinery for, not because the platform is a compliance product. A project under a different regime substitutes its own articles; the mechanism below does not change.
+
 ## Decision drivers
 
 1. **Erasure and export must be correct across stores** — the application database *and* OpenFGA ([ADR-0304](0304-identity-and-authorization.md)) — or a subject is deleted while still appearing in authz tuples.
-2. **A half-completed erasure is worse than an unstarted one.** The obligation has a deadline, so the process must survive a partial failure and resume, not restart from an unknown point.
+2. **A half-completed erasure is worse than an unstarted one.** The deadline is one month from the request (GDPR Art. 12(3)), so the process must survive a partial failure and resume, not restart from an unknown point.
 3. **One execution answers "is this subject erased".** Whatever runs it must be able to say so without correlating several services' logs.
 4. **Retention is declared, not incidental.** Every stored category has a class and a lifespan.
 5. **PII is identifiable by a machine**, so retention, export, and redaction target it mechanically rather than by memory.

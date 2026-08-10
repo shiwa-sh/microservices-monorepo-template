@@ -246,6 +246,8 @@ This ADR borrows its framing rather than inventing it. Where a decision here has
 | Poppendieck, *Lean Software Development* | The **last responsible moment** — deferral with a written trigger |
 | Feathers, *Working Effectively with Legacy Code* | **Seams** |
 | Conway (1968) | Boundaries track teams, not features (axis A, force 2) |
+| Nygard, [*Documenting Architecture Decisions*](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions) (2011) | The ADR form itself — one decision per file, immutable once accepted, superseded rather than edited. [MADR](https://adr.github.io/madr/) supplies the section set ([ADR-0001](0001-documentation-and-output-conventions.md)) |
+| [CNCF Platforms White Paper](https://tag-app-delivery.cncf.io/whitepapers/platforms/) | Platform as a product with users; the capability framing behind [`docs/operational-surface.md`](../operational-surface.md)'s tiers |
 
 ### 12-Factor conformance
 
