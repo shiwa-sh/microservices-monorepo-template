@@ -268,6 +268,22 @@ This ADR borrows its framing rather than inventing it. Where a decision here has
 | XI — Logs | [ADR-0500](0500-observability.md) | conforms — structured JSON to stdout, routed by the collector |
 | XII — Admin processes | [ADR-0300](0300-data.md), [ADR-0401](0401-internal-admin.md) | conforms, scoped — same image and release, never a host shell |
 
+### Standards deliberately not adopted
+
+Principle 7 applies to standards as much as to tools: one with no recorded comparison is an assumption. These were weighed and refused, and the reason is recorded so the question is not reopened for free. Refusal here means *not adopted as a normative reference*, never that the underlying concern is unaddressed.
+
+| Standard | Why not |
+| --- | --- |
+| **ISO 27001**, **SOC 2** | Certification frameworks describing an audited management system, not design guidance. The controls they examine are already decided — supply chain ([ADR-0104](0104-supply-chain-security.md)), secrets ([ADR-0202](0202-secrets.md)), retention ([ADR-0301](0301-data-lifecycle-privacy.md)), access ([ADR-0304](0304-identity-and-authorization.md)). What adopting one adds is an evidence programme and an auditor, which is a commercial decision about who the product sells to, not an architectural one |
+| **NIST SSDF** (SP 800-218) | A crosswalk over practices [ADR-0104](0104-supply-chain-security.md) already decides through SLSA provenance, cosign signing, and admission verification. Adopting it produces a mapping table to maintain and changes no control |
+| **PCI DSS** | **Scope-triggered rather than refused.** The platform stores no cardholder data; a payment integration hands off to a provider. A project that takes card data directly brings PCI scope with it, and that changes [ADR-0300](0300-data.md) and [ADR-0301](0301-data-lifecycle-privacy.md) rather than this document |
+| **TUF** | Solves repository compromise, rollback, and key distribution for a public update system with untrusted mirrors and many unknown consumers. This registry serves one estate, pinned by digest and verified at admission ([ADR-0104](0104-supply-chain-security.md), [ADR-0105](0105-image-registry.md)). Its threat model is not ours |
+| **AsyncAPI** | There is no async wire contract to describe. Durable async is Temporal workflows typed in Go ([ADR-0302](0302-temporal.md)) and the outbox is in-process. It would document a message bus this platform does not run |
+| **OAM**, **Score**, **Backstage** | Abstraction layers over Kubernetes for teams who should not read manifests. Principle 2 says the platform is the thinnest viable one, and [ADR-0201](0201-gitops.md)'s shared chart already *is* the abstraction. A second one over it is a layer with no reader |
+| **CIS Kubernetes Benchmark** | Written against a general Kubernetes with a mutable node. Talos removes most of what it audits — no SSH, no kubelet config file, no host package manager ([ADR-0200](0200-cluster-topology.md)) — so a large share of its findings are not-applicable rather than passing. Workload hardening is asserted directly through Pod Security Standards instead |
+
+[ADR-0001](0001-documentation-and-output-conventions.md) records one further refusal on the same basis: [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) keyword grades, rejected because every Rule here is binding and a `SHOULD` tier invites negotiation.
+
 ## Vocabulary
 
 Used consistently across all ADRs. If a term is ambiguous in a later ADR, this glossary wins.

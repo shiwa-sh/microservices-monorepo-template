@@ -102,7 +102,7 @@ Kratos handles registration, login, MFA, recovery, settings, and social login. I
 
 The Next.js login UI lives at `apps/frontend/src/app/(landing)/auth/` and drives Kratos self-service flows directly.
 
-The session cookie is `SameSite=Lax`, `Secure`, and `HttpOnly`. That is the first line of CSRF defence; Kratos's built-in anti-CSRF token covers the self-service flows, and the edge Origin check ([ADR-0305](0305-edge-auth-and-traffic-policy.md)) backstops other cookie-authenticated mutations. Browser-side CSP and Server-Actions handling are [ADR-0400](0400-frontend.md)'s.
+The session cookie is `SameSite=Lax`, `Secure`, and `HttpOnly`, in the sense [RFC 6265bis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis) gives those attributes. That is the first line of CSRF defence; Kratos's built-in anti-CSRF token covers the self-service flows, and the edge Origin check ([ADR-0305](0305-edge-auth-and-traffic-policy.md)) backstops other cookie-authenticated mutations. Browser-side CSP and Server-Actions handling are [ADR-0400](0400-frontend.md)'s.
 
 ### Password policy
 
@@ -117,7 +117,7 @@ The shape follows [NIST SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.ht
 
 A control that reads as enabled in the manifest and is inert on the wire is worse than one that is honestly off, because it invites the reviewer to stop looking.
 
-Where it earns its keep is the B2C tier, whose users are AAL1 with no forced second factor; operators carry TOTP or WebAuthn regardless. An environment with the egress enables it by setting `haveibeenpwned_enabled` with `max_breaches: 0` and restoring the `toFQDNs` allow and its companion L7 DNS rule, which the network policy keeps as a comment. A closed network can instead point `haveibeenpwned_host` at a self-hosted k-anonymity API — planning for the constraint that Kratos has no setting for a custom CA chain, so that host must serve a certificate the container already trusts.
+Where it earns its keep is the B2C tier, whose users are AAL1 with no forced second factor; operators carry [TOTP](https://www.rfc-editor.org/rfc/rfc6238) or [WebAuthn](https://www.w3.org/TR/webauthn-3/) regardless. An environment with the egress enables it by setting `haveibeenpwned_enabled` with `max_breaches: 0` and restoring the `toFQDNs` allow and its companion L7 DNS rule, which the network policy keeps as a comment. A closed network can instead point `haveibeenpwned_host` at a self-hosted k-anonymity API — planning for the constraint that Kratos has no setting for a custom CA chain, so that host must serve a certificate the container already trusts.
 
 This is a per-environment security posture, not a parity violation: the policy is identical in every environment that can enforce it. The pattern [ADR-0205](0205-environment-parity.md) forbids is the opposite one — enabling it in production and quietly disabling it locally, so local enforces a weaker policy while looking the same.
 
@@ -126,6 +126,15 @@ This is a per-environment security posture, not a parity violation: the policy i
 Hydra is deployed when a project exposes a public API or external machine clients, behind the `hydra_thirdparty` flag. It issues authorization-code and client-credentials tokens for third parties and external machines. Those tokens are validated at the edge and converted to the standard identity headers, so **the internal request shape is identical whether or not Hydra is deployed**.
 
 Hydra is not used for internal service-to-service calls, which carry no token. When deployed it is the only issuer of external tokens; no service mints its own. Configuration lives at `infra/auth/hydra/`, and third-party clients are declared in YAML applied by a post-sync hook.
+
+**Token shape and validation are the specifications', not ours.** A third-party integrator brings a library, not a reading of our documentation, and every local variation here is a bug someone else has to discover.
+
+| Concern | Decision |
+| --- | --- |
+| Access-token format | JWT per [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) — `typ: at+jwt` and the profile's required claims. Opaque tokens with introspection are not used, because the edge would then call Hydra on every request |
+| Validation | [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725) JWT best practice. The signing algorithm is pinned by the edge rule, so `alg: none` and algorithm-confusion attacks fail by construction, and `iss`, `aud`, and `exp` are all checked. A token minted for one audience is not accepted for another |
+| Grants | authorization code with [PKCE](https://www.rfc-editor.org/rfc/rfc7636) for **every** client, public and confidential alike, plus client credentials for machine callers. Implicit and resource-owner-password grants are disabled. This is the OAuth 2.1 posture, and it is a configuration Hydra does not impose on its own |
+| Discovery | the [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html) provider metadata document. A third party configures its client from that endpoint rather than from prose we maintain |
 
 ### B2B organisations: an `orgs` service on top of Kratos
 
@@ -260,10 +269,10 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 ## Rules
 
 - Human identity is owned by Ory Kratos. There is no alternate user store.
-- External tokens are issued by Ory Hydra, deployed only for projects exposing a public API. No service issues its own tokens.
+- External tokens are issued by Ory Hydra, deployed only for projects exposing a public API. No service issues its own tokens. Access tokens are `at+jwt`, and the authorization-code grant requires PKCE for every client; implicit and resource-owner-password grants are disabled. `(ref: RFC 9068, RFC 7636, OIDC Core)`
 - The login UI is the Next.js app driving Kratos self-service flows. Hosted pages are not used.
-- The password policy is `min_password_length: 12` plus `identifier_similarity_check_enabled: true` in every environment. The breach check is off by default and enabled per environment where the egress exists. Enabling it where the egress does not exist is not done, because it fails open silently.
-- The session cookie is `SameSite=Lax`, `Secure`, `HttpOnly`.
+- The password policy is `min_password_length: 12` plus `identifier_similarity_check_enabled: true` in every environment. The breach check is off by default and enabled per environment where the egress exists. Enabling it where the egress does not exist is not done, because it fails open silently. `(ref: NIST SP 800-63B)`
+- The session cookie is `SameSite=Lax`, `Secure`, `HttpOnly`. `(ref: RFC 6265bis)`
 - B2B organisations are owned by `services/orgs/`; other services consult its HTTP API. `(CI: ci:lint)`
 - Every protected resource belongs to an `org`, and a user acts only through a role in an org. Every identity gets a personal org at registration through the `RegisterUser` dual write. A single shared default org is not used.
 - Changing the tenancy model is confined to the registration webhook path and is a deliberate per-project decision.
@@ -273,7 +282,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
 - Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer.
 - A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.
-- Tokens are validated once at the edge; services do not validate tokens. `(CI: lint:auth-inline)`
+- Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. `(CI: lint:auth-inline; ref: RFC 8725)`
 - Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. `(CI: lint:authz)`
 - Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used.
 - A non-Go service reads the identity headers through the same contract and passes `tools/auth-conformance/` before merging.
