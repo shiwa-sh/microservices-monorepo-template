@@ -201,6 +201,28 @@ Hubble provides per-flow visibility and is the audit surface for these policies,
 
 Cilium covers CNI and mesh as one component: sidecarless eBPF gives transparent encryption, L7 policy, and per-flow observability without an injected proxy. Cilium mutual auth and SPIFFE can add certificate identity later without sidecars.
 
+### Workload hardening
+
+Talos removes the host attack surface and Cilium removes the network's. Neither constrains what a *pod* may ask the kernel for, which is the third invariant.
+
+**Every namespace enforces the [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/) `restricted` profile**, through the in-tree Pod Security Admission controller — namespace labels, no component:
+
+```yaml
+pod-security.kubernetes.io/enforce: restricted
+pod-security.kubernetes.io/enforce-version: v1.34
+pod-security.kubernetes.io/warn: restricted
+pod-security.kubernetes.io/audit: restricted
+```
+
+The version is pinned rather than left at `latest`, so a Kubernetes upgrade that adds a criterion is a deliberate bump in a reviewed PR rather than a batch of pods that stop scheduling during a control-plane upgrade.
+
+| Concern | Decision |
+| --- | --- |
+| Enforcement mechanism | **Pod Security Admission**, in the API server. Kyverno already runs ([ADR-0104](0104-supply-chain-security.md)) and could express the same rules, but it gates *image provenance*; workload privilege is a separate concern and PSA costs no component to enforce it (principles 2 and 5) |
+| Service containers | the shared chart sets `runAsNonRoot`, a non-zero `runAsUser`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `seccompProfile: RuntimeDefault`, and `readOnlyRootFilesystem: true`. A service needing a writable path declares an `emptyDir`, never a writable root |
+| Components that need more | run in **their own namespace**, labelled `privileged` or `baseline`, with the reason recorded in the namespace manifest. Cilium is the day-one case |
+| Exception granularity | the namespace, because that is PSA's unit. A component needing privilege never shares a namespace with one that does not |
+
 ### Storage
 
 | Kind | Day one | On the storage-scale trigger |
@@ -274,6 +296,8 @@ Rehearsed quarterly alongside the backup restore drill.
 - **Nothing can run on these nodes outside Kubernetes.** A workload that needs to sit beside the cluster is foreclosed, and would need its own host.
 - **k3s's bundled defaults are gone.** `local-path` is now an installed component rather than a shipped one, and a deployment without a provider load balancer needs one chosen rather than inherited from ServiceLB.
 - **Talos is less widely operated than Debian**, so there is less community answer-surface when something is strange, and the failure modes are less familiar. Accepted against the drift and escalation classes it removes.
+- **`restricted` breaks third-party charts.** A community chart whose image runs as root or writes to its root filesystem does not schedule, and the fix is a values override, a rebuilt image, or its own `baseline` namespace. This surfaces at install rather than at runtime, which is the intended direction, but it is friction on every new platform component.
+- **PSA's exception unit is the namespace, not the workload.** One component needing privilege takes its whole namespace with it, so the namespace layout is partly dictated by privilege rather than by grouping. Kyverno could express per-workload exceptions; that is the cost of not using it here.
 - **Cilium is harder to debug than flannel** — eBPF programs, `cilium status`, the Hubble CLI. Mitigated by the chart being committed and Argo CD managing upgrades after bootstrap.
 - **Bucket fees grow with retention.** Mitigated by lifecycle policies moving to a cold tier after 30 days.
 - **CNI is set at bootstrap and cannot be changed live.** This is why the security posture is decided here rather than deferred.
@@ -291,6 +315,9 @@ Rehearsed quarterly alongside the backup restore drill.
 - CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy.
 - KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic.
 - Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation.
+- Every namespace carries the Pod Security Standards `restricted` labels with a pinned `enforce-version`. A namespace at `baseline` or `privileged` records why in its manifest. `(enforced: PSA)`
+- Service containers run as non-root with a read-only root filesystem, `ALL` capabilities dropped, `allowPrivilegeEscalation: false`, and `seccompProfile: RuntimeDefault`. A writable path is an `emptyDir`. `(enforced: PSA)`
+- A component requiring privilege runs in its own namespace and never shares one with a `restricted` workload.
 - Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. `(enforced: CiliumNetworkPolicy)`
 - WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped.
 - A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. `(enforced: CiliumNetworkPolicy)`
