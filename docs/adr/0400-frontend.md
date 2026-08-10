@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
 
 ## Context
 
@@ -124,6 +124,21 @@ Untitled UI ships source you own, built on [React Aria Components](https://react
 
 **The kitchen-sink page** renders every primitive once. It is the cheap alternative to Storybook: one route, no separate toolchain, gated by the devportal session. Every primitive added under `src/components/` gets a section there in the same PR.
 
+### Accessibility
+
+**The target is [WCAG 2.2 level AA](https://www.w3.org/TR/WCAG22/)** across every route group. AA is the level EN 301 549 and Section 508 reference, so it is what a procurement question or a regulator asks about. AAA is not adopted: WCAG itself declines to recommend it as a whole-site target, because some of its criteria cannot be satisfied for all content.
+
+React Aria supplies keyboard behaviour, focus management, and ARIA semantics for the primitives. That is the floor rather than the target — contrast, heading structure, landmark semantics, and error association are composition decisions no primitive library makes.
+
+| Surface | Claim |
+| --- | --- |
+| `(landing)`, `(panel)`, `(devportal)` | WCAG 2.2 AA |
+| The kitchen-sink page | AA per primitive. A primitive's conformance is proven once here rather than re-proven in every consumer |
+| Scalar's rendered console | not claimed — a vendored island with its own theme. The route group around it is AA |
+| Operator tooling: Lowdefy, Grafana, pgweb ([ADR-0401](0401-internal-admin.md), [ADR-0501](0501-operator-uis-and-dashboards.md)) | not claimed. Third-party UIs behind an operator session, and the exclusion is stated rather than assumed |
+
+**Enforcement is `@axe-core/playwright`** inside the existing e2e suite ([ADR-0601](0601-testing-strategy.md)) — no second toolchain. Every kitchen-sink section and every product journey is scanned, and a `serious` or `critical` violation fails the merge. Colour contrast is additionally checked against the design-token file rather than per component, because a token change moves every surface at once.
+
 ### Developer portal renderer
 
 The devportal route group renders the OpenAPI specs through **Scalar**, embedded as a client island — never a separate service.
@@ -220,6 +235,8 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - **Untitled UI source is vendored and committed**, so upgrading is a real PR. Mitigated by keeping the upstream layout verbatim, tracking bumps, and taking them yearly.
 - **The OpenTelemetry web SDK is heavier than Faro alone.** Accepted; browser-to-service trace continuity is worth the bytes, and the perf gates keep it honest.
 - **Deferring i18n risks a painful retrofit.** Mitigated by the one-file-per-route-group string layout.
+- **A green axe run is not WCAG conformance.** Automated scanning catches only the machine-checkable subset of the success criteria; the rest — meaningful alt text, sensible reading order, whether a flow is actually completable by keyboard — is not detectable by a tool. The AA claim rests on the primitives being right and on the keyboard pass, and the gate only prevents regressions in the part a machine can see.
+- **AA is claimed for first-party surfaces and refused for vendored ones.** A user who needs it meets an accessible product panel and an inaccessible Grafana. This is honest rather than good, and it is the direct cost of not building operator tooling.
 - **A Server Action is an implicit endpoint.** Its surface is defined by what the function accepts rather than by a spec, so it is limited to single-service mutations and never becomes an ad-hoc API for another consumer.
 
 ## Rules
@@ -235,7 +252,10 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - Design tokens come from the committed Untitled UI token file. There is no JS token mirror, and tokens are not redefined per route group.
 - Class composition uses `cx` and `sortCx`. Hand-written helpers are not added. `(CI: ci:lint)`
 - Primitives are the vendored Untitled UI source, composed by explicit path and never duplicated.
-- A primitive added under `src/components/` is added to the kitchen-sink page in the same PR.
+- A primitive added under `src/components/` is added to the kitchen-sink page in the same PR, and that PR includes a keyboard-only pass of the new section.
+- Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated rather than assumed.
+- Every kitchen-sink section and every product journey is scanned with `@axe-core/playwright`; a `serious` or `critical` violation fails the merge. `(CI: e2e)`
+- Colour contrast is verified against the design-token file, not per component. `(CI: e2e)`
 - Icons come from the Untitled UI icon set. Another set requires an ADR amendment.
 - Forms use react-hook-form and zod through the shared `<Form>` primitive.
 - URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. `(CI: ci:lint)`
