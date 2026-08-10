@@ -140,7 +140,7 @@ Scalar's request console is why the dev portal is same-origin with `/api` ([ADR-
 - Every request carries identity in the same header shape. Services read identity from headers and never parse a token. `(CI: lint:auth-inline)`
 - Service-to-service calls bypass the edge, forward the identity headers, and are gated by NetworkPolicy. No token is on the internal path.
 - Request-schema validation is service-side. There is no edge schema validation.
-- Edge denials return `application/problem+json` in the shape [ADR-0303](0303-api-contracts-and-lifecycle.md) fixes, carrying `trace_id`. Oathkeeper's default error body is not shipped.
+- Edge denials return `application/problem+json` in the shape [ADR-0303](0303-api-contracts-and-lifecycle.md) fixes, carrying `trace_id`. Oathkeeper's default error body is not shipped. `(ref: RFC 9457)`
 - Rate limiting on auth-sensitive routes is Traefik middleware in `infra/gateway/`.
 - Static browser-security headers are a Traefik middleware on all responses; the per-request CSP nonce is the frontend's.
 - Cookie-authenticated state-changing requests are Origin-checked by an Oathkeeper rule. Bearer-token traffic is exempt.

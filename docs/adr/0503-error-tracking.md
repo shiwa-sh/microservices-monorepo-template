@@ -97,7 +97,7 @@ The seam is real and the cost of waiting is bounded, which makes this a deferral
 
 ## Rules
 
-- A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK.
+- A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK. `(ref: OTel semconv)`
 - `error.fingerprint` is a span attribute and log structured metadata. It is never a Loki stream label and never a metric label.
 - Error messages carry no interpolated user data; context is attributes ([ADR-0001](0001-documentation-and-output-conventions.md)).
 - Errors are not tracked as issues anywhere but the forge. No component holds resolution state on an error.

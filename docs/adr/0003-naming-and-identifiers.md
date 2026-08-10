@@ -285,8 +285,8 @@ One table, so no surface is left to precedent. Where another ADR owns the naming
 
 ### Identifiers
 
-- A primary key is a UUIDv7 in a Postgres `uuid` column, generated in application code. Sequential integer keys and UUIDv4 are not used.
-- An identifier crossing a service boundary is type-prefixed as `{prefix}_{base32 UUIDv7}`, where `prefix` is the singular form of the resource's collection noun. The bare UUID appears only in the database.
+- A primary key is a UUIDv7 in a Postgres `uuid` column, generated in application code. Sequential integer keys and UUIDv4 are not used. `(ref: RFC 9562)`
+- An identifier crossing a service boundary is type-prefixed as `{prefix}_{base32 UUIDv7}`, where `prefix` is the singular form of the resource's collection noun. The bare UUID appears only in the database. `(ref: RFC 9562)`
 - An identifier is opaque to its consumer. No client parses, orders, or constructs one.
 - An unguessable identifier is never treated as an access control. Every access is authorised per [ADR-0304](0304-identity-and-authorization.md).
 - Cross-service correlation uses the W3C `traceparent`. No service mints its own request identifier. `(ref: W3C Trace Context)`

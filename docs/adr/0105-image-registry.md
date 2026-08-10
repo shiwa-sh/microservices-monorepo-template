@@ -75,6 +75,6 @@ Harbor loses on component weight rather than on capability. Its replication, quo
 
 - Images are stored in a self-hosted zot registry backed by object storage.
 - Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI.
-- Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](0104-supply-chain-security.md)).
+- Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](0104-supply-chain-security.md)). `(ref: OCI 1.1)`
 - Vulnerability scanning runs in CI, not in the registry.
 - Deployments reference images by digest ([ADR-0103](0103-release-and-versioning.md)). `(enforced: Kyverno)`

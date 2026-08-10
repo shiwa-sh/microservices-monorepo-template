@@ -158,8 +158,8 @@ Postgres as a row store is the floor, not a ceiling claim.
 - The marketing panel is a route group on the product origin, page-gated by `Checker` in addition to the session gate. Marketing surfaces on the ops tier are not created.
 - The events table carries a declared data class and schema-level PII tags, and is reached by the erasure and DSAR workflows. Raw IP addresses are never stored.
 - Session replay ships only after the documented incident trigger fires, and through its own ADR.
-- The ops RUM path writes nothing to client-side storage; its session id is in-memory and per-page. A persistent identifier on that path is a defect. `(CI: ci:e2e)`
+- The ops RUM path writes nothing to client-side storage; its session id is in-memory and per-page. A persistent identifier on that path is a defect. `(CI: e2e)`
 - A `marketing.*` event is emitted only against a recorded consent grant, and the analytics service drops any that arrives without one. Both gates exist; neither is sufficient alone.
-- Global Privacy Control is honoured as a refusal, and a visitor sending it is not prompted.
+- Global Privacy Control is honoured as a refusal, and a visitor sending it is not prompted. `(ref: Global Privacy Control)`
 - The consent record carries a timestamp, the purpose-text version, and the signal source, and is reachable by the erasure and DSAR workflows ([ADR-0301](0301-data-lifecycle-privacy.md)).
 - The purpose mapping is configuration reviewed at project instantiation. Changing it never changes the enforcement path.

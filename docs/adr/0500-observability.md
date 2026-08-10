@@ -200,7 +200,7 @@ Service code is unchanged between local and production: the same `obs.Init` work
 - Logs are structured JSON to stdout. `fmt.Println` and unstructured loggers are not used. `(CI: lint:log-vocab)`
 - Log levels follow the conventions table, and `DEBUG` is off in production.
 - Metrics use the `obs` helpers with allow-listed labels. High-cardinality attributes are not used as metric labels. `(CI: ci:lint)`
-- Trace context is propagated via W3C `traceparent`; the edge preserves it and Temporal middleware propagates it.
+- Trace context is propagated via W3C `traceparent`; the edge preserves it and Temporal middleware propagates it. `(ref: W3C Trace Context)`
 - PII is never written to logs, metrics, traces, or profiles.
 - Sampling is configured centrally. Service authors do not set sampling rates.
 - Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made; changes are PRs.

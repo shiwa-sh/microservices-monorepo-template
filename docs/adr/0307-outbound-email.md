@@ -123,9 +123,9 @@ Out of scope as a platform component, but the choice interacts with [ADR-0200](0
 - The platform sends mail and does not receive it. No inbound listener, mailbox, or IMAP surface is deployed *as part of the platform*; a mailbox system, if one exists, is separate infrastructure.
 - Every sender speaks SMTP. No service embeds an email-provider SDK, so the relay target stays a configuration value.
 - Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain.
-- `SPF` (RFC 7208), `DKIM` (RFC 6376), and `DMARC` (RFC 7489) are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production.
-- Delivery honours DANE (RFC 7672) and MTA-STS (RFC 8461) where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext.
+- `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production. `(ref: RFC 7208, RFC 6376, RFC 7489)`
+- Delivery honours DANE and MTA-STS where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext. `(ref: RFC 7672, RFC 8461)`
 - Non-production environments deliver to a sink, never to a real recipient.
-- Mail a recipient did not individually trigger carries one-click `List-Unsubscribe` (RFC 8058). Verification, recovery, and other transactional mail does not.
+- Mail a recipient did not individually trigger carries one-click `List-Unsubscribe`. Verification, recovery, and other transactional mail does not. `(ref: RFC 8058)`
 - Mail bodies carry links and codes, never personal data ([ADR-0301](0301-data-lifecycle-privacy.md)).
 - Delivery failure is observable as a metric: a failed submission is a failed activity, and the identity flow's completion rate is the signal a dropped verification mail moves.

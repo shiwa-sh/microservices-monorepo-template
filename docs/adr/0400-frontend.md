@@ -254,7 +254,7 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - Class composition uses `cx` and `sortCx`. Hand-written helpers are not added. `(CI: ci:lint)`
 - Primitives are the vendored Untitled UI source, composed by explicit path and never duplicated.
 - A primitive added under `src/components/` is added to the kitchen-sink page in the same PR, and that PR includes a keyboard-only pass of the new section.
-- Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated rather than assumed.
+- Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated rather than assumed. `(ref: WCAG 2.2 AA)`
 - Every kitchen-sink section and every product journey is scanned with `@axe-core/playwright`; a `serious` or `critical` violation fails the merge. `(CI: e2e)`
 - Colour contrast is verified against the design-token file, not per component. `(CI: e2e)`
 - Icons come from the Untitled UI icon set. Another set requires an ADR amendment.

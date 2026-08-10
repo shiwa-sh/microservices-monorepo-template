@@ -315,7 +315,7 @@ Rehearsed quarterly alongside the backup restore drill.
 - CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy.
 - KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic.
 - Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation.
-- Every namespace carries the Pod Security Standards `restricted` labels with a pinned `enforce-version`. A namespace at `baseline` or `privileged` records why in its manifest. `(enforced: PSA)`
+- Every namespace carries the Pod Security Standards `restricted` labels with a pinned `enforce-version`. A namespace at `baseline` or `privileged` records why in its manifest. `(ref: Pod Security Standards; enforced: PSA)`
 - Service containers run as non-root with a read-only root filesystem, `ALL` capabilities dropped, `allowPrivilegeEscalation: false`, and `seccompProfile: RuntimeDefault`. A writable path is an `emptyDir`. `(enforced: PSA)`
 - A component requiring privilege runs in its own namespace and never shares one with a `restricted` workload.
 - Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. `(enforced: CiliumNetworkPolicy)`
