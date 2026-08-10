@@ -47,9 +47,10 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 | --- | --- |
 | Agent | **maddy**, configured as a submission endpoint and DKIM signer. No inbound listener, no mailboxes |
 | Egress | a **dedicated static IP** whose `PTR` resolves to `mail.example.com`, matching maddy's HELO name. Shared or dynamic egress is not used for mail |
-| Authentication records | platform mail authenticates as `mail.example.com`: that subdomain carries maddy's `SPF` and its `DKIM` selector, leaving the organisation domain's records to whatever serves human mail. `DMARC` is published once at the organisation domain and governs the subdomain through `sp=`, so both senders report into one place. All are committed alongside the environment's other DNS ([ADR-0200](0200-cluster-topology.md)), starting at `p=none` with reporting and moving to `p=reject` once reports are clean |
+| Authentication records | platform mail authenticates as `mail.example.com`: that subdomain carries maddy's [`SPF`](https://www.rfc-editor.org/rfc/rfc7208) and its [`DKIM`](https://www.rfc-editor.org/rfc/rfc6376) selector, leaving the organisation domain's records to whatever serves human mail. [`DMARC`](https://www.rfc-editor.org/rfc/rfc7489) is published once at the organisation domain and governs the subdomain through `sp=`, so both senders report into one place. All are committed alongside the environment's other DNS ([ADR-0200](0200-cluster-topology.md)), starting at `p=none` with reporting and moving to `p=reject` once reports are clean |
 | Signing key | the DKIM private key is SOPS-encrypted ([ADR-0202](0202-secrets.md)) |
-| Senders | Kratos ([ADR-0304](0304-identity-and-authorization.md)) and services, both via SMTP submission. No service embeds a provider SDK |
+| Transport security | delivery honours [DANE](https://www.rfc-editor.org/rfc/rfc7672) `TLSA` records and [MTA-STS](https://www.rfc-editor.org/rfc/rfc8461) policies where a receiver publishes either, and falls back to opportunistic STARTTLS where it publishes neither. A receiver whose published policy fails to validate is a deferred delivery, never a cleartext one |
+| Senders | Kratos ([ADR-0304](0304-identity-and-authorization.md)) and services, both via SMTP submission. No service embeds a provider SDK. Mail a recipient did not individually trigger carries one-click [`List-Unsubscribe`](https://www.rfc-editor.org/rfc/rfc8058); transactional mail does not, and is exempt from the major receivers' bulk-sender rules |
 | Retries | delivery is a Temporal activity where it must be tracked, and the outbox where fire-and-forget is honest ([ADR-0302](0302-temporal.md)) |
 | Human mailboxes | not a platform concern, and never the same sender as platform mail. Whether bought or self-hosted, they serve the domain's `MX` from their own egress IP and `DKIM` selector, independent of maddy |
 | Local and non-prod | **Mailpit** as a sink. Non-production never delivers to a real recipient |
@@ -113,6 +114,7 @@ Out of scope as a platform component, but the choice interacts with [ADR-0200](0
 - **`PTR` delegation is a provider capability, not a given.** The dedicated egress IP needs reverse DNS resolving to maddy's HELO name, and providers vary: some do not offer it, some only by support request, and some not at all for load-balancer addresses. Receivers treat a missing or mismatched `PTR` as a strong negative signal, so this fails the same way blocked egress does — at first send. It is confirmed at provider selection ([ADR-0200](0200-cluster-topology.md)).
 - **Two senders means two reputations to keep.** Where mailboxes are self-hosted, the separation this ADR mandates costs a second static IP, a second warmup, and a second set of blocklist checks. Coupling them would be worse — it puts account recovery behind staff mail's complaint rate — but the cost is real and lands on the same small team.
 - **A reputation incident is slow to reverse.** The trigger above exists so the swap happens on a measurement rather than after a month of silent failures.
+- **A receiver's broken MTA-STS or DANE policy delays our mail rather than delivering it.** Accepted deliberately: an identity mail that arrives late is recoverable, and one that crosses the internet in cleartext is not. The delay is visible as a retrying activity, so it surfaces as a metric rather than a silent hold.
 - **Mail is a third-party-observable side channel.** Content is minimal by construction: links and codes, never personal data ([ADR-0301](0301-data-lifecycle-privacy.md)).
 
 ## Rules
@@ -121,7 +123,9 @@ Out of scope as a platform component, but the choice interacts with [ADR-0200](0
 - The platform sends mail and does not receive it. No inbound listener, mailbox, or IMAP surface is deployed *as part of the platform*; a mailbox system, if one exists, is separate infrastructure.
 - Every sender speaks SMTP. No service embeds an email-provider SDK, so the relay target stays a configuration value.
 - Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain.
-- `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production.
+- `SPF` (RFC 7208), `DKIM` (RFC 6376), and `DMARC` (RFC 7489) are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production.
+- Delivery honours DANE (RFC 7672) and MTA-STS (RFC 8461) where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext.
 - Non-production environments deliver to a sink, never to a real recipient.
+- Mail a recipient did not individually trigger carries one-click `List-Unsubscribe` (RFC 8058). Verification, recovery, and other transactional mail does not.
 - Mail bodies carry links and codes, never personal data ([ADR-0301](0301-data-lifecycle-privacy.md)).
 - Delivery failure is observable as a metric: a failed submission is a failed activity, and the identity flow's completion rate is the signal a dropped verification mail moves.
