@@ -87,6 +87,28 @@ Raw IP addresses are never stored, and user-agent is reduced to a parsed device 
 
 Doing this at design time is most of why the analytics store is a service we own rather than a vendored product: **an erasure workflow cannot reach into a third-party component's schema.**
 
+### Consent, and where its boundary falls
+
+[ePrivacy](https://eur-lex.europa.eu/eli/dir/2002/58/oj) Art. 5(3) attaches to **storing or reading information on the visitor's device**, not to processing in general. The boundary is therefore a technical line rather than a legal judgement, and the split is designed to sit on it:
+
+| Path | Client-side storage | Basis |
+| --- | --- | --- |
+| Ops RUM — errors, web vitals, traces | **none.** The session id lives in memory for the page's lifetime and is never persisted | legitimate interest (GDPR Art. 6(1)(f)). No Art. 5(3) trigger, so no consent gate |
+| `marketing.*` — journey, funnel, retention | persistent, because the questions span visits | **consent**, recorded before the first event |
+
+Making the ops path storage-less is the load-bearing part: it is why a visitor who refuses analytics still gets working error reporting, and why refusing does not degrade the platform's ability to see that something is broken.
+
+| Concern | Decision |
+| --- | --- |
+| Consent record | first-party, written through the analytics service. It carries a timestamp, the version of the purpose text shown, and the signal's source, because GDPR Art. 7(1) requires consent to be demonstrable after the fact |
+| Withdrawal | through the same control that grants it (Art. 7(3)). Withdrawal stops emission on the next event, not on a support request |
+| Prior signals | [Global Privacy Control](https://globalprivacycontrol.org/) is honoured as a refusal. A visitor sending it is never prompted, because prompting someone who already answered is the dark pattern the rule exists to stop |
+| Enforcement | **two points.** The browser wrapper emits no `marketing.*` event without a recorded grant, and the analytics service drops any that arrive without one. The second exists because the first runs on a client the platform does not control |
+| The consent record itself | PII. Declared class, declared retention, reachable by the erasure and DSAR workflows like every other row ([ADR-0301](0301-data-lifecycle-privacy.md)) |
+| Purpose mapping | the single thing that varies by project and by counsel: which events fall under which purpose. It is configuration, reviewed at instantiation. **The mechanism above does not change with the answer** |
+
+This is why consent is not deferred. The platform ships the mechanism; a project's legal review sets the purpose mapping it enforces. A regime with no consent requirement configures the mapping accordingly and the code path is identical.
+
 ### Session replay is deferred
 
 Capture is open source and self-hosted transport works. **The player is not** — rendering a recorded session is a vendor cloud feature, and the OSS distribution has no documented player. Self-hosting replay therefore means either building one or adopting OpenReplay. Both are real projects, and replay is the worst PII surface here because it captures the DOM, which is unbounded by construction.
@@ -122,7 +144,9 @@ Postgres as a row store is the floor, not a ceiling claim.
 
 - **Marketing gets a panel we build, not exploration they drive.** Every new question is a PR. This is the real cost, and it is a people cost rather than a component cost. If the question rate outgrows the platform team's capacity, the escape hatch is **PostHog Cloud**, not a self-hosted rebuild — and that switch is made deliberately.
 - **Faro de-duplicates consecutive identical events**, so click counts undercount until emitters are shaped to defeat it. Proven by a test rather than assumed.
-- **Consent is an open legal question.** The session tracker uses web storage, and the analytics purpose is generally consent-requiring even though this is first-party and carries no advertising cookie. The proposed split — consent gates `marketing.*` events only, while ops RUM continues on legitimate-interest grounds — **requires legal sign-off and is not the platform team's decision.** Until signed off, the emitters ship disabled.
+- **Consented-only analytics is not a census.** A funnel measures the consenting population, and the refusal rate is itself a confounder — refusers are not a random sample. Marketing must read these numbers as a directional panel rather than as traffic truth, and the ops RUM path is the only one that sees everyone.
+- **Two enforcement points can disagree.** The service's view of a withdrawal lags the browser's by at most one event, so a withdrawn visitor's in-flight event is dropped server-side rather than never sent. That is the correct failure direction and it is still a discarded write.
+- **Storage-lessness constrains the ops path permanently.** Any future ops feature wanting a cross-visit identifier — a returning-user metric, a durable device id — crosses the Art. 5(3) line and moves that feature behind consent. The boundary is cheap to hold now and expensive to move later.
 - **Funnel SQL is work a free hosted tier would have given away.** Accepted in exchange for the correlation requirement and zero operational surface.
 - **A routing-connector mistake sends identity-bearing events into Loki.** This is one line of configuration away at all times and needs a standing test, not review vigilance.
 
@@ -134,4 +158,8 @@ Postgres as a row store is the floor, not a ceiling claim.
 - The marketing panel is a route group on the product origin, page-gated by `Checker` in addition to the session gate. Marketing surfaces on the ops tier are not created.
 - The events table carries a declared data class and schema-level PII tags, and is reached by the erasure and DSAR workflows. Raw IP addresses are never stored.
 - Session replay ships only after the documented incident trigger fires, and through its own ADR.
-- The `marketing.*` emitters stay disabled until the consent purpose split has legal sign-off.
+- The ops RUM path writes nothing to client-side storage; its session id is in-memory and per-page. A persistent identifier on that path is a defect. `(CI: ci:e2e)`
+- A `marketing.*` event is emitted only against a recorded consent grant, and the analytics service drops any that arrives without one. Both gates exist; neither is sufficient alone.
+- Global Privacy Control is honoured as a refusal, and a visitor sending it is not prompted.
+- The consent record carries a timestamp, the purpose-text version, and the signal source, and is reachable by the erasure and DSAR workflows ([ADR-0301](0301-data-lifecycle-privacy.md)).
+- The purpose mapping is configuration reviewed at project instantiation. Changing it never changes the enforcement path.
