@@ -49,7 +49,7 @@ The platform team is small against a whole fleet ([ADR-0000](0000-platform-found
 | --- | --- |
 | Image signing | **cosign with a key pair**, generated at bootstrap and held in SOPS ([ADR-0202](0202-secrets.md)). Every first-party image is signed |
 | SBOM | generated with **syft** ([SPDX](https://spdx.dev/)) and attached as a cosign attestation, so the bill of materials travels with the image |
-| Provenance | **[SLSA](https://slsa.dev/) build provenance** — what source, what builder — emitted as an attestation |
+| Provenance | **[SLSA](https://slsa.dev/) build provenance** — what source, what builder — emitted as an [in-toto](https://github.com/in-toto/attestation) attestation, which is the envelope SLSA and cosign both speak |
 | Admission | **Kyverno** verifies the signature and required attestations on first-party images, and requires digest-pinned references |
 | Third-party images | pinned by digest and allow-listed. Upstream signatures are verified where the publisher provides them, and a pinned digest is accepted where they do not |
 | Vulnerability scanning | **in CI, where a finding blocks a merge.** Neither the registry ([ADR-0105](0105-image-registry.md)) nor the cluster scans |

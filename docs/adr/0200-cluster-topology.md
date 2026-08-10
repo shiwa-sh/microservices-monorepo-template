@@ -308,7 +308,7 @@ Rehearsed quarterly alongside the backup restore drill.
 - Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node.
 - Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger.
 - Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory.
-- Ingress is Traefik with TLS from cert-manager. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway.
+- Ingress is Traefik with TLS from cert-manager over ACME. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. `(ref: RFC 8555)`
 - Object storage in production is an external S3-compatible bucket. Non-prod uses in-cluster MinIO behind the same API.
 - Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly.
 - The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires.

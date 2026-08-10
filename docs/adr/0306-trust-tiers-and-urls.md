@@ -154,6 +154,8 @@ The service API is a **flat resource namespace** — the URL names the resource,
 
 **East-west endpoints are not on this surface.** They bypass the edge, are gated by NetworkPolicy, and appear in neither docs portal.
 
+**One reserved path sits outside both tiers.** `/.well-known/` on the apex is neither product nor ops surface; it is where the web's own conventions live, so nothing else claims that prefix. The apex publishes [`security.txt`](https://www.rfc-editor.org/rfc/rfc9116) there — a contact address and a disclosure policy — because a researcher who finds something looks in exactly one place, and its absence routes the report to whatever public inbox they can find instead.
+
 **The path holds for a public or partner API too.** It is distinguished by its `x-audience: public` contract and its JWT auth, not by its origin. Versioning never enters the URL: the default is single-live-version, and online versioning rides a header ([ADR-0303](0303-api-contracts-and-lifecycle.md)), which is precisely why the flat resource URL stays stable across versions.
 
 ## Consequences
@@ -180,6 +182,7 @@ The service API is a **flat resource namespace** — the URL names the resource,
 - Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never merely because a surface is public.
 - The public API docs portal is anonymous; only credential management is authenticated.
 - The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint:service-contract)`
+- `/.well-known/` on the apex is reserved for web conventions and claimed by no product route. The apex serves `security.txt` with a contact address and a disclosure policy. `(ref: RFC 9116, RFC 8615)`
 - The path holds for the public API too. A distinct origin is used only for hard credential isolation — which needs a separate registrable domain, since a parent-scoped cookie reaches a subdomain — or separate edge infrastructure at scale.
 - Ops-tier hostnames are `{tool}.ops.<host>`, named after the tool, lowercase, matching the naming charset.
 - The default is one session cookie scoped to the parent host, with tier isolation enforced by per-tool authorization and an AAL2 requirement on the ops tier. This is permitted only while every origin under `<host>` is first-party and edge-gated.

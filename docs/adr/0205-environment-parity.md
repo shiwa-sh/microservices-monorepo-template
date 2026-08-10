@@ -101,4 +101,4 @@ In-cluster object storage in production would co-locate data and its backups on 
 - Object storage is the S3 API everywhere; production uses an external bucket, and in-cluster object storage is not run in production.
 - Backups are off-cluster and mandatory in production ([ADR-0200](0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
 - SOPS is the secret mechanism in every environment, including local.
-- Certificates are issued by cert-manager in every environment and are verified, never bypassed.
+- Certificates are issued by cert-manager over ACME in every environment and are verified, never bypassed. `(ref: RFC 8555)`

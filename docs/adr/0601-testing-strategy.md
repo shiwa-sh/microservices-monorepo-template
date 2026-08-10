@@ -93,6 +93,8 @@ Node is therefore sanctioned as a **test-only escape hatch**, scoped to the e2e 
 
 Preflight runs before the browser suite so a red e2e reads immediately as "infra down" rather than "app broken". It is triage, not a competing acceptance test. The browser test is the final word.
 
+**The shape is not a pyramid, and the name is conventional rather than descriptive.** Counted by tests rather than by scope it is closer to a honeycomb: a thin base, a thick middle, and a top that carries the verdict. Three properties put it there. Clients and validators are generated from the spec and drift-checked ([ADR-0303](0303-api-contracts-and-lifecycle.md)), so the mock-heavy integration tier a pyramid thickens has little left to catch. The failures that actually cost this platform are cross-service and auth-shaped — a header injected at the edge, an AAL2 session, an OpenFGA tuple — and none of them is observable below the browser layer. And `cluster:full` runs the same charts as production ([ADR-0205](0205-environment-parity.md)), so the usual objection to a heavy top, that end-to-end runs against a fiction, does not hold here.
+
 ### Load is a fourth concern, not a fifth layer
 
 Load testing sits beside the pyramid, not on it. A red load run means "slower than the budget", not "broken", so **performance tests are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge**.
@@ -186,6 +188,7 @@ The CI gate is committed accepted-snapshot diffing against baselines in `e2e/vis
 - **Node returns as a sanctioned runtime.** Contained to the `e2e/` runner and CI, never a service, app or library code, or an image built from our own source. ([ADR-0100](0100-language-and-runtime.md) sanctions one other Node island for the same vendored-tool reason: the Lowdefy admin console, [ADR-0401](0401-internal-admin.md).)
 - **Label-gated smoke means an unlabelled PR gets no full-platform signal until nightly**, so a cross-service break can sit in `master` for up to ~24h. Accepted as the cost of not paying a full bring-up per PR.
 - **Operator-dashboard e2e lives only in the nightly suite**, so platform-contract regressions surface within 24h.
+- **The gauge is also the bottleneck.** Putting the verdict at the slowest, most flake-prone layer means a broken top blocks the signal entirely. Preflight localises the cause; it does not make the layer faster or steadier.
 - **Heavy SPA dashboards can be flaky.** Mitigated by Playwright auto-wait and the preflight gate.
 - **Local load numbers are not capacity numbers.** Stated wherever results are reported, and resolved by the k6-operator swap when absolute figures are needed.
 - **A single local node is not a production topology.** Saturation shapes transfer; absolute ceilings do not — the same caveat [ADR-0205](0205-environment-parity.md) carries for the local tier.

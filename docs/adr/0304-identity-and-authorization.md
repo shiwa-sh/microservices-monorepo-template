@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0200](0200-cluster-topology.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
 
 ## Context
 
@@ -157,6 +157,16 @@ The personal org's default name is a **generic constant**, not the user's email.
 
 Switching model means editing the registration webhook path and, for the B2C case, the model's ownership relations. The `Checker` seam and every service's authz call are unaffected.
 
+### Directory provisioning is deferred
+
+[SCIM](https://www.rfc-editor.org/rfc/rfc7644) lets an enterprise customer's IdP drive joiners and leavers directly. It is per-customer plumbing, so it waits.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | the first contract making directory-driven provisioning a condition of purchase |
+| **Seam** | ✓ mostly. `orgs` already owns memberships, invitations, and SSO connection records, and `RegisterUser` already performs the membership dual write. SCIM is an authenticated endpoint driving that path. The gap is deprovisioning: a Kratos identity state change must also revoke sessions and tuples, which no flow does today |
+| **Cost if adopted late** | joiner and leaver stay manual, and a leaver retaining access is the audit finding that surfaces it. Adoption then reconciles existing memberships against the directory once per customer |
+
 ### Authorization engine: OpenFGA
 
 Accessed only through the `authz.Checker` interface in `libs/go/authz/`. A depguard rule confines the SDK to that library.
@@ -236,6 +246,27 @@ A conformance suite at `tools/auth-conformance/` ships with the repo: identity-h
 
 This is the only sanctioned edge-side permission decision. Product surfaces decide in-service through `Checker`.
 
+### Security verification: ASVS Level 2
+
+**The application security bar is [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) Level 2**, pinned to version 5.0. L2 is the level ASVS describes as appropriate for an application handling significant transactions and personal data, which is this platform's default posture. L1 is a floor reachable without design support and asserts little. L3 targets systems where a breach is a safety event, and its demands — per-transaction reauthentication, full segregation of duties, exhaustive access audit — would reshape decisions taken deliberately elsewhere in this set.
+
+The version is pinned so an upstream revision is a reviewed bump rather than a silently moved goalpost, the same discipline as the Pod Security Standards version in [ADR-0200](0200-cluster-topology.md).
+
+**The claim is met across the set, not here.** ASVS is far broader than identity, so this ADR states the bar and names who holds each part of it:
+
+| Concern | Owner |
+| --- | --- |
+| Authentication, session management | this ADR — Kratos sessions, the NIST 800-63B password policy, AAL levels |
+| Access control | this ADR — OpenFGA through `Checker`, never inline |
+| Input validation and encoding | [ADR-0303](0303-api-contracts-and-lifecycle.md) — validators generated from the spec, so coverage is not a matter of diligence |
+| Error handling and logging | [ADR-0303](0303-api-contracts-and-lifecycle.md)'s error envelope, [ADR-0500](0500-observability.md)'s structured logs and PII rule |
+| Data protection and privacy | [ADR-0301](0301-data-lifecycle-privacy.md) |
+| Communications security | [ADR-0200](0200-cluster-topology.md) WireGuard east-west, [ADR-0205](0205-environment-parity.md) verified TLS everywhere |
+| Configuration and secrets | [ADR-0202](0202-secrets.md) |
+| Malicious-code and supply chain | [ADR-0104](0104-supply-chain-security.md) |
+
+**The bar covers first-party surfaces.** Vendored operator tooling — Lowdefy, Grafana, pgweb ([ADR-0401](0401-internal-admin.md), [ADR-0501](0501-operator-uis-and-dashboards.md)) — is outside it, the same boundary [ADR-0400](0400-frontend.md) draws for accessibility, and for the same reason: a claim over software we do not write is a claim we cannot keep.
+
 ### Day-one component cost
 
 | Component | Role |
@@ -264,10 +295,13 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - **Three platform components on day one** for internal-only projects, plus the `orgs` service. Accepted: the constraints — headless login and ReBAC, both from day one — make consolidation impossible without compromise. Dropping the service-to-service token in favour of NetworkPolicy removes a validation path from every service.
 - **Building B2B organisations on Kratos is real work.** Accepted; the alternative costs the UI requirement.
 - **Dual-write discipline must be enforced.** A direct write that skips the workflow is a silent authz bug. Mitigated by lint, a review checklist, and integration tests asserting OpenFGA state after every workflow.
+- **ASVS L2 is a design claim, not a test result.** No job proves it; it is asserted by construction and checked by review. Its worth is that a reviewer has a named checklist instead of a private sense of what secure means, and its risk is that an unexamined claim ages into a false one. A conformance review belongs to whoever needs the assurance, and this document does not schedule one.
+- **L2 is not the bar every deployment needs.** A regulated project raises it and records the delta in its own ADR rather than editing this one.
 - **The coarse ops gate is a claim, not a policy check.** An operator whose access should have been revoked keeps it until their session expires or the trait is removed. Accepted deliberately, so the dashboards survive an authz outage.
 
 ## Rules
 
+- The application security bar is OWASP ASVS 5.0 Level 2 for first-party surfaces. Vendored operator tooling is out of scope, and the exclusion is stated rather than assumed. `(ref: OWASP ASVS 5.0 L2)`
 - Human identity is owned by Ory Kratos. There is no alternate user store.
 - External tokens are issued by Ory Hydra, deployed only for projects exposing a public API. No service issues its own tokens. Access tokens are `at+jwt`, and the authorization-code grant requires PKCE for every client; implicit and resource-owner-password grants are disabled. `(ref: RFC 9068, RFC 7636, OIDC Core)`
 - The login UI is the Next.js app driving Kratos self-service flows. Hosted pages are not used.
@@ -276,6 +310,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - B2B organisations are owned by `services/orgs/`; other services consult its HTTP API. `(CI: ci:lint)`
 - Every protected resource belongs to an `org`, and a user acts only through a role in an org. Every identity gets a personal org at registration through the `RegisterUser` dual write. A single shared default org is not used.
 - Changing the tenancy model is confined to the registration webhook path and is a deliberate per-project decision.
+- Directory provisioning ships only after the documented contract trigger fires. Until then, membership changes go through invitations.
 - Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. `(CI: ci:lint)`
 - The OpenFGA schema is one global file. Per-service schemas are not used. `(CI: lint:authz)`
 - Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. `(CI: lint:authz)`

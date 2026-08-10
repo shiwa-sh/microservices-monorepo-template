@@ -166,7 +166,7 @@ The **public docs portal** is anonymous with no login, the norm for public API d
 
 ### Content Security Policy
 
-CSP is a frontend responsibility because a strong policy needs a per-request nonce.
+CSP is a frontend responsibility because a strong policy needs a per-request nonce. The policy is written to [CSP Level 3](https://www.w3.org/TR/CSP3/); `strict-dynamic` and nonce sources are that level's, and host-allowlist policies are not used.
 
 - **The nonce is generated in the proxy** per request and set on both the request header and the response header, with `script-src 'nonce-<x>' 'strict-dynamic'`, `object-src 'none'`, and `base-uri 'self'`. Next propagates it to its own scripts. Inline scripts are not used.
 - **`connect-src` allowlists first-party telemetry.** A missing entry silently breaks browser RUM, so the kitchen-sink page exercises it.
@@ -261,7 +261,7 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - Forms use react-hook-form and zod through the shared `<Form>` primitive.
 - URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. `(CI: ci:lint)`
 - The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. `(CI: lint:auth-inline)`
-- CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin.
+- CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin. `(ref: CSP Level 3)`
 - CSRF rests on the SameSite cookie, Kratos's built-in protection, and the Server Actions Origin check. Hand-rolled CSRF tokens are not added.
 - Biome is the only lint and format tool. ESLint is not installed. `(CI: ci:lint)`
 - `bun test` covers unit and component tests. Vitest and Jest are not used.

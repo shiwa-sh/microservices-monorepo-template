@@ -63,6 +63,20 @@ This is the single request shape: every service, edge-origin or internal, reads 
 
 **A denial at the edge looks like a denial from a service.** Oathkeeper rejects before any handler runs, so it is the platform's other error producer, and its `401` and `403` responses carry `application/problem+json` in the shape [ADR-0303](0303-api-contracts-and-lifecycle.md) fixes — same members, same `trace_id` extension. A generated client therefore has one error branch, not one per producer. Oathkeeper's error handlers are configured for this rather than left at their default body.
 
+### Where this sits against zero trust
+
+A reader who knows [NIST SP 800-207](https://csrc.nist.gov/pubs/sp/800/207/final) will stop at the diagram above, because a service that trusts a header is the thing zero trust exists to eliminate. The position is deliberate: **this platform takes 800-207's authorization model and declines its transport model.**
+
+| Tenet | Here |
+| --- | --- |
+| Access is granted per-request and per-resource, evaluated dynamically | **held.** Every protected call goes through `Checker` against OpenFGA ([ADR-0304](0304-identity-and-authorization.md)). Nothing is authorised merely by having reached the service |
+| All communication is secured regardless of network location | **held.** WireGuard encrypts all east-west pod traffic ([ADR-0200](0200-cluster-topology.md)) |
+| No implicit trust is derived from network position | **declined.** A service trusts `X-User-Id` because Cilium default-deny guarantees only sanctioned callers reach its port and Oathkeeper strips client-supplied headers at the edge. That is positional trust, which is precisely the assumption 800-207 removes |
+
+The concession buys handlers with no auth code, one identity shape for every caller, no per-hop token minting or verification, and no sidecar on the hot path. It costs this: code executing inside a sanctioned caller can forge identity to a downstream service. The blast radius is that caller's own egress allowances, bounded further by the `restricted` profile limiting what a compromised pod can do at all ([ADR-0200](0200-cluster-topology.md)).
+
+**The seam is built and its trigger is already recorded.** [ADR-0200](0200-cluster-topology.md) makes per-workload certificate identity a Cilium mutual-auth and SPIFFE upgrade, on the trigger of compliance requiring an auditable CA chain. Taking it converts positional trust into cryptographic trust and changes the transport only — the authorization half is 800-207's already, so nothing above it moves.
+
 ### Rate limiting
 
 Traefik's middleware throttles auth-sensitive routes — login, signup, password reset — per source from day one, as a security control independent of any public API.
@@ -128,7 +142,7 @@ Scalar's request console is why the dev portal is same-origin with `/api` ([ADR-
 
 ### Negative / Risks
 
-- **Header trust internally rests on NetworkPolicy.** A misconfigured policy would let a pod spoof `X-User-Id`. Mitigated by default-deny in the service template and by Hubble flows as the audit surface ([ADR-0200](0200-cluster-topology.md)).
+- **Header trust internally rests on NetworkPolicy.** A misconfigured policy would let a pod spoof `X-User-Id`. Mitigated by default-deny in the service template and by Hubble flows as the audit surface ([ADR-0200](0200-cluster-topology.md)). This is the recorded deviation from NIST SP 800-207 above, not an unexamined gap, and it is the one property the SPIFFE seam exists to convert.
 - **No edge schema validation.** Mitigated by generated in-service validation from the same spec. Internal calls bypass the edge anyway, so the service is the only point that sees every request.
 - **Per-API-key quotas are unavailable on day one.** Accepted, and reintroduced per project when a monetised public API is real.
 - **Oathkeeper is one more component to operate.** Accepted; it shares the Ory operational model.
