@@ -166,7 +166,7 @@ The controller is a real cost, and four properties are why a chart cannot replac
 
 ### Draining a worker on rollout
 
-Distinct from replay safety and routinely confused with it: when a worker pod is rolled, **activities currently executing are lost unless the worker is told to wait**. The Go SDK's `WorkerStopTimeout` defaults to no wait, so the platform sets it explicitly, and the chart derives `terminationGracePeriodSeconds` from it so kubelet always waits strictly longer than the worker. Configuring the grace period independently is how this silently regresses.
+Distinct from replay safety and routinely confused with it: when a worker pod is rolled, **activities currently executing are lost unless the worker is told to wait**. The Go SDK's `WorkerStopTimeout` defaults to no wait, so the platform sets it explicitly, and the chart derives `terminationGracePeriodSeconds` from it so kubelet always waits strictly longer than the worker. Configuring the grace period independently is how this silently regresses. This is [12-Factor IX](https://12factor.net/disposability) taken past where the factor stops: it asks that a process shut down gracefully on `SIGTERM` and leaves to the platform the question of how long *gracefully* is. For a worker holding an in-flight activity, the answer is the stop timeout, and the grace period follows from it.
 
 ### What Temporal replaces
 

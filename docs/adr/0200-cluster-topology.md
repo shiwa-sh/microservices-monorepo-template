@@ -140,7 +140,7 @@ The cost of self-hosting is operational, and the machine configuration under `in
 | Anything outside the base image — drivers, iSCSI, GPU | a system extension baked into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory), referenced by schematic and pinned like any other artefact ([ADR-0104](0104-supply-chain-security.md)) |
 | Machine secrets | the cluster CA and `talosconfig`, SOPS-encrypted in git like every other secret ([ADR-0202](0202-secrets.md)) |
 
-Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell, and a one-off manual fix are unavailable by construction, which is the property being bought rather than a limitation being tolerated.
+Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell, and a one-off manual fix are unavailable by construction, which is the property being bought rather than a limitation being tolerated. This is narrower than it sounds against [12-Factor XII](https://12factor.net/admin-processes): one-off admin work still runs, in the same image and release as the service — migrations as an init container ([ADR-0300](0300-data.md)), operator tasks through the admin UIs ([ADR-0401](0401-internal-admin.md)). What is unavailable is the host shell, not the one-off process.
 
 ### Topology and growth
 

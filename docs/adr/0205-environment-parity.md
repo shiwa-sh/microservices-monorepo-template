@@ -48,6 +48,8 @@ A divergence that cannot be expressed as a value — a different chart, or a han
 | Secret plaintext | throwaway locally, real when deployed | SOPS as the decrypt mechanism |
 | Domain | `*.localtest.me` against `*.<env>.<project-domain>` | the routing and edge shape |
 
+The **must not differ** column is [12-Factor X](https://12factor.net/dev-prod-parity) — *"resists the urge to use different backing services between development and production"* — made enumerable. The **may differ** column is the deliberate scope: the factor is silent on scale, and an inner-loop stand-in behind an identical wire contract is not a different backing service.
+
 ### Distribution lifecycle
 
 The local distribution and the deployed one run identical charts, so the choice is lifecycle, not architecture.

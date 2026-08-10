@@ -35,7 +35,7 @@ Most of what a house style would say is already published. Re-deriving it produc
 | --- | --- | --- |
 | Prose / docs | [ISO 24495-1:2023](https://www.iso.org/standard/78907.html) plain language; [Google Developer Documentation Style Guide](https://developers.google.com/style) (second person, present tense, active voice); [Diátaxis](https://diataxis.fr) genres | the density rules and banned constructs below; `ADR-XXXX` citation form; final-state facts |
 | ADR structure | [MADR](https://adr.github.io/madr/) section set | the fixed section order below; mandatory comparison table ([ADR-0000](0000-platform-foundations.md), principle 7) |
-| Structured logs | [OTel Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/); [RFC 5424](https://www.rfc-editor.org/rfc/rfc5424) severity; [12-Factor XI](https://12factor.net/logs) | no symbols; context as attributes, never interpolated |
+| Structured logs | [OTel Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/); [RFC 5424](https://www.rfc-editor.org/rfc/rfc5424) severity | no symbols; context as attributes, never interpolated |
 | CLI / human stdout | [clig.dev](https://clig.dev); POSIX Utility Conventions (exit codes, `--help`, `--version`) | the fixed `→ ✓ ✗ ⚠` vocabulary and 2-space sub-detail indent |
 | Code comments | [Effective Go](https://go.dev/doc/effective_go), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments); [Google Style Guides](https://google.github.io/styleguide/) for TypeScript | the comment rules below |
 

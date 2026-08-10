@@ -239,13 +239,32 @@ This ADR borrows its framing rather than inventing it. Where a decision here has
 | DORA / *Accelerate* | Capability models over maturity ladders |
 | Team Topologies (Skelton & Pais) | Cognitive load as the sizing unit; **thinnest viable platform** (principle 2) |
 | [OpenGitOps](https://opengitops.dev/) v1.0.0, CNCF | Declarative and versioned configuration (principle 1) |
-| [12-Factor](https://12factor.net/) | Explicit dependencies (principle 6); dev/prod parity (principle 8) |
+| [12-Factor](https://12factor.net/) | Explicit dependencies (this ADR's principle 6); dev/prod parity (principle 8). Full mapping in *12-Factor conformance* below |
 | McKinley, [*Choose Boring Technology*](https://mcfunley.com/choose-boring-technology) | Innovation tokens as a budget (principle 4) |
 | Fowler, [*IntegrationDatabase*](https://martinfowler.com/bliki/IntegrationDatabase.html), *MonolithFirst*, *MicroservicePremium* | Service boundaries (principle 10); the prerequisite bar for decomposition |
 | Ford, Parsons & Kua, *Building Evolutionary Architectures* | **Fitness functions** — the Rules sections below are meant to be executable, not advisory |
 | Poppendieck, *Lean Software Development* | The **last responsible moment** — deferral with a written trigger |
 | Feathers, *Working Effectively with Legacy Code* | **Seams** |
 | Conway (1968) | Boundaries track teams, not features (axis A, force 2) |
+
+### 12-Factor conformance
+
+[12-Factor](https://12factor.net/) predates Kubernetes, and several of its factors are satisfied by the orchestrator rather than by any decision of ours. Two of them anchor a principle above and are cited at the point of use; the rest are recorded here so a reader who knows the canon can find the corresponding decision without reading the set.
+
+| Factor | Decided in | Verdict |
+| --- | --- | --- |
+| I — Codebase | [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md) | conforms — one repo, one SHA through every environment |
+| II — Dependencies | principle 6 above; [ADR-0100](0100-language-and-runtime.md) | conforms — anchors principle 6 |
+| III — Config | [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md) | conforms — the env contract is identical in every tier; values come from SOPS-derived Secrets |
+| IV — Backing services | [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0205](0205-environment-parity.md) | conforms — the provider may differ per tier, the wire contract may not |
+| V — Build, release, run | [ADR-0103](0103-release-and-versioning.md), [ADR-0201](0201-gitops.md) | conforms — immutable SHA tags, digest-pinned production, no moving tags |
+| VI — Processes | [ADR-0200](0200-cluster-topology.md), [ADR-0401](0401-internal-admin.md) | conforms — the application tier is stateless; state is Postgres, object storage, and Temporal |
+| VII — Port binding | — | n/a — a Kubernetes `Service` owns it. There is no decision to make |
+| VIII — Concurrency | [ADR-0204](0204-resource-management.md) | conforms, scoped — scale-out is opt-in on a measured signal, never a template default |
+| IX — Disposability | [ADR-0302](0302-temporal.md), [ADR-0204](0204-resource-management.md) | conforms — cited at the worker-drain rule |
+| X — Dev/prod parity | principle 8 above; [ADR-0205](0205-environment-parity.md), [ADR-0600](0600-local-development-loop.md) | conforms, scoped — anchors principle 8; scale and inner-loop stand-ins may differ |
+| XI — Logs | [ADR-0500](0500-observability.md) | conforms — structured JSON to stdout, routed by the collector |
+| XII — Admin processes | [ADR-0300](0300-data.md), [ADR-0401](0401-internal-admin.md) | conforms, scoped — same image and release, never a host shell |
 
 ## Vocabulary
 

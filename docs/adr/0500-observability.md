@@ -124,7 +124,7 @@ The OTel Collector runs as a **DaemonSet** on every node. Services send OTLP to 
 | **Seam** | ✓ services only ever emit to `localhost:4317`, so adding the gateway tier is a deploy and a collector config change. No service is touched |
 | **Cost if adopted late** | none structurally, and the investigations that prompted it are already over — tail sampling cannot recover a span that was never kept |
 
-**Logs follow a distinct path.** Services write structured JSON to **stdout**, and the agent reads the pod log files, parses, attaches attributes, and forwards. Stdout-first means logs survive even when the OTel SDK fails to start.
+**Logs follow a distinct path.** Services write structured JSON to **stdout**, and the agent reads the pod log files, parses, attaches attributes, and forwards. Stdout-first means logs survive even when the OTel SDK fails to start. That is [12-Factor XI](https://12factor.net/logs) — the service writes an event stream and never concerns itself with routing or storage — with the collector as the router.
 
 **Browser telemetry** from the frontend's Faro agent ([ADR-0400](0400-frontend.md)) enters through a `faro` receiver on the same collector, fed by a Traefik route on a vendor-neutral path that names the concern rather than the agent. The receiver emits web traces and RUM events into the same pipelines, so browser and service signals share backends and trace ids.
 
