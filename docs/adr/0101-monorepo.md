@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0401](0401-internal-admin.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** One repository, one Go module, `mise` as the task runner, and affected-detection deciding what CI runs.
 
 ## Context
 
@@ -42,7 +43,7 @@ Two questions are bundled here, and the discriminator is that most candidates an
 | --- | --- | --- | --- |
 | **mise** | **yes** | **yes, in the same file** | **Chosen.** One tool for both, so a task and the toolchain it needs cannot drift apart |
 | Make | yes | no | Ubiquitous, and the toolchain becomes a separate unpinned problem |
-| just | yes | no | Better ergonomics than Make, same gap |
+| `just` | yes | no | Better ergonomics than Make, same gap |
 | asdf | no | yes | The version manager whose plugin ecosystem mise is compatible with, and it needs a task runner beside it |
 | direnv | no | environment variables only | Solves neither question; composes with whatever does |
 | Nix — flakes, `devenv`, `devbox` | through flake apps, or a runner beside it | **yes, hermetically, down to system libraries** | The strongest reproducibility on offer, and it answers a question this repository has largely already answered — see below |

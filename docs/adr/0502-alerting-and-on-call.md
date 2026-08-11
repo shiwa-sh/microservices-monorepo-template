@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0307](0307-outbound-email.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Decides:** Prometheus evaluates alerts from committed rule files, Alertmanager routes them, and escalation is a recorded concession.
 
 ## Context
 
@@ -65,7 +66,9 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 
 The test for which one a rule carries is [Google SRE's symptom rule](https://sre.google/sre-book/monitoring-distributed-systems/): page on what the user experiences, ticket on what merely explains it. A saturated queue is a `ticket`; the latency it eventually causes is a `page`. Naming the test gives a reviewer something to apply rather than a judgement to make.
 
-Error budgets are the other half of that framing and are **not** adopted — they need an SLO per service, which nothing here produces ([ADR-0601](0601-testing-strategy.md)).
+**Error budgets are the other half of that framing, and they route as `ticket`.** [ADR-0500](0500-observability.md) defines the per-service SLIs and the window, so a budget is derivable and a burn rate is a rule like any other. What it may not carry is `severity: page`, because that severity asserts a human acts within minutes and no receiver reaches one. A fast-burn rule that pages nothing is a rule that lies about itself, so burn alerts are authored at `ticket` and promoted by the escalation trigger below, unchanged in every other respect.
+
+**The objective a project states is bounded by what this routing supports.** Escalation is absent, so out-of-hours detection is next-working-day ([`docs/reference/detection-latency.md`](../reference/detection-latency.md)). An availability objective tighter than that is not an alerting gap, it is a claim the platform cannot honour, and the trigger below is its price.
 
 ### On-call rotation is deferred, with the seam built
 
@@ -76,6 +79,16 @@ Error budgets are the other half of that framing and are **not** adopted — the
 | **Cost if adopted late** | overnight incidents are found in the morning. Bounded by the `page`/`ticket` split already being in the rules, so nothing is re-authored when the pager arrives |
 
 This is a **deferral, not a bet**: the seam exists, and it is the receiver interface every paging vendor implements.
+
+### What would change this decision
+
+| Change | Effect |
+| --- | --- |
+| A self-hosted escalation layer becomes credible again | **Decisive on the escalation half**, and nothing else moves: routing, severities, and the rule files are unchanged by which thing rings the phone |
+| The project states an availability objective tighter than next-working-day | **Decisive.** The objective and the paging receiver are one decision ([ADR-0500](0500-observability.md)); an objective without a receiver is a claim nothing can keep |
+| Grafana's alerting gains a property Prometheus rules lack | **None.** Rules as committed files is principle 1, not a feature comparison |
+| Alert volume makes the `page`/`ticket` split unreliable | **None on the mechanism**, decisive on the rules: that is a symptom of rules written at the wrong severity, and the answer is demoting rules rather than changing where they route |
+| A second team needs its own routing tree | **Decisive.** One tree with one owner is what makes silences and inhibitions reviewable; two teams is a routing hierarchy, which is a different design |
 
 ## Consequences
 
@@ -97,6 +110,7 @@ This is a **deferral, not a bet**: the seam exists, and it is the receiver inter
 - Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used.
 - Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state ([ADR-0000](0000-platform-foundations.md), principle 1).
 - Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes.
+- Error-budget burn rules are authored against the SLIs in [ADR-0500](0500-observability.md) and carry `severity: ticket` while no paging receiver is attached.
 - Maintenance silences are committed, time-bounded, and expire on their own.
 - No on-call rotation is claimed until a paging receiver is attached to the webhook.
 - Alerts about the outbound-mail path do not route through email.

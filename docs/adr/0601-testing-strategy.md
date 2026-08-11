@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0204](0204-resource-management.md), [ADR-0205](0205-environment-parity.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md)
+- **Decides:** Correctness is layered from unit tests up to e2e against the full local platform, with load testing beside those layers rather than gating them.
 
 ## Context
 

@@ -4,6 +4,8 @@ Every decision that binds more than one service, or is hard to reverse, is recor
 
 Writing a new one starts from [`_template.md`](_template.md).
 
+Every ADR carries a **Decides** line in its header: one declarative sentence naming what is true of the platform because of it. The *Decides* column below is that line, shortened to the index. Reading the column is the fastest complete pass over the set. `(CI: lint:adr-xref)`
+
 ## Numbering
 
 Numbers are allocated in **blocks of a hundred, one block per layer**, sequential within the block. The first two digits carry the layer, so a new ADR lands in its block without renumbering the set. Gaps are deliberate.
@@ -49,8 +51,9 @@ A hundred slots per layer rather than ten, so a layer can grow without renumberi
 | [0200](0200-cluster-topology.md) | Cluster Topology & Hosting | Distribution, nodes, CNI, storage, backups, traffic flow |
 | [0201](0201-gitops.md) | GitOps & Deploy | Argo CD as the delivery engine, repository topology, sync policy |
 | [0202](0202-secrets.md) | Secrets Management | SOPS and age, the recipient model, key lifecycle |
+| [0203](0203-policy-enforcement.md) | Policy Enforcement Strategy | Which layer enforces which class of invariant, and how each layer fails |
 | [0204](0204-resource-management.md) | Resource Management & Scheduling | Requests, limits, priority classes, quotas |
-| [0205](0205-environment-parity.md) | Environment Parity | What may differ across environments, and what may not |
+| [0205](0205-environment-parity.md) | Environment Parity | What may differ across environments, what may not, and the PR preview tier |
 
 ### 03xx — Application platform
 
@@ -101,5 +104,3 @@ These numbers are held so the decisions below land in their layer's block withou
 | ADR | Title |
 | --- | --- |
 | 0002 | Tool Adoption & Comparison Requirement |
-| 0203 | Policy Enforcement Strategy |
-| 0206 | Ephemeral PR Environments |

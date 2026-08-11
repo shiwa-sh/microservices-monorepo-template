@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0502](0502-alerting-and-on-call.md), [ADR-0503](0503-error-tracking.md), [ADR-0600](0600-local-development-loop.md)
+- **Decides:** Every service is instrumented for all four signals through one `obs.Init` call, exports to a Grafana backend, and declares its SLIs.
 
 ## Context
 
@@ -156,6 +157,28 @@ High-cardinality labels destroy a metrics store. Three layered defences:
 2. **Live alerts.** The TSDB series count feeds an alert warning at 70% of the active-series ceiling and paging at 90%. Service-level alerts fire when a single metric grows past its budget.
 3. **Quarterly audit.** A Temporal `Schedule` opens a tracking issue summarising top series counts per service.
 
+### Service level objectives
+
+An SLO is a definition, not a component. It is decided here because the SLIs are the signals this ADR already requires, and because three other decisions ([ADR-0501](0501-operator-uis-and-dashboards.md)'s SLO tiles, [ADR-0502](0502-alerting-and-on-call.md)'s error budgets, [ADR-0601](0601-testing-strategy.md)'s load thresholds) each assume a definition exists.
+
+**Every service declares two SLIs, both computed from the stable RED histogram** — no new instrumentation, and no second source of truth for what "up" means:
+
+| SLI | Expression | Good event |
+| --- | --- | --- |
+| **Availability** | request count by status class | a response that is not `5xx`. A `4xx` is the caller's fault and does not spend the budget |
+| **Latency** | the duration histogram's cumulative buckets | a request completing under the service's declared threshold |
+
+| Field | Value |
+| --- | --- |
+| Where declared | `slo.yaml` beside the service's dashboard and alert defaults, inherited from `services/_template/` |
+| Window | 30 days, rolling. A calendar month resets the budget on a date rather than on a fault |
+| Scope | the service's own request path. A dependency's failure spends the dependant's budget too, because the user experienced it |
+| Excluded | anything without a live caller — `/livez`, `/readyz`, and the admin port |
+
+**The objective is a per-project number, and the platform states its ceiling rather than its value.** A target is a claim about response, so the floor's detection latency bounds it: an objective tighter than the time it takes to notice a fault is a number nobody can meet. [`docs/reference/detection-latency.md`](../reference/detection-latency.md) carries that composition per failure class, and [ADR-0502](0502-alerting-and-on-call.md)'s escalation trigger is what raises the ceiling.
+
+This is why the template ships the **mechanism and the default thresholds** and refuses to ship the objective: a number inherited from a template is a number nobody chose, and an error budget nobody chose is not spent, it is ignored.
+
 ### Dashboards and alerts as code
 
 | Artefact | Source | Delivery |
@@ -205,5 +228,8 @@ Service code is unchanged between local and production: the same `obs.Init` work
 - Sampling is configured centrally. Service authors do not set sampling rates.
 - Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made; changes are PRs.
 - The backend is the Grafana stack plus a single-tier collector. Alternate backends require an ADR.
+- Every service declares an availability SLI and a latency SLI in `slo.yaml`, computed from the stable RED histogram over a 30-day rolling window. `(CI: lint:service-contract)`
+- A `5xx` spends the budget and a `4xx` does not. Health and admin endpoints are excluded from both SLIs.
+- An availability objective is stated per project, and is never tighter than the detection latency its coverage supports.
 - Long-term log and trace data lives in the off-cluster bucket; local volumes hold hot cache only.
 - Every service exposes `/livez` and `/readyz` on the admin port, and liveness never consults dependencies. `(CI: lint:service-contract)`

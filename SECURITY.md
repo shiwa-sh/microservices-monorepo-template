@@ -55,7 +55,7 @@ Security updates will be released in the following ways:
 
 1. For critical vulnerabilities, we will release a patch as soon as possible.
 2. For less severe issues, fixes may be included in regular releases.
-3. Release notes will clearly indicate when security fixes are included.
+3. Release notes indicate when security fixes are included.
 4. Users will be notified through our regular communication channels.
 
 ## Best Practices for Users

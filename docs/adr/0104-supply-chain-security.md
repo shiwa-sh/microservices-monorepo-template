@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0102](0102-source-control-and-ci.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0105](0105-image-registry.md), [ADR-0201](0201-gitops.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0102](0102-source-control-and-ci.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0105](0105-image-registry.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md)
+- **Decides:** Images are signed by a cosign key pair held in SOPS, carry syft SBOM and SLSA provenance attestations, and are verified at admission.
 
 ## Context
 
@@ -31,7 +32,7 @@ The platform team is small against a whole fleet ([ADR-0000](0000-platform-found
 | notation, from the Notary Project | a key or a hosted trust store | the same as the chosen option | Equivalent custody, narrower ecosystem and tooling |
 | No signing, digest pins only | nothing | none | Digest pins prove immutability, not origin. A pinned digest from a compromised builder is still pinned |
 
-**Keyless is an axis-B-low technology.** It works by trusting somebody else to attest who the signer is, and its payoff — a public, tamper-evident log a stranger can check without the signer's cooperation — is addressed to an audience this platform does not have. That is the same reasoning [ADR-0103](0103-release-and-versioning.md) applies to SemVer: a signal with no reader is cost without benefit.
+**Keyless is an axis-B-low technology.** It works by trusting somebody else to attest who the signer is, and its payoff — a public, tamper-evident log a stranger can check without the signer's cooperation — is addressed to an audience this platform does not have. That is [ADR-0000](0000-platform-foundations.md)'s *signal with no reader* applied to a signature, as [ADR-0103](0103-release-and-versioning.md) applies it to a version number: the reader is named, and here nobody is standing in that position.
 
 ### Admission enforcement
 
@@ -56,7 +57,7 @@ The platform team is small against a whole fleet ([ADR-0000](0000-platform-found
 
 Signatures and attestations are OCI referrers stored beside the image in the registry ([ADR-0105](0105-image-registry.md)), so admission verification is a registry read.
 
-**Signing, SBOM, and provenance are build-time; Kyverno is the runtime gate.** Scanning sits with the build-time half for the same reason: a scan after admission reports on what already shipped, which is a dashboard rather than a gate. Which scanner an instance runs is a per-instance choice recorded in [`security-baseline.md`](../security-baseline.md). That it runs before merge is not.
+**Signing, SBOM, and provenance are build-time; Kyverno is the runtime gate.** Scanning sits with the build-time half for the same reason: a scan after admission reports on what already shipped, which is a dashboard rather than a gate. Which scanner an instance runs is a per-instance choice recorded in [`per-instance-hardening.md`](../reference/per-instance-hardening.md). That it runs before merge is not.
 
 **One signing identity, unchanged by the forge migration.** The private key is a SOPS-encrypted secret the CI job decrypts, and the public key is committed and named by the Kyverno policy. Nothing about it depends on which forge runs the pipeline, so moving the forge re-targets the workflow and leaves the trust root untouched (driver 5).
 

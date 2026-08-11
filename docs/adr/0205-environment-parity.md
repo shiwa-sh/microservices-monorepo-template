@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** Every environment deploys the same charts, and the only sanctioned divergence is a per-environment values overlay.
 
 ## Context
 
@@ -62,6 +63,22 @@ The local distribution and the deployed one run identical charts, so the choice 
 
 The full-platform local tier and the CI preview tier are the **same configuration**, so investment in one is investment in the other. Deployed environments stay persistent: they survive reboots and hold real storage and backups.
 
+### The ephemeral PR environment
+
+A preview is the full-platform tier ([ADR-0600](0600-local-development-loop.md)) brought up in CI against one pull request's images. It is a lifecycle of the tier already decided rather than a fourth kind of environment, which is why it lives here and not in an ADR of its own.
+
+| Concern | Decision |
+| --- | --- |
+| Trigger | a label on the pull request. Bring-up costs minutes of runner time, so it is opt-in per PR rather than per push ([ADR-0601](0601-testing-strategy.md)) |
+| Configuration | the same charts and the same `local` values overlay the full tier runs, with images from the PR's build |
+| Identity | the committed deterministic test identities, never a copy of any deployed environment's data |
+| Lifetime | destroyed when the run ends or the pull request closes. Nothing survives it, and nothing outside it depends on it |
+| Naming | the environment slug derives from the pull request number ([ADR-0003](0003-naming-and-identifiers.md)), so two previews cannot collide |
+
+**A preview holds no real data and no real credential.** It is a throwaway cluster, so it takes the local tier's secret path — the committed local age key ([ADR-0202](0202-secrets.md)) — rather than any deployed environment's. An environment that borrowed production data or production secrets to be realistic would be a production system with a pull-request lifetime.
+
+**Previews are not a deployment target.** No preview is promoted, and nothing is released from one. It is a test fixture with a URL.
+
 ### Object storage
 
 **Parity here is the implementation, not the API alone.** One store runs in every environment, and the sole delta is placement: in-cluster in non-prod, outside the cluster in production, for the failure-domain reason [ADR-0200](0200-cluster-topology.md) states.
@@ -96,4 +113,7 @@ Expressed as values, that delta is the S3 endpoint and whether the in-cluster ch
 - Object storage is one implementation in every environment ([ADR-0200](0200-cluster-topology.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves.
 - Backups are off-cluster and mandatory in production ([ADR-0200](0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
 - SOPS is the secret mechanism in every environment, including local.
+- A PR preview is the full-platform tier at a pull request's images, label-gated, and destroyed with the run. Its slug derives from the pull request number.
+- A preview uses the local secret path and the committed test identities. No deployed environment's data or credentials are copied into one.
+- Nothing is promoted or released from a preview.
 - Certificates are issued by cert-manager over ACME in every environment and are verified, never bypassed. `(ref: RFC 8555)`

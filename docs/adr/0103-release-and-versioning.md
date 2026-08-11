@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0500](0500-observability.md)
+- **Decides:** One repository-wide CalVer line derived from Conventional Commits, with SemVer reserved for anything published for an external pinner.
 
 ## Context
 

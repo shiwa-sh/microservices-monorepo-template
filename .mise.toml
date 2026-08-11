@@ -250,7 +250,13 @@ run = "bash scripts/identity-seed.sh"
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
 # OpenAPI spec (ADR-0009). Generators: ogen + openapi-typescript (SDKs), sqlc
 # (queries), and the devportal spec projections rendered by Scalar (ADR-0008).
-depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin"]
+depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:adr-rules"]
+
+[tasks."gen:adr-rules"]
+# Two documents are views over the ADR set's Rules sections: the rules index and the
+# security baseline (ADR-0203). Both were hand-maintained copies of facts owned by the
+# ADRs, so both are generated and drift-checked like any other generated artefact.
+run = "go run ./tools/adr-rules"
 
 [tasks."gen:openapi"]
 run = "bash scripts/gen-openapi.sh"
@@ -302,7 +308,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -352,6 +358,28 @@ run = "go run ./tools/lint-resource-governance"
 
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
+
+[tasks."lint:prose"]
+# ADR-0001's banned-constructs table, enforced. The table is deliberately grep-shaped;
+# a house style that only review enforces is a house style that drifts.
+run = "go run ./tools/lint-prose"
+
+[tasks."lint:adr-xref"]
+# The ADR set's internal wiring: references resolve, Related names documents that exist,
+# every ADR carries a Decides line and an index row, the two adoption documents name the
+# same components, every deferral has a register row, and nothing under docs/ links to
+# the root README (ADR-0001).
+run = "go run ./tools/lint-adr-xref"
+
+[tasks."lint:readme-drift"]
+# Principle 9 applied to the one document that is not generated. The root README
+# duplicates selection guidance by design, and a duplicate with no check drifts —
+# a tool the ADRs rejected kept appearing on the first page a reader sees.
+run = "go run ./tools/lint-readme-drift"
+
+[tasks."lint:rules-index"]
+# Drift check for the generated rule documents. `mise run gen` writes them.
+run = "go run ./tools/adr-rules -check"
 
 [tasks."lint:md"]
 run = "rumdl check ."

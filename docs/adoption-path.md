@@ -8,7 +8,7 @@ The Core floor is a **position on a path, not the origin of one.** A project arr
 
 | Move | What changes | What is kept | Where it lives |
 | --- | --- | --- | --- |
-| **Defer a capability** | the function is absent for now | the seam that lets it return as a chart | Band 1, below |
+| **Defer a capability** | the function is absent | the seam that lets it return as a chart | Band 1, below |
 | **Concede the operator** | someone else runs it; axis B moves down | the capability, entire | Band 2, below |
 | **Concede the capability** | the function goes, and the application is shaped by its absence | nothing — this is a bet | Band 3, below |
 | **Defer scale** | the thin variant runs until a measured signal | the seam to the heavier one | [`operational-surface.md`](operational-surface.md), *Scale* |
@@ -75,7 +75,7 @@ These are **bets**. There is no seam: the application is written differently in 
 
 | Removed | What the application does instead | Cost if the bet is wrong | Cost to reverse |
 | --- | --- | --- | --- |
-| **Temporal + Worker Controller** | an outbox table and a small worker per job, with retries and compensation written by hand | every multi-step process that acquires a second call, a compensation, or a durability guarantee grows a bespoke state machine, and each is a separate correctness surface at axis C high | a rewrite of every such process, plus the platform components. [`operational-surface.md`](operational-surface.md) already names outbox-plus-worker as the pre-Temporal shape for a *single trivial job*; this row generalises it to the whole platform, which is where it stops being cheap |
+| **Temporal** | an outbox table and a small worker per job, with retries and compensation written by hand | every multi-step process that acquires a second call, a compensation, or a durability guarantee grows a bespoke state machine, and each is a separate correctness surface at axis C high | a rewrite of every such process, plus the platform components. [`operational-surface.md`](operational-surface.md) already names outbox-plus-worker as the pre-Temporal shape for a *single trivial job*; this row generalises it to the whole platform, which is where it stops being cheap |
 | **OpenFGA** | Postgres RLS ([ADR-0300](adr/0300-data.md)) plus role claims from the session | relationship-shaped rules — sharing, delegation, nested org structures — become bespoke queries spread across services, and the authorization model stops being inspectable in one place | re-model the authorization domain and migrate every relationship into tuples. Cheap while the model stays flat, and it never stays flat |
 | **Kyverno** | CI-only checks: signature verification and digest pinning are enforced before merge, not at admission | every `(enforced: Kyverno)` annotation in the ADR set becomes an unenforced convention. Anything reaching the cluster by another path — a manual `kubectl apply`, a break-glass action, a compromised pipeline — is unchecked ([ADR-0104](adr/0104-supply-chain-security.md)) | a chart, and an audit of what was admitted meanwhile. The component is cheap to restore; the trust gap it leaves is not recoverable retroactively |
 | **Cilium's default-deny and WireGuard posture** | a simpler CNI with no network policy and no east-west encryption | lateral movement is unbounded inside the cluster, and the multi-tenant isolation argument rests on RLS alone | **the highest in this document.** [ADR-0200](adr/0200-cluster-topology.md) records that CNI cannot be hot-swapped on a live cluster — the security posture is set at bootstrap. Reversing this is a cluster rebuild and a migration |
@@ -111,6 +111,19 @@ Read a row as: *you may stop operating this; you may not stop having it.*
 
 **No row here is a reason to stay self-hosted.** If capacity is the binding constraint, Band 2 is the intended response and the whole of it is available.
 
+## Hardenings a project takes on its own
+
+The reverse of a reduction: positions the template holds at a deliberate default, where a project's own risk profile may justify paying more than the floor does. Each is additive, so none of them moves a band.
+
+| Hardening | The default, and why | Take it when |
+| --- | --- | --- |
+| **Ops tooling on its own registrable domain** | One session cookie is scoped to the parent host, so it reaches the apex and every `*.ops.<host>` origin. Tier isolation rests on per-tool authorization and a second factor, not on cookie scope, which means a product-origin XSS can ride an operator's session into the ops tools ([ADR-0306](adr/0306-trust-tiers-and-urls.md)) | The product surface renders content one user supplies to another, or anything not first-party is hosted under the apex. Costs a second DNS zone and a second certificate chain per environment, and it is the strongest available answer |
+| **An ops-tier OIDC session** | The same risk, at lower cost: one auth proxy in front of the ops tier minting its own scoped session, keeping the product cookie host-only on the apex | The separate domain is not worth its DNS and certificate cost, but the shared token is still the risk you want gone. Adds one component to the floor |
+| **Per-workload certificate identity** | Services trust `X-User-Id` because default-deny guarantees only sanctioned callers reach the port. Code inside any sanctioned caller can forge it ([ADR-0305](adr/0305-edge-auth-and-traffic-policy.md)) | A service performs a monetary mutation, or a second team owns a service in the cluster. Cilium mutual auth and SPIFFE, no sidecars |
+| **A paging receiver** | Alerts route to email and an unwired webhook. Nothing pages, so overnight detection is next working day ([ADR-0502](adr/0502-alerting-and-on-call.md)) | The project states an availability objective tighter than next-working-day. The objective and the receiver are one decision, not two |
+
+**A hardening taken is a hardening recorded.** Each of these changes what an ADR states is true of the platform, so it amends the owning ADR's Rules in the project's copy — the same obligation as a Band 3 concession, in the opposite direction.
+
 ## Growing back
 
 Every restore trigger above points upward, and the same seam machinery continues past the floor into [`operational-surface.md`](operational-surface.md)'s **Scale** tier, where each row carries a trigger to adopt and a cost to reverse in the same shape used here.
@@ -136,4 +149,30 @@ There is no rung on this ladder that is a *maturity level*, and moving up is not
 
 Each row taken removes its obligation from the demand side. **That is the only honest way to lower the capacity this platform requires** — the alternative, holding the floor and hoping, is the failure mode [ADR-0000](adr/0000-platform-foundations.md) names.
 
-Every reduction a project takes is recorded in that project's own repository, alongside the restore trigger it is watching. A reduction nobody wrote down is indistinguishable from a component that was forgotten.
+## Where a reduction is written down
+
+Every reduction is recorded in the project's own repository beside the restore trigger it is watching. A reduction nobody wrote down is indistinguishable from a component that was forgotten. What differs is the weight of the record, and it differs by band:
+
+| Band | Recorded as | Why that weight |
+| --- | --- | --- |
+| **1 — deferral** | a values change, plus a row in the project's own register of what is deferred and what would restore it | The seam is untouched and no ADR stops being true. The chart is off, and the record is the trigger |
+| **2 — managed swap** | a values change, plus an amendment to the owning ADR's *Rules* naming the managed operator | The capability is unchanged and the operator is not. The ADR states who runs it, so the ADR is what stops being true — an amendment, not a new document |
+| **3 — capability concession** | an ADR of its own, stating the new position on the axes and superseding the affected decisions explicitly | The application is shaped by the absence. That is a different system, and it needs the argument written down |
+
+**Band 2 is the row that decides whether this path stays cheap.** An amendment is a paragraph; treating it as a full re-litigation is what makes teams skip the record and drift instead. Name the managed service, mark the rule it changes, and keep the trigger that would bring it back in-house.
+
+## A worked example
+
+One project, walked end to end, because the doctrine above is complete and abstract, and a first adopter reasons by analogy whether or not an analogy is supplied.
+
+**The project.** A B2B product handling money. Axis A high — three teams shipping independently. Axis C high — a wrong answer is a transaction. Axis B is where it does not match: self-hosting is preferred rather than binding, and platform work is a real part of several jobs rather than the whole of anyone's.
+
+**Step 1 — the demand side.** Reading [`operational-surface.md`](operational-surface.md)'s Core table against their own coverage, three rows are immediately unaffordable: CNPG's *someone who has performed a failover and a PITR before*, maddy's deliverability work, and Alertmanager's *nothing pages anyone* against a product that moves money.
+
+**Step 2 — Band 1, in full.** They take every row: no Hubble UI, no pgweb, no Headlamp, no Pyroscope or Alloy, no Lowdefy, no Tempo. Each is a chart not deployed, application code unchanged. They record that time-to-diagnose is now longer and that the restore trigger for Tempo — a fault crossing more than two services — is the one they expect to fire first.
+
+**Step 3 — Band 2, in order.** Rank 1, maddy to a transactional provider: the deliverability obligation leaves entirely. Rank 2, a hosted paging service, which is also [ADR-0502](adr/0502-alerting-and-on-call.md)'s escalation trigger firing — at axis C high with money in flight, next-working-day detection is not a posture they can hold ([`reference/detection-latency.md`](reference/detection-latency.md)). Rank 3, managed Postgres: the largest capacity return in the document, and the row that removes the highest-stakes obligation on the floor.
+
+**Step 4 — stop.** Three Band 2 rows close the gap, so Band 3 is never opened. Axis B has moved from maximal to hybrid, which is a deliberate position rather than a drift, and the architecture is untouched: the ADRs, the contracts, the service template, the Helm and GitOps trees, and the local loop are all unchanged.
+
+**What they now carry.** Three rules amended to name a managed operator, six deferral triggers to watch, one paging subscription, and a written record that their SLO is defensible because a receiver exists to defend it. What they no longer carry is the pretence that part-time operators could hold the full floor — which is the outcome this document exists to produce.

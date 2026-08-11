@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** One Next.js app with route groups, server components by default, and Untitled UI on Tailwind wired CSS-first.
 
 ## Context
 
@@ -97,7 +98,7 @@ Untitled UI's integration is followed exactly, so a component copied from upstre
 | Class composition | Untitled's `cx` and `sortCx`. Hand-written `cn()` helpers are not added |
 | Dark mode | `next-themes`, writing Untitled's class on the root element |
 
-Token edits are PRs. Upstream bumps are tracked in `apps/frontend/src/components/UPSTREAM.md` on a yearly cadence.
+Token edits are PRs. Upstream bumps are recorded in `apps/frontend/src/components/UPSTREAM.md` on a yearly cadence.
 
 ### Code layout: one app, no first-party packages
 

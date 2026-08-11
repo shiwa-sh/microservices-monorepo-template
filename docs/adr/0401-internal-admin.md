@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md)
+- **Decides:** Lowdefy pages over the service APIs are the admin surface, and every admin mutation goes through the Go API rather than raw SQL.
 
 ## Context
 
@@ -24,7 +25,7 @@ Each service owns its own database ([ADR-0300](0300-data.md)), and each spec alr
 1. **Declarative over imperative.** Admin pages are files in the repo, so editing a page is editing a file ([ADR-0000](0000-platform-foundations.md), principle 1).
 2. **REST through services, never direct SQL.** Admin convenience does not bypass service boundaries.
 3. **Generated from the spec, custom for the rest.** The specs describe every resource, so the bulk is generated.
-4. **A small change is a small change**, in the notation the people maintaining it already read all day. Admin screens are edited by backend and platform engineers between other work, not by a frontend team.
+4. **A small change costs a small amount of work for whoever makes it.** Admin screens are edited by backend and platform engineers between other work, not by a frontend team. The cost of an edit is what it obliges the editor to re-enter — a build, a component library, a data-fetching layer, a review from another discipline — rather than the language it is written in.
 5. **Zero new auth surface.** The edge authenticates; the tool trusts the upstream identity header.
 6. **One stateless container.** No new database, no new operator.
 
@@ -117,6 +118,16 @@ Because the spec already describes every resource, a page needing shaping the ge
 | REST, one per service | **the write path.** Auth is the user's session, forwarded by the edge as identity headers | — |
 | Postgres, one per service database | **read-only.** Views the REST API cannot serve: cross-table joins for diagnostics, raw inspection | read-only roles, materialised from SOPS-encrypted files by the operator ([ADR-0202](0202-secrets.md)) |
 
+### What would change this decision
+
+| Change | Effect |
+| --- | --- |
+| The admin surface is edited by a frontend team | **Decisive.** Driver 4 is a claim about who makes the edit. Where that is people who write React daily, the `(admin)` route group wins on every remaining driver |
+| A page needs interaction the config format cannot express | **None, once.** That is what `custom/` is for. **Decisive if it recurs**, because a config tool carrying a growing hand-written region is a framework with extra steps |
+| The design system becomes a requirement for admin screens | **Decisive.** Operator tooling is deliberately outside the design contract ([ADR-0400](0400-frontend.md)); making it inside means the surface belongs in the frontend app |
+| Upstream stalls | **Decisive**, on the trigger recorded in *Negative / Risks* below |
+| An admin action needs to bypass a service API | **None.** The write-path invariant outranks the tool, and a mutation the API cannot express is a missing endpoint |
+
 ### What this tool does not own
 
 | Concern | Owner |
@@ -138,7 +149,18 @@ Because the spec already describes every resource, a page needing shaping the ge
 
 ### Negative / Risks
 
-- **Lowdefy's community is smaller than the React-based alternatives.** If upstream stalls, we own a server with YAML configs. Mitigated by the configuration being declarative and portable: the lock-in is the runtime, not the data.
+- **Lowdefy's community is the smallest of any component on the floor.** If upstream stalls, the platform owns a server with YAML configs. The configuration is declarative and portable, so the lock-in is the runtime rather than the data — but the pages are the smaller half of what is lost. The larger half is the operator habits built on them, and those transfer to nothing.
+
+**The fallback is named, and it is the runner-up.**
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | upstream releases stop for two quarters, or a security advisory against the runtime goes unanswered for one |
+| **Seam** | ✓ the `(admin)` route group in the existing frontend, costed in *Considered options* above. The write path is unchanged, because both authoring surfaces call the same service APIs, and the generated CRUD pages are regenerated rather than ported |
+| **Cost if adopted late** | every hand-written custom page is rewritten in React once, and the surface moves from an ops-tier origin into the product app, which [ADR-0306](0306-trust-tiers-and-urls.md) treats as a tier change rather than a relocation |
+
+This makes the weakest dependency on the floor a **deferral rather than a bet**: the alternative exists, it is first-party, and it is already compared.
+
 - **No compile-time type safety between a spec change and a page.** The generator and drift check keep generated pages in step; hand-written pages are caught only by review and by runtime errors on first load.
 - **Read-only Postgres connections are a discipline risk**, since an engineer could try to add a mutation behind them. Mitigated by enforcement at the database-role level rather than by convention.
 - **The generated directory inflates PR diffs** on spec changes. Mitigated by the same committed-and-drift-checked convention applied to every other generated artifact. Generated pages are deliberately plain; anything richer is a custom page.

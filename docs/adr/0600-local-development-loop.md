@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** Two local tiers — `cluster:base` for the inner loop and `cluster:full` for the platform — with a vendored mock and no second definition of the system.
 
 ## Context
 
@@ -324,7 +325,7 @@ A short enumerated set of manifests has no production analogue:
 - The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers.
 - The application contains no development-only authentication code. A session bypass, a fake session object, or an environment-conditional branch in the session path is a review-blocker. An environment-conditional branch that grants nothing is not. `(CI: lint:auth-inline)`
 - Authenticated local development uses the real Kratos with the committed test identity. Fake identity providers are not used for Kratos; they remain permitted for Hydra, which is a protocol boundary.
-- The mock runs examples-first. Schema generation is a flag-gated fallback for endpoints whose examples do not yet exist.
+- The mock runs examples-first. Schema generation is a flag-gated fallback for an endpoint without one.
 - The mock is forbidden in `mise run test`, `ci:affected`, and the e2e and visual suites.
 - The mock ships as a vendored container, adding no `package.json`, lockfile, or `node_modules`. `(CI: lint:node-scope)`
 - The mock is local tooling and joins no tier in [`docs/operational-surface.md`](../operational-surface.md).

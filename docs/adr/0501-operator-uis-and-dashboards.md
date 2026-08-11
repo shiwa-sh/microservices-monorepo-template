@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** Three dashboard levels answer one question each, and every operator UI is admitted for the question it answers rather than for its coverage.
 
 ## Context
 
@@ -77,7 +78,7 @@ Dashboards form a three-level funnel. Each level answers one question and links 
 1. **Cluster capacity** — node CPU, memory, disk free; CPU and memory requests committed; pod slots used.
 2. Firing Prometheus alerts — count and table, from `ALERTS`.
 3. Cluster-wide golden signals — total req/s, 5xx %, p95.
-4. Per-service SLO table — the same expressions as the Service detail SLO tiles, rows linking to it.
+4. Per-service SLO table — the SLIs and window [ADR-0500](0500-observability.md) defines, the same expressions as the Service detail SLO tiles, rows linking to it.
 5. One-line platform-dependency stats — Postgres, Temporal, policy drops — linking to their L3 dashboards.
 
 Capacity sits above the alert count, the one departure from verdict-before-everything. It earns the position by being the only *leading* row: exhausting disk, memory, or schedulable capacity is still actionable, whereas a firing alert is already the incident. It also has no other home, because every other panel is per-service or per-dependency.

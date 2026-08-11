@@ -23,6 +23,8 @@ This template ships one profile and documents three neighbours. Find yourself be
 | `microservices` | Coordination cost dominates engineering cost | Microservices | 15+ | ~15 | a standing responsibility someone owns by name |
 | **`sovereign`** ← **this repo** | Self-hosting is *binding*, not preferred | Microservices | 15+ | **a couple of dozen** | **a primary responsibility, and never resting on one person** |
 
+The component figures are the **shape** of each neighbouring profile, at the resolution that sorts a reader into a row. This repo's own inventory is [`docs/operational-surface.md`](docs/operational-surface.md), which is the only place its components are counted.
+
 > **These are not maturity levels.** A modular monolith is a correct *terminal* state for most systems, not a waypoint on the road to microservices. Higher rows are not better — they are more expensive answers to pressures you may not have. This follows Richards & Ford's treatment of architecture styles as **risk profiles rated against characteristics**, and deliberately rejects the numbered-ladder genre (CMMI, and the maturity models that followed it) — a framing DORA/*Accelerate* also argues against.
 
 ---
@@ -98,7 +100,7 @@ Deferral is only safe when a **seam** exists — a pre-built slot where the capa
 | i18n (`next-intl`) | A second locale on the roadmap | ⚠️ retrofitting strings across routes is real work | Opt-in |
 | Storybook | A second frontend app, or a design-system maintainer | ⚠️ | Opt-in |
 | Service mesh | A measured need Cilium + WireGuard cannot meet | ⚠️ partial — mTLS is covered, per-request policy is not | Scale |
-| Alert routing / on-call | An on-call rota exists | ⚠️ **no self-hosted escalation layer chosen yet** | Opt-in |
+| Escalation and paging | An on-call rota exists | ⚠️ **no credible self-hosted escalation layer exists** — routing is Alertmanager, paging is a hosted service ([0502](docs/adr/0502-alerting-and-on-call.md)) | Opt-in |
 
 Deferring on purpose, with the trigger written down, is the **last responsible moment** applied to architecture — not the same thing as not having decided.
 
@@ -117,22 +119,9 @@ Deferring on purpose, with the trigger written down, is the **last responsible m
 
 Axis B is an axis, not a virtue test. **A smaller team should sit lower on it deliberately** — that is a better answer than adopting the self-hosted floor and hoping.
 
-Axis B is also the axis this template is **least coupled to**: moving down it swaps *operators*, not architecture. Unchanged by a managed swap — the ADRs, OpenAPI contracts and codegen, the service template, the Kustomize tree, policy-as-admission, repo layout, release flow, and the local dev loop.
+Axis B is also the axis this template is **least coupled to**: moving down it swaps *operators*, not architecture. Unchanged by a managed swap — the ADRs, OpenAPI contracts and codegen, the service template, the Helm and GitOps trees, policy-as-admission, repo layout, release flow, and the local dev loop.
 
-Swap in this order — ranked by capacity returned per unit of sovereignty conceded:
-
-| # | Self-hosted here | Swap to | Why this rank |
-| --- | --- | --- | --- |
-| 1 | Outbound email (MTA) | Any transactional email provider | Deliverability is *reputational*, not technical. The one cost engineering cannot retire |
-| 2 | Alert routing / on-call | A hosted paging service | No mature self-hosted escalation layer exists |
-| 3 | PostgreSQL (CNPG) | Managed Postgres | Highest operational risk per engineering hour |
-| 4 | Object storage (SeaweedFS) | Any S3-compatible service with Object Lock | Retires a stateful production component and the host it runs on |
-| 5 | Observability (Grafana stack) | A hosted backend | Four components → one. OTel instrumentation is unchanged |
-| 6 | Temporal | Temporal Cloud | Workflow code identical; only the connection target changes |
-| 7 | Forge + CI (Forgejo) | A hosted forge | Cheap either way — CI logic lives in `mise run ci:*` |
-| 8 | Registry (Harbor) | A hosted registry | Verify Cosign policy + scanning parity first |
-| 9 | Identity (Ory) | A hosted IdP | Late: identity data is the most painful thing to migrate twice |
-| 10 | Kubernetes | Managed Kubernetes | Keep the API, drop the substrate |
+[`docs/adoption-path.md`](docs/adoption-path.md) is the ranked order to swap in, and the canonical one. It carries three bands — deferrals that cost only the wait, managed swaps that cost sovereignty, and capability concessions that are bets — with a restore trigger and a cost-to-reverse per row, and the line past which a project is running a different platform.
 
 **Hybrid is legitimate and common:** self-host the orchestrator and stateless platform; take managed Postgres, object storage, email, and paging. Removes most of the pager burden, keeps the parts that usually motivated self-hosting.
 
@@ -153,7 +142,7 @@ Each principle is **anchored** to an external standard, or explicitly marked **l
 | # | Principle | Anchored to | It rejected |
 | --- | --- | --- | --- |
 | 1 | Configuration lives in the repository, not in the component | [OpenGitOps](https://opengitops.dev/) 1–2, extended one level out | SigNoz, OpenObserve, Coroot, Zitadel |
-| 2 | Thinnest viable platform — the always-on floor is the budget | [Team Topologies](https://teamtopologies.com/key-concepts-content/what-is-a-thinnest-viable-platform-tvp) | GitLab CE, Coroot, a second CI system |
+| 2 | The always-on floor is the budget, measured in concerns | [Team Topologies](https://teamtopologies.com/key-concepts-content/what-is-a-thinnest-viable-platform-tvp) — cognitive load as the unit, applied to operators rather than users | GitLab CE, Coroot, a second CI system |
 | 3 | Operational sovereignty — run it yourself | axis B, above | every managed service |
 | 4 | Spend novelty by exit cost, not by taste | [Innovation tokens](https://mcfunley.com/choose-boring-technology) | Garage, SeaweedFS, Encore |
 | 5 | One primitive per concern — no parallel mechanisms for one problem | **local** — falls out of principle 2 | Woodpecker, Tekton, Argo Workflows |
@@ -168,7 +157,7 @@ Each principle is **anchored** to an external standard, or explicitly marked **l
 | 9 | Generated code is committed and drift-checked in CI | **local** — principle 1 applied to generated artifacts | codegen at runtime or at deploy |
 | 10 | Service boundaries are HTTP/OpenAPI — never shared code, never a shared database | Fowler, [*IntegrationDatabase*](https://martinfowler.com/bliki/IntegrationDatabase.html) — *"integration databases should be avoided"* | shared libraries and shared schemas as coupling |
 
-Principle 4 is worth reading twice, because it is the one most often misread as conservatism: **be adventurous where abandonment costs days** (CI, query layers, registries, policy engines) **and conservative where it costs months and customer data** (storage, databases, the message bus). The planned adoptions of Talos, Kyverno, and mirrord all sit on the cheap-exit side of that line.
+Principle 4 is worth reading twice, because it is the one most often misread as conservatism: **be adventurous where abandonment costs days** (CI, query layers, registries, policy engines) **and conservative where it costs months and customer data** (storage, databases, the message bus). Talos, Kyverno, and zot all sit on the cheap-exit side of that line; SeaweedFS and CNPG sit on the expensive side and are chosen accordingly.
 
 ---
 
@@ -181,29 +170,33 @@ The **Planned change** column names a replacement under consideration but not ye
 | Concern | Current decision | ADR | Planned change |
 | --- | --- | --- | --- |
 | Backend language | Go | [0100](docs/adr/0100-language-and-runtime.md) | |
-| Frontend | Next.js + TypeScript on Bun, one app with route groups | [0100](docs/adr/0100-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) | record the framework comparison |
-| Design system | Untitled UI on Tailwind v4 | [0400](docs/adr/0400-frontend.md) | |
+| Frontend | Next.js + TypeScript on Bun, one app with route groups | [0100](docs/adr/0100-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) | |
+| Design system | Untitled UI React, vendored as source, on Tailwind | [0400](docs/adr/0400-frontend.md) | |
 | Task runner | `mise` | [0101](docs/adr/0101-monorepo.md) | |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) | |
-| Cloud resources | Terraform, per project | [0200](docs/adr/0200-cluster-topology.md) | OpenTofu |
-| Cluster | upstream Kubernetes shipped by Talos in production, k3d locally | [0200](docs/adr/0200-cluster-topology.md) | kind locally |
-| Deploy | Argo CD, the only mechanism; Helm charts, per-env values | [0201](docs/adr/0201-gitops.md) | Kustomize for first-party |
+| Cloud resources | Terraform, per project, skipped where infrastructure is pre-provided | [0200](docs/adr/0200-cluster-topology.md) | |
+| Cluster | upstream Kubernetes shipped by Talos in production, k3d locally | [0200](docs/adr/0200-cluster-topology.md) | |
+| Deploy | Argo CD, the only mechanism; one shared Helm chart, per-env values | [0201](docs/adr/0201-gitops.md) | |
 | Network / policy | Cilium + Hubble, WireGuard, default-deny | [0200](docs/adr/0200-cluster-topology.md) | |
-| Resource governance | LimitRange, ResourceQuota, PriorityClass, PDB | [0204](docs/adr/0204-resource-management.md) | Kyverno admission |
+| Policy enforcement | Kyverno at admission, PSA `restricted`, CiliumNetworkPolicy, CI lints | [0203](docs/adr/0203-policy-enforcement.md) | |
+| Resource governance | LimitRange, ResourceQuota, PriorityClass, PDB | [0204](docs/adr/0204-resource-management.md) | |
 | Edge | Traefik + Ory Oathkeeper + cert-manager | [0305](docs/adr/0305-edge-auth-and-traffic-policy.md) | |
 | Identity / authz | Ory Kratos + OpenFGA; Hydra when a public API exists | [0304](docs/adr/0304-identity-and-authorization.md) | |
 | Trust tiers | product apex, `*.ops.<host>` for operator tooling | [0306](docs/adr/0306-trust-tiers-and-urls.md) | |
 | Secrets | SOPS + age, decrypted in-cluster by an operator | [0202](docs/adr/0202-secrets.md) | |
-| Database | PostgreSQL via CNPG; sqlc, dbmate, sqruff | [0300](docs/adr/0300-data.md) | Atlas for migrations |
+| Database | PostgreSQL via CNPG; sqlc, dbmate, sqruff | [0300](docs/adr/0300-data.md) | |
 | Object storage | SeaweedFS everywhere, run outside the cluster in prod with Object Lock | [0200](docs/adr/0200-cluster-topology.md), [0205](docs/adr/0205-environment-parity.md) | |
 | Workflows | self-hosted Temporal, versioned workers | [0302](docs/adr/0302-temporal.md) | |
-| API contract | hand-written OpenAPI 3.1; ogen, openapi-typescript, vacuum | [0303](docs/adr/0303-api-contracts-and-lifecycle.md) | TypeSpec authoring, oasdiff |
-| API mocking | Prism, from the committed projection | [0600](docs/adr/0600-local-development-loop.md) | Microcks |
+| API contract | hand-written OpenAPI 3.1; ogen, openapi-typescript, vacuum, oasdiff | [0303](docs/adr/0303-api-contracts-and-lifecycle.md) | |
+| API mocking | Prism, vendored, from the committed projection | [0600](docs/adr/0600-local-development-loop.md) | |
 | Observability | OpenTelemetry → Grafana, Loki, Tempo, Prometheus, Pyroscope | [0500](docs/adr/0500-observability.md) | |
 | Operator UIs | Grafana funnel, Hubble UI, Headlamp | [0501](docs/adr/0501-operator-uis-and-dashboards.md) | |
-| Source control + CI | GitHub Actions, entered through `mise run ci:*` | [0101](docs/adr/0101-monorepo.md) | Forgejo + Forgejo Actions |
-| Supply chain | Cosign keyless, syft SBOM, SLSA provenance | [0104](docs/adr/0104-supply-chain-security.md) | Harbor registry, Trivy |
-| Testing | Playwright, k6, `go test`, `bun test` | [0601](docs/adr/0601-testing-strategy.md) | Testcontainers, PR environments |
+| Alerting | Prometheus rules + Alertmanager; escalation is conceded to a hosted service | [0502](docs/adr/0502-alerting-and-on-call.md) | |
+| Error tracking | OTel exceptions with a computed `error.fingerprint`; no separate product | [0503](docs/adr/0503-error-tracking.md) | |
+| Source control + CI | Forgejo + Forgejo Actions, entered through `mise run ci:*`; a provider-hosted forge is the bootstrap path | [0102](docs/adr/0102-source-control-and-ci.md) | |
+| Supply chain | cosign with a key pair held in SOPS, syft SBOM, SLSA provenance, Trivy as a merge gate | [0104](docs/adr/0104-supply-chain-security.md) | |
+| Registry | zot, one instance per environment, backed by object storage | [0105](docs/adr/0105-image-registry.md) | |
+| Testing | Playwright, k6, `go test`, `bun test` | [0601](docs/adr/0601-testing-strategy.md) | |
 | Internal admin | Lowdefy over the service APIs; pgweb read-only | [0401](docs/adr/0401-internal-admin.md) | |
 | Analytics | Faro events into a first-party service | [0700](docs/adr/0700-analytics.md) | |
 | Propagation | — | — | Copier + Renovate |
@@ -219,13 +212,13 @@ mise install                    # pinned toolchain from .mise.toml
 mise run setup                  # git hooks
 mise run secrets:age            # generate your age key (ADR-0202)
 
-# Local cluster — kind, running the same manifests as production
-mise run dev:fe                 # frontend tier: edge + identity + mocks
-mise run dev:full               # everything, including observability
+# Local cluster — k3d, running the same charts as production
+mise run cluster:base           # the floor: edge, identity, Postgres, mocks
+mise run cluster:full           # the whole platform, including observability
 
 # Inner loop on one service — native process, no image build
 cd services/catalog
-mise run server                 # or: mise run worker
+mise run server
 ```
 
 Full walkthrough: [`docs/dev-loop.md`](docs/dev-loop.md).
@@ -235,15 +228,15 @@ Full walkthrough: [`docs/dev-loop.md`](docs/dev-loop.md).
 ## Layout
 
 ```text
-services/<name>/     — Go service: TypeSpec contract, server, worker, sqlc, migrations
+services/<name>/     — Go service: OpenAPI contract, server, worker, sqlc, migrations
 apps/frontend/       — one Next.js app (route groups: landing|panel|devportal)
 apps/admin/          — Lowdefy YAML for internal admin
 libs/go/<name>/      — shared Go packages (observability, middleware, errors)
 libs/{go,ts}/sdks/   — generated OpenAPI clients (committed, drift-checked in CI)
-infra/k8s/           — Kustomize base/ components/ overlays/ — one manifest tree, all environments
-infra/helm/          — third-party charts only
-infra/policy/        — Kyverno policies
+infra/helm/          — the shared service chart, and platform component charts
+infra/gitops/        — Argo CD Applications and per-environment values
 infra/talos/         — machine configs
+infra/terraform/     — provisioning, where the project owns its infrastructure
 docs/adr/            — the decisions, and why
 ```
 
@@ -280,7 +273,7 @@ Build real services from `services/_template/`.
 This template borrows its framing rather than inventing it:
 
 - **Richards & Ford, *Fundamentals of Software Architecture*** — architecture styles rated against characteristics as risk profiles. The source of the profile table above, and of the term *service-based architecture*.
-- **Team Topologies** — cognitive load as the sizing unit; *thinnest viable platform*.
+- **Team Topologies** — cognitive load as the sizing unit, applied here to the people running the platform rather than the people building on it.
 - **DORA / *Accelerate*** — capability models over maturity ladders.
 - **Ford, Parsons & Kua, *Building Evolutionary Architectures*** — fitness functions.
 - **Poppendieck, *Lean Software Development*** — the last responsible moment.

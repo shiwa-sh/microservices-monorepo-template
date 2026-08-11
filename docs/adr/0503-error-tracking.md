@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md), [ADR-0502](0502-alerting-and-on-call.md)
+- **Decides:** Errors are OpenTelemetry data grouped by a computed fingerprint, and no error-tracking product joins the floor.
 
 ## Context
 
@@ -77,6 +78,16 @@ The default is a scheduled comparison of the current window's fingerprints again
 | **Cost if adopted late** | triage stays manual and novelty stays window-bound. Nothing is re-instrumented, because the `exception.*` records GlitchTip needs are the ones already emitted |
 
 The seam is real and the cost of waiting is bounded, which makes this a deferral rather than a bet.
+
+### What would change this decision
+
+| Change | Effect |
+| --- | --- |
+| Errors need state — assignment, resolution, regression detection | **Decisive**, and it is the trigger above. State is what a tracker sells; a query cannot hold it |
+| The fingerprint proves unstable across cosmetic edits | **None on the decision**, decisive on the hash: the frame-selection rule is the thing to fix, and it is owned here |
+| A frontend error needs a readable stack in the UI | **None.** Symbolication against the retained source map is a deliberate step, and shipping maps to the browser would be a different decision in [ADR-0400](0400-frontend.md) |
+| Error volume outgrows the log store's retention | **None on the product choice**, decisive on retention: the same signal, a shorter window, and [ADR-0500](0500-observability.md) owns it |
+| A vendor error tracker becomes acceptable | **Decisive**, and it is a move down axis B rather than a change of mechanism ([`adoption-path.md`](../adoption-path.md)) |
 
 ## Consequences
 

@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Decides:** Production runs Talos on plain compute instances with Cilium and WireGuard, node-local volumes, and durable data off-cluster.
 
 ## Context
 
@@ -75,7 +76,7 @@ Driver 4 also admits the cost: this is a less widely operated OS than Debian, an
 | L7 traffic management — weighted routing, mirroring, circuit breaking | percentage-based progressive delivery | no traffic-splitting delivery is committed. **This is the trigger that reopens the row**, and the one capability here Cilium lacks |
 | L7 authorization imposed from outside the application | large polyglot estates, and code that cannot be changed | Oathkeeper at the edge, OpenFGA in-app ([ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0304](0304-identity-and-authorization.md)) |
 | Per-request telemetry for uninstrumented workloads | applications without tracing | every service is instrumented ([ADR-0500](0500-observability.md)) |
-| Per-workload certificate identity | compliance requiring an auditable CA chain | label identity, with Cilium mutual auth and SPIFFE available later without sidecars |
+| Per-workload certificate identity | any of the three conditions [ADR-0305](0305-edge-auth-and-traffic-policy.md) records against the header-trust concession it belongs to | label identity, with Cilium mutual auth and SPIFFE available later without sidecars |
 | A multi-cluster fabric with locality failover | one service spanning clusters | one cluster per environment |
 
 **FQDN egress stays a CNI job under either.** Istio's `ServiceEntry` with `REGISTRY_ONLY` matches on SNI and Host, which is policy for a cooperating workload rather than enforcement against a compromised one. Driver 3 asks for control in the datapath, and that is Cilium's in every column.

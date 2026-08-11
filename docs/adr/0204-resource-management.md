@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0500](0500-observability.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0302](0302-temporal.md), [ADR-0500](0500-observability.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** Every container declares requests and a memory limit, no container declares a CPU limit, and namespaces carry in-tree guardrails.
 
 ## Context
 

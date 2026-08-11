@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Decides:** Product is served from the apex and operator tooling from one origin per tool under `*.ops.<host>`.
 
 ## Context
 
@@ -101,11 +102,13 @@ The `ops.` segment is the mechanism that makes "one operator login, isolated fro
 
 **The property deliberately traded away is token-level isolation.** The session token is sent across the whole subtree, so an XSS on the high-surface product origin could ride an *operator's* session into the ops tools. The product-origin CSP ([ADR-0400](0400-frontend.md)) is the compensating control.
 
+**This is the highest-severity accepted risk in the set, and it is recorded as one.** The impact is every ops tool an operator can reach, which is the cluster's control surface; the likelihood is whatever the product origin's XSS posture is; and the compensating control is a header, not a boundary. It carries its severity in [`docs/reference/risk-register.md`](../reference/risk-register.md) rather than only in this list, because a risk of this size read once in a Consequences section is a risk nobody re-reads.
+
 **Isolating the token too is a deferred hardening.** Keep the product cookie host-only on the apex and have the ops tier mint its own scoped session via OIDC behind one ops-tier auth proxy — per tier, not per tool. One Kratos instance cannot issue two differently-scoped cookies, and the apex cannot set a cookie on the sibling subtree, so OIDC is the mechanism.
 
 | Field | Value |
 | --- | --- |
-| **Trigger** | any non-first-party origin is hosted under `<host>`. At that point this stops being a hardening and becomes mandatory |
+| **Trigger** | any non-first-party origin is hosted under `<host>`, or the product surface renders content one user supplies to another. The first makes the shared cookie unsound by construction; the second raises the XSS likelihood the CSP is holding alone |
 | **Seam** | ✓ every ops route already passes one forward-auth middleware ([ADR-0305](0305-edge-auth-and-traffic-policy.md)), so the change is what that middleware validates. No tool is reconfigured, and no URL moves |
 | **Cost if adopted late** | the shared parent-scoped cookie has already been readable by the newly added origin for as long as it has been hosted, and no later scoping retracts a token that has already been sent |
 

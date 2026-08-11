@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Decides:** Ory Kratos authenticates, OpenFGA authorizes every protected call through `Checker`, and organisations are relationships rather than roles.
 
 ## Context
 
@@ -270,6 +271,15 @@ The version is pinned so an upstream revision is a reviewed bump rather than a s
 | Malicious-code and supply chain | [ADR-0104](0104-supply-chain-security.md) |
 
 **The bar covers first-party surfaces.** Vendored operator tooling — Lowdefy, Grafana, pgweb ([ADR-0401](0401-internal-admin.md), [ADR-0501](0501-operator-uis-and-dashboards.md)) — is outside it, the same boundary [ADR-0400](0400-frontend.md) draws for accessibility, and for the same reason: a claim over software we do not write is a claim we cannot keep.
+
+**The claim is verified on a cadence, by a named holder.** L2 is a design claim rather than a test result, and an unexamined claim ages into a false one — so the examination is scheduled rather than intended:
+
+| Field | Value |
+| --- | --- |
+| Owner | the platform team, as a whole. Each row of the table above is verified by whoever owns the ADR it names |
+| Cadence | once per ASVS release, and on any change to a row's owning ADR |
+| Artefact | a per-row verdict — met, met with a stated exception, or unmet — in [`docs/reference/asvs-verification.md`](../reference/asvs-verification.md), which is live state and carries the date each row was last examined |
+| Failure | a row unexamined for a full cadence is stated as unverified rather than as met. The bar remains the target and stops being a claim |
 
 ### Day-one component cost
 

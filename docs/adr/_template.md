@@ -4,6 +4,7 @@
 - **Date:** YYYY-MM-DD
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md)
+- **Decides:** one sentence, declarative, naming what is true of the platform because of this ADR. It is the index entry and the skim line, not a summary of the reasoning.
 
 <!--
 Written to ADR-0001. Before merging, check:

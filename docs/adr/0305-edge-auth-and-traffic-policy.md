@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0101](0101-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md)
+- **Decides:** Traefik fronting Ory Oathkeeper validates identity once at the edge and injects the headers every service downstream trusts.
 
 ## Context
 
@@ -75,7 +76,17 @@ A reader who knows [NIST SP 800-207](https://csrc.nist.gov/pubs/sp/800/207/final
 
 The concession buys handlers with no auth code, one identity shape for every caller, no per-hop token minting or verification, and no sidecar on the hot path. It costs this: code executing inside a sanctioned caller can forge identity to a downstream service. The blast radius is that caller's own egress allowances, bounded further by the `restricted` profile limiting what a compromised pod can do at all ([ADR-0200](0200-cluster-topology.md)).
 
-**The seam is built and its trigger is already recorded.** [ADR-0200](0200-cluster-topology.md) makes per-workload certificate identity a Cilium mutual-auth and SPIFFE upgrade, on the trigger of compliance requiring an auditable CA chain. Taking it converts positional trust into cryptographic trust and changes the transport only — the authorization half is 800-207's already, so nothing above it moves.
+**The seam is built, and its trigger belongs to this platform rather than to an auditor.** [ADR-0200](0200-cluster-topology.md) makes per-workload certificate identity a Cilium mutual-auth and SPIFFE upgrade. It fires on any of three conditions:
+
+| Trigger | Why it is the right threshold |
+| --- | --- |
+| A service performs a **monetary mutation** | The concession's cost is a forged identity accepted by a downstream service. Where that buys money rather than data, the blast radius stops being bounded by egress allowances |
+| A **second team** owns a service in this cluster | Positional trust assumes every sanctioned caller is code this team reviewed. A second owner makes "sanctioned" a claim about someone else's review |
+| Compliance requires an **auditable CA chain** | The external reason, and the weakest of the three: it fires on someone else's calendar rather than on this platform's risk |
+
+Taking it converts positional trust into cryptographic trust and changes the transport only — the authorization half is 800-207's already, so nothing above it moves.
+
+The first two are conditions this platform can observe in its own repository, which is what keeps its largest accepted risk from depending on an external party noticing it. The example `payment` service does not fire the first: it moves no money and holds no processor credential ([ADR-0302](0302-temporal.md)). A service that does is a different claim, and it is the one that fires.
 
 ### Rate limiting
 

@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0300](0300-data.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0500](0500-observability.md)
+- **Decides:** Temporal is the durable-execution layer and the default async primitive, with five criteria deciding what earns a workflow.
 
 ## Context
 
@@ -137,7 +138,7 @@ A longer wall-clock is permitted and requires:
 
 1. an entry in `docs/temporal/long-running.md` with the expected wall-clock,
 2. replay tests over historical event histories in CI,
-3. a documented `workflow.GetVersion` patching plan **if and only if** the workflow opts out of Pinned into `AutoUpgrade`, which is the one case that moves between versions mid-flight.
+3. a documented `workflow.GetVersion` patching plan, because a workflow outliving a deploy is by definition resumed by code that did not start it.
 
 ### Worker Deployment Versioning
 
@@ -145,15 +146,27 @@ The failure mode: a workflow started before a deploy is resumed by a worker runn
 
 | Option | In-flight work on deploy | Cost per workflow author | Added components | Verdict |
 | --- | --- | --- | --- | --- |
-| **Worker Deployment Versioning, reconciled by the Temporal Worker Controller** | pinned to the version that started it | none in the ordinary case | **one controller with an admission webhook** | **Chosen.** Driver 3: the reliability is bought once, at the platform layer, instead of per workflow |
+| Worker Deployment Versioning, reconciled by the Temporal Worker Controller | pinned to the version that started it | none in the ordinary case | **one controller with an admission webhook** | The strongest mechanism, and the reliability is bought once at the platform layer. **Deferred**, on the trigger below: it puts a young reconciler in the deploy path of every service to close a window the wall-clock rule already bounds |
 | `workflow.GetVersion` patching only | survives, if every divergence is guarded | **a patch branch per change, retained until no history references it** | none | The mechanism versioning replaces. It scales with the number of changes rather than the number of workflows, and a missed guard is a non-determinism error in production |
 | Build-ID versioning without the controller | pinned, until the old pods go | none | none | Temporal has the versioning APIs, so this is the same routing behaviour. It fails on the second row below: a rolling `Deployment` deletes the pinned version's pods the moment rollout completes |
 | Versioning driven from CI rather than a reconciler | pinned | none | none | Version registration and promotion are one-shot at deploy time, and draining is a state that changes long after the pipeline exits |
-| No versioning; keep workflows short | exposed for the duration of a workflow | a wall-clock budget per workflow | none | The honest baseline. It shrinks the window without closing it — a thirty-second checkout can still be mid-flight when a worker rolls |
+| **No versioning; keep workflows short, and patch what can diverge** | exposed for the duration of a workflow | a wall-clock budget per workflow, and a guard on a divergent change | none | **Chosen as the floor.** It shrinks the window rather than closing it — a thirty-second checkout can still be mid-flight when a worker rolls — and that residual is priced against a component every deploy would depend on |
 
-**Workers run versioned, and workflows are Pinned by default.** Each worker declares a Worker Deployment Version — a deployment name plus a Build ID. The server routes new executions to whichever version is Current, and a Pinned execution runs start to finish on the version that began it. A deploy therefore cannot break in-flight work, and the ordinary case needs no `workflow.GetVersion`. Temporal's own guidance makes versioning, not patching, the production default.
+**The floor is the honest baseline, and the controller is deferred.** Workers run as plain Deployments. The wall-clock rule already keeps a workflow inside one deploy cycle, so the exposure window is a rollout rather than a workflow lifetime, and a workflow whose change could diverge mid-flight is guarded with `workflow.GetVersion`. That is the last row of the table plus the second, and it buys the reliability the first row buys for the executions this platform runs — without putting a young controller and an admission webhook in the path of every deploy.
 
-The controller is a real cost, and four properties are why a chart cannot replace it:
+Versioning is the better mechanism and it is not free: it is a reconciler on the deploy path, and the row above it in the table is what makes the reconciler unavoidable once versioning is on at all.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | a workflow's wall-clock legitimately exceeds a deploy cycle — the first entry in `docs/temporal/long-running.md` — or a non-determinism failure reaches production twice |
+| **Seam** | ✓ the worker is a chart value. Adopting versioning installs the controller and renders `WorkerDeployment` CRs instead of Deployments; workflow code is unchanged, because Pinned executions need no patching |
+| **Cost if adopted late** | the `GetVersion` branches written in the meantime stay until no event history references them. Bounded by the wall-clock rule: a history that no longer exists cannot pin a branch |
+
+This is a **deferral, not a bet.** The seam is a chart value and the versioning APIs are the server's, present whether or not anything drives them.
+
+### What adopting versioning brings with it
+
+Four properties are why the controller, not a chart, is what drives versioning when the trigger fires:
 
 | Consequence | Detail |
 | --- | --- |
@@ -186,7 +199,7 @@ This is [12-Factor IX](https://12factor.net/disposability) taken past where the 
 | Field | Value |
 | --- | --- |
 | **Trigger** | one event has three or more independent consumers whose identities the producer should not know, or a consumer needs to replay an event stream it was not running for |
-| **Seam** | ⚠ **a bet.** Cross-service notification is point-to-point — an HTTP call or a signal naming its target — so adopting a bus rewrites the producers, not just the transport. Nothing here publishes to a topic that a broker could take over |
+| **Seam** | ⚠ **a bet.** Cross-service notification is point-to-point — an HTTP call or a signal naming its target — so adopting a bus rewrites the producers rather than the transport. Nothing here publishes to a topic that a broker could take over |
 | **Cost if adopted late** | every producer already names its consumers, so the fan-out has been encoded into N call sites that each have to be found and inverted |
 
 ### Operational shape
@@ -228,9 +241,9 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 
 ### Negative / Risks
 
-- **Non-determinism rules are a real cognitive tax.** Mitigated by `workflowcheck`, a review checklist, and — for deploying under running executions — by Pinned versioning, which removes the need to reason about replay compatibility at all.
-- **Versioning adds an operator to the platform surface**, with a webhook in the admission path and a reconciler that can fall behind. A stalled controller means new versions are never promoted and new executions have nowhere to run. It is a dependency of the deploy path, not a background convenience.
-- **Old versions linger while their Pinned executions drain**, so a service runs more than one worker version at once for as long as sunset allows. Pod count and Temporal's version list exceed the naive desired state, and **a version whose workflows never finish never drains** — a long-lived workflow can pin one indefinitely. That is the real cost of the wall-clock rule being a rule.
+- **Non-determinism rules are a real cognitive tax**, and deferring versioning leaves it on the workflow author. Mitigated by `workflowcheck`, a review checklist, and the wall-clock rule, which keeps the set of reachable histories small enough to reason about. Versioning is what removes the reasoning rather than bounding it, and that is what its trigger buys.
+- **A rollout during an in-flight execution can still kill it.** The window is a rollout rather than a workflow lifetime, and it is not zero. This is the accepted residual of deferring, and its second occurrence in production is the trigger.
+- **The deferral's cost is paid in patch branches**, one per divergent change, retained until no event history references it. The wall-clock rule bounds the retention; nothing bounds the count except how often workflow logic changes.
 - **The Temporal server is critical infrastructure.** Mitigated by HA Postgres and replay tests proving workflows tolerate restarts.
 - **Per-activity latency in the tens of milliseconds** rules workflows out of sub-100ms request paths. The scope rule already excludes those.
 - **One worker deployment per service multiplies pod count.** Accepted; it preserves ownership.
@@ -244,11 +257,10 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 - Cross-service result waiting is polling, a webhook callback, or fire-and-forget. Direct cross-service signals are not used.
 - Activities are placed by ownership and are never shared across services as a domain wrapper.
 - A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/temporal/long-running.md` with replay tests.
-- Workers run with versioning enabled and a default behaviour of Pinned. Disabling it is permitted only where the SDK forbids the combination, and obliges that service to a documented patching plan.
-- A versioned worker is a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`.
-- Build IDs and the deployment and build-ID environment variables are set by the controller alone.
-- Sunset delays are only lengthened, never shortened toward zero.
-- A workflow opting into `AutoUpgrade` owes a `workflow.GetVersion` patching plan and replay tests.
+- Workers run unversioned. Replay safety across a deploy rests on the wall-clock rule and on `workflow.GetVersion` guarding any change a running history could reach.
+- A change to a workflow that alters its command sequence is guarded, or the workflow is drained before the change ships. An unguarded divergent change is a non-determinism error in production.
+- Worker Deployment Versioning is adopted only on its recorded trigger, and adopting it brings the controller with it: a versioned worker is a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`, and Build IDs and the deployment and build-ID environment variables are then set by the controller alone.
+- Sunset delays, where versioning is adopted, are only lengthened, never shortened toward zero.
 - Worker graceful-stop is configured, and `terminationGracePeriodSeconds` is derived from the worker stop timeout rather than set independently.
 - Workflow code is deterministic and side effects go through activities. `(CI: ci:lint)`
 - Activities are idempotent and accept retries.

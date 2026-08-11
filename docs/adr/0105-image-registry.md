@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0102](0102-source-control-and-ci.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md)
+- **Decides:** Images and their referrers live in zot, one instance per environment, backed by object storage.
 
 ## Context
 
@@ -69,9 +70,19 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 ### Negative / Risks
 
 - **The registry is on the critical path for pod starts.** A registry outage stalls scale-ups and node replacements for uncached images. Mitigated by object-storage-backed statelessness, which makes recovery a redeploy.
-- **zot is a younger project than Harbor**, with a smaller operator population. Accepted under principle 4: a registry's exit cost is low, because images are re-pushable and the OCI API is the interface.
+- **zot is a younger project than Harbor**, with a smaller operator population. Accepted under principle 4 on exit cost: images are re-pushable and the OCI API is the interface. **The exit cost is not the whole cost.** The operator population is a second, independent price — nobody arriving has debugged this component before, so the first incident is also the first hour anyone has spent inside it. That is the same class of cost [ADR-0200](0200-cluster-topology.md) accepts openly for Talos, and it is paid at the worst moment rather than at adoption.
 - **No web UI worth the name.** Inspecting an image is a `crane` or `cosign` call. Accepted: image inspection is an engineer's task, not an operator's dashboard ([ADR-0501](0501-operator-uis-and-dashboards.md)).
 - **Robot credentials are long-lived** where the forge cannot mint short-lived ones, which is the same constraint [ADR-0102](0102-source-control-and-ci.md) records for signing identity.
+
+### What would change this decision
+
+| Change | Effect |
+| --- | --- |
+| The forge is replaced | **None.** No forge's bundled registry is eligible, whichever forge it is, for the coupling reason above |
+| Multi-tenancy, quotas, or replication becomes a requirement | **Decisive.** Those are the capabilities Harbor was rejected for carrying, and needing one of them means the concern grew past what a single-instance registry answers |
+| The registry needs an administrative console for a non-engineer | **Decisive**, and it is the accepted absence stated above rather than a discovered gap |
+| Scanning is wanted at the registry rather than in CI | **None.** [ADR-0203](0203-policy-enforcement.md) assigns provenance to admission and scanning to the merge gate; moving it here would be a policy-layer change, not a registry choice |
+| The image estate outgrows one instance per environment | **None** on the component, decisive on its topology: zot mirrors in the same config file, which is the recorded seam |
 
 ## Rules
 

@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0500](0500-observability.md)
+- **Decides:** Docs, ADRs, logs, CLI output, and code comments adopt ISO 24495-1, the Google developer style, OTel log conventions, and clig.dev, with only the local deltas normative.
 
 ## Context
 
@@ -49,13 +50,15 @@ Sections appear in this order. A section with nothing to say is omitted, not fil
 
 | # | Section | Contains |
 | --- | --- | --- |
-| 1 | Header | Status, Date, Deciders, Related |
+| 1 | Header | Status, Date, Deciders, Related, Decides |
 | 2 | Context | The problem and the constraints inherited from earlier ADRs |
 | 3 | Decision drivers | What is being optimised for, in priority order — see *A driver is a property, not an answer* |
 | 4 | Considered options | A comparison table against the alternatives. Mandatory ([ADR-0000](0000-platform-foundations.md), principle 7) |
 | 5 | Decision | Declarative. "We use X. We do not use Y." |
 | 6 | Consequences | Positive, Negative / Risks. No `Follow-ups` — see *An ADR is law, not a plan* |
 | 7 | Rules | Flat, greppable, normative bullets derived from the decision |
+
+**The header's `Decides` line is one sentence, and it is the set's skim surface.** Density optimises total length at the cost of read rate: every sentence in an ADR is load-bearing, so there is nothing to skip and no way to read the set quickly. One declarative sentence per ADR restores that without loosening anything below it, and the [index](README.md)'s *Decides* column is the same line at index resolution. It states what is true of the platform, never what the document contains — *"Go is the backend language and TypeScript the frontend one"*, not *"chooses the languages"*.
 
 The comparison table uses prose cells where every option answers the same questions. It is not a scoring grid: the trade-offs are qualitative, and numeric scores manufacture false precision.
 
@@ -256,7 +259,7 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - Second person is the voice of the tutorial and how-to genres. An ADR addresses no reader: it states what is true of the platform, and its Rules read as law rather than as instructions.
 - Every word is load-bearing. A clause whose deletion does not change the meaning is deleted.
 - Three or more items sharing two or more attributes are a table; three or more parallel items are a list.
-- Intensifiers, hedges, meta-commentary, rhetorical questions, and chronology are not used in template docs.
+- Intensifiers, hedges, meta-commentary, rhetorical questions, and chronology are not used in template docs. `(CI: lint:prose)`
 - Figurative language is limited to the [ADR-0000](0000-platform-foundations.md) vocabulary.
 - A number is stated only if doubling it would change the decision: a threshold, a measurement that set a value, or a count of what is on the same page. An illustrative figure becomes the shape it demonstrates, and a count of live state elsewhere becomes a link to its registry.
 - A tool's release version is not stated. A specification version, a licence identifier, and a capability boundary stated as a floor are not tool versions. The pin lives in the lockfile, `.mise.toml`, or the chart.
@@ -264,10 +267,11 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - Markdown is not hard-wrapped: one line per paragraph, list item, or table row. `(CI: lint:md)`
 - Tables are compact — one space inside each pipe, a bare `---` delimiter — never column-padded. `(CI: lint:md)`
 - An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section.
+- An ADR's header carries a one-sentence `Decides` line stating what is true of the platform because of it, and the ADR index carries that line as its *Decides* column. `(CI: lint:adr-xref)`
 - A decision driver states a property being optimised for, never the chosen option restated and never a rejected option's worst form. Swapping the winner for a loser must leave the drivers unmet, not wrong.
 - An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule.
 - Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed.
-- No committed file links to a local working file. `(CI: lint:md)`
+- No committed file links to a local working file. `(CI: lint:md, lint:prose)`
 - ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md).
 - Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(ref: OTel semconv)`
 - Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(ref: clig.dev)`
@@ -277,6 +281,6 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - A comment that exists to explain confusing code is a defect; the code is rewritten.
 - Template docs are final-state facts: no change-history, no `Supersedes`/`Amends` chains, no `Proposed → Accepted` narrative, a uniform date, and full-rewrite-over-patch. **`(scope: template repo only)`** — a generated project keeps honest ADR history.
 - An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`.
-- No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses. A generated project rewrites that README, so duplication there is expected and correct.
+- No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses. `(CI: lint:adr-xref)` A generated project rewrites that README, so duplication there is expected and correct.
 - A term enters the [ADR-0000](0000-platform-foundations.md) vocabulary only when the ADR set uses it, and only if the repo does not already use that word in another sense.
 - A Rule that a task, a policy, or a standard enforces names it: `(CI: <task>)`, `(enforced: <policy>)`, or `(ref: <standard>)`. A Rule with no such mechanism carries no annotation, and is not weaker for it.

@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0101](0101-monorepo.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0104](0104-supply-chain-security.md)
+- **Decides:** Forgejo is the forge and Forgejo Actions the pipeline runner, entered through `mise run ci:*` so the forge stays cheap to leave.
 
 ## Context
 

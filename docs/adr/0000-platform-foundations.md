@@ -4,6 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0001](0001-documentation-and-output-conventions.md)
+- **Decides:** This platform sits at decomposition-high, sovereignty-maximal, and stakes-high, and every tool is admitted by ten anchored principles under a recorded comparison.
 
 ## Purpose
 
@@ -121,9 +122,11 @@ Each principle is **anchored** to an external standard, or explicitly marked **l
 - *Rejected:* SigNoz, OpenObserve, Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)), Zitadel ([ADR-0304](0304-identity-and-authorization.md)).
 - *What it costs:* an observability stack of several components instead of one product ([ADR-0500](0500-observability.md)). This principle is expensive and is applied anyway. That is what makes it a principle.
 
-**2. Thinnest viable platform — the always-on floor is the budget.** A simpler tool covering 90% of the need beats a richer tool that needs a dedicated operator. Components are tiered Core / Scale / Opt-in in [`docs/operational-surface.md`](../operational-surface.md); a component joins Core only when no existing Core component covers its concern.
+**2. The always-on floor is the budget.** A simpler tool covering 90% of the need beats a richer tool that needs a dedicated operator. Components are tiered Core / Scale / Opt-in in [`docs/operational-surface.md`](../operational-surface.md); a component joins Core only when no existing Core component covers its concern.
 
-- *Anchor:* Team Topologies, [*Thinnest Viable Platform*](https://teamtopologies.com/key-concepts-content/what-is-a-thinnest-viable-platform-tvp) — the smallest set of APIs, docs, and tools that still accelerates the teams building on it.
+**The floor is measured in concerns, not in charts.** Two components one person operates as one concern cost less than one component nobody has debugged, which is why the tiering asks what a component obliges rather than what it weighs — and why [`docs/operational-surface.md`](../operational-surface.md) carries a recurring obligation and a failure-response requirement per row rather than a component count.
+
+- *Anchor:* Team Topologies (Skelton & Pais), **cognitive load as the sizing unit**. The direction is **local**: [*thinnest viable platform*](https://teamtopologies.com/key-concepts-content/what-is-a-thinnest-viable-platform-tvp) bounds what a platform imposes on the teams building on it, and this principle bounds what it imposes on the people running it. The unit is borrowed; the constraint is ours, and a platform can satisfy one and fail the other.
 - *Rejected:* GitLab CE, Coroot, every second CI system.
 
 **3. Operational sovereignty — we run it ourselves.** Not "self-host by default" — this is **axis B at maximum**, a hard constraint rather than a preference with an exit. Every component runs on infrastructure the owning organisation controls, and managed services are not adopted to reclaim operational budget.
@@ -218,7 +221,7 @@ Single-service implementation details do **not** get an ADR. They live in the se
 
 ### Statuses
 
-- **Proposed** — open for review. Linked in a PR; not yet binding.
+- **Proposed** — open for review. Linked in a PR, and binding once accepted.
 - **Accepted** — merged. Binding on all services.
 - **Superseded by ADR-XXXX** — replaced by a newer decision, kept for history.
 - **Amended by ADR-XXXX** — modified in part. The amendment cites which sections it changes.
@@ -243,7 +246,7 @@ This ADR borrows its framing rather than inventing it. Where a decision here has
 | --- | --- |
 | Richards & Ford, *Fundamentals of Software Architecture* | Architecture styles rated against characteristics as **risk profiles**, not levels. The term *service-based architecture* |
 | DORA / *Accelerate* | Capability models over maturity ladders |
-| Team Topologies (Skelton & Pais) | Cognitive load as the sizing unit; **thinnest viable platform** (principle 2) |
+| Team Topologies (Skelton & Pais) | **Cognitive load as the sizing unit** (principle 2). Its *thinnest viable platform* bounds what a platform imposes on its users; principle 2 borrows the unit and applies it to the operators |
 | [OpenGitOps](https://opengitops.dev/) v1.0.0, CNCF | Declarative and versioned configuration (principle 1) |
 | [12-Factor](https://12factor.net/) | Explicit dependencies (this ADR's principle 6); dev/prod parity (principle 8). Full mapping in *12-Factor conformance* below |
 | McKinley, [*Choose Boring Technology*](https://mcfunley.com/choose-boring-technology) | Innovation tokens as a budget (principle 4) |
@@ -285,7 +288,7 @@ Principle 7 applies to standards as much as to tools: one with no recorded compa
 | **PCI DSS** | **Scope-triggered rather than refused.** The platform stores no cardholder data; a payment integration hands off to a provider. A project that takes card data directly brings PCI scope with it, and that changes [ADR-0300](0300-data.md) and [ADR-0301](0301-data-lifecycle-privacy.md) rather than this document |
 | **TUF** | Solves repository compromise, rollback, and key distribution for a public update system with untrusted mirrors and many unknown consumers. This registry serves one estate, pinned by digest and verified at admission ([ADR-0104](0104-supply-chain-security.md), [ADR-0105](0105-image-registry.md)). Its threat model is not ours |
 | **AsyncAPI** | There is no async wire contract to describe. Durable async is Temporal workflows typed in Go ([ADR-0302](0302-temporal.md)) and the outbox is in-process. It would document a message bus this platform does not run |
-| **OAM**, **Score**, **Backstage** | Abstraction layers over Kubernetes for teams who should not read manifests. Principle 2 says the platform is the thinnest viable one, and [ADR-0201](0201-gitops.md)'s shared chart already *is* the abstraction. A second one over it is a layer with no reader |
+| **OAM**, **Score**, **Backstage** | Abstraction layers over Kubernetes for teams who should not read manifests. Principle 2 bounds the floor, and [ADR-0201](0201-gitops.md)'s shared chart already *is* the abstraction. A second one over it is a layer with no reader |
 | **CIS Kubernetes Benchmark** | Written against a general Kubernetes with a mutable node. Talos removes most of what it audits — no SSH, no kubelet config file, no host package manager ([ADR-0200](0200-cluster-topology.md)) — so a large share of its findings are not-applicable rather than passing. Workload hardening is asserted directly through Pod Security Standards instead |
 
 [ADR-0001](0001-documentation-and-output-conventions.md) records one further refusal on the same basis: [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) keyword grades, rejected because every Rule here is binding and a `SHOULD` tier invites negotiation.
@@ -307,6 +310,7 @@ Used consistently across all ADRs. If a term is ambiguous in a later ADR, this g
 - **First-class** — served by the default path rather than by a special case beside it.
 - **Hot path** — the per-request code path. Cost added here is paid on every request.
 - **Blast radius** — what a failure or a compromise reaches before something stops it.
+- **A signal with no reader** — an output whose only value is that someone else consults it, produced where nobody does. It is cost without benefit, and the test is to name the reader: a SemVer bump names a pinner ([ADR-0103](0103-release-and-versioning.md)), a keyless signature names a stranger verifying without the signer's cooperation ([ADR-0104](0104-supply-chain-security.md)), and an abstraction layer names whoever must not read the manifests underneath. Where the named reader does not exist here, the signal is refused and the escape hatch is the reader arriving.
 - **Break-glass** — the documented procedure for bypassing a normal control during an incident, written down before it is needed.
 - **Service** — a deployable unit under `services/<name>/` owning a slice of business state and an OpenAPI surface. May include HTTP server, Temporal worker, and migrations.
 - **Frontend app** — the single Next.js application under `apps/frontend/`. Route groups separate audiences; the deploy unit is one app.
