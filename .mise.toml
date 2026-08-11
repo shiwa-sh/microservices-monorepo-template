@@ -3,7 +3,7 @@
 go = "1.26.4"
 bun = "1.3.14"
 # node is NOT pinned here — it is an island tool (ADR-0001/ADR-0018). Its consumers
-# are e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
+# are test/e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
 # loop), so each pins it in its own config against NODE_VERSION below. See [env].
 
 # Database tooling
@@ -396,8 +396,8 @@ run = "bash scripts/lint-log-vocab.sh"
 
 [tasks."lint:node-scope"]
 # Node confinement guard (ADR-0001/ADR-0018): Node/npm may appear ONLY in the
-# repo-root e2e/ workspace. Fails if a package-lock.json or node_modules leaks
-# elsewhere, or if e2e/ is pulled into the Bun workspace.
+# repo-root test/e2e/ workspace. Fails if a package-lock.json or node_modules leaks
+# elsewhere, or if test/e2e/ is pulled into the Bun workspace.
 run = "bash scripts/lint-node-scope.sh"
 
 [tasks."lint:auth-inline"]
@@ -408,15 +408,15 @@ run = "bash scripts/lint-node-scope.sh"
 run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]
-# Edge-auth policy gates (ADR-0009/0010/0017):
+# Edge-auth policy gates (ADR-0304/0305/0306):
 #   - OpenFGA model + assertions (fga model test) + model.json in-sync check
 #   - ops dashboards authorize via remote_json → Checker, never `allow`
 #   - the product /api rule enumerates resources, never a bare /api wildcard
 #   - every forward-auth route strips client identity headers first (anti-spoofing)
 run = """
 bash scripts/validate-openfga.sh
-bash scripts/lint-authorizer.sh
-bash scripts/lint-api-wildcard.sh
+go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
+go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
 bash scripts/lint-strip-headers.sh
 """
 
@@ -522,44 +522,44 @@ run = "bash scripts/secrets-age.sh"
 
 # ── End-to-end tests ──────────────────────────────────────────────────────────
 # Thin delegates into the Node island. The real tasks (and the node pin) live in
-# e2e/.mise.toml, because mise tools flow down a config tree and never up: a task
-# defined here cannot see a tool pinned there. `-C` runs them in e2e/ and
+# test/e2e/.mise.toml, because mise tools flow down a config tree and never up: a task
+# defined here cannot see a tool pinned there. `-C` runs them in test/e2e/ and
 # auto-installs node on first use, so these stay the entrypoint for humans and CI.
 [tasks."e2e:install"]
-run = "mise run -C e2e install"
+run = "mise run -C test/e2e install"
 
 [tasks.e2e]
-run = "mise run -C e2e test"
+run = "mise run -C test/e2e test"
 
 [tasks."e2e:smoke"]
-run = "mise run -C e2e test:smoke"
+run = "mise run -C test/e2e test:smoke"
 
 # ── Load & performance tests ──────────────────────────────────────────────────
 # Thin delegates into the k6 island, same reason as the e2e ones above: the k6
-# pin lives in perf/.mise.toml and mise tools flow down a config tree, never up.
+# pin lives in test/perf/.mise.toml and mise tools flow down a config tree, never up.
 # These are NOT part of `test`, `check` or `ci:affected` (ADR-0027) — they answer
 # "what does it cost and where does it break", not "is it correct", and they need
 # a running cluster:full.
 [tasks.perf]
 # The steady baseline: nightly + pre-release.
-run = "mise run -C perf load"
+run = "mise run -C test/perf load"
 
 [tasks."perf:smoke"]
 # ~30s. Proves the scenarios still run; the label-gated per-PR lane.
-run = "mise run -C perf smoke"
+run = "mise run -C test/perf smoke"
 
 [tasks."perf:stress"]
 # Ramp to saturation. Thresholds are expected to break — the finding is where.
-run = "mise run -C perf stress"
+run = "mise run -C test/perf stress"
 
 [tasks."perf:soak"]
 # ~30min sustained, for leak detection.
-run = "mise run -C perf soak"
+run = "mise run -C test/perf soak"
 
 [tasks."perf:seed"]
 # Bulk catalog data so the read path is measured against a realistic table.
 #   mise run perf:seed -- 50000      mise run perf:seed -- --clean
-run = "mise run -C perf seed"
+run = "mise run -C test/perf seed"
 
 # ── Maintenance ───────────────────────────────────────────────────────────────
 [tasks.upgrade]

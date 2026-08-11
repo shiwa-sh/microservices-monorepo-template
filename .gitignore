@@ -39,11 +39,11 @@ playwright-report/
 test-results/
 blob-report/
 # Saved auth storage states (session cookies) from the e2e setup project.
-e2e/.auth/
+test/e2e/.auth/
 
 # k6 load-run summaries (ADR-0027). Evidence attached to a PR or a CI artifact,
 # not repo content — a committed one would be stale the next day.
-perf/results/
+test/perf/results/
 
 # Helm / Terraform
 **/charts/*.tgz

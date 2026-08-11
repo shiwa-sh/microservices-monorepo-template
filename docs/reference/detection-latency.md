@@ -2,7 +2,7 @@
 
 Every decision below is defensible on its own, and no ADR composes them. This document does: per failure class, what detects it, and how long that takes. It is the number an availability objective is bounded by ([ADR-0500](../adr/0500-observability.md)) and the number [ADR-0502](../adr/0502-alerting-and-on-call.md)'s escalation trigger buys down.
 
-**Detection is not response.** Every row states time-to-notice. What happens next is [`../ops/incident-management.md`](../ops/incident-management.md).
+**Detection is not response.** Every row states time-to-notice. What happens next is [`incident-management`](../guide/incident-management.md).
 
 ## The four positions that set these numbers
 

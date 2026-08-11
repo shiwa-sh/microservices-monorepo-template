@@ -1,17 +1,17 @@
 # Load & performance runbook
 
-How to run a load test, how to read it, and how to record a baseline. The decision (k6, `perf/`, OTLP into the existing collector) is [ADR-0601](../adr/0601-testing-strategy.md).
+How to run a load test, how to read it, and how to record a baseline. The decision (k6, `test/perf/`, OTLP into the existing collector) is [ADR-0601](../adr/0601-testing-strategy.md).
 
 ## Model
 
-- **k6** is the only load generator. It is a single static Go binary pinned in `perf/.mise.toml`, not the root toolchain — `mise run perf*` installs it on first use.
-- Scenarios are JavaScript executed by **k6's own embedded engine**. There is no Node here: `perf/` has no `package.json`, no lockfile and no `node_modules`, and adding one breaks `mise run lint:node-scope`.
+- **k6** is the only load generator. It is a single static Go binary pinned in `test/perf/.mise.toml`, not the root toolchain — `mise run perf*` installs it on first use.
+- Scenarios are JavaScript executed by **k6's own embedded engine**. There is no Node here: `test/perf/` has no `package.json`, no lockfile and no `node_modules`, and adding one breaks `mise run lint:node-scope`.
 - Runs drive the **edge** (`https://dev.localtest.me:8443/api/…`), so Traefik and the Oathkeeper forward-auth hop are inside every measurement.
 - Metrics leave k6 over **OTLP into the cluster's OTel collector** and land in Prometheus as `k6_*` series, on the same time axis as `k8s_pod_*`. Nothing new ingests them.
 
 ## Prerequisites
 
-A running full tier: `mise run cluster:full`. The first `mise run perf*` in a fresh checkout also needs `mise trust perf/.mise.toml`.
+A running full tier: `mise run cluster:full`. The first `mise run perf*` in a fresh checkout also needs `mise trust test/perf/.mise.toml`.
 
 ## Run one
 
@@ -35,7 +35,7 @@ Knobs (all optional):
 | `PERF_OTLP` | `1` | `0` skips the collector forward — results stay in the terminal |
 | `PERF_OTLP_PORT` | `14317` | loopback port for the collector forward |
 
-To run one scenario at one profile directly: `bash perf/run.sh checkout stress`.
+To run one scenario at one profile directly: `bash test/perf/run.sh checkout stress`.
 
 ## The two scenarios
 
@@ -63,7 +63,7 @@ Two places, and you need both:
 ### Two traps
 
 - **`Dropped iterations` > 0 means the numbers are wrong.** k6 could not start iterations on time, so the generator — not the platform — is the bottleneck, and everything on the dashboard is an understatement. Take the `k6-operator` swap ([operational surface](../operational-surface.md)) before believing a run that shows this.
-- **`checkout_settle` cannot resolve below the poll interval** (1s, `POLL_INTERVAL_S` in `perf/scenarios/checkout.js`). A p95 of ~1.0s on an idle cluster means "faster than we can measure", not "one second". The metric earns its resolution under load, where real settle time is well above the interval.
+- **`checkout_settle` cannot resolve below the poll interval** (1s, `POLL_INTERVAL_S` in `test/perf/scenarios/checkout.js`). A p95 of ~1.0s on an idle cluster means "faster than we can measure", not "one second". The metric earns its resolution under load, where real settle time is well above the interval.
 
 ### `stress` measures concurrency, not maximum throughput
 
@@ -93,7 +93,7 @@ Compare like for like: same profile, same seed size, same tier.
 
 Prometheus's TSDB is an `emptyDir` on the local tier (the ADR-0500 POC floor), so **any rollout of the observability chart destroys all metric history** — `mise run platform:deploy -- observability` and a `cluster:delete` both wipe it, silently and instantly. A resource or capacity comparison that depends on querying "before" numbers out of Prometheus will therefore fail exactly when you redeploy to apply the change you are measuring.
 
-The `perf/results/*.json` summaries are files and survive, which is why they are the authoritative record. Copy them somewhere before a redeploy, and write the pod-level peaks into the PR (or the values comment) rather than assuming you can re-query them.
+The `test/perf/results/*.json` summaries are files and survive, which is why they are the authoritative record. Copy them somewhere before a redeploy, and write the pod-level peaks into the PR (or the values comment) rather than assuming you can re-query them.
 
 ### Interpreting a small delta
 

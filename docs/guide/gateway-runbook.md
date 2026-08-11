@@ -20,6 +20,6 @@ How-to for operating the Traefik + Oathkeeper edge. The decision (Traefik ingres
 
 ## Diagnose
 
-- A 401 at the edge is Oathkeeper rejecting the session/JWT ([docs/auth/jwt-validation.md](../auth/jwt-validation.md)).
-- A 403 on an ops origin is the coarse claim gate (not `operator` / not AAL2) or the optional per-tool OpenFGA check ([docs/ops/break-glass.md](../ops/break-glass.md) if the auth plane itself is down).
+- A 401 at the edge is Oathkeeper rejecting the session/JWT ([jwt-validation](../reference/jwt-validation.md)).
+- A 403 on an ops origin is the coarse claim gate (not `operator` / not AAL2) or the optional per-tool OpenFGA check ([break-glass](break-glass.md) if the auth plane itself is down).
 - Inspect live routing with the Traefik dashboard / `kubectl -n platform logs` for the edge and Oathkeeper.

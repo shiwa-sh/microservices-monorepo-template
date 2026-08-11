@@ -134,7 +134,7 @@ bash scripts/identity-seed.sh
 # repeating them here (bun reads the .ts directly — no Node, no e2e install).
 login_email="$(bun --silent -e \
   "console.log((await import('${ROOT}/e2e/fixtures/identities.ts')).USER.email)" 2>/dev/null ||
-  echo '<see e2e/fixtures/identities.ts>')"
+  echo '<see test/e2e/fixtures/identities.ts>')"
 
 cat <<EOF
 
@@ -146,7 +146,7 @@ cat <<EOF
 
   Open:          https://${DOMAIN}:8443/
   Log in as:     ${login_email}
-                 (password: e2e/fixtures/identities.ts — sessions last 7 days)
+                 (password: test/e2e/fixtures/identities.ts — sessions last 7 days)
   Teardown:      mise run cluster:stop  (keep cache) / cluster:delete (delete)
 
   Base alone serves no application data: /api routes 404 until you add the service

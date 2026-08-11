@@ -30,4 +30,4 @@ Locally the key is a throwaway planted at bootstrap ([ADR-0205](../adr/0205-envi
 
 ## Break-glass
 
-Recovering the cluster when the auth plane is down is [docs/ops/break-glass.md](../ops/break-glass.md); sealing local-admin creds in SOPS is the optional secondary break-glass described there.
+Recovering the cluster when the auth plane is down is [break-glass](break-glass.md); sealing local-admin creds in SOPS is the optional secondary break-glass described there.

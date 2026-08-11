@@ -9,7 +9,7 @@
 # NODE_VERSION, so there is one number to bump for both this and apps/admin.
 #
 # Nothing extra to install by hand. `mise install` at the root deliberately skips
-# this; the root `e2e*` tasks delegate here with `mise run -C e2e …`, which
+# this; the root `e2e*` tasks delegate here with `mise run -C test/e2e …`, which
 # auto-installs node on first use. Ad-hoc runs work the same way, e.g.
 #   mise x -C e2e -- npx playwright test --ui
 [tools]

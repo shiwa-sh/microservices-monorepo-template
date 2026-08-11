@@ -231,7 +231,7 @@ Tokens are validated once, at the edge. **Past the edge there are no tokens** �
 
 | Stage | Behaviour |
 | --- | --- |
-| Edge validation | Oathkeeper validates the Kratos session cookie or the Hydra-issued JWT. JWTs are RS256 with keys at a JWKS endpoint, and validation requires issuer, audience, expiry, signature, and `nbf` with 30s skew tolerance, defined once in `docs/auth/jwt-validation.md` |
+| Edge validation | Oathkeeper validates the Kratos session cookie or the Hydra-issued JWT. JWTs are RS256 with keys at a JWKS endpoint, and validation requires issuer, audience, expiry, signature, and `nbf` with 30s skew tolerance, defined once in `docs/reference/jwt-validation.md` |
 | Header injection | Oathkeeper **strips any client-supplied identity headers** and injects authoritative `X-User-Id`, `X-Org-Id`, and `X-Roles` |
 | Service read | `libs/go/authmw/` reads the headers into a typed principal. Services never fetch JWKS or parse a JWT |
 | Service to service | no token. The same headers are forwarded, gated by Cilium NetworkPolicy — network identity, not a per-call machine token |
@@ -244,7 +244,7 @@ A conformance suite at `tools/auth-conformance/` ships with the repo: identity-h
 
 | Layer | Mechanism |
 | --- | --- |
-| **Coarse gate, mandatory** | The ops-tier Oathkeeper requires `X-Roles` to contain `operator` plus an **AAL2** session. It reads only the session and its claims and makes **no OpenFGA call** — deliberately, so the debugging surface does not share fate with the product authorization plane. An OpenFGA outage must not lock every operator out of the dashboards needed to diagnose it ([`docs/ops/break-glass.md`](../ops/break-glass.md)) |
+| **Coarse gate, mandatory** | The ops-tier Oathkeeper requires `X-Roles` to contain `operator` plus an **AAL2** session. It reads only the session and its claims and makes **no OpenFGA call** — deliberately, so the debugging surface does not share fate with the product authorization plane. An OpenFGA outage must not lock every operator out of the dashboards needed to diagnose it ([`docs/guide/break-glass.md`](../guide/break-glass.md)) |
 | **Fine gate, optional** | The route adds the `remote_json` authorizer calling `Checker`, modelling each tool as a `dashboard` resource. Deferred until an operator should reach some tools and not others — until then the coarse gate expresses the same policy. The seam is the authorizer field on one route; the cost of waiting is that every operator has held access to every tool up to that point |
 
 This is the only sanctioned edge-side permission decision. Product surfaces decide in-service through `Checker`.

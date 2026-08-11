@@ -97,7 +97,7 @@ Browser-side calls need none of this: the client uses a relative `/api`, which i
 | `mise run cluster:remove -- <name>` | uninstall **and restore Argo auto-sync** |
 | `mise run cluster:stop` / `cluster:delete` | stop, keeping the image cache; or delete |
 | `mise run cluster:heal` | recover a cluster wedged after a host reboot |
-| `mise run cluster:unwedge` | recover stalled image pulls ([http-proxy](../ops/http-proxy.md)) |
+| `mise run cluster:unwedge` | recover stalled image pulls ([http-proxy](../guide/http-proxy.md)) |
 | `mise run e2e` / `e2e:smoke` | browser acceptance suites ([ADR-0601](../adr/0601-testing-strategy.md)) |
-| `mise run perf` / `perf:smoke` / `perf:stress` / `perf:seed` | load suites ([perf runbook](../perf/runbook.md)) |
+| `mise run perf` / `perf:smoke` / `perf:stress` / `perf:seed` | load suites ([perf runbook](../guide/performance-runbook.md)) |
 | `mise run lint` / `format` | every language, including Markdown |

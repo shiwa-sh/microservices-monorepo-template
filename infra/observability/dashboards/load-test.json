@@ -150,7 +150,7 @@
     {
       "type": "stat",
       "title": "Virtual users",
-      "description": "Concurrent VUs the profile is driving right now (perf/lib/config.js ramps these). The independent variable of the experiment.",
+      "description": "Concurrent VUs the profile is driving right now (test/perf/lib/config.js ramps these). The independent variable of the experiment.",
       "datasource": "Prometheus",
       "gridPos": { "h": 5, "w": 4, "x": 15, "y": 1 },
       "fieldConfig": {

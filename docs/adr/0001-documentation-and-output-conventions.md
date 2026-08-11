@@ -42,7 +42,24 @@ Most of what a house style would say is already published. Re-deriving it produc
 
 Diátaxis classifies an ADR as **explanation plus reference**. It is not a tutorial and not a how-to: it records a decision and its constraints, and never walks a reader through a task.
 
-**Second person follows the genre, not the repository.** Google's *you* addresses someone performing a task, which is the tutorial and how-to genres — `docs/dev-loop.md`, `docs/ops/break-glass.md`, and their neighbours, where it is the correct voice. An ADR addresses nobody. It states what is true of the platform, so its subject is the platform and its rules take the imperative of law: *deployments reference images by digest*, never *you reference images by digest*.
+### Genre decides the path
+
+Diátaxis is adopted as the organising standard, so it organises the tree and not only the prose. A reader learns a document's genre from its path before opening it, and a document that does not fit a genre is a document whose purpose is unsettled.
+
+| Path | Genre | Holds |
+| --- | --- | --- |
+| `docs/adr/` | explanation + reference | one decision per file |
+| `docs/guide/` | how-to | a procedure someone executes |
+| `docs/reference/` | reference | a lookup, a registry, or live state |
+| `docs/*.md` | entry, and canonical registries | the ordered way in, and the documents this set cites by name as the only place a fact is recorded |
+
+**The root is not a genre and is not a default.** A file sits at `docs/` only by being the set's entry point or a registry an ADR names as canonical — [`operational-surface.md`](../operational-surface.md) for components, [`adoption-path.md`](../adoption-path.md) for the reduction order. Everything else takes a genre directory.
+
+**Topic lives in the filename.** A directory holding one file groups nothing, and a filename repeated once per topic — four documents all called `runbook.md` — is four files a search cannot separate. The name states the subject and the directory states the genre, so `guide/secrets-runbook.md` is both without a nested tree.
+
+A generated document names its generator in a comment on the second line, and is not hand-edited ([`security-baseline.md`](../security-baseline.md), [`reference/rules-index.md`](../reference/rules-index.md)).
+
+**Second person follows the genre, not the repository.** Google's *you* addresses someone performing a task, which is the tutorial and how-to genres — `docs/dev-loop.md`, `docs/guide/break-glass.md`, and their neighbours, where it is the correct voice. An ADR addresses nobody. It states what is true of the platform, so its subject is the platform and its rules take the imperative of law: *deployments reference images by digest*, never *you reference images by digest*.
 
 ### ADR structure
 
@@ -273,6 +290,8 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed.
 - No committed file links to a local working file. `(CI: lint:md, lint:prose)`
 - ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md).
+- A document's genre decides its directory: `docs/adr/` decisions, `docs/guide/` procedures, `docs/reference/` lookups. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. `(CI: lint:adr-xref)`
+- Topic is carried by the filename, never by a directory holding a single file, and no two documents in `docs/` share a filename. `(CI: lint:adr-xref)`
 - Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(ref: OTel semconv)`
 - Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(ref: clig.dev)`
 - Code comments explain why, not what, in present tense, and cite `ADR-XXXX` when load-bearing.

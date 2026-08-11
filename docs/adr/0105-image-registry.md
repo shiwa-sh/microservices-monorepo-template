@@ -57,7 +57,7 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | --- | --- |
 | **Trigger** | an upstream registry rate-limits or removes a pinned digest the cluster depends on |
 | **Seam** | ✓ zot supports pull-through mirroring in the same config file. Enabling it changes registry configuration and image references, not the deploy path |
-| **Cost if adopted late** | a bootstrap depends on upstream availability, which [`docs/ops/http-proxy.md`](../ops/http-proxy.md) already documents as a failure mode on restricted networks |
+| **Cost if adopted late** | a bootstrap depends on upstream availability, which [`docs/guide/http-proxy.md`](../guide/http-proxy.md) already documents as a failure mode on restricted networks |
 
 ## Consequences
 

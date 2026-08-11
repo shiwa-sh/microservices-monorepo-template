@@ -9,6 +9,6 @@ export default function globalSetup(): void {
     console.log("preflight: skipped (E2E_SKIP_PREFLIGHT=1)");
     return;
   }
-  // cwd is the e2e/ config dir.
+  // cwd is the test/e2e/ config dir.
   execFileSync("bash", ["preflight/preflight.sh"], { stdio: "inherit" });
 }

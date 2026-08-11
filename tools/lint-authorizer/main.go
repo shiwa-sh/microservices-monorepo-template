@@ -1,4 +1,4 @@
-// Command lint-authorizer enforces the ops-tier authorizer policy (ADR-0017):
+// Command lint-authorizer enforces the ops-tier authorizer policy (ADR-0306):
 // every operator-dashboard access rule must authorize per-tool via the
 // remote_json authorizer (→ OpenFGA Checker), never `allow`. A re-introduced
 // `"authorizer": {"handler": "allow"}` on an ops route is exactly the gap this

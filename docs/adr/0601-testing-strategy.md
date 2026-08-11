@@ -112,20 +112,20 @@ Load testing sits beside these layers, not on them. A red load run means "slower
 
 | Workspace | Contents |
 | --- | --- |
-| `e2e/platform/` | cross-service product journeys (register → catalog → order → pay) and operator-dashboard journeys behind an AAL2 session |
-| `e2e/frontend/(landing\|panel\|devportal)/` | per-route-group frontend suites |
-| `e2e/visual/` | component visual regression against committed baselines |
-| `perf/lib/` | shared configuration, target resolution, thresholds, response checks |
-| `perf/scenarios/` | one runnable k6 script per load shape |
-| `perf/seed/` | bulk data provisioning, so read paths meet a realistic table |
+| `test/e2e/platform/` | cross-service product journeys (register → catalog → order → pay) and operator-dashboard journeys behind an AAL2 session |
+| `test/e2e/frontend/(landing\|panel\|devportal)/` | per-route-group frontend suites |
+| `test/e2e/visual/` | component visual regression against committed baselines |
+| `test/perf/lib/` | shared configuration, target resolution, thresholds, response checks |
+| `test/perf/scenarios/` | one runnable k6 script per load shape |
+| `test/perf/seed/` | bulk data provisioning, so read paths meet a realistic table |
 
-All e2e and visual tests share one Playwright config in the repo-root `e2e/` workspace.
+All e2e and visual tests share one Playwright config in the repo-root `test/e2e/` workspace.
 
 ### Runtime containment
 
-Node is pinned in `e2e/.mise.toml`, never the root toolchain, so it installs only for a developer who runs the suite. k6 is pinned in `perf/.mise.toml` as an island tool; root `perf*` tasks delegate with `mise run -C perf …`.
+Node is pinned in `test/e2e/.mise.toml`, never the root toolchain, so it installs only for a developer who runs the suite. k6 is pinned in `test/perf/.mise.toml` as an island tool; root `perf*` tasks delegate with `mise run -C test/perf …`.
 
-k6's scenario language is JavaScript on its own embedded engine. **This does not extend the Node escape hatch**: `perf/` carries no `package.json`, no lockfile, no `node_modules`, and no Node binary. `lint:node-scope` asserts npm exists only in `e2e/`.
+k6's scenario language is JavaScript on its own embedded engine. **This does not extend the Node escape hatch**: `test/perf/` carries no `package.json`, no lockfile, no `node_modules`, and no Node binary. `lint:node-scope` asserts npm exists only in `test/e2e/`.
 
 ### Load scenarios
 
@@ -175,11 +175,11 @@ Kratos starts with an empty identity store and no seeded user, and mail goes to 
 
 No test depends on hand-created state. The same bootstrap provisions the identity the `edge` development profile logs in as ([ADR-0600](0600-local-development-loop.md)), so it is exercised daily rather than only nightly.
 
-Load runs generate real data: a checkout run creates real orders and Temporal executions in whatever environment it targets. `perf/` refuses to run against a target it was not explicitly pointed at, and seeded data carries a recognisable prefix so it can be identified and removed.
+Load runs generate real data: a checkout run creates real orders and Temporal executions in whatever environment it targets. `test/perf/` refuses to run against a target it was not explicitly pointed at, and seeded data carries a recognisable prefix so it can be identified and removed.
 
 ### Visual baselines
 
-The CI gate is committed accepted-snapshot diffing against baselines in `e2e/visual/`; an intentional UI change updates the baseline in the same PR. **Figma stays the authoring source of truth** ([ADR-0400](0400-frontend.md)), reviewed by humans. Rendered-versus-Figma diffing is too brittle — font hinting, anti-aliasing — to gate on.
+The CI gate is committed accepted-snapshot diffing against baselines in `test/e2e/visual/`; an intentional UI change updates the baseline in the same PR. **Figma stays the authoring source of truth** ([ADR-0400](0400-frontend.md)), reviewed by humans. Rendered-versus-Figma diffing is too brittle — font hinting, anti-aliasing — to gate on.
 
 **Deferred:** component-isolation tooling (Storybook) and a hosted review UI (Argos). **Trigger:** built-in baseline diffing stops scaling. **Seam:** both consume the same committed baselines, so adoption is additive.
 
@@ -196,7 +196,7 @@ The CI gate is committed accepted-snapshot diffing against baselines in `e2e/vis
 
 ### Negative / Risks
 
-- **Node returns as a sanctioned runtime.** Contained to the `e2e/` runner and CI, never a service, app or library code, or an image built from our own source. ([ADR-0100](0100-language-and-runtime.md) sanctions one other Node island for the same vendored-tool reason: the Lowdefy admin console, [ADR-0401](0401-internal-admin.md).)
+- **Node returns as a sanctioned runtime.** Contained to the `test/e2e/` runner and CI, never a service, app or library code, or an image built from our own source. ([ADR-0100](0100-language-and-runtime.md) sanctions one other Node island for the same vendored-tool reason: the Lowdefy admin console, [ADR-0401](0401-internal-admin.md).)
 - **Label-gated smoke means an unlabelled PR gets no full-platform signal until nightly**, so a cross-service break can sit in `master` for up to ~24h. Accepted as the cost of not paying a full bring-up per PR.
 - **Operator-dashboard e2e lives only in the nightly suite**, so platform-contract regressions surface within 24h.
 - **The gauge is also the bottleneck.** Putting the verdict at the slowest, most flake-prone layer means a broken top blocks the signal entirely. Preflight localises the cause; it does not make the layer faster or steadier.
@@ -204,23 +204,23 @@ The CI gate is committed accepted-snapshot diffing against baselines in `e2e/vis
 - **Local load numbers are not capacity numbers.** Stated wherever results are reported, and resolved by the k6-operator swap when absolute figures are needed.
 - **A single local node is not a production topology.** Saturation shapes transfer; absolute ceilings do not — the same caveat [ADR-0205](0205-environment-parity.md) carries for the local tier.
 - **Scenario rot.** A scenario driving `/api/orders` breaks when that contract changes and is not on the per-PR path. Mitigated by label-gated `perf:smoke` and the nightly run.
-- **JavaScript reappears outside the sanctioned island.** Bounded by the no-Node, no-npm, no-lockfile rule and by keeping `perf/` out of the Bun workspace.
+- **JavaScript reappears outside the sanctioned island.** Bounded by the no-Node, no-npm, no-lockfile rule and by keeping `test/perf/` out of the Bun workspace.
 
 ## Rules
 
 - Playwright (TypeScript) is the only browser e2e and visual-regression tool. Cypress, WebdriverIO, Selenium, and pure-Go browser libraries are not used.
-- All e2e and visual tests live in the repo-root `e2e/` workspace under one Playwright config.
+- All e2e and visual tests live in the repo-root `test/e2e/` workspace under one Playwright config.
 - The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone.
 - Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests.
 - E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](0600-local-development-loop.md)).
 - Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code.
 - Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate.
 - E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state.
-- Node is permitted solely as the Playwright runner, pinned in `e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. `(CI: lint:node-scope)`
+- Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. `(CI: lint:node-scope)`
 - k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and hand-rolled generators are not used.
-- Performance tests live in `perf/` as committed JavaScript, never a GUI-authored or recorded plan.
-- `perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. `(CI: lint:node-scope)`
-- The k6 binary is pinned in `perf/.mise.toml`, never in the root `[tools]`.
+- Performance tests live in `test/perf/` as committed JavaScript, never a GUI-authored or recorded plan.
+- `test/perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. `(CI: lint:node-scope)`
+- The k6 binary is pinned in `test/perf/.mise.toml`, never in the root `[tools]`.
 - Load metrics reach Prometheus as an OTLP push through the OTel collector. A private metrics store, exporter sidecar, or remote-write receiver is not introduced.
 - Load series are namespaced `k6_*` and carry `service_name="k6"`; k6's `url`, `name`, and `error` tags are not exported, and request identity is a bounded `endpoint` route-template tag.
 - k6 runs with `--no-usage-report`.
@@ -229,5 +229,5 @@ The CI gate is committed accepted-snapshot diffing against baselines in `e2e/vis
 - Scenarios drive the edge, not port-forwarded pods, so the gateway and forward-auth hop are inside the measurement.
 - Performance suites are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge.
 - Results from a co-hosted generator are reported as relative regression signals, never absolute capacity figures.
-- Load against a shared environment requires an explicit target; `perf/` defaults to nothing but the local edge.
+- Load against a shared environment requires an explicit target; `test/perf/` defaults to nothing but the local edge.
 - The full e2e and perf suites run nightly (activity-gated) and pre-release; smoke suites run per-PR only when labelled. Neither is part of `ci:affected`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Anti-spoofing gate (ADR-0009, Phase 8). Every IngressRoute that authenticates
+# Anti-spoofing gate (ADR-0305). Every IngressRoute that authenticates
 # via the Oathkeeper forwardAuth middleware MUST also apply strip-identity-headers
 # BEFORE it, so a client cannot inject X-User-* / X-Org-Id / X-Roles on any route
 # (anonymous routes especially). Fails CI if a forward-auth route is missing the
@@ -15,7 +15,7 @@ step "checking every forward-auth route strips identity headers first"
   kubectl kustomize infra/gateway
   echo '---'
   # The per-resource /api route (chart template) — render with ingress on and a
-  # resource declared, as real services are configured (flat /api/<resource>, ADR-0017).
+  # resource declared, as real services are configured (flat /api/<resource>, ADR-0306).
   helm template svc infra/helm/service \
     --set name=svc --set image.repository=svc --set image.tag=dev \
     --set ingress.enabled=true --set ingress.host=example.com \

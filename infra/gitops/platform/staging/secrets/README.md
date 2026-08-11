@@ -6,7 +6,7 @@ This directory is synced by the `staging-secrets` Application (the `secrets` App
 
 ## Adopt
 
-1. Generate the `staging` cluster age key and replace the `cluster_staging` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/secrets/runbook.md` / the Ansible bootstrap role).
+1. Generate the `staging` cluster age key and replace the `cluster_staging` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` / the Ansible bootstrap role).
 2. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/staging/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_staging` + engineers + ops-recovery.
 3. Commit. Argo delivers it and the operator materialises the Secrets.
 

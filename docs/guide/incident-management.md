@@ -2,7 +2,7 @@
 
 [`break-glass.md`](break-glass.md) covers access when the auth plane is down. This document covers process: what counts as an incident, who does what, and what is owed afterwards.
 
-It is written for a platform where **nothing pages** ([ADR-0502](../adr/0502-alerting-and-on-call.md)). That is the constraint the severities below are drawn against, not an omission from them: a severity that assumes someone is woken is a severity this platform cannot honour, and [`../reference/detection-latency.md`](../reference/detection-latency.md) states what it can.
+It is written for a platform where **nothing pages** ([ADR-0502](../adr/0502-alerting-and-on-call.md)). That is the constraint the severities below are drawn against, not an omission from them: a severity that assumes someone is woken is a severity this platform cannot honour, and [`detection-latency`](../reference/detection-latency.md) states what it can.
 
 ## Severity
 
@@ -52,7 +52,7 @@ A postmortem is blameless in the operational sense: the subject is the system th
 | What worked | the controls that caught it, or bounded it. These are as informative as the ones that did not |
 | Actions | each with an owner and a place to live — a rule in an ADR, a check in CI, an alert, or a runbook entry |
 
-**An action item without a home is not an action item.** The homes are: a rule in the owning ADR, a check in `mise run lint`, an alert rule, a row in [`../reference/deferral-register.md`](../reference/deferral-register.md), or a runbook under `docs/ops/`. An action that lives only in the postmortem is a postmortem nobody rereads.
+**An action item without a home is not an action item.** The homes are: a rule in the owning ADR, a check in `mise run lint`, an alert rule, a row in [`deferral-register`](../reference/deferral-register.md), or a runbook under `docs/guide/`. An action that lives only in the postmortem is a postmortem nobody rereads.
 
 **Two incident counts feed decisions already recorded.** Three distinct incidents in one quarter where a reported bug could not be reproduced from traces plus RUM logs is [ADR-0700](../adr/0700-analytics.md)'s session-replay trigger, and a second non-determinism failure in production is [ADR-0302](../adr/0302-temporal.md)'s versioning trigger. Both are counted from these records, so an incident that is never written down is a trigger that never fires.
 

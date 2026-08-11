@@ -1,4 +1,4 @@
-// Command lint-api-wildcard enforces that the product edge rule (ADR-0017) never
+// Command lint-api-wildcard enforces that the product edge rule (ADR-0306) never
 // matches `/api/` with an open path wildcard. The panel-breaking regression was a
 // bare `<**>/api/<**>` match: it collides with every ops dashboard's own route, so
 // an ops `/api/*` request matched both `api-services` and its `ops-<tool>` rule and

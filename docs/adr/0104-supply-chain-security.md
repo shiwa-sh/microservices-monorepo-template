@@ -84,7 +84,7 @@ The digest-pin rule reinforces [ADR-0103](0103-release-and-versioning.md): produ
 - **Kyverno is a new Core component** — admission-controller operational surface. Accepted: it is the enforcement point that makes the rest non-optional.
 - **There is a key, and a key can be stolen.** A compromised signing key signs anything, and there is no independent log to contradict it — the property keyless buys and this does not. Bounded by the key never leaving SOPS and the cluster, by rotation being a documented procedure rather than an improvisation, and by Kyverno pinning the public key so a substituted key fails admission rather than passing quietly.
 - **Signature history is only as good as the key's history.** Rotation invalidates nothing already signed, so the policy carries the current and previous public keys through a rotation window.
-- **An admission gate can block a deploy during an incident.** The break-glass path is documented in [`docs/ops/break-glass.md`](../ops/break-glass.md) rather than left to improvisation.
+- **An admission gate can block a deploy during an incident.** The break-glass path is documented in [`docs/guide/break-glass.md`](../guide/break-glass.md) rather than left to improvisation.
 
 ## Rules
 

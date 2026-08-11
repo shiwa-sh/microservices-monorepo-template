@@ -29,4 +29,4 @@ A migration that adds or changes an authz-relevant table must land together with
 
 ## Backups & recovery
 
-CNPG `ScheduledBackup` + WAL archiving to the off-cluster bucket is the recovery path; restore is rehearsed quarterly ([ADR-0200](../adr/0200-cluster-topology.md), [docs/cluster/dr-runbook.md](../cluster/dr-runbook.md)).
+CNPG `ScheduledBackup` + WAL archiving to the off-cluster bucket is the recovery path; restore is rehearsed quarterly ([ADR-0200](../adr/0200-cluster-topology.md), [disaster-recovery](disaster-recovery.md)).

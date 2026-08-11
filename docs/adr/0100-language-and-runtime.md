@@ -103,7 +103,7 @@ Node runs vendored third-party tools, never code we author and never a backend r
 
 | Island | Why Node is unavoidable | Containment |
 | --- | --- | --- |
-| Playwright e2e and visual runner ([ADR-0601](0601-testing-strategy.md)) | browser-process control needs extra-fd pipe transport and worker IPC that Bun does not match, and the gap is upstream rather than in our usage — Bun's own author's [support patch](https://github.com/microsoft/playwright/pull/28875) and the [feature request](https://github.com/microsoft/playwright/issues/38095) are both unmerged | `e2e/.mise.toml`, runner and CI only |
+| Playwright e2e and visual runner ([ADR-0601](0601-testing-strategy.md)) | browser-process control needs extra-fd pipe transport and worker IPC that Bun does not match, and the gap is upstream rather than in our usage — Bun's own author's [support patch](https://github.com/microsoft/playwright/pull/28875) and the [feature request](https://github.com/microsoft/playwright/issues/38095) are both unmerged | `test/e2e/.mise.toml`, runner and CI only |
 | Lowdefy admin console ([ADR-0401](0401-internal-admin.md)) | installed and run rather than built, so the runtime is upstream's choice. Its CLI aborts without `pnpm` on `PATH`, and `lowdefy start` shells to `next start`, whose bin is `#!/usr/bin/env node`. Bun displaces that only by aliasing `node`, and still needs pnpm | `apps/admin/.mise.toml` and that app's image |
 | API mock ([ADR-0600](0600-local-development-loop.md)) | the only OpenAPI-3.1-complete contract mock is a Node program | consumed as a pinned upstream container, so it installs no Node anywhere and adds no `package.json` |
 

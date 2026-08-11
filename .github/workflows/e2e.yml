@@ -72,8 +72,8 @@ jobs:
         with:
           name: playwright-report-full
           path: |
-            e2e/playwright-report/
-            e2e/test-results/
+            test/e2e/playwright-report/
+            test/e2e/test-results/
           retention-days: 7
       - name: Tear down
         if: always()
@@ -106,8 +106,8 @@ jobs:
         with:
           name: playwright-report-smoke
           path: |
-            e2e/playwright-report/
-            e2e/test-results/
+            test/e2e/playwright-report/
+            test/e2e/test-results/
           retention-days: 7
       - name: Tear down
         if: always()

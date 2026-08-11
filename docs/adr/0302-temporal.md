@@ -136,7 +136,7 @@ A workflow's wall-clock fits inside one production deploy cycle by default. The 
 
 A longer wall-clock is permitted and requires:
 
-1. an entry in `docs/temporal/long-running.md` with the expected wall-clock,
+1. an entry in `docs/reference/long-running-workflows.md` with the expected wall-clock,
 2. replay tests over historical event histories in CI,
 3. a documented `workflow.GetVersion` patching plan, because a workflow outliving a deploy is by definition resumed by code that did not start it.
 
@@ -158,7 +158,7 @@ Versioning is the better mechanism and it is not free: it is a reconciler on the
 
 | Field | Value |
 | --- | --- |
-| **Trigger** | a workflow's wall-clock legitimately exceeds a deploy cycle — the first entry in `docs/temporal/long-running.md` — or a non-determinism failure reaches production twice |
+| **Trigger** | a workflow's wall-clock legitimately exceeds a deploy cycle — the first entry in `docs/reference/long-running-workflows.md` — or a non-determinism failure reaches production twice |
 | **Seam** | ✓ the worker is a chart value. Adopting versioning installs the controller and renders `WorkerDeployment` CRs instead of Deployments; workflow code is unchanged, because Pinned executions need no patching |
 | **Cost if adopted late** | the `GetVersion` branches written in the meantime stay until no event history references them. Bounded by the wall-clock rule: a history that no longer exists cannot pin a branch |
 
@@ -256,7 +256,7 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 - Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are not used. `(CI: ci:lint)`
 - Cross-service result waiting is polling, a webhook callback, or fire-and-forget. Direct cross-service signals are not used.
 - Activities are placed by ownership and are never shared across services as a domain wrapper.
-- A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/temporal/long-running.md` with replay tests.
+- A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/reference/long-running-workflows.md` with replay tests.
 - Workers run unversioned. Replay safety across a deploy rests on the wall-clock rule and on `workflow.GetVersion` guarding any change a running history could reach.
 - A change to a workflow that alters its command sequence is guarded, or the workflow is drained before the change ships. An unguarded divergent change is a non-determinism error in production.
 - Worker Deployment Versioning is adopted only on its recorded trigger, and adopting it brings the controller with it: a versioned worker is a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`, and Build IDs and the deployment and build-ID environment variables are then set by the controller alone.

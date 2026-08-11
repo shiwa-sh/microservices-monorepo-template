@@ -189,7 +189,7 @@ cat <<EOF
   Diagnose:           argocd --core --kube-context k3d-${CLUSTER} app get <app>
                       UI: kubectl -n argocd port-forward svc/argocd-server 8080:443
   Break-glass:        auth plane down? reach any tool via kubectl port-forward with
-                      your kubeconfig — the sanctioned bypass (docs/ops/break-glass.md),
+                      your kubeconfig — the sanctioned bypass (docs/guide/break-glass.md),
                       e.g. kubectl -n platform port-forward svc/grafana 3000:80
   Teardown:           mise run cluster:stop  (keep cache) / cluster:delete (delete)
 EOF

@@ -9,7 +9,7 @@
 #           proves the scenarios still run against the current API, nothing more.
 #
 # A threshold breach here is a PERFORMANCE REGRESSION TO TRIAGE, not a broken
-# build: the budgets in perf/scenarios/*.js are deliberately looser than the
+# build: the budgets in test/perf/scenarios/*.js are deliberately looser than the
 # ADR-0011 service SLOs, and a CI runner is a noisy place to measure. Read a red
 # nightly next to the previous night's, not in isolation.
 #
@@ -67,7 +67,7 @@ jobs:
       - name: Bring up cluster:full
         run: mise run cluster:full
       # Seed before measuring: an empty catalog makes the read scenario a test of
-      # nothing (perf/seed/seed.sh).
+      # nothing (test/perf/seed/seed.sh).
       - name: Seed bulk test data
         run: mise run perf:seed
       - name: Run the load suite
@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-summary-load
-          path: perf/results/
+          path: test/perf/results/
           retention-days: 30
       - name: Tear down
         if: always()
@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-summary-smoke
-          path: perf/results/
+          path: test/perf/results/
           retention-days: 7
       - name: Tear down
         if: always()

@@ -30,7 +30,7 @@ A firing alert appears on the Prometheus alerts page, as the `ALERTS` series, an
 mise run cluster:full     # the real charts at single replica, via Argo CD from master
 ```
 
-This is the mechanism the deployed clusters use ([ADR-0600](../adr/0600-local-development-loop.md)). To exercise **uncommitted** GitOps wiring, see [gitops-local](../cluster/gitops-local.md).
+This is the mechanism the deployed clusters use ([ADR-0600](../adr/0600-local-development-loop.md)). To exercise **uncommitted** GitOps wiring, see [gitops-local](gitops-local.md).
 
 ## Diagnose a stuck sync
 
@@ -42,4 +42,4 @@ This is the mechanism the deployed clusters use ([ADR-0600](../adr/0600-local-de
 
 ## Break-glass
 
-When the auth plane gating the Argo UI is down, reach it by `kubectl port-forward` ([break-glass](../ops/break-glass.md)).
+When the auth plane gating the Argo UI is down, reach it by `kubectl port-forward` ([break-glass](break-glass.md)).

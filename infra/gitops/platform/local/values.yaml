@@ -121,7 +121,7 @@ tempo:
 # to cap volume, but on a laptop a developer needs to see the exact request they
 # just made stitch end-to-end (frontend → orders → catalog → payment) in Tempo — a
 # 1-in-20 chance of survival makes that useless, and the e2e trace assertion
-# (e2e/platform/purchase.spec.ts) would be non-deterministic. Merges over the base
+# (test/e2e/platform/purchase.spec.ts) would be non-deterministic. Merges over the base
 # collector config; the pipeline still runs the sampler, just at 100%.
 opentelemetry-collector:
   config:

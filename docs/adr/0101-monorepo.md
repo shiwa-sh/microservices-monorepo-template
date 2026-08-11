@@ -130,7 +130,18 @@ infra/
 └── observability/            # dashboards and alerts as code
 
 tools/                        # repo-local Go programs
-docs/                         # ADRs, runbooks, conventions
+scripts/                      # shell entered through mise tasks
+
+test/                         # external harnesses driving an assembled system
+├── e2e/                      # Playwright suites and fixtures (ADR-0601)
+└── perf/                     # k6 scenarios and seed data (ADR-0601)
+
+docs/                         # genre decides the directory (ADR-0001)
+├── adr/                      # the decisions
+├── guide/                    # procedures
+├── reference/                # lookups, registries, live state
+└── *.md                      # entry documents, and registries an ADR names as canonical
+
 .github/workflows/            # CI definitions
 ```
 
@@ -140,6 +151,9 @@ docs/                         # ADRs, runbooks, conventions
 | `services/` stays spelled out | `svc` already means a Kubernetes Service here and is the per-service metavariable in docs. Directory names abbreviate only when unambiguous |
 | `infra/` holds both IaC and the configuration of what it deploys | One top-level directory removes the recurring "infra or ops?" question |
 | `tools/` holds repo-local Go programs only | It is not a shell-script drawer. External tools are installed by mise |
+| `scripts/` holds shell, and shell only | The counterpart to the row above, so the split is a language boundary rather than a habit. A script whose work is a Go program is not a script — the task calls the program directly, and a wrapper that only changes directory and shells out puts one name in two trees |
+| `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so neither belongs to any one service ([ADR-0601](0601-testing-strategy.md)). It is not where the tests live: a Go test of an `internal/` package **cannot** be moved here, because `internal/` is importable only from the subtree rooted at its parent, so the compiler rejects the import. Unit tests sit beside their code, which is also what keeps `ci:affected` able to map a changed package to the tests covering it |
+| Each suite under `test/` pins its own tools | `test/e2e/` is the Node island and `test/perf/` is the k6 one, and they share a parent rather than a toolchain. `test/` carries no `package.json`, no lockfile, and no tool pin of its own — the containment is per directory, the same way `infra/ansible/` sits under `infra/`. `(CI: lint:node-scope)` |
 
 ### mise is the single entry point
 
@@ -303,4 +317,7 @@ Each step is its own ADR when triggered.
 - Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. `(CI: lint:floating-tags)`
 - `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. `(CI: ci:lint)`
 - Route groups inside `apps/frontend/` do not import from each other. `(CI: ci:lint)`
+- `tools/` holds repo-local Go programs and `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written.
+- `test/` holds the external harnesses that drive an assembled system — `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package.
+- Each suite under `test/` pins its own tools. `test/` itself carries no toolchain, package manifest, or lockfile. `(CI: lint:node-scope)`
 - Build-graph and hermetic-build tools — Nx, moon, Pants, Bazel, Nix — are not used on day one. Adoption requires its own ADR.

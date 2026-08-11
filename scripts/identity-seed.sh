@@ -3,10 +3,10 @@
 #
 # The `edge` profile logs in for real, so it needs a real identity — and it consumes
 # the one the e2e suite already defines rather than inventing a development-only
-# one. e2e/fixtures/identities.ts is the single source of the credentials; this
+# one. test/e2e/fixtures/identities.ts is the single source of the credentials; this
 # reads them with bun (which runs the .ts directly, so no Node and no `e2e:install`)
 # and provisions them through the Kratos admin API, exactly as
-# e2e/fixtures/bootstrap.ts does.
+# test/e2e/fixtures/bootstrap.ts does.
 #
 # Two deliberate differences from the e2e bootstrap:
 #   • idempotent, not reset-per-run — a human's enrolled second factor and live
@@ -60,4 +60,4 @@ for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
   detail "created ${email} (${created})"
 done
 
-ok "test identities present (credentials: e2e/fixtures/identities.ts)"
+ok "test identities present (credentials: test/e2e/fixtures/identities.ts)"

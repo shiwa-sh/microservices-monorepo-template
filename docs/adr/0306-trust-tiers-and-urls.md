@@ -178,7 +178,7 @@ The service API is a **flat resource namespace** — the URL names the resource,
 - **A second wildcard certificate and deeper DNS.** cert-manager handles it, and it is more moving parts.
 - **No token-level tier isolation in the default model.** Accepted while every origin is first-party, with per-tool authorization, operator MFA, and the product CSP as compensating controls, and the OIDC upgrade as the closer.
 - **Subdomain-takeover hygiene matters more.** Dangling ops DNS must not be left claimable.
-- **The ops tier depends on one edge auth path.** Its failure locks operators out of every dashboard at once, which is why break-glass is a written procedure ([`docs/ops/break-glass.md`](../ops/break-glass.md)) rather than improvisation.
+- **The ops tier depends on one edge auth path.** Its failure locks operators out of every dashboard at once, which is why break-glass is a written procedure ([`docs/guide/break-glass.md`](../guide/break-glass.md)) rather than improvisation.
 
 ## Rules
 

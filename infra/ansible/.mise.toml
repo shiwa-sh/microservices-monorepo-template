@@ -4,7 +4,7 @@
 #
 # 1. SCOPE. Nothing in the repo drives ansible: no mise task, no CI workflow. An
 #    operator runs `ansible-playbook -i inventory/<env> bootstrap.yml` by hand
-#    against remote hosts (docs/cluster/dr-runbook.md). Pinning it at the root
+#    against remote hosts (docs/guide/disaster-recovery.md). Pinning it at the root
 #    would make every dev install a Python toolchain to run `lint`. So it lives
 #    here instead — a tool-confined island, the same exception ADR-0018 makes for
 #    the Playwright runner and apps/admin makes for Lowdefy's pnpm. It installs on

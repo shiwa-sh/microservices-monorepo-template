@@ -3,7 +3,7 @@
 # third-party app we run, not code we author, so the runtime is upstream's choice:
 # the CLI aborts without pnpm and `lowdefy start` shells out to `next start`, a
 # `#!/usr/bin/env node` binary. This is the second of the two Node exceptions
-# ADR-0001 sanctions (the other is the Playwright runner in e2e/).
+# ADR-0001 sanctions (the other is the Playwright runner in test/e2e/).
 # corepack provides pnpm; pnpm
 # 10+ needs build scripts allowed for the server's deps (sharp, @sentry/cli). The
 # container build does the same (apps/admin/Dockerfile).

@@ -1,6 +1,6 @@
 # Local development loop
 
-How to run and debug services on your machine. The model is [ADR-0600](adr/0600-local-development-loop.md); ports, URLs, and the environment contract are [reference/local](reference/local.md).
+How to run and debug services on your machine. The model is [ADR-0600](adr/0600-local-development-loop.md); ports, URLs, and the environment contract are [reference/local](reference/local-environment.md).
 
 `mise run cluster:base` brings up the local **floor** — Traefik, cert-manager, Postgres, Kratos, Oathkeeper — and everything above it is opt-in, declared by the service that needs it. The inner loop is **native execution**: you run the service you are changing directly on the host, with no image build, no in-cluster redeploy, and no file watch on the hot path.
 
@@ -124,11 +124,11 @@ Stands up the **same charts production runs** at a single replica, **delivered b
 
 Plan for around 16 GB of free RAM.
 
-Because it syncs committed `master`, uncommitted **infra** needs a push — see [cluster/gitops-local](cluster/gitops-local.md). For uncommitted **service** code use `cluster:add`.
+Because it syncs committed `master`, uncommitted **infra** needs a push — see [cluster/gitops-local](guide/gitops-local.md). For uncommitted **service** code use `cluster:add`.
 
 **The local registry is the CI stand-in.** Production GitOps works because CI builds each image, pushes it, and Argo pulls it. Locally there is no CI, so `cluster:full` pushes to a cluster-managed registry at a stable tag and the local overlay points at it — Argo then deploys exactly as production does, the only difference being the registry host.
 
-One-time host setup: add `127.0.0.1 k3d-registry.localhost` to `/etc/hosts`, so the host `docker push` resolves to IPv4. A bare `*.localhost` resolves to IPv6 on some systems, which the registry does not listen on. This is machine setup, never in the repo — the same rule as [http-proxy](ops/http-proxy.md).
+One-time host setup: add `127.0.0.1 k3d-registry.localhost` to `/etc/hosts`, so the host `docker push` resolves to IPv4. A bare `*.localhost` resolves to IPv6 on some systems, which the registry does not listen on. This is machine setup, never in the repo — the same rule as [http-proxy](guide/http-proxy.md).
 
 What may differ from production, and what may not, is [ADR-0205](adr/0205-environment-parity.md).
 
@@ -144,7 +144,7 @@ mise run cluster:delete   # delete, reclaiming disk and forcing a clean recreate
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | Every pod `ContainerCreating` and the CNI down after a host reboot | Docker's restart policy replays the node container raw, skipping the step that injects the node's host alias, so image pulls fail | `mise run cluster:heal` — idempotent, safe to run whenever the cluster looks wedged |
-| Pods in `ImagePullBackOff` behind a proxy | some egress proxies truncate large layers on containerd's single-stream pull | `mise run cluster:unwedge` ([http-proxy](ops/http-proxy.md)) |
+| Pods in `ImagePullBackOff` behind a proxy | some egress proxies truncate large layers on containerd's single-stream pull | `mise run cluster:unwedge` ([http-proxy](guide/http-proxy.md)) |
 | A service starts cleanly then fails on its first cross-service call | a missing `svc:*` edge in its `.mise.toml` — nothing detects this ([ADR-0600](adr/0600-local-development-loop.md)) | add the edge |
 | A gated route returns `403` locally but works when curled directly | curling the port bypasses the edge and forges identity headers | run it behind the edge, above |
 
@@ -163,7 +163,7 @@ mise run perf:stress    # ramp to saturation; thresholds are meant to break here
 
 The browser test is the acceptance gauge: a rendered, authenticated dashboard proves the whole stack underneath is wired. A preflight readiness check runs first, so a red e2e reads "infra down" rather than "app broken".
 
-Load metrics leave k6 over OTLP into the cluster's collector, so a run appears in Grafana on the `load-test` dashboard next to the pod CPU and memory it caused — that correlation is the point. How to read the shapes is [perf/runbook](perf/runbook.md).
+Load metrics leave k6 over OTLP into the cluster's collector, so a run appears in Grafana on the `load-test` dashboard next to the pod CPU and memory it caused — that correlation is the point. How to read the shapes is [test/perf/runbook](guide/performance-runbook.md).
 
 ## Formatting and linting
 

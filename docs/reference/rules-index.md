@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 131 |
-| Review-enforced | 286 |
-| **Total** | **417** |
+| Machine-enforced | 134 |
+| Review-enforced | 288 |
+| **Total** | **422** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -62,6 +62,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. | review |
 | No committed file links to a local working file. | `lint:md, lint:prose` in CI |
 | ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](../adr/README.md). | review |
+| A document's genre decides its directory: `docs/adr/` decisions, `docs/guide/` procedures, `docs/reference/` lookups. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint:adr-xref` in CI |
+| Topic is carried by the filename, never by a directory holding a single file, and no two documents in `docs/` share a filename. | `lint:adr-xref` in CI |
 | Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. | standard: OTel semconv |
 | Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. | standard: clig.dev |
 | Code comments explain why, not what, in present tense, and cite `ADR-XXXX` when load-bearing. | review |
@@ -137,6 +139,9 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. | `lint:floating-tags` in CI |
 | `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. | `ci:lint` in CI |
 | Route groups inside `apps/frontend/` do not import from each other. | `ci:lint` in CI |
+| `tools/` holds repo-local Go programs and `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written. | review |
+| `test/` holds the external harnesses that drive an assembled system — `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package. | review |
+| Each suite under `test/` pins its own tools. `test/` itself carries no toolchain, package manifest, or lockfile. | `lint:node-scope` in CI |
 | Build-graph and hermetic-build tools — Nx, moon, Pants, Bazel, Nix — are not used on day one. Adoption requires its own ADR. | review |
 
 ## ADR-0102 — Source Control & CI Platform
@@ -345,7 +350,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are not used. | `ci:lint` in CI |
 | Cross-service result waiting is polling, a webhook callback, or fire-and-forget. Direct cross-service signals are not used. | review |
 | Activities are placed by ownership and are never shared across services as a domain wrapper. | review |
-| A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/temporal/long-running.md` with replay tests. | review |
+| A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/reference/long-running-workflows.md` with replay tests. | review |
 | Workers run unversioned. Replay safety across a deploy rests on the wall-clock rule and on `workflow.GetVersion` guarding any change a running history could reach. | review |
 | A change to a workflow that alters its command sequence is guarded, or the workflow is drained before the change ships. An unguarded divergent change is a non-determinism error in production. | review |
 | Worker Deployment Versioning is adopted only on its recorded trigger, and adopting it brings the controller with it: a versioned worker is a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`, and Build IDs and the deployment and build-ID environment variables are then set by the controller alone. | review |
@@ -614,18 +619,18 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | Playwright (TypeScript) is the only browser e2e and visual-regression tool. Cypress, WebdriverIO, Selenium, and pure-Go browser libraries are not used. | review |
-| All e2e and visual tests live in the repo-root `e2e/` workspace under one Playwright config. | review |
+| All e2e and visual tests live in the repo-root `test/e2e/` workspace under one Playwright config. | review |
 | The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone. | review |
 | Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests. | review |
 | E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
 | Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. | review |
 | Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate. | review |
 | E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state. | review |
-| Node is permitted solely as the Playwright runner, pinned in `e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. | `lint:node-scope` in CI |
+| Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. | `lint:node-scope` in CI |
 | k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and hand-rolled generators are not used. | review |
-| Performance tests live in `perf/` as committed JavaScript, never a GUI-authored or recorded plan. | review |
-| `perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. | `lint:node-scope` in CI |
-| The k6 binary is pinned in `perf/.mise.toml`, never in the root `[tools]`. | review |
+| Performance tests live in `test/perf/` as committed JavaScript, never a GUI-authored or recorded plan. | review |
+| `test/perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. | `lint:node-scope` in CI |
+| The k6 binary is pinned in `test/perf/.mise.toml`, never in the root `[tools]`. | review |
 | Load metrics reach Prometheus as an OTLP push through the OTel collector. A private metrics store, exporter sidecar, or remote-write receiver is not introduced. | review |
 | Load series are namespaced `k6_*` and carry `service_name="k6"`; k6's `url`, `name`, and `error` tags are not exported, and request identity is a bounded `endpoint` route-template tag. | review |
 | k6 runs with `--no-usage-report`. | review |
@@ -634,7 +639,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Scenarios drive the edge, not port-forwarded pods, so the gateway and forward-auth hop are inside the measurement. | review |
 | Performance suites are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge. | review |
 | Results from a co-hosted generator are reported as relative regression signals, never absolute capacity figures. | review |
-| Load against a shared environment requires an explicit target; `perf/` defaults to nothing but the local edge. | review |
+| Load against a shared environment requires an explicit target; `test/perf/` defaults to nothing but the local edge. | review |
 | The full e2e and perf suites run nightly (activity-gated) and pre-release; smoke suites run per-PR only when labelled. Neither is part of `ci:affected`. | review |
 
 ## ADR-0700 — Marketing & Product Analytics

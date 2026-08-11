@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # k6 runner (ADR-0027): wires a scenario to the cluster's telemetry plane, then runs it.
 #
-#   perf/run.sh <scenario> [profile]
-#   perf/run.sh browse load
+#   test/perf/run.sh <scenario> [profile]
+#   test/perf/run.sh browse load
 #
 # Two things this handles that a bare `k6 run` cannot:
 #
@@ -10,20 +10,20 @@
 #     an OTLP push through the collector — Prometheus has no scrape config and no
 #     remote-write receiver. The collector is cluster-internal (ClusterIP), so a
 #     host-side k6 reaches it through a short-lived port-forward, exactly as the
-#     e2e suite reaches Tempo/Loki/Prometheus (e2e/fixtures/observability.ts).
+#     e2e suite reaches Tempo/Loki/Prometheus (test/e2e/fixtures/observability.ts).
 #     The forward must outlive k6's final flush, hence the trap rather than a
 #     backgrounded one-liner.
 #
 #  2. THE PROXY HOLE. The local edge (*.localtest.me) must be hit directly. A dev
 #     with HTTPS_PROXY set otherwise sends every VU's request through their proxy
-#     and measures that instead — same reason e2e/.mise.toml sets NO_PROXY.
+#     and measures that instead — same reason test/e2e/.mise.toml sets NO_PROXY.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 source ../scripts/lib/log.sh
 
 scenario="${1:-}"
 profile="${2:-smoke}"
-[ -n "$scenario" ] || fail "usage: perf/run.sh <scenario> [profile]"
+[ -n "$scenario" ] || fail "usage: test/perf/run.sh <scenario> [profile]"
 
 script="scenarios/${scenario}.js"
 [ -f "$script" ] || fail "no such scenario: ${script}"
