@@ -61,9 +61,9 @@ The **Auth** column is the always-on coarse gate: the `operator` claim plus an A
 | `lowdefy.ops.dev.localtest.me:8443` | Lowdefy admin console | none |
 | `headlamp.ops.dev.localtest.me:8443` | Headlamp — Kubernetes debug UI, read-only | none |
 | `pgweb.ops.dev.localtest.me:8443` | pgweb — read-only database inspector | none |
-| `minio.ops.dev.localtest.me:8443` | MinIO console, non-prod only | **yes** — see below |
+| `seaweedfs.ops.dev.localtest.me:8443` | SeaweedFS admin UI, non-prod only | **yes** — see below |
 
-Grafana and Argo CD trust the edge and serve anonymously, so an operator who clears the gate lands straight on the tool. **MinIO is the exception**: its console has no proxy-trust mode, so it prompts for the pre-seeded root credentials after the edge gate.
+Grafana and Argo CD trust the edge and serve anonymously, so an operator who clears the gate lands straight on the tool. **The SeaweedFS admin UI is the exception**: it carries its own credential rather than trusting the edge, so it prompts for the pre-seeded local one after the edge gate. Its master and filer UIs are not routed ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)); reach them by port-forward.
 
 Without the edge, Grafana is still reachable by `kubectl -n platform port-forward svc/grafana 3000:80`.
 

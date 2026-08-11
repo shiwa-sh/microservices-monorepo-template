@@ -12,7 +12,7 @@ Every environment exposes two kinds of HTTP surface behind one Traefik edge:
 | Surface | Contents | Code ownership |
 | --- | --- | --- |
 | **Product** | the Next.js app, the service APIs, browser telemetry ingest | first-party |
-| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the MinIO console | **third-party — deployed, not authored** |
+| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the SeaweedFS admin UI | **third-party — deployed, not authored** |
 
 This ADR fixes where each lives, how one operator login covers the ops tier, and what the API path looks like.
 
@@ -82,7 +82,9 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Lowdefy admin | `lowdefy.ops.<host>` | the sole admin surface ([ADR-0401](0401-internal-admin.md)) |
 | Headlamp | `headlamp.ops.<host>` | read-only by default ([ADR-0501](0501-operator-uis-and-dashboards.md)) |
 | pgweb | `pgweb.ops.<host>` | read-only break-glass |
-| MinIO console | `minio.ops.<host>` | **non-prod only** |
+| SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the sole exposed surface of that component |
+
+**A component exposing several UIs gets one origin, not several.** SeaweedFS ships a master UI, a filer UI, and an admin UI; only the admin UI is routed. The others are diagnostic surfaces reached the way any unrouted surface is reached, because an origin per internal view multiplies CSP, rate-limit, and session surface for no operator capability that the admin UI lacks. The production instance runs outside the cluster ([ADR-0200](0200-cluster-topology.md)), so it has no `ops.<host>` origin at all and its administration is not an edge concern.
 
 ### Why the `ops.` label is load-bearing
 
@@ -166,7 +168,7 @@ The service API is a **flat resource namespace** — the URL names the resource,
 - Each ops tool is isolated from the others too: per-origin CSP, headers, rate limits, and storage.
 - Tools that resist path hosting are each served at a clean root, with no base-path fights.
 - A logged-in session does not imply tool access.
-- Argo CD, Temporal, and the MinIO console get auth-gated URLs instead of port-forwarding.
+- Argo CD, Temporal, and the SeaweedFS admin UI get auth-gated URLs instead of port-forwarding.
 
 ### Negative / Risks
 
@@ -184,7 +186,7 @@ The service API is a **flat resource namespace** — the URL names the resource,
 - The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint:service-contract)`
 - `/.well-known/` on the apex is reserved for web conventions and claimed by no product route. The apex serves `security.txt` with a contact address and a disclosure policy. `(ref: RFC 9116, RFC 8615)`
 - The path holds for the public API too. A distinct origin is used only for hard credential isolation — which needs a separate registrable domain, since a parent-scoped cookie reaches a subdomain — or separate edge infrastructure at scale.
-- Ops-tier hostnames are `{tool}.ops.<host>`, named after the tool, lowercase, matching the naming charset.
+- Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, matching the naming charset ([ADR-0003](0003-naming-and-identifiers.md)). Not the concept it serves, not its binary, and not an abbreviation of either.
 - The default is one session cookie scoped to the parent host, with tier isolation enforced by per-tool authorization and an AAL2 requirement on the ops tier. This is permitted only while every origin under `<host>` is first-party and edge-gated.
 - Splitting the cookie is the optional token-isolation upgrade and is mandatory if any non-first-party origin is hosted under `<host>`.
 - Each environment provisions both wildcard certificates.

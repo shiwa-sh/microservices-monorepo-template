@@ -124,7 +124,7 @@ A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610)
 | Tier | Command | Parity | What runs | For |
 | --- | --- | --- | --- | --- |
 | **Inner loop** | `cluster:base` plus a service's own tasks | **interface** | the local floor; the service under change runs natively on the host | day-to-day coding, UI work |
-| **Full platform** | `cluster:full` | **implementation** | the real platform charts at `instances=1` — CNPG, the Temporal chart, OpenFGA, MinIO, observability, edge and auth | e2e ([ADR-0601](0601-testing-strategy.md)), pre-merge validation, CI, label-gated PR previews |
+| **Full platform** | `cluster:full` | **implementation** | the real platform charts at `instances=1` — CNPG, the Temporal chart, OpenFGA, SeaweedFS, observability, edge and auth | e2e ([ADR-0601](0601-testing-strategy.md)), pre-merge validation, CI, label-gated PR previews |
 
 The inner loop runs the service natively against lightweight stand-ins — a plain Postgres, `temporal server start-dev`, in-memory OpenFGA — reached through `dev:forward`. The stand-ins honour the same wire contract, so a bug reproduced against them reproduces in production. There is no image build, redeploy, or file watch on the hot path.
 

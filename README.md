@@ -126,7 +126,7 @@ Swap in this order — ranked by capacity returned per unit of sovereignty conce
 | 1 | Outbound email (MTA) | Any transactional email provider | Deliverability is *reputational*, not technical. The one cost engineering cannot retire |
 | 2 | Alert routing / on-call | A hosted paging service | No mature self-hosted escalation layer exists |
 | 3 | PostgreSQL (CNPG) | Managed Postgres | Highest operational risk per engineering hour |
-| 4 | Object storage (MinIO, and the production bucket) | Any S3-compatible service | Production already points at an external bucket, so this row mostly retires the non-prod instance |
+| 4 | Object storage (SeaweedFS) | Any S3-compatible service with Object Lock | Retires a stateful production component and the host it runs on |
 | 5 | Observability (Grafana stack) | A hosted backend | Four components → one. OTel instrumentation is unchanged |
 | 6 | Temporal | Temporal Cloud | Workflow code identical; only the connection target changes |
 | 7 | Forge + CI (Forgejo) | A hosted forge | Cheap either way — CI logic lives in `mise run ci:*` |
@@ -195,7 +195,7 @@ The **Planned change** column names a replacement under consideration but not ye
 | Trust tiers | product apex, `*.ops.<host>` for operator tooling | [0306](docs/adr/0306-trust-tiers-and-urls.md) | |
 | Secrets | SOPS + age, decrypted in-cluster by an operator | [0202](docs/adr/0202-secrets.md) | |
 | Database | PostgreSQL via CNPG; sqlc, dbmate, sqruff | [0300](docs/adr/0300-data.md) | Atlas for migrations |
-| Object storage | external S3 bucket in prod, MinIO in non-prod | [0200](docs/adr/0200-cluster-topology.md), [0205](docs/adr/0205-environment-parity.md) | |
+| Object storage | SeaweedFS everywhere, run outside the cluster in prod with Object Lock | [0200](docs/adr/0200-cluster-topology.md), [0205](docs/adr/0205-environment-parity.md) | |
 | Workflows | self-hosted Temporal, versioned workers | [0302](docs/adr/0302-temporal.md) | |
 | API contract | hand-written OpenAPI 3.1; ogen, openapi-typescript, vacuum | [0303](docs/adr/0303-api-contracts-and-lifecycle.md) | TypeSpec authoring, oasdiff |
 | API mocking | Prism, from the committed projection | [0600](docs/adr/0600-local-development-loop.md) | Microcks |

@@ -101,7 +101,7 @@ Four ApplicationSets per environment, ordered by sync wave on the root app-of-ap
 | `-10` | AppProjects | per-env `AppProject`s | — |
 | `0` | `platform-base` | sops-operator, cert-manager, network-policies, plus Cilium and Argo CD in prod | — |
 | `1` | secrets | the per-env `SopsSecret` | base — the operator and its CRD are up |
-| `2` | `platform-data` | postgres, minio | secrets — credentials decrypted |
+| `2` | `platform-data` | postgres, seaweedfs | secrets — credentials decrypted |
 | `3` | `platform-core` | observability, ory, temporal, openfga, pgweb, headlamp, lowdefy | data — live Postgres, buckets exist |
 | `4` | gateway | Traefik middlewares and cross-cutting IngressRoutes | core |
 | `5` | services | one Application per service, from a git-directory generator over the values files | gateway |

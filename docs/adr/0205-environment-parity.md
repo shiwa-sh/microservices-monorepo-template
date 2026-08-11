@@ -43,7 +43,7 @@ A divergence that cannot be expressed as a value — a different chart, or a han
 | Kubernetes distribution | ephemeral locally, persistent when deployed | the charts and manifests applied |
 | Scale | replicas, storage size, anti-affinity, HPA | which components the full tier runs |
 | Data-tier implementation | inner-loop stand-ins against the real charts | the wire contract, and the Postgres major version |
-| Object storage provider | MinIO in non-prod, external bucket in prod | the S3 API contract |
+| Object storage placement | in-cluster in non-prod, outside the cluster in prod | the implementation, and the S3 API contract |
 | TLS issuer | a local CA against Let's Encrypt | cert-manager as the mechanism, and that certificates are **verified**, never bypassed |
 | Secret plaintext | throwaway locally, real when deployed | SOPS as the decrypt mechanism |
 | Domain | `*.localtest.me` against `*.<env>.<project-domain>` | the routing and edge shape |
@@ -64,14 +64,9 @@ The full-platform local tier and the CI preview tier are the **same configuratio
 
 ### Object storage
 
-The interface is the S3 API in every environment; only the provider differs by values.
+**Parity here is the implementation, not the API alone.** One store runs in every environment, and the sole delta is placement: in-cluster in non-prod, outside the cluster in production, for the failure-domain reason [ADR-0200](0200-cluster-topology.md) states.
 
-| Environment | Provider |
-| --- | --- |
-| local, dev, staging | in-cluster MinIO (`infra/helm/platform/minio`) |
-| prod | an external S3-compatible bucket |
-
-In-cluster object storage in production would co-locate data and its backups on the same nodes, defeating disaster recovery ([ADR-0200](0200-cluster-topology.md)). CNPG backups target the external bucket in production; in non-prod they may target in-cluster MinIO, where backups are convenience rather than a recovery guarantee. The per-env delta is the S3 endpoint and whether the MinIO chart is enabled.
+Expressed as values, that delta is the S3 endpoint and whether the in-cluster chart is enabled. CNPG backups target the production bucket; in non-prod they target the in-cluster instance, where a backup is convenience rather than a recovery guarantee.
 
 ### Secrets
 
@@ -90,7 +85,7 @@ In-cluster object storage in production would co-locate data and its backups on 
 
 - **The inner loop's stand-ins are a sanctioned parity gap.** Bounded to implementation behind an unchanged wire contract, and never extended to the full tier.
 - **A single local node is not a production topology.** Saturation shapes transfer; absolute ceilings do not ([ADR-0601](0601-testing-strategy.md)).
-- **Non-prod backups are not recovery guarantees.** Stated here so the MinIO convenience is never mistaken for one.
+- **Non-prod backups are not recovery guarantees.** Stated here so the in-cluster convenience is never mistaken for one.
 - **Local secrets are committed.** Safe only while the local age key decrypts nothing real; a real credential in a local secret file is a leak, not a shortcut.
 
 ## Rules
@@ -98,7 +93,7 @@ In-cluster object storage in production would co-locate data and its backups on 
 - Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay.
 - Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier.
 - The Kubernetes API, service chart, service images, and env contract are identical in every tier.
-- Object storage is the S3 API everywhere; production uses an external bucket, and in-cluster object storage is not run in production.
+- Object storage is one implementation in every environment ([ADR-0200](0200-cluster-topology.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves.
 - Backups are off-cluster and mandatory in production ([ADR-0200](0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
 - SOPS is the secret mechanism in every environment, including local.
 - Certificates are issued by cert-manager over ACME in every environment and are verified, never bypassed. `(ref: RFC 8555)`

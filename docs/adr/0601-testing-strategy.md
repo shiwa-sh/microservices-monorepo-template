@@ -143,7 +143,7 @@ k6 runs with `--out opentelemetry`, exporting to the existing OTel collector. Th
 
 - Series are namespaced `k6_*` (`K6_OTEL_METRIC_PREFIX`) and carry `service_name="k6"`, so they sit next to `k8s_pod_cpu_usage` on one time axis without being mistaken for a service's own telemetry.
 - k6's `url`, `name`, and `error` system tags are **not** exported. They are unbounded by construction — a URL label mints one series per product id — and are replaced by a hand-written `endpoint` route-template tag.
-- `--no-usage-report` disables anonymous usage reporting, matching the phone-home posture applied to Temporal and MinIO.
+- `--no-usage-report` disables anonymous usage reporting, matching the phone-home posture applied to Temporal and the object store.
 
 The **`load-test` dashboard** correlates k6 throughput, latency percentiles, and error rate against pod CPU, memory, and limit utilisation. It sits **outside the L1–L3 triage funnel** ([ADR-0501](0501-operator-uis-and-dashboards.md)): that funnel diagnoses an unplanned incident, whereas a load test is a planned experiment where the operator knows what they are looking at. It is reached from the `perf` task output, not from Overview.
 

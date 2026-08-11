@@ -47,7 +47,7 @@ Driver 4 also admits the cost: this is a less widely operated OS than Debian, an
 | --- | --- | --- | --- | --- | --- |
 | Components to operate | 1 | 1 | **3** | 2 | **1** |
 | L3/L4 default-deny segmentation | **none — flat network** | all pods | all pods | meshed app traffic only | all pods |
-| Data-tier protection (Postgres, MinIO, OpenFGA) | wide open | NetworkPolicy | NetworkPolicy | only if the data tier is meshed, which the Job-heavy bootstrap resists | NetworkPolicy |
+| Data-tier protection (Postgres, object storage, OpenFGA) | wide open | NetworkPolicy | NetworkPolicy | only if the data tier is meshed, which the Job-heavy bootstrap resists | NetworkPolicy |
 | Cryptographic workload identity | — | — | — | mTLS certs, meshed only | label identity; SPIFFE optional later |
 | Encryption in transit, east-west | **plaintext** | all pods, WireGuard | node to node only | meshed only | all pods, WireGuard |
 | Services without kube-proxy | no | yes, in the eBPF dataplane | **no — policy-only mode is iptables** | no | yes |
@@ -110,6 +110,26 @@ Object storage carries the durable data ([ADR-0205](0205-environment-parity.md))
 | OpenEBS Mayastor | a control plane and per-node data planes | yes | hugepages and a dedicated device | Longhorn's guarantee at higher performance and higher operational surface, for a workload profile no component here has |
 | Rook-Ceph | a full Ceph cluster | yes, strongly | extensions plus dedicated disks | A distributed storage system to operate, which principle 2 refuses for volumes that hold no durable data |
 | A provider CSI driver | none in-cluster | yes | none | Fails driver 1, and re-couples the cluster to one provider's API |
+
+### Object storage
+
+One component, in every environment. The parity contract for object storage is not "the S3 API" but **the same implementation**, because S3 dialects differ in exactly the places that fail late — multipart, conditional writes, checksum trailers, list pagination — and a difference only production exercises is a difference discovered in production.
+
+**In production it runs outside the cluster.** That is the whole environment delta. The bucket is what a cluster is rebuilt *from* ([*Backups, mandatory and off-cluster*](#backups-mandatory-and-off-cluster)), so it cannot share a failure domain with the cluster it restores. External means external to the cluster, not to the organisation: hardware the organisation owns satisfies it, and a provider bucket is the [`adoption-path.md`](../adoption-path.md) concession rather than the default.
+
+Selection is therefore one comparison against one set of requirements: it runs at `instances=1` on a laptop ([ADR-0600](0600-local-development-loop.md)) *and* as a durable off-cluster cluster holding Postgres backups with their WAL archive, Loki, Tempo, and Pyroscope. Because the same store now holds the backups an operator credential can reach, **Object Lock is a requirement rather than a feature** — it is the only control that survives an attacker holding valid credentials, and the recovery path is what it protects.
+
+| Option | One component everywhere | Object Lock | Storage cost | Operator UI | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **SeaweedFS** | **yes** — `weed mini` is the whole store in one process for local and dev; master, volume, filer and S3 off-cluster in production, from the same binary | **yes** — versioning with GOVERNANCE and COMPLIANCE retention | erasure coding on warm data, ~1.4× | master, filer and admin UIs, started by the same command | **Chosen.** The only option that holds the single-implementation rule and the recovery-path requirement together |
+| Garage | yes — a single binary in both | **no**, and not reachable: Object Lock requires versioning, which it does not implement | replication only, **3×** | none first-party; a CLI and an HTTP admin API | The most elegant fit and the lightest to operate. Conceding Object Lock here is a **bet rather than a deferral** — there is no seam, and adopting it later is an object-store migration with every byte moved |
+| Ceph RGW | **no** — cannot run in the local loop at any configuration | yes, the most complete | erasure coding, tunable | Ceph Dashboard, the strongest here | Eliminated by the single-implementation rule itself. It remains the right answer for an organisation **already operating Ceph**, where the marginal cost is a pool and a gateway rather than a second distributed system |
+| MinIO | yes | yes | erasure coding | stripped from the community edition in 2025 | The incumbent, and **no longer maintained**: the repository was archived in April 2026, distribution is source-only, and the maintained build is a proprietary-licensed AIStor binary. Abandonment rather than novelty risk, the failure [ADR-0502](0502-alerting-and-on-call.md) records for Grafana OnCall |
+| RustFS | yes | young | — | a console | Principle 4 places object storage in the conservative class, and this slot is now unambiguously the data plane |
+| A provider bucket in every environment | **no** — breaks the offline local loop and puts a credential in every developer's environment | yes | n/a | the provider's | Abandons axis B for the one Core data path where it was never recorded as abandoned. Correct as a ranked concession, not as the default |
+| Two implementations, one per tier — the honest baseline | no | varies | — | varies | The position this section replaces. It buys a lighter non-prod component and pays for it with a dialect gap that only production can find |
+
+**Neither remaining candidate was free of S3-dialect defects, and the failure modes differed.** When AWS SDKs began sending CRC32 checksum trailers by default in January 2025, Garage rejected the requests outright and SeaweedFS wrote the trailer into stored object bodies. Both are fixed. A store that corrupted quietly on the path Postgres backups use is the more serious of the two, and it is recorded in *Negative / Risks* rather than treated as history.
 
 ## Decision
 
@@ -237,12 +257,15 @@ The version is pinned rather than left at `latest`, so a Kubernetes upgrade that
 | Kind | Day one | On the storage-scale trigger |
 | --- | --- | --- |
 | Block | `local-path-provisioner`, backed by a directory under `/var`, which is the writable path on an otherwise read-only node | Longhorn becomes the default for new volumes |
-| Object, production | an external S3-compatible bucket per environment. **No MinIO in production** | unchanged |
-| Object, non-prod | in-cluster MinIO exposing the same S3 API ([ADR-0205](0205-environment-parity.md)) | unchanged |
+| Object | **SeaweedFS in every environment**, in-cluster for local, dev and staging, and **outside the cluster in production** | unchanged |
+
+**Outside the cluster is a failure-domain requirement, not an implementation one.** The bucket holds what the cluster is rebuilt from, so no store placed on that cluster is acceptable in production whatever it is — an objection separate from, and stronger than, the component-weight one that rejects Rook-Ceph for block storage above. External means external to the cluster: hardware the organisation owns satisfies it, and a provider bucket is a recorded concession ([`adoption-path.md`](../adoption-path.md)) rather than the meaning of the word.
+
+**Production buckets enable Object Lock**, with a retention window no shorter than the backup retention below. The store now sits inside the same administrative boundary as the cluster whose backups it holds, and WORM retention is what keeps a compromised or mistaken credential from taking the recovery path with it.
 
 **The storage trigger is an image change, not a chart change** — [Longhorn on Talos](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/) requires work at the OS layer, which is why the deferral above is labelled a bet rather than a seam.
 
-Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a local TSDB and needs none; its Mimir Scale swap does ([ADR-0500](0500-observability.md)). Offloading durability to an external bucket eliminates a stateful component from production.
+Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a local TSDB and needs none; its Mimir Scale swap does ([ADR-0500](0500-observability.md)). Running the store off-cluster keeps durable data out of the cluster's failure domain; it does not remove the component, and the platform operates it in production like any other.
 
 ### Backups, mandatory and off-cluster
 
@@ -293,11 +316,15 @@ Rehearsed quarterly alongside the backup restore drill.
 - An OS upgrade is an image swap with a rollback rather than a package transaction with a partial-failure mode.
 - The same Kubernetes API end to end: environments differ in detail, not in shape.
 - Growth triggers are tied to measurable conditions.
-- An external bucket removes MinIO as a production component.
+- **One object store, one dialect, one set of operator habits.** A multipart or checksum difference cannot hide until production, because local, dev, staging and production run the same implementation.
 - Provisioning is reproducible from git, and Terraform is not a day-one dependency.
 
 ### Negative / Risks
 
+- **Production object storage is a stateful component the platform operates.** The previous position offloaded it to a provider and stated that as a saving; that saving is spent here to keep the one Core data path from being a signup. The obligation is real and lands on the same team that runs the cluster.
+- **SeaweedFS's S3 layer is younger than its storage layer.** When AWS SDKs began sending CRC32 checksum trailers in January 2025 it wrote the trailer into stored object bodies rather than rejecting the request — silent corruption on the path Postgres backups use, since fixed. Backup verification is what catches a recurrence, which is why the restore rehearsal below is not optional.
+- **Development is concentrated in one maintainer.** Accepted under principle 4 on the same terms as the registry: the exit is an S3 endpoint change plus a data copy, and the interface is the API rather than the product.
+- **Erasure coding is available at a fixed ratio in the open version.** Tuning it is an upstream commercial feature. Adequate here, and recorded so it is not discovered during a capacity exercise.
 - **Three nodes cost more than one.** Accepted: the alternative is a maintenance window nobody wants to plan.
 - **Self-hosted Kubernetes on plain compute is more operational work than managed Kubernetes.** Mitigated by the machine configuration being the codified knowledge.
 - **There is no shell.** Debugging is `talosctl` — logs, the dashboard, and the API — and an engineer whose instinct is `ssh` plus `journalctl` has to relearn the loop. This is the cost of the property, not a defect.
@@ -318,7 +345,9 @@ Rehearsed quarterly alongside the backup restore drill.
 - Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger.
 - Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory.
 - Ingress is Traefik with TLS from cert-manager over ACME. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. `(ref: RFC 8555)`
-- Object storage in production is an external S3-compatible bucket. Non-prod uses in-cluster MinIO behind the same API.
+- Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier.
+- Production runs it outside the cluster. No object store holding production data runs on the cluster it serves.
+- Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention.
 - Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly.
 - The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires.
 - CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy.

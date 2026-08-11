@@ -11,7 +11,7 @@ Two tiers behind one Traefik edge, isolated at the browser by **separate origins
 | Tier | Origin | Surfaces |
 | --- | --- | --- |
 | **Product** | `<host>` (apex) | Next.js app (`/`, `/auth/*`, `panel`/`devportal`), flat `/api/<resource>/*`, telemetry ingest |
-| **Ops** | `*.ops.<host>` | one origin per operator dashboard (hubble/grafana/argocd/temporal/lowdefy/minio) |
+| **Ops** | `*.ops.<host>` | one origin per operator dashboard (hubble/grafana/argocd/temporal/lowdefy/seaweedfs) |
 
 - East-west traffic is default-deny via Cilium NetworkPolicy ([ADR-0200](adr/0200-cluster-topology.md)).
 - Every gated route passes `strip-identity-headers` → `oathkeeper-forward-auth` → `security-headers` (`infra/gateway/middlewares.yaml`), so a client cannot inject identity and every response carries HSTS + CSP.

@@ -165,7 +165,7 @@ Forcing one shape on both scatters a family: `stop:cluster` and `delete:cluster`
 | Kind | Pinned in |
 | --- | --- |
 | Developer and CI tools — Go, Bun, `sqlc`, `sqruff`, `ogen`, `vacuum`, `helm`, `kubectl`, `age`, `sops`, mise itself | the root `.mise.toml`, or a service-local one where a service genuinely needs a different version |
-| Runtime services — Postgres, Temporal, Kratos, Oathkeeper, OpenFGA, MinIO, the observability stack, Argo CD, the CNPG operator | Helm chart `appVersion` plus an explicit `image.tag` in `infra/helm/.../values.yaml` |
+| Runtime services — Postgres, Temporal, Kratos, Oathkeeper, OpenFGA, SeaweedFS, the observability stack, Argo CD, the CNPG operator | Helm chart `appVersion` plus an explicit `image.tag` in `infra/helm/.../values.yaml` |
 
 Floating tags — `latest`, `stable`, `main`, an unpinned major — are forbidden in `.mise.toml`, Dockerfiles, Helm values, and workflows. A tool-version change is a normal PR, so anyone cloning at any SHA reproduces the exact toolchain that built it.
 
