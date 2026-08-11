@@ -65,9 +65,24 @@ Team size is therefore not a design driver — it is a budget. It does not tell 
 The capacity this position on axis B requires:
 
 - **An always-on platform floor of a couple of dozen components** — gateway, GitOps, identity, authz, workflow, data, storage, observability, registry, forge, outbound mail. The floor is **fixed**: it does not shrink with fewer services. [`docs/operational-surface.md`](../operational-surface.md) is the inventory and the only place the components are counted.
-- **2–3 engineers whose primary job is the platform**, not product engineers with a platform rotation. This is the most common way a self-hosted platform rots.
+- **Platform work as a primary responsibility, not a rotation.** A rotation optimises for the incident in front of it, and the floor's real cost is upgrades, drills, and rotations that nothing forces anyone to do this week. Deferring those is the most common way a self-hosted platform rots.
+- **No Core component whose only competent operator is one person.** The floor must stay operable through a departure and an absence at the same time. This is a constraint on how knowledge is distributed, and each project computes its own lower bound from it and from its coverage obligations.
+
+**No headcount is stated here, and none should be inferred.** The capacity a project needs depends on facts this repository does not know: coverage hours, existing operational skill, regulatory obligations, and tolerance for detection latency. What this repository can supply is the demand side — [`docs/operational-surface.md`](../operational-surface.md) carries the recurring obligation and failure-response requirement of every Core component, and summing that column against a project's own facts is how the number is derived rather than borrowed.
 
 An important consequence: platform cost is fixed while application cost is variable, so **the fewer services run, the heavier the platform is proportionally.** At many services the ratio of application to platform workloads is comfortable; at a handful they are roughly equal. Fewer services therefore *strengthens* the case for a small, austere platform rather than relaxing it.
+
+### Signals the floor has outgrown its capacity
+
+Capacity is observed, not asserted. Any of the following, sustained, means the gap between need and capacity has opened:
+
+- A Core component is more than one release behind its supported window, and no one has scheduled the upgrade.
+- A restore drill or a break-glass rehearsal has been skipped twice in a row.
+- An alert fired and nobody looked at it until the next working day — and that was not a deliberate choice recorded in an ADR.
+- Onboarding a second competent operator for a Core component has been deferred for a full quarter.
+- A Core component has no one who would volunteer to debug it during an incident.
+
+The response is the one principle 3 permits: reduce the floor per [`docs/adoption-path.md`](../adoption-path.md), move down axis B, or add capacity. It is never to hold the floor and hope.
 
 ### Moving down axis B
 
@@ -75,24 +90,13 @@ Axis B is a genuine axis, not a virtue test. Sovereignty weaker than maximal is 
 
 **Axis B is the axis this platform is least coupled to.** Moving down it swaps *operators*, not architecture. Unchanged by a managed swap: the ADR set, OpenAPI contracts and codegen, the service template, the Kustomize tree, policy-as-admission, repo layout, release and versioning, and the local dev loop.
 
-Swap in this order, ranked by capacity returned per unit of sovereignty conceded rather than by ease:
-
-| # | Self-hosted here | Managed equivalent | Why this rank |
-| --- | --- | --- | --- |
-| 1 | Outbound email (MTA) | Any transactional email provider | Deliverability is reputational, not technical — the one cost engineering effort cannot retire. Concede this first even at high sovereignty |
-| 2 | Alert routing and on-call | A hosted paging service | No mature self-hosted escalation layer exists; the alternative is a rota and a phone |
-| 3 | PostgreSQL (CNPG) | Managed Postgres | Highest operational risk per unit of engineering time. Backups, PITR, failover, and major upgrades all become someone else's rota |
-| 4 | Object storage (Rook-Ceph) | Any S3-compatible service | Removes a distributed storage system and the separate-failure-domain backup problem in one move |
-| 5 | Observability (the Grafana stack) | A hosted observability backend | A backend family to one vendor. OpenTelemetry instrumentation is unchanged, which is the point of [ADR-0500](0500-observability.md)'s OTel-first rule |
-| 6 | Temporal | Temporal Cloud | Workflow code is identical; only the connection target changes |
-| 7 | Forge and CI | A hosted forge | Cheap to move either way, because `mise run ci:*` keeps workflows thin |
-| 8 | Image registry | A hosted registry | Verify Cosign policy and scanning parity before swapping |
-| 9 | Identity (Ory) | A hosted IdP | Late, not first: [ADR-0304](0304-identity-and-authorization.md)'s headless requirement narrows the field, and identity data is the most painful to migrate twice |
-| 10 | Kubernetes | Managed Kubernetes | Keep the API, drop the substrate. Removes [ADR-0200](0200-cluster-topology.md)'s node provisioning entirely |
+Concessions are ranked by **capacity returned per unit of sovereignty conceded**, rather than by ease. [`docs/adoption-path.md`](../adoption-path.md) carries the ranked list and is the only place it is ordered, the same way [`docs/operational-surface.md`](../operational-surface.md) is the only place components are counted. Outbound email is first and Kubernetes is last, for reasons that document states per row.
 
 A **hybrid** position is legitimate and common: self-host the orchestrator and the stateless platform, take managed Postgres, object storage, email, and paging. That removes most of the pager burden while keeping the parts whose sovereignty usually motivated the choice. Reversal is a migration per component in either direction, so the position is chosen deliberately.
 
 A system that has taken most of that list is no longer at A-high/B-maximal, and the machinery here may exceed its need.
+
+**Conceding the operator is not the only way to get smaller, and the three ways are not interchangeable.** A capability may also be *deferred* — removed while its seam stays, so it returns as a chart — or *conceded outright*, which is a bet paid for in application code. [`docs/adoption-path.md`](../adoption-path.md) separates the three, orders them, and states where a reduction stops being a smaller instance of this platform and becomes a different one.
 
 ### What follows from the thesis
 

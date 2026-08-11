@@ -27,7 +27,8 @@ That is why there is no doc restating a stack choice, and why a runbook never ar
 | Doc | Holds |
 | --- | --- |
 | [reference/local](reference/local.md) | Local ports, URLs, the frontend environment contract, the task index |
-| [operational-surface](operational-surface.md) | Every platform component, tiered Core / Scale / Opt-in, plus the budget rule |
+| [operational-surface](operational-surface.md) | Every platform component, tiered Core / Scale / Opt-in, with its recurring obligation, plus the budget rule |
+| [adoption-path](adoption-path.md) | What to give up and in what order when the floor exceeds capacity, and what it costs to take back |
 | [security-baseline](security-baseline.md) | The control → enforcing-artefact → verification matrix, and per-instance compliance escalation |
 | [auth/jwt-validation](auth/jwt-validation.md) | The JWT validation rules, defined once |
 | [temporal/long-running](temporal/long-running.md) | The registry of workflows whose wall-clock exceeds one deploy cycle |
@@ -40,4 +41,6 @@ That is why there is no doc restating a stack choice, and why a runbook never ar
 | The rule a reviewer enforces | that ADR's *Rules* section |
 | The command to run | the how-to above |
 | What is deployed right now | [operational-surface](operational-surface.md) |
+| What it costs to keep a component running | [operational-surface](operational-surface.md), *Recurring obligation* |
+| Whether we can run less than this | [adoption-path](adoption-path.md) |
 | How this repo's prose is written | [ADR-0001](adr/0001-documentation-and-output-conventions.md) |

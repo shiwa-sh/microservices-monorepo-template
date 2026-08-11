@@ -16,12 +16,12 @@ Fork it, generate from it, or read the ADRs and ignore the code. All three are v
 
 This template ships one profile and documents three neighbours. Find yourself before reading further.
 
-| Profile | You are here if… | Style | Deployables | Platform components | Platform engineers |
+| Profile | You are here if… | Style | Deployables | Platform components | What platform work looks like |
 | --- | --- | --- | --- | --- | --- |
-| `modular-monolith` | No decomposition force applies (see below) | Modular monolith | 1 | ~4 | 0 |
-| `service-based` | Teams block each other on deploys | Service-based | 3–8 | ~8 | ~0.5 |
-| `microservices` | Coordination cost dominates engineering cost | Microservices | 15+ | ~15 | 1–2 |
-| **`sovereign`** ← **this repo** | Self-hosting is *binding*, not preferred | Microservices | 15+ | **a couple of dozen** | **2–3** |
+| `modular-monolith` | No decomposition force applies (see below) | Modular monolith | 1 | ~4 | nobody's job — the provider operates it |
+| `service-based` | Teams block each other on deploys | Service-based | 3–8 | ~8 | part of a backend role, on managed foundations |
+| `microservices` | Coordination cost dominates engineering cost | Microservices | 15+ | ~15 | a standing responsibility someone owns by name |
+| **`sovereign`** ← **this repo** | Self-hosting is *binding*, not preferred | Microservices | 15+ | **a couple of dozen** | **a primary responsibility, and never resting on one person** |
 
 > **These are not maturity levels.** A modular monolith is a correct *terminal* state for most systems, not a waypoint on the road to microservices. Higher rows are not better — they are more expensive answers to pressures you may not have. This follows Richards & Ford's treatment of architecture styles as **risk profiles rated against characteristics**, and deliberately rejects the numbered-ladder genre (CMMI, and the maturity models that followed it) — a framing DORA/*Accelerate* also argues against.
 
@@ -67,8 +67,13 @@ Team size is a **budget, not a design driver**. It never tells you to build thir
 What `sovereign` costs to run:
 
 - **An always-on platform floor of a couple of dozen components** — gateway, GitOps, identity, authz, workflow, data, storage, observability, registry, forge, outbound mail. [`docs/operational-surface.md`](docs/operational-surface.md) is the inventory
-- **2–3 engineers whose primary job is the platform** — not product engineers on rotation. This is the most common way a self-hosted platform rots
+- **Platform work as a primary responsibility, not a rotation** — a rotation optimises for the incident in front of it, and this floor's real cost is the upgrades and drills nothing forces you to do this week. This is the most common way a self-hosted platform rots
+- **No Core component whose only competent operator is one person** — the floor stays operable through a departure and an absence at the same time
 - Component count is **fixed**. It does not shrink with fewer services
+
+**No headcount is stated, and none should be inferred.** What it takes depends on your coverage hours, your existing operational skill, and your tolerance for detection latency. `docs/operational-surface.md` carries the recurring obligation and failure-response requirement of every component — sum that against your own facts and you get your number, not ours.
+
+**If the number comes out higher than you have**, [`docs/adoption-path.md`](docs/adoption-path.md) is the ranked list of what to give up and in what order: deferrals first, then managed swaps, and the point past which you are running a different platform.
 
 A consequence worth internalising: **fewer services makes the platform proportionally heavier.** At many services the application-to-platform workload ratio is comfortable; at a handful they are roughly 1:1. Fewer services *strengthens* the case for austerity — it does not relax it.
 
@@ -102,7 +107,7 @@ Deferring on purpose, with the trigger written down, is the **last responsible m
 ## When not to use this
 
 - **No decomposition force applies** → `modular-monolith`. This is the common case.
-- **You cannot staff 2–3 platform engineers** → the floor does not shrink to fit. Move down axis B.
+- **Platform work would be a rotation rather than someone's primary job** → the floor is heavier than its component count suggests. Read [`docs/adoption-path.md`](docs/adoption-path.md) before adopting, and move down axis B deliberately rather than discovering the gap in an incident.
 - **Managed services are acceptable to you** → much of this repo solves a problem you do not have.
 - **Correctness stakes are low** → the typing, contract, and policy discipline here is priced for money-handling systems and will read as friction.
 
@@ -121,7 +126,7 @@ Swap in this order — ranked by capacity returned per unit of sovereignty conce
 | 1 | Outbound email (MTA) | Any transactional email provider | Deliverability is *reputational*, not technical. The one cost engineering cannot retire |
 | 2 | Alert routing / on-call | A hosted paging service | No mature self-hosted escalation layer exists |
 | 3 | PostgreSQL (CNPG) | Managed Postgres | Highest operational risk per engineering hour |
-| 4 | Object storage (Rook-Ceph) | Any S3-compatible service | Removes a distributed storage system *and* the off-cluster backup problem |
+| 4 | Object storage (MinIO, and the production bucket) | Any S3-compatible service | Production already points at an external bucket, so this row mostly retires the non-prod instance |
 | 5 | Observability (Grafana stack) | A hosted backend | Four components → one. OTel instrumentation is unchanged |
 | 6 | Temporal | Temporal Cloud | Workflow code identical; only the connection target changes |
 | 7 | Forge + CI (Forgejo) | A hosted forge | Cheap either way — CI logic lives in `mise run ci:*` |
