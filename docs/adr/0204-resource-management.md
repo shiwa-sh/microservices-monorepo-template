@@ -25,7 +25,7 @@ Against the platform-engineering budget in [ADR-0000](0000-platform-foundations.
 
 | Option | Applies without per-service work | Bypassable | Added components | Verdict |
 | --- | --- | --- | --- | --- |
-| **`LimitRange` + `ResourceQuota` + `PriorityClass` + `PodDisruptionBudget`** | yes — namespace-scoped | no, they are API-server objects | **none — in-tree** | **Chosen.** Four primitives the API server already enforces |
+| **`LimitRange` + `ResourceQuota` + `PriorityClass` + `PodDisruptionBudget`** | yes — namespace-scoped | no, they are API-server objects | **none — in-tree** | **Chosen.** Four primitives the API server already enforces *(reasoned)* |
 | Per-service requests only, reviewed by hand | no | trivially, by omission | none | The omission is the failure mode, and review does not catch what is absent |
 | A mutating admission policy that stamps defaults | yes | no | an admission controller | It reaches one case the chosen option cannot — a chart with no field to set — and buying a controller for defaulting alone inverts driver 4. Where [ADR-0104](0104-supply-chain-security.md) brings Kyverno for signature verification, that case is covered as a by-product |
 | Vertical Pod Autoscaler | yes | no | one controller | Rewrites requests from observed usage, which conflicts with values derived from a recorded measurement and reviewed in git |
@@ -34,7 +34,7 @@ Against the platform-engineering budget in [ADR-0000](0000-platform-foundations.
 
 | Option | Behaviour under contention | Failure mode | Verdict |
 | --- | --- | --- | --- |
-| **Requests and memory limits, no CPU limit** | CPU is shared in proportion to requests, and a burst may use idle capacity | a busy neighbour slows a burst | **Chosen.** Memory is incompressible, so its limit is the only thing between one leak and a node-wide OOM. CPU is compressible, so a limit buys nothing the requests do not already give |
+| **Requests and memory limits, no CPU limit** | CPU is shared in proportion to requests, and a burst may use idle capacity | a busy neighbour slows a burst | **Chosen.** Memory is incompressible, so its limit is the only thing between one leak and a node-wide OOM. CPU is compressible, so a limit buys nothing the requests do not already give *(measured)* |
 | A CPU limit on every container | CFS throttles at the quota even when the node is idle | a burst becomes tail latency, which reads as a code defect | Measured: `temporal-history` bursts to 2121m from near-idle, so a plausible-looking 500m limit quarters it and surfaces only as slow checkouts |
 | CPU limits equal to requests | no bursting at all; Guaranteed QoS class | capacity sits idle while a pod throttles | Buys eviction-order predictability that the `PriorityClass` tiers already provide |
 | No limits of any kind | nothing bounds a leak | one leak takes the node | The asymmetry above is the whole point: memory needs the limit, CPU does not |
@@ -43,7 +43,7 @@ Against the platform-engineering budget in [ADR-0000](0000-platform-foundations.
 
 | Option | Scales on | Added components | Verdict |
 | --- | --- | --- | --- |
-| **No HPA by default, opt-in per service** | a documented sustained-load signal | none | **Chosen.** The one place driver 2 cuts the other way: a default that guesses is worse than an explicit opt-in |
+| **No HPA by default, opt-in per service** | a documented sustained-load signal | none | **Chosen.** The one place driver 2 cuts the other way: a default that guesses is worse than an explicit opt-in *(reasoned)* |
 | An HPA on CPU for every service | CPU utilisation against request | none — in-tree | With no CPU limit the utilisation ratio is a weak signal, and a service with no load history oscillates against it |
 | Vertical Pod Autoscaler | observed usage, written back into requests | one controller | As above: it overwrites reviewed, measured values |
 | VPA in recommendation-only mode | the same, as advice | one controller and a dashboard | The advice is what the [ADR-0601](0601-testing-strategy.md) load suite already produces, into a dashboard that already exists |

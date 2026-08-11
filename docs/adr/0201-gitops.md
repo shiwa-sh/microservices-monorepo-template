@@ -28,7 +28,7 @@ Two constraints are inherited rather than decided here, and select nothing below
 
 | Option | Fleet fan-out | Ordered bootstrap | Operator UI | Verdict |
 | --- | --- | --- | --- | --- |
-| **Argo CD** | **ApplicationSet generators** — git-directory, list, cluster — fan out across the fleet without a manifest per service | sync waves, health checks, pre/post-sync hooks | strong; it is the "what is deployed" answer on call | **Chosen.** Apache-2.0, CNCF graduated |
+| **Argo CD** | **[ApplicationSet generators](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators/)** — git-directory, list, cluster — fan out across the fleet without a manifest per service | sync waves, health checks, pre/post-sync hooks | strong; it is the "what is deployed" answer on call | **Chosen.** Apache-2.0, CNCF graduated *(documented)* |
 | Flux | Kustomization and HelmRelease per target, or a generator written by hand | `dependsOn` | none first-party | Driver 2 decides it: onboarding a service must not require writing a manifest |
 | Flux with a third-party UI | as above | as above | Flamingo renders Flux resources through Argo's UI | Adds a second project to the floor to recover what the other option ships, and leaves driver 2 unanswered |
 | CI pushes with `helm upgrade` | n/a | script order | none | CI holds cluster credentials and drift is invisible. Fails drivers 1 and 4 |
@@ -37,7 +37,7 @@ Two constraints are inherited rather than decided here, and select nothing below
 
 | Option | Environment differences | Cost of the Nth service | Verdict |
 | --- | --- | --- | --- |
-| **Helm values** | one values file per target | one values file against a shared chart | **Chosen.** Driver 5 in its cheapest form, and the ecosystem ships charts, so third-party components need no translation |
+| **Helm values** | one values file per target | one values file against a shared chart | **Chosen.** Driver 5 in its cheapest form, and the ecosystem ships charts, so third-party components need no translation *(reasoned)* |
 | Kustomize overlays | a base plus a patch directory per environment | a base plus one overlay directory per environment | Patches match the base structurally, so a base change can silently no-op a patch. Directories multiply by services × environments, against driver 2 |
 | Helm rendered, then Kustomize post-render | both | both | Two templating systems for one concern, which principle 5 refuses |
 | CUE, Timoni, or jsonnet | typed and composable | strong | A third language in the deploy layer, and every upstream component still arrives as a chart to be wrapped |
@@ -47,7 +47,7 @@ Two constraints are inherited rather than decided here, and select nothing below
 
 | Option | Ordering it can express | Effect on sync policy | Verdict |
 | --- | --- | --- | --- |
-| **Four ApplicationSets under a root app-of-apps** | between tiers, by sync wave on the root's children | none — each generated Application keeps its own automated sync | **Chosen.** Ordering lands at the only granularity Argo sequences, and the sync policy stays per-environment |
+| **Four ApplicationSets under a root app-of-apps** | between tiers, by sync wave on the root's children | none — each generated Application keeps its own automated sync | **Chosen.** Ordering lands at the only granularity Argo sequences, and the sync policy stays per-environment *(reasoned)* |
 | One ApplicationSet, sync waves on the generated Applications | **none** — the waves are inert, see below | none | The intuitive reading of the feature, and it does not work |
 | One ApplicationSet with `RollingSync` progressive syncs | between steps within the set | **forces automated sync off** on every generated Application | Purpose-built for ordering, and it buys that ordering by removing the continuous reconciliation driver 1 is here for |
 
@@ -202,7 +202,7 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 - Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step.
 - Every backend service is deployed through the shared chart with per-env values files; platform components have one chart each. `(CI: lint:service-contract)`
 - Environment differences live in values files, never in chart logic conditioned on the environment name.
-- An image is built once and promoted by updating values files. Rebuilding for another environment is not done. `(CI: publish)`
+- An image is built once and promoted by updating values files. Rebuilding for another environment is not done. `(CI: ci:publish)`
 - Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest.
 - No environment is deployed by hand-opening a values-bump PR.
 - Argo CD Image Updater and similar auto-promoters are not used.

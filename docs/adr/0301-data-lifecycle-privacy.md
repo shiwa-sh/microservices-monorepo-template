@@ -26,7 +26,7 @@ Those obligations are [GDPR](https://eur-lex.europa.eu/eli/reg/2016/679/oj) Art.
 
 | Option | Survives a partial failure | Spans stores outside one database | Answers "is it done" | Verdict |
 | --- | --- | --- | --- | --- |
-| **Temporal workflows for erasure, DSAR, and retention** | yes — each activity retries, and the execution resumes where it stopped | yes, including OpenFGA | one execution, and its event history is the audit trail | **Chosen.** The obligation is a long-running, multi-store, deadline-bearing mutation, which is the shape [ADR-0302](0302-temporal.md) already buys a primitive for |
+| **Temporal workflows for erasure, DSAR, and retention** | yes — each activity retries, and the execution resumes where it stopped | yes, including OpenFGA | one execution, and its event history is the audit trail | **Chosen.** The obligation is a long-running, multi-store, deadline-bearing mutation, which is the shape [ADR-0302](0302-temporal.md) already buys a primitive for *(reasoned)* |
 | Outbox events, consumed per service | yes, per hop | yes, eventually | no — by correlating every consumer | No single execution owns the request. [ADR-0302](0302-temporal.md) keeps the outbox for fire-and-forget work, and a statutory deadline is not fire-and-forget |
 | A dedicated erasure service calling each owning service's API | only once it implements its own retries, timers, and state | yes | its own store, once built | This is Temporal's job description rebuilt inside one service, against a Temporal that is already Core |
 | Change-data-capture, such as Debezium | yes | yes | no — the same correlation problem, plus a connector | Adds a component and a second delivery path to answer a question the platform can already ask directly |

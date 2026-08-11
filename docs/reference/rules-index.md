@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 134 |
-| Review-enforced | 288 |
-| **Total** | **422** |
+| Machine-enforced | 144 |
+| Review-enforced | 302 |
+| **Total** | **446** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -22,7 +22,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | An ADR exists for every decision that binds more than one service or is hard to reverse. | review |
 | An ADR follows the structure, numbering, and prose rules of [ADR-0001](../adr/0001-documentation-and-output-conventions.md). | review |
-| **No tool is adopted without a recorded comparison against its alternatives** (principle 7). The comparison is a table with prose cells, not a scoring grid, at a depth set by that tool's exit cost. | review |
+| **No tool is adopted without a recorded comparison against its alternatives** (principle 7). The comparison is a table with prose cells, not a scoring grid, at the depth [ADR-0002](../adr/0002-tool-adoption.md) sets for that tool's tier. | `lint:tool-register` in CI |
+| Every young component carries a named fallback and an observable trigger in its owning ADR. A novel adoption without one is a bet, and is labelled one. | review |
 | An accepted ADR is binding on every service. Per-service deviation requires a new ADR. | review |
 | A decision is unambiguous: no "or Y in some cases" without a measurable trigger. | review |
 | Nothing is "temporary." Either commit, or defer behind a hard trigger — and record the trigger, whether a **seam** exists, and the cost of adopting late. A deferral without a seam is a **bet** and is labelled one. | review |
@@ -58,9 +59,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section. | review |
 | An ADR's header carries a one-sentence `Decides` line stating what is true of the platform because of it, and the ADR index carries that line as its *Decides* column. | `lint:adr-xref` in CI |
 | A decision driver states a property being optimised for, never the chosen option restated and never a rejected option's worst form. Swapping the winner for a loser must leave the drivers unmet, not wrong. | review |
-| An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule. | review |
-| Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed. | review |
-| No committed file links to a local working file. | `lint:md, lint:prose` in CI |
+| An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. | review |
+| Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. | `lint:md, lint:prose` in CI |
 | ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](../adr/README.md). | review |
 | A document's genre decides its directory: `docs/adr/` decisions, `docs/guide/` procedures, `docs/reference/` lookups. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint:adr-xref` in CI |
 | Topic is carried by the filename, never by a directory holding a single file, and no two documents in `docs/` share a filename. | `lint:adr-xref` in CI |
@@ -75,6 +75,25 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses.  A generated project rewrites that README, so duplication there is expected and correct. | `lint:adr-xref` in CI |
 | A term enters the [ADR-0000](../adr/0000-platform-foundations.md) vocabulary only when the ADR set uses it, and only if the repo does not already use that word in another sense. | review |
 | A Rule that a task, a policy, or a standard enforces names it: , , or . A Rule with no such mechanism carries no annotation, and is not weaker for it. | `<task>` in CI |
+
+## ADR-0002 — Tool Adoption & Comparison Requirement
+
+[Full decision](../adr/0002-tool-adoption.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| Every tool this platform runs, builds with, or generates from carries a row in [`docs/tool-register.md`](../tool-register.md) stating its tier, owning ADR, licence, governing body, maturity signal, and exit cost. | `lint:tool-register` in CI |
+| A tool's tier is set by exit cost: **1** structural, months and possibly customer data; **2** substitutable, weeks behind a stable interface; **3** library, days inside one package. | review |
+| A Tier 1 tool has a full comparison table in its owning ADR and a **named runner-up**, or states that no option survived the hard constraints. | `lint:tool-register` in CI |
+| A Tier 2 tool has a short comparison table in its owning ADR, carrying the decisive question and the options that answered it differently. | `lint:tool-register` in CI |
+| A Tier 3 tool's register row names what it was picked over. No ADR table is owed. | review |
+| Every alternative named in a register row appears in the owning ADR's *Considered options*. A rejection nobody can see is indistinguishable from an option nobody considered. | `lint:tool-register` in CI |
+| A comparison cell that produces a verdict is graded *(measured)*, *(documented)*, or *(reasoned)*. Cells that do not decide the row are not graded. | review |
+| A *(documented)* claim carries a citation. A load-bearing one is dated in [`docs/reference/upstream-status.md`](../reference/upstream-status.md). | review |
+| A *(measured)* claim states the conditions it was taken under and how to re-derive it. | standard: ADR-0001 Numbers |
+| Licence, governing body, and maturity are recorded for every tool and do not veto a choice. | review |
+| A transitive dependency is governed by the register row above it. Depending on one directly makes it a Tier 3 adoption and gives it a row. | review |
+| A comparison is a table with prose cells, never a weighted scoring matrix. | review |
 
 ## ADR-0003 — Naming & Identifiers
 
@@ -178,7 +197,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. | `publish` in CI |
+| Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. | `ci:publish` in CI |
 | Vulnerability scanning is a merge gate in CI. Neither the registry nor the cluster scans ([ADR-0105](../adr/0105-image-registry.md)). | review |
 | The signing private key exists only as a SOPS-encrypted secret; the public key is committed and named by the Kyverno policy. It is never held by a person and never stored unencrypted. | review |
 | Kyverno rejects at admission any image lacking a valid signature or referenced by a floating tag. | admission: Kyverno |
@@ -198,6 +217,21 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Vulnerability scanning runs in CI, not in the registry. | review |
 | Deployments reference images by digest ([ADR-0103](../adr/0103-release-and-versioning.md)). | admission: Kyverno |
 
+## ADR-0106 — Dependency Updates & Template Propagation
+
+[Full decision](../adr/0106-dependency-updates.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| Renovate opens every dependency, image, chart, and tool-version update as a pull request. It merges nothing, and no update bypasses the gates a human pull request passes. | `ci:lint, ci:gen, ci:test` in CI |
+| Updates are grouped by ecosystem and batched on a schedule. A major version is proposed alone. | review |
+| A container image update moves the tag and the digest in the same pull request. A digest is never updated on its own. | `lint:floating-tags` in CI |
+| A dependency held back carries its reason as a comment on the package rule that holds it. A pin with no recorded reason is treated as unreviewed. | review |
+| A failing update pull request is left open. Disabling the update to clear the queue is not done. | review |
+| A CVE that Trivy gates on and that has a fixed version available is proposed immediately, outside the batch. | `ci:scan` in CI |
+| A generated project tracks this template through Copier's answers file and updates by 3-way merge. The template makes no compatibility promise, and a conflict is the project's to resolve. | review |
+| Copier and Renovate are pinned in `.mise.toml` like every other tool, and neither runs inside a cluster workload. | `lint:node-scope` in CI |
+
 ## ADR-0200 — Cluster Topology & Hosting
 
 [Full decision](../adr/0200-cluster-topology.md)
@@ -208,25 +242,11 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node. | review |
 | Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger. | review |
 | Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory. | review |
-| Ingress is Traefik with TLS from cert-manager over ACME. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. | standard: RFC 8555 |
-| Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier. | review |
-| Production runs it outside the cluster. No object store holding production data runs on the cluster it serves. | review |
-| Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention. | review |
-| Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. | review |
-| The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. | review |
-| CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy. | review |
-| KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic. | review |
-| Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation. | review |
 | Every namespace carries the Pod Security Standards `restricted` labels with a pinned `enforce-version`. A namespace at `baseline` or `privileged` records why in its manifest. | standard: Pod Security Standards; admission: PSA |
 | Service containers run as non-root with a read-only root filesystem, `ALL` capabilities dropped, `allowPrivilegeEscalation: false`, and `seccompProfile: RuntimeDefault`. A writable path is an `emptyDir`. | admission: PSA |
 | A component requiring privilege runs in its own namespace and never shares one with a `restricted` workload. | review |
-| Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. | admission: CiliumNetworkPolicy |
-| WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped. | review |
-| A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. | admission: CiliumNetworkPolicy |
 | A new cluster bootstraps with the machine-config apply then the Argo CD root Application. There is no configuration-management step between them and no further manual steps. | review |
 | Growth beyond the day-one topology happens only on one of the documented triggers firing. | review |
-| No dedicated service mesh is deployed, sidecar or ambient. A mesh runs over the CNI rather than instead of it, so it is a second component re-providing encryption, identity, and L4 policy that Cilium already provides, and its L7 layer is already covered at the edge and in-app. | review |
-| Cilium NetworkPolicy is the internal service-to-service trust boundary, and each service declares its allowed callers. | `lint:service-contract` in CI |
 
 ## ADR-0201 — GitOps & Deploy
 
@@ -237,7 +257,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step. | review |
 | Every backend service is deployed through the shared chart with per-env values files; platform components have one chart each. | `lint:service-contract` in CI |
 | Environment differences live in values files, never in chart logic conditioned on the environment name. | review |
-| An image is built once and promoted by updating values files. Rebuilding for another environment is not done. | `publish` in CI |
+| An image is built once and promoted by updating values files. Rebuilding for another environment is not done. | `ci:publish` in CI |
 | Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest. | review |
 | No environment is deployed by hand-opening a values-bump PR. | review |
 | Argo CD Image Updater and similar auto-promoters are not used. | review |
@@ -299,13 +319,44 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay. | review |
 | Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier. | review |
 | The Kubernetes API, service chart, service images, and env contract are identical in every tier. | review |
-| Object storage is one implementation in every environment ([ADR-0200](../adr/0200-cluster-topology.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves. | review |
-| Backups are off-cluster and mandatory in production ([ADR-0200](../adr/0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee. | review |
+| Object storage is one implementation in every environment ([ADR-0207](../adr/0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves. | review |
+| Backups are off-cluster and mandatory in production ([ADR-0207](../adr/0207-cluster-storage.md)). Non-prod backups are convenience and are never cited as a recovery guarantee. | review |
 | SOPS is the secret mechanism in every environment, including local. | review |
 | A PR preview is the full-platform tier at a pull request's images, label-gated, and destroyed with the run. Its slug derives from the pull request number. | review |
 | A preview uses the local secret path and the committed test identities. No deployed environment's data or credentials are copied into one. | review |
 | Nothing is promoted or released from a preview. | review |
 | Certificates are issued by cert-manager over ACME in every environment and are verified, never bypassed. | standard: RFC 8555 |
+
+## ADR-0206 — Cluster Networking
+
+[Full decision](../adr/0206-cluster-networking.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy. | review |
+| KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic. | review |
+| Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation. | review |
+| `SYS_MODULE` is dropped from Cilium's capability set, and the API server host and port are set explicitly. | review |
+| Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. | admission: CiliumNetworkPolicy |
+| WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped. | review |
+| A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. | admission: CiliumNetworkPolicy |
+| Cilium NetworkPolicy is the internal service-to-service trust boundary, and each service declares its allowed callers. | `lint:service-contract` in CI |
+| No dedicated service mesh is deployed, sidecar or ambient. A mesh runs over the CNI rather than instead of it, so it is a second component re-providing encryption, identity, and L4 policy that Cilium already provides, and its L7 layer is already covered at the edge and in-app. | review |
+| One wildcard `A` record and one wildcard certificate per environment. `external-dns` is not used. | review |
+| An environment is provisioned only where the provider offers a cert-manager-supported DNS API and `PTR` delegation on the mail egress IP. | review |
+
+## ADR-0207 — Cluster Storage & Backups
+
+[Full decision](../adr/0207-cluster-storage.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. | review |
+| Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier. | review |
+| Production runs it outside the cluster. No object store holding production data runs on the cluster it serves. | review |
+| Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention. | review |
+| Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. | review |
+| Loki, Tempo, CNPG backups, and Pyroscope write to object storage rather than to a block volume. | review |
 
 ## ADR-0300 — Data & Migrations
 
@@ -423,6 +474,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
+| Ingress is Traefik with TLS from cert-manager over ACME DNS-01. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. | standard: RFC 8555 |
 | The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default. | review |
 | Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. | `lint:authz` in CI |
 | Every request carries identity in the same header shape. Services read identity from headers and never parse a token. | `lint:auth-inline` in CI |

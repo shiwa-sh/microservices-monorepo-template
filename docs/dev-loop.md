@@ -1,6 +1,18 @@
 # Local development loop
 
-How to run and debug services on your machine. The model is [ADR-0600](adr/0600-local-development-loop.md); ports, URLs, and the environment contract are [reference/local](reference/local-environment.md).
+How to run and debug services on your machine. The model is [ADR-0600](adr/0600-local-development-loop.md); ports, URLs, and the environment contract are [local-environment](reference/local-environment.md). Making your first change end to end, and the gates it passes, is [first-change](guide/first-change.md).
+
+## Pick a mode first
+
+Three, and the cost between them is RAM and start-up time rather than fidelity of the edge — every mode runs the real Traefik, Kratos, and Oathkeeper.
+
+| You are | Run | Costs | Cannot tell you |
+| --- | --- | --- | --- |
+| Changing one service's code | `mise run cluster:base`, then `mise run server` in the service | the floor, and seconds to restart the binary | how the service behaves under the charts CI builds |
+| Building UI | `mise run cluster:base`, then `mise run dev:frontend` | the floor plus the mock | anything stateful — see *What this tier cannot tell you* |
+| Verifying the whole system, or running e2e | `mise run cluster:full` | around 16 GB of RAM, and minutes | nothing. It is the deployed shape at one replica |
+
+Start at the top and move down only when the row you are on cannot answer the question. **Every mode logs in for real**: there is no bypass, no fake session, and no environment branch in the session path in any of them.
 
 `mise run cluster:base` brings up the local **floor** — Traefik, cert-manager, Postgres, Kratos, Oathkeeper — and everything above it is opt-in, declared by the service that needs it. The inner loop is **native execution**: you run the service you are changing directly on the host, with no image build, no in-cluster redeploy, and no file watch on the hot path.
 
@@ -94,7 +106,7 @@ mise run cluster:base
 mise run dev:frontend    # host :3000, reached through the edge
 ```
 
-**The mock is a Follow-up in [ADR-0600](adr/0600-local-development-loop.md), not a shipped task.** The authentication half of this tier works as described below; until the Prism container and its tasks land, a route that fetches application data needs `cluster:full`.
+The mock is a vendored Prism container fed the committed `internal.json` projection, started with the floor. `mise run mock:start`, `mock:stop`, and `mock:logs` control it directly when you need to.
 
 `dev:frontend` extracts the local CA from the cluster and trusts exactly it, so nothing disables TLS verification — the same mechanism the in-cluster image uses.
 

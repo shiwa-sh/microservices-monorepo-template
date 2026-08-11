@@ -33,7 +33,7 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 
 | Option | Rules as files | Routing, grouping, silencing | Weight | Verdict |
 | --- | --- | --- | --- | --- |
-| **Prometheus rules + Alertmanager** | native rule files, already shipped | Alertmanager's routing tree, as a committed config | one Go binary, no datastore | **Chosen.** It is the receiver the rule files were always written for |
+| **Prometheus rules + Alertmanager** | native rule files, already shipped | Alertmanager's routing tree, as a committed config | one Go binary, no datastore | **Chosen.** It is the receiver the rule files were always written for *(reasoned)* |
 | Grafana unified alerting | rules become Grafana objects, provisionable as YAML | built into Grafana, already Core | none — Grafana is already running | Zero marginal weight and rejected on principle 5: alert state moves into Grafana's database, and evaluation splits between two engines while [ADR-0500](0500-observability.md)'s rule files still exist |
 | Rule files with no receiver — the honest baseline | yes | none | none | An alert that evaluates and reaches nobody. Driver 1 rules it out |
 
@@ -41,7 +41,7 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 
 | Option | Self-hosted | Rotation, escalation, acknowledgement | Reaches a phone | Verdict |
 | --- | --- | --- | --- | --- |
-| **A managed paging service, reached by webhook** | no | yes | yes | **Chosen as the sanctioned concession**, exactly where [ADR-0000](0000-platform-foundations.md) ranks it |
+| **A managed paging service, reached by webhook** | no | yes | yes | **Chosen as the sanctioned concession**, exactly where [ADR-0000](0000-platform-foundations.md) ranks it *(reasoned)* |
 | Grafana OnCall | **no longer** | yes | it never did without Grafana's cloud | The self-hosted answer the field used to have. Its open-source distribution entered maintenance in March 2025 and was **archived in March 2026**, with the repository read-only and phone and SMS delivery withdrawn from OSS users. It is the direct evidence behind ADR-0000's ranking of this component |
 | Keep | yes | alert enrichment, correlation, and workflows; not a rotation calendar | no | Answers the tier above this one — deduplicating and enriching alerts — and leaves "whose phone rings at 03:00" unanswered |
 | LinkedIn Oncall | yes | **rotation calendars only** | no | A scheduling system with no alert path. Pairing it with a delivery tool rebuilds the product from two halves and an integration nobody maintains |

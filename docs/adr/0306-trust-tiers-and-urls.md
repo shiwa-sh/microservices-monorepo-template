@@ -31,7 +31,7 @@ This ADR fixes where each lives, how one operator login covers the ops tier, and
 
 | Option | Browser isolation | Per-tool hosting cost | Verdict |
 | --- | --- | --- | --- |
-| **A subdomain per tool under a shared `ops.` label** | **each origin is distinct**: cookies, storage, CSP, and rate-limit scope isolated by construction | none — every tool is served at a root | **Chosen** |
+| **A subdomain per tool under a shared `ops.` label** | **each origin is distinct**: cookies, storage, CSP, and rate-limit scope isolated by construction | none — every tool is served at a root | **Chosen** *(reasoned)* |
 | Paths on the product origin | **none** — path segments share cookies, `localStorage`, and the DOM, so a flaw in code we do not control executes in the same origin as the product session | a per-tool fight: Hubble UI's router is hardwired to basename `/` and 404s under any prefix, Grafana needs sub-path serving, Argo CD and the Temporal UI have their own quirks | Both problems are disqualifying |
 | A flat subdomain per tool, no `ops.` label | per-tool isolation, and see below | none | The only domain covering all of them is the product origin itself, so a shared ops cookie would reach product and re-merge the tiers |
 | Paths on the product origin with `__Host-` cookies per tool | **none between tools** — the prefix binds a cookie to the host, not to a path, so every tool still shares one origin | the same per-tool fight | The cheap middle option, and it does not exist: `__Host-` hardens a cookie against subdomain injection and grants no path isolation, because the same-origin policy has no path dimension |
@@ -41,7 +41,7 @@ This ADR fixes where each lives, how one operator login covers the ops tier, and
 
 | Option | Survives swapping the tool | Naming decision per tool | Verdict |
 | --- | --- | --- | --- |
-| **After the tool, lowercased** — `grafana`, `hubble`, `temporal` | no — the URL moves with the tool | none; the name is already chosen | **Chosen.** One sentence, no judgement calls, and the rename happens only on an event that is already a migration |
+| **After the tool, lowercased** — `grafana`, `hubble`, `temporal` | no — the URL moves with the tool | none; the name is already chosen | **Chosen.** One sentence, no judgement calls, and the rename happens only on an event that is already a migration *(reasoned)* |
 | After the concept — `o11y`, `map`, `workflows`, `s3` | **claimed, but no** | one debate per tool | The theory is that a concept name outlives the tool. It does not hold: swapping a network-flow UI for an APM suite changes the concept too, and a tool's concept drifts as it grows features. Concept naming produces renames on tool changes *and* naming debates in between. It also lets a hostname stake a territorial claim — one asserting ownership of "observability" frames a complementary second tool as a rival for the name rather than as a different question-answerer |
 
 Two accepted costs: `pgweb.ops` is less self-evident than `db.ops` to a newcomer, and the URL moves when the tool does. The first is answered by the table below naming the concern next to every host; the second would have happened under concept naming anyway.
@@ -52,7 +52,7 @@ The objection that tool names leak the stack is real and weak here: the wildcard
 
 | Option | CORS | Isolation gained | Verdict |
 | --- | --- | --- | --- |
-| **A path on the product origin, `<host>/api/<resource>`** | **none needed** | n/a | **Chosen.** A JSON API has no DOM, JS, or browser storage to isolate, so a separate origin protects nothing it has |
+| **A path on the product origin, `<host>/api/<resource>`** | **none needed** | n/a | **Chosen.** A JSON API has no DOM, JS, or browser storage to isolate, so a separate origin protects nothing it has *(reasoned)* |
 | `api.<host>` | manufactured for our own frontend | **none against the cookie** — a `Domain=<host>` cookie reaches `api.<host>` too | The reasons it sounds right evaporate: WAF and rate limits attach per path router already, and the edge already routes `/api/*` to services and `/` to the frontend |
 | A separate registrable domain | required | **hard credential isolation** — the app session cookie genuinely cannot reach the API | Warranted only for that guarantee, or for separate edge and CDN infrastructure at scale. Not the default |
 | Per-service paths, `/api/<svc>/...` | none needed | n/a | Leaks topology into every URL, so a resource cannot move between services without breaking callers |

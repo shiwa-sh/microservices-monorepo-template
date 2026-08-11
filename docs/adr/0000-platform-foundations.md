@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0001](0001-documentation-and-output-conventions.md)
+- **Related:** [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0002](0002-tool-adoption.md)
 - **Decides:** This platform sits at decomposition-high, sovereignty-maximal, and stakes-high, and every tool is admitted by ten anchored principles under a recorded comparison.
 
 ## Purpose
@@ -39,6 +39,10 @@ Architecture is forced by three largely independent questions. Position on each 
 Later ADRs cite this position rather than restating it. It changes here, in one line, and re-opens every ADR that rests on it.
 
 **Positions on these axes are not maturity levels.** A monolith is a correct *terminal* state for most systems, not a waypoint. A higher position is not better; it is a more expensive answer to a pressure a system may not have. Where this repo does use levels — the CNCF project tiers in principle 4 — they are *recorded evidence about a dependency*, never a target for ourselves.
+
+This follows Richards & Ford's treatment of architecture styles as **risk profiles rated against characteristics**, and refuses the numbered-ladder genre — CMMI and the maturity models after it — on the same grounds DORA/*Accelerate* refuses it: a ladder implies every rung is on the way to the next one, and these are not.
+
+**The nearest coherent position is this one with axis B lower**, and several ADRs here answer a question that position does not have.
 
 ### Axis A: what forces decomposition
 
@@ -89,7 +93,7 @@ The response is the one principle 3 permits: reduce the floor per [`docs/adoptio
 
 Axis B is a genuine axis, not a virtue test. Sovereignty weaker than maximal is a legitimate position, recorded in an ADR of its own rather than drifted into. It is the right answer for a team that cannot staff the platform, and a better one than holding the self-hosted floor and hoping.
 
-**Axis B is the axis this platform is least coupled to.** Moving down it swaps *operators*, not architecture. Unchanged by a managed swap: the ADR set, OpenAPI contracts and codegen, the service template, the Kustomize tree, policy-as-admission, repo layout, release and versioning, and the local dev loop.
+**Axis B is the axis this platform is least coupled to.** Moving down it swaps *operators*, not architecture. Unchanged by a managed swap: the ADR set, OpenAPI contracts and codegen, the service template, the Helm and GitOps trees, policy-as-admission, repo layout, release and versioning, and the local dev loop.
 
 Concessions are ranked by **capacity returned per unit of sovereignty conceded**, rather than by ease. [`docs/adoption-path.md`](../adoption-path.md) carries the ranked list and is the only place it is ordered, the same way [`docs/operational-surface.md`](../operational-surface.md) is the only place components are counted. Outbound email is first and Kubernetes is last, for reasons that document states per row.
 
@@ -154,10 +158,27 @@ None of these is a soft exit from principle 3. Each is a dependency at a layer t
 
 **4. Spend novelty by exit cost, not by taste.** Novelty is a fixed budget, and *where* it is spent matters as much as how much. Be adventurous where abandonment costs days — CI, observability query layers, registries, policy engines. Be conservative where it costs months and customer data — object storage, databases, the message bus. "Actively maintained" is adequate assurance for the first class and inadequate for the second.
 
-- *Anchor:* McKinley, [*Choose Boring Technology*](https://mcfunley.com/choose-boring-technology) — innovation tokens as a budget rather than a preference. Note the budget is *about three*; we are over it, deliberately and with sequencing as the mitigation.
-- *Rejected:* Garage and SeaweedFS (too young for the data plane), Encore (a data-plane-shaped lock-in wearing control-plane clothing).
-- *Accepted on the same rule:* Talos, Kyverno, mirrord, Microcks — all young, all cheap to leave.
+- *Anchor:* McKinley, [*Choose Boring Technology*](https://mcfunley.com/choose-boring-technology) — innovation tokens as a budget rather than a preference. The budget is *about three*, and this platform holds more young components than that.
+- *Rejected:* Garage (too young for the data plane, and single-vendor), Encore (a data-plane-shaped lock-in wearing control-plane clothing).
+- *Accepted on the same rule:* Talos, Kyverno, zot, Prism, Lowdefy — all young, all cheap to leave.
 - Licence, governing body, and project maturity (CNCF tier, Thoughtworks Radar ring) are **recorded** per tool but do **not** veto. Provenance is evidence about exit cost, not a rule of its own.
+
+**What makes the count affordable is the exit-cost rule, not the count.** McKinley's budget is a proxy for recovery cost; this principle measures recovery cost directly, which is what the proxy loses when it counts a cheap exit and an expensive one as equal tokens.
+
+**Every young component carries a named fallback and an observable trigger in its owning ADR.** A novel choice with a recorded runner-up is a deferral; one without is a bet.
+
+| Component | Fallback | Trigger that promotes the fallback | Owning ADR |
+| --- | --- | --- | --- |
+| Cilium | Calico in its eBPF dataplane | a committed traffic-splitting delivery requirement, which is the one capability Cilium lacks | [ADR-0206](0206-cluster-networking.md) |
+| OpenFGA | SpiceDB, equal on capability | the `Checker` seam makes this a library, model, and chart change; the trigger is a governance change at the vendor | [ADR-0304](0304-identity-and-authorization.md) |
+| Lowdefy | the `(admin)` route group in the existing frontend | upstream releases stop for two quarters, or a runtime security advisory goes unanswered for one | [ADR-0401](0401-internal-admin.md) |
+| Prism | `muonsoft/openapi-mock` | the vendored container proves unacceptable, gated on demonstrating OpenAPI 3.1 support | [ADR-0600](0600-local-development-loop.md) |
+| zot | CNCF Distribution | zot's registry conformance regresses, or its object-storage backend stops tracking the OCI referrers API | [ADR-0105](0105-image-registry.md) |
+| Talos | Debian stable converged by provisioning, with Kubernetes installed separately | the immutable-node model blocks a workload the platform commits to running | [ADR-0200](0200-cluster-topology.md) |
+| Kyverno | the CI lint layer already covering the same rule classes, at a weaker layer | a cluster-wide admission outage traced to the webhook, twice | [ADR-0203](0203-policy-enforcement.md) |
+| SeaweedFS | any S3-compatible store, reached through the same client | the S3 layer fails a checksum round-trip that the documented escapes do not close | [ADR-0207](0207-cluster-storage.md) |
+
+**SeaweedFS is the only young component on the expensive-exit side**, which is why its row names a fallback reachable through an unchanged client rather than a migration. The other component holding customer data is PostgreSQL, which is the boring choice by any reading.
 
 **5. One primitive per concern.** No parallel mechanisms for the same problem: one workflow engine ([Temporal](0302-temporal.md)), one queue model, one deploy mechanism, one manifest tree. Durable, multi-step, or cross-service async is a Temporal workflow; a trivial best-effort job may use the sanctioned transactional-outbox path — the same concern served by one lighter primitive, not a competing engine.
 
@@ -171,7 +192,7 @@ None of these is a soft exit from principle 3. Each is a dependency at a layer t
 
 **7. No adoption without a recorded comparison.** A tool with no recorded comparison against its alternatives is an assumption, not a decision.
 
-- *Anchor:* **local** — principle 4 applied to the record. Depth is set by exit cost: paragraphs where abandonment costs months and customer data, a line where it costs days.
+- *Anchor:* **local** — principle 4 applied to the record. Depth is set by exit cost, and [ADR-0002](0002-tool-adoption.md) defines the three tiers and what each owes: a full table where abandonment costs months and customer data, a short one where it costs weeks, a register line where it costs days.
 - *Rejected:* nothing directly — this is the process gate that makes principles 1–6 enforceable rather than aspirational.
 
 ### Construction — how the system is built once a tool is in
@@ -207,7 +228,9 @@ Two rules that are easily mistaken for principles. They are not selection criter
 | **Seam** | Whether the slot already exists for the thing to drop into |
 | **Cost if adopted late** | What the delay buys, and what it risks |
 
-A deferral **with a seam** is additive — adopting it later changes configuration, not structure. A deferral **without a seam** is a *bet*, not a deferral, and must be labelled as one in the owning ADR. The two look identical in a backlog and are different in a review. [`docs/operational-surface.md`](../operational-surface.md) holds the Core / Scale / Opt-in tiers this applies to, and the current list of what is deferred.
+A deferral **with a seam** is additive — adopting it later changes configuration, not structure. A deferral **without a seam** is a *bet*, and is labelled as one in the owning ADR. The two look identical in a backlog and are different in a review.
+
+[`docs/operational-surface.md`](../operational-surface.md) holds the Core / Scale / Opt-in tiers this applies to, and what is deferred.
 
 ### When to write an ADR
 
@@ -232,7 +255,9 @@ There is no `Rejected` or `Draft` status. Rejected proposals are closed PRs, not
 
 ### Structure, numbering, and prose
 
-[ADR-0001](0001-documentation-and-output-conventions.md) owns all three: the section order every ADR follows, the blocks-of-a-hundred numbering, and the density rules the prose is held to. One rule belongs here instead, because it is a selection criterion rather than a style: **the comparison table in *Considered options* is mandatory** (principle 7), at a depth set by that tool's exit cost. A long deep-dive belongs in the PR discussion, not the ADR.
+[ADR-0001](0001-documentation-and-output-conventions.md) owns all three: section order, the blocks-of-a-hundred numbering, and the density rules.
+
+One rule belongs here instead, because it is a selection criterion rather than a style: **the comparison table in *Considered options* is mandatory** (principle 7). [ADR-0002](0002-tool-adoption.md) sets its depth per tier. A long deep-dive belongs in the PR discussion, not the ADR.
 
 ### Who decides
 
@@ -297,6 +322,15 @@ Principle 7 applies to standards as much as to tools: one with no recorded compa
 
 Used consistently across all ADRs. If a term is ambiguous in a later ADR, this glossary wins.
 
+**Four words carry a second, unrelated sense elsewhere in the repository.** Both senses are correct, and the subject resolves which is meant.
+
+| Word | Glossary sense | The other sense |
+| --- | --- | --- |
+| **floor** | the guaranteed minimum of the platform or a primitive | *baseline* in a load-test run is the reference measurement a later run is compared against ([`docs/guide/performance-runbook.md`](../guide/performance-runbook.md)), and [`docs/security-baseline.md`](../security-baseline.md) is the index of controls |
+| **ceiling** | the point at which an approach stops working, stated as a trigger | a container's `limits` field, which is a scheduler value ([ADR-0204](0204-resource-management.md)) |
+| **trigger** | the observable condition that makes a deferred capability due | a *threshold* is a number whose doubling would change the decision ([ADR-0001](0001-documentation-and-output-conventions.md)). A threshold is often what a trigger tests, and the two are not interchangeable: one is a number, the other is a condition |
+| **first-class** | served by the default path rather than by a special case beside it | *native execution* is a service run as a host process rather than in a container ([ADR-0600](0600-local-development-loop.md)) |
+
 - **Axis position** — this platform's load-bearing assumption, set in *Thesis* above: **A high, B maximal, C high**. An ADR cites the axis position rather than restating a service count or a headcount, so it changes in that one place.
 - **Seam** — a pre-built slot a deferred capability drops into without restructuring. A deferral with a seam is additive; one without is a bet.
 - **Anchor** — the external standard a principle rests on. A principle without one is marked **local**.
@@ -342,7 +376,8 @@ Used consistently across all ADRs. If a term is ambiguous in a later ADR, this g
 
 - An ADR exists for every decision that binds more than one service or is hard to reverse.
 - An ADR follows the structure, numbering, and prose rules of [ADR-0001](0001-documentation-and-output-conventions.md).
-- **No tool is adopted without a recorded comparison against its alternatives** (principle 7). The comparison is a table with prose cells, not a scoring grid, at a depth set by that tool's exit cost.
+- **No tool is adopted without a recorded comparison against its alternatives** (principle 7). The comparison is a table with prose cells, not a scoring grid, at the depth [ADR-0002](0002-tool-adoption.md) sets for that tool's tier. `(CI: lint:tool-register)`
+- Every young component carries a named fallback and an observable trigger in its owning ADR. A novel adoption without one is a bet, and is labelled one.
 - An accepted ADR is binding on every service. Per-service deviation requires a new ADR.
 - A decision is unambiguous: no "or Y in some cases" without a measurable trigger.
 - Nothing is "temporary." Either commit, or defer behind a hard trigger — and record the trigger, whether a **seam** exists, and the cost of adopting late. A deferral without a seam is a **bet** and is labelled one.

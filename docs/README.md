@@ -19,7 +19,7 @@ Genre decides the directory, so a path states what kind of document it points at
 | `reference/` | reference | a lookup, a registry, or live state |
 | `docs/*.md` | entry and canonical registries | the way in, and the documents the ADR set cites by name as the only place a thing is recorded |
 
-The root is deliberately small: [reading-path](reading-path.md) and [dev-loop](dev-loop.md) are where a reader starts, and [operational-surface](operational-surface.md), [adoption-path](adoption-path.md), and [security-baseline](security-baseline.md) are cited across the ADR set as the single home of the component inventory, the reduction order, and the control index. A file earns the root by being one of those two things.
+The root is deliberately small: [reading-path](reading-path.md) and [dev-loop](dev-loop.md) are where a reader starts, and [operational-surface](operational-surface.md), [adoption-path](adoption-path.md), [tool-register](tool-register.md), and [security-baseline](security-baseline.md) are cited across the ADR set as the single home of the component inventory, the reduction order, the tool inventory, and the control index. A file earns the root by being one of those two things.
 
 Topic lives in the filename, not in a directory. A directory holding one file is a directory that buys nothing, and a `runbook.md` repeated once per topic is four files an editor cannot tell apart.
 
@@ -27,6 +27,7 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 
 | Doc | Answers |
 | --- | --- |
+| [first-change](guide/first-change.md) | I have read the set — how do I make my first change, and what does it pass through? |
 | [dev-loop](dev-loop.md) | How do I run and debug a service on my machine? |
 | [database-migrations](guide/database-migrations.md) | How do I write and apply a schema migration? |
 | [postgres-major-upgrade](guide/postgres-major-upgrade.md) | How do I move Postgres to a new major version? |
@@ -47,11 +48,13 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 | [local-environment](reference/local-environment.md) | Local ports, URLs, the frontend environment contract, the task index |
 | [operational-surface](operational-surface.md) | Every platform component, tiered Core / Scale / Opt-in, with its recurring obligation, plus the budget rule |
 | [adoption-path](adoption-path.md) | What to give up and in what order when the floor exceeds capacity, and what it costs to take back |
+| [tool-register](tool-register.md) | Every tool, its exit-cost tier, licence, governing body, and owning ADR |
 | [security-baseline](security-baseline.md) | Every security control and the mechanism enforcing it. **Generated** from the owning ADRs' Rules sections |
 | [system-view](reference/system-view.md) | What runs, how a request moves through it, and where identity enters. One page |
 | [risk-register](reference/risk-register.md) | Every accepted risk in the set, ranked, with its compensating control and its trigger |
 | [deferral-register](reference/deferral-register.md) | Every deferral's trigger, and whether a machine can see it fire |
 | [detection-latency](reference/detection-latency.md) | Per failure class: what detects it, and how long that takes |
+| [build-path](reference/build-path.md) | Per class of defect: what stops it before production, and what reaches production unchecked |
 | [threat-model](reference/threat-model.md) | The adversaries each control is against, over the three boundaries |
 | [cost-model](reference/cost-model.md) | The shape of the bill and what appears on it, priced by the adopter |
 | [rules-index](reference/rules-index.md) | Every rule in the set with its enforcement. **Generated** |
@@ -73,6 +76,8 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 | Whether we can run less than this | [adoption-path](adoption-path.md) |
 | What this platform accepts going wrong | [risk-register](reference/risk-register.md) |
 | How long until we notice | [detection-latency](reference/detection-latency.md) |
+| What can reach production unchecked | [build-path](reference/build-path.md) |
+| Whether a tool has a recorded comparison | [tool-register](tool-register.md) |
 | What we are waiting for, and who watches | [deferral-register](reference/deferral-register.md) |
 | What the shape of the system is | [system-view](reference/system-view.md) |
 | Whether an upstream fact still holds | [upstream-status](reference/upstream-status.md) |

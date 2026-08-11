@@ -14,7 +14,7 @@ The platform serves four kinds of principal:
 | --- | --- |
 | B2C users | public sign-up, email and password, social login, MFA, recovery |
 | B2B organisations | multi-tenant orgs, SSO, per-org roles, SCIM provisioning |
-| Services calling services | identity forwarded as headers, trusted by network policy ([ADR-0200](0200-cluster-topology.md)). No per-call token |
+| Services calling services | identity forwarded as headers, trusted by network policy ([ADR-0206](0206-cluster-networking.md)). No per-call token |
 | Third-party API consumers | tokens to call public APIs |
 
 Constraints inherited from earlier ADRs: self-host only, per-service footprint matters ([ADR-0100](0100-language-and-runtime.md)), and the edge validates tokens while services decide permissions ([ADR-0305](0305-edge-auth-and-traffic-policy.md)).
@@ -38,7 +38,7 @@ The decision splits into three: the identity provider, the OAuth2 authorization 
 
 | Option | Headless flow | Config source of truth | Verdict |
 | --- | --- | --- | --- |
-| **Ory Kratos** | fully headless self-service flows | **JSON Schema identity files and YAML in git** | **Chosen.** Go, Apache-2.0, the reference implementation of the headless pattern |
+| **Ory Kratos** | fully headless self-service flows | **JSON Schema identity files and YAML in git** | **Chosen.** Go, Apache-2.0, the reference implementation of the headless pattern *(documented)* |
 | Zitadel | a genuine headless Session API covering password, MFA, passkeys, and external IdPs | **its own event-sourced database**, despite its Terraform provider | Rejected on driver 1 — the same driver that rejected Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)). Secondary: its own guide makes hosted login the default and states it was "designed with security in mind, which limits the customization capabilities", and its headline customization story is forking a beta Next.js app, which the UI constraint excludes by name |
 | Keycloak | themes, or the Admin and Account REST APIs — not a first-class headless self-service flow | realm import/export, with drift back to the database | The most mature OSS provider, at a JVM footprint incompatible with [ADR-0100](0100-language-and-runtime.md), and extension work in Java |
 | Authentik | flow-based | database | Python, Django, Celery, and Redis is a third runtime and three components. B2C self-service flows are less mature |
@@ -52,7 +52,7 @@ Needed only when a third-party client obtains its own credentials; first-party b
 
 | Option | Added runtime and datastore | Consent flow integrates with the chosen IdP | Config source of truth | Verdict |
 | --- | --- | --- | --- | --- |
-| **Ory Hydra** | none — Go on the existing Postgres | **yes, first-party with Kratos** | YAML plus committed client definitions | **Chosen.** The only option that adds an OAuth2 server without also adding a second identity system |
+| **Ory Hydra** | none — Go on the existing Postgres | **yes, first-party with Kratos** | YAML plus committed client definitions | **Chosen.** The only option that adds an OAuth2 server without also adding a second identity system *(reasoned)* |
 | Keycloak | a JVM, and its own store | it *is* the IdP, so the question dissolves — and so does Kratos | realm import, drifting to the database | Adopting it here re-decides the row above, and [ADR-0100](0100-language-and-runtime.md) bars the runtime |
 | Zitadel | its own event-sourced store | as above, it replaces Kratos | its own database | Same: it is an IdP that also does OAuth2, not an OAuth2 server for someone else's IdP |
 | Authentik | Python, Django, Celery, Redis | as above | database | Same shape, heavier |
@@ -67,7 +67,7 @@ Day-one requirements are ReBAC, not flat RBAC: cross-org sharing, role per org p
 
 | Engine | Model and capability | Governance | Fit | Verdict |
 | --- | --- | --- | --- | --- |
-| **OpenFGA** | Zanzibar ReBAC; ABAC through CEL conditions and contextual tuples; reverse index via `ListObjects` and `ListUsers` | **CNCF** — vendor-neutral, multi-vendor contributors | single Go binary on Postgres; `.fga` DSL, `fga model test` in CI, official Go SDK behind a seam | **Chosen.** Matches SpiceDB on capability and operational shape, and wins on governance. Contextual tuples also let a check read data at request time, easing the sync the dual write carries |
+| **OpenFGA** | Zanzibar ReBAC; ABAC through CEL conditions and contextual tuples; reverse index via `ListObjects` and `ListUsers` | **CNCF** — vendor-neutral, multi-vendor contributors | single Go binary on Postgres; `.fga` DSL, `fga model test` in CI, official Go SDK behind a seam | **Chosen.** Matches SpiceDB on capability and operational shape, and wins on governance. Contextual tuples also let a check read data at request time, easing the sync the dual write carries *(reasoned)* |
 | SpiceDB | Zanzibar ReBAC; ABAC through CEL caveats; strongest reverse-index and `Watch` APIs; `ZedToken` consistency | single-vendor | single Go binary on Postgres | The credible fallback, equal on capability. Loses only on governance, and its consistency edge bites only at large scale |
 | Ory Keto | Zanzibar ReBAC; ABAC only through OPL; no conditions, `Watch`, or batch | single-vendor, some features source-available | fits the existing Ory stack | The thinnest feature set of the mature engines, with licence-gated extras and no offsetting advantage |
 | Permify | ReBAC plus first-class ABAC; native multi-tenancy | single-vendor, under corporate ownership; smaller community | Go on Postgres | Capable, and narrower adoption against a vendor-neutral option of equal capability makes it the weaker long-term bet |
@@ -145,11 +145,13 @@ Kratos stores identities, not organisations. Multi-tenancy is a first-party `ser
 
 **The organisation is the unit of authorization.** Every protected resource in the model belongs to an `org`, and a user only ever acts through a role in some org. A user with zero orgs is an account that can own nothing.
 
-So membership is a day-one invariant: **the moment a Kratos identity is created it gets a personal organisation in which it is `admin`.** The post-registration webhook starts the `RegisterUser` workflow, whose two activities are the same dual write as any authz mutation — the `orgs` rows and the OpenFGA tuple. Because membership is many-to-many, a user can create further orgs and be invited into others; the personal org is a first tenant, not a ceiling.
+So membership is a day-one invariant: **the moment a Kratos identity is created it gets a personal organisation in which it is `admin`.** The post-registration webhook starts the `RegisterUser` workflow, whose two activities are the same dual write as any authz mutation — the `orgs` rows and the OpenFGA tuple.
+
+Membership is many-to-many, so a user can create further orgs and be invited into others. The personal org is a first tenant, not a ceiling.
 
 | Model | Tenant created | Gain over eager | Cost |
 | --- | --- | --- | --- |
-| **Personal org, eager** | automatically, at registration | **Chosen.** Zero org-less branching, and a superset of the others — a sales-led flow layers on unchanged | one-person-org clutter |
+| **Personal org, eager** | automatically, at registration | **Chosen.** Zero org-less branching, and a superset of the others — a sales-led flow layers on unchanged | one-person-org clutter *(reasoned)* |
 | Lazy tenant | on the first action needing one | less clutter | every caller must handle the org-less user, so "identities with no org" becomes normal rather than an edge case |
 | Owner-creates-first | manually, as a deliberate step | cleanest for pure B2B | a freshly signed-up user sits in limbo |
 | Invite-only or SCIM | by an admin or an external IdP | fits regulated environments | no self-serve growth, and the provisioning path must exist up front |
@@ -266,7 +268,7 @@ The version is pinned so an upstream revision is a reviewed bump rather than a s
 | Input validation and encoding | [ADR-0303](0303-api-contracts-and-lifecycle.md) — validators generated from the spec, so coverage is not a matter of diligence |
 | Error handling and logging | [ADR-0303](0303-api-contracts-and-lifecycle.md)'s error envelope, [ADR-0500](0500-observability.md)'s structured logs and PII rule |
 | Data protection and privacy | [ADR-0301](0301-data-lifecycle-privacy.md) |
-| Communications security | [ADR-0200](0200-cluster-topology.md) WireGuard east-west, [ADR-0205](0205-environment-parity.md) verified TLS everywhere |
+| Communications security | [ADR-0206](0206-cluster-networking.md) WireGuard east-west, [ADR-0205](0205-environment-parity.md) verified TLS everywhere |
 | Configuration and secrets | [ADR-0202](0202-secrets.md) |
 | Malicious-code and supply chain | [ADR-0104](0104-supply-chain-security.md) |
 

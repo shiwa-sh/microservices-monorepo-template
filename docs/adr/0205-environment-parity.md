@@ -21,7 +21,7 @@
 
 | Option | Divergence expressed as | Exercises the production path elsewhere | Cost of an upstream change | Verdict |
 | --- | --- | --- | --- | --- |
-| **One chart set, per-env values overlays** | one values file per environment | yes — every tier renders the same templates | once | **Chosen.** The divergence surface is one diffable file per environment |
+| **One chart set, per-env values overlays** | one values file per environment | yes — every tier renders the same templates | once | **Chosen.** The divergence surface is one diffable file per environment *(reasoned)* |
 | Kustomize overlays on a shared base | a base plus a patch directory per environment | yes | once, plus re-checking that each patch still matches the base | Patches match the base structurally, so an upstream change can silently no-op one and the divergence becomes invisible. [ADR-0201](0201-gitops.md) rejects the templating layer for the same reason |
 | Per-environment chart forks | separate chart directories | no — each fork is exercised only by its own environment | once per fork | Drift is invisible until an environment breaks |
 | Chart logic branching on environment | `{{ if eq .Values.env "prod" }}` | **no — the production branch is the least-exercised code in the repo** | once, and every branch re-reasoned | Moves divergence into templates, where it cannot be reviewed as configuration |
@@ -110,8 +110,8 @@ Expressed as values, that delta is the S3 endpoint and whether the in-cluster ch
 - Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay.
 - Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier.
 - The Kubernetes API, service chart, service images, and env contract are identical in every tier.
-- Object storage is one implementation in every environment ([ADR-0200](0200-cluster-topology.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves.
-- Backups are off-cluster and mandatory in production ([ADR-0200](0200-cluster-topology.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
+- Object storage is one implementation in every environment ([ADR-0207](0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves.
+- Backups are off-cluster and mandatory in production ([ADR-0207](0207-cluster-storage.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
 - SOPS is the secret mechanism in every environment, including local.
 - A PR preview is the full-platform tier at a pull request's images, label-gated, and destroyed with the run. Its slug derives from the pull request number.
 - A preview uses the local secret path and the committed test identities. No deployed environment's data or credentials are copied into one.

@@ -19,15 +19,15 @@ At axis B maximal the registry is a first-class decision. It also sits on the cr
 3. **A pull depends on as little as possible.** Every node start reads the registry, so whatever it is coupled to becomes a dependency of scheduling itself.
 4. **Configuration in the repository** (principle 1). Projects, quotas, and retention are files, not UI state.
 
-Object storage as the backend ([ADR-0200](0200-cluster-topology.md)) is a platform constraint rather than a driver: every option below supports it, so it selects nothing and appears in the Decision instead.
+Object storage as the backend ([ADR-0207](0207-cluster-storage.md)) is a platform constraint rather than a driver: every option below supports it, so it selects nothing and appears in the Decision instead.
 
 ## Considered options
 
 | Option | Always-on workloads | OCI 1.1 artifacts | Config as files | Verdict |
 | --- | --- | --- | --- | --- |
-| **zot** | **one Go binary** | native, with S3-compatible storage | a single committed config file | **Chosen.** The only option that closes the concern without expanding the floor |
+| **zot** | **one Go binary** | [native](https://zotregistry.dev/latest/), with S3-compatible storage | a single committed config file | **Chosen.** The only option that closes the concern without expanding the floor *(reasoned)* |
 | Harbor | registry, registry controller, core, jobservice, portal, **its own Postgres and a Redis** | yes | partly — projects, robots, and retention are API and UI objects, reconciled only by a separate operator | Feature-complete and the reflexive answer. Five workloads and two datastores for one concern is the purchase principle 2 exists to refuse |
-| CNCF Distribution | one binary | yes — it is the reference implementation, and the referrers API arrived in its 3.x line, so the long-deployed 2.x images answer only through the fallback tag schema | one config file | The thinnest of all. No authentication model beyond htpasswd or a token service, no retention policy, no UI — each of which then becomes its own decision |
+| CNCF Distribution | one binary | yes — it is the reference implementation, and the [referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers) arrived in its 3.x line, so the long-deployed 2.x images answer only through the fallback tag schema | one config file | The thinnest of all. No authentication model beyond htpasswd or a token service, no retention policy, no UI — each of which then becomes its own decision |
 | Forgejo package registry | none — the forge is already a decided component ([ADR-0102](0102-source-control-and-ci.md)) | partial | forge config | Free in component count and rejected anyway, on the coupling argument below rather than on capability |
 | Managed registry | none | yes | provider API | Fails principle 3. Ranked late on the [ADR-0000](0000-platform-foundations.md) swap list, so it is a concession taken well after the ones above it |
 | Do nothing | none | n/a | n/a | The honest baseline: images live wherever CI last pushed them. Incompatible with digest-pinned admission |
@@ -43,7 +43,7 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | Concern | Decision |
 | --- | --- |
 | Registry | **zot**, one instance per environment, configured by a committed file |
-| Storage backend | the object storage in [ADR-0200](0200-cluster-topology.md). Image data is never on a node volume |
+| Storage backend | the object storage in [ADR-0207](0207-cluster-storage.md). Image data is never on a node volume |
 | Artefacts | OCI 1.1 referrers hold the cosign signature, SBOM, and provenance from [ADR-0104](0104-supply-chain-security.md) |
 | Authentication | pipeline credentials push; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)) |
 | Third-party images | pulled from upstream and pinned by digest ([ADR-0104](0104-supply-chain-security.md)). The registry does not proxy them by default |

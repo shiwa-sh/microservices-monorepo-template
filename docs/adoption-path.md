@@ -35,7 +35,7 @@ The seam exists. Each row is removed by not deploying a chart, and restored by d
 
 | Removed | What covers the concern instead | Restore trigger | Cost to reverse |
 | --- | --- | --- | --- |
-| **Hubble UI** | `hubble observe` on the CLI — the agent and relay run either way as the audit surface for default-deny ([ADR-0200](adr/0200-cluster-topology.md)) | flow debugging becomes routine rather than incidental, or a non-author needs to read drop verdicts | a values field ([ADR-0501](adr/0501-operator-uis-and-dashboards.md)) |
+| **Hubble UI** | `hubble observe` on the CLI — the agent and relay run either way as the audit surface for default-deny ([ADR-0206](adr/0206-cluster-networking.md)) | flow debugging becomes routine rather than incidental, or a non-author needs to read drop verdicts | a values field ([ADR-0501](adr/0501-operator-uis-and-dashboards.md)) |
 | **pgweb** | `psql` over a port-forward against the same read-only role | break-glass DB inspection happens under time pressure often enough that the port-forward is the delay | a chart ([ADR-0401](adr/0401-internal-admin.md)) |
 | **Headlamp** | `kubectl`, which every operator of this platform must have anyway | someone who needs to read cluster state is not a `kubectl` user | a chart ([ADR-0501](adr/0501-operator-uis-and-dashboards.md)) |
 | **Pyroscope + Alloy** | metrics and traces for *what* is slow; no answer for *where* in the code | a CPU or memory regression that metrics locate to a service but not to a function, twice | two charts — services already expose `pprof`, so nothing is re-instrumented ([ADR-0500](adr/0500-observability.md)) |

@@ -14,7 +14,7 @@ This ADR picks the **primary backend language**, the **conditions under which a 
 
 ## Decision drivers
 
-1. **The hiring intersection at this axis position.** Axis B at maximum needs one organisation to staff two roles: writing product services, and operating self-hosted Kubernetes ([ADR-0000](0000-platform-foundations.md), principle 3). What a language costs is the overlap between those pools — capacity, which principle 3 names as the binding constraint. The operated stack is one language's output and its operators concentrate there; its readability in the product's language follows, and is a benefit rather than a second reason.
+1. **The hiring intersection at this axis position.** Axis B at maximum needs one organisation to staff two roles: writing product services, and operating self-hosted Kubernetes ([ADR-0000](0000-platform-foundations.md), principle 3). What a language costs is the overlap between those pools, which is capacity — principle 3's binding constraint. The operated stack is one language's output and its operators concentrate there; readability in the product's language follows, and is a benefit rather than a second reason.
 2. **Per-service cost against a fixed platform budget.** Axis A high: runtime, toolchain, base image, CI cache, and lint configuration are paid per service and per replica. A cost tolerable once is not tolerable across a fleet.
 3. **Correctness affordances at axis C high.** Exact arithmetic, predictable concurrency, and types that refuse to represent an invalid state.
 4. **A floor under the two SDKs every service links.** Every service is a durable-execution worker ([ADR-0302](0302-temporal.md)) and a telemetry producer ([ADR-0500](0500-observability.md)). Bindings that are community-maintained or pre-GA put a load-bearing path in the hands of one maintainer. **This admits or excludes a language; it does not rank the languages that clear it.**
@@ -24,7 +24,7 @@ This ADR picks the **primary backend language**, the **conditions under which a 
 
 | Option | Overlap with the operated stack | Axis C affordances | SDK floor | Verdict |
 | --- | --- | --- | --- | --- |
-| **Go** | **the stack itself** — Kubernetes and its controller ecosystem, ArgoCD, Traefik, Ory, Temporal's server, the OTel Collector, Prometheus, Loki, and Tempo | static types and CSP concurrency. **No decimal type in the standard library**, and no sum types | clears it, as four others do. Its OTel log signal is beta where .NET's and Java's are stable | **Chosen** on drivers 1 and 5. Verbose error handling and a thin type system are accepted; the arithmetic gap is closed below |
+| **Go** | **the stack itself** — Kubernetes and its controller ecosystem, ArgoCD, Traefik, Ory, Temporal's server, the OTel Collector, Prometheus, Loki, and Tempo | static types and CSP concurrency. **No decimal type in the standard library**, and no sum types | clears it, as four others do. Its OTel log signal is beta where .NET's and Java's are stable | **Chosen** on drivers 1 and 5. Verbose error handling and a thin type system are accepted; the arithmetic gap is closed below *(reasoned)* |
 | Rust | no | the strongest on offer — exhaustive matching, no data races by construction, and [`sqlx`](https://github.com/launchbadge/sqlx) checks every query against the live schema at compile time where `sqlc` infers it | **fails it** — Temporal is [first-party at public preview](https://temporal.io/changelog/rust-sdk-public-preview) rather than GA, and [OTel Rust](https://opentelemetry.io/docs/languages/) is beta on all three signals | Best correctness in the field, and driver 4 is unmet while the velocity cost is paid per service. **Kept as an escape hatch** |
 | .NET (C#) | no, and its cloud-native segment is Azure-shaped — managed Kubernetes, hosted CI — which is axis B *low* | native 128-bit `decimal`, records, pattern matching — stronger than Go | clears it. [OTel .NET](https://opentelemetry.io/docs/languages/) is stable across all three signals | **The strongest alternative, and it loses on driver 1 alone.** Better than Go on driver 3, conceded below. The engineer who writes C# services *and* has operated self-hosted Kubernetes on hardware is the rare intersection; the Azure-native one is common and is a different axis position |
 | JVM (Java/Kotlin) | no | `BigDecimal`; Kotlin adds sealed hierarchies and null tracking | clears it, on the most mature durable-execution SDK in the field | As .NET, plus a build tool and an application framework this ADR would have to choose, and native compilation is a second build mode under its own licence |
@@ -48,7 +48,9 @@ This ADR picks the **primary backend language**, the **conditions under which a 
 
 ### Go is chosen for who can staff it
 
-At axis B maximal the scarce role is not "a backend engineer" but one who can write product services and also debug a reconciliation loop, an admission webhook, an eBPF datapath, or a collector pipeline. That second capability is the harder hire in any language. Choosing the operated stack's language does not make it easier; it makes the two pools adjacent, so a service engineer can grow into platform work and a platform engineer can review service code.
+At axis B maximal the scarce role is not "a backend engineer" but one who can write product services and also debug a reconciliation loop, an admission webhook, an eBPF datapath, or a collector pipeline.
+
+That second capability is the harder hire in any language. Choosing the operated stack's language does not make it easier; it makes the two pools adjacent, so a service engineer can grow into platform work and a platform engineer can review service code.
 
 **The claim is about a labour market, so it decays.** It holds while cloud-native infrastructure remains one language's output and the operator population concentrates there. The re-derivation test: are engineers who have operated self-hosted Kubernetes still found predominantly in this language's adjacent roles? A language-popularity ranking does not answer that, and is not evidence for this driver.
 
@@ -85,13 +87,15 @@ Driver 1 rests on a stack this ADR does not choose and on a labour market it doe
 | The position on axis B moves down | **Decisive.** The operated stack dissolves, the roles stop needing to overlap, driver 1 evaporates, and driver 3 decides instead |
 | The operator population stops concentrating in one language | **Decisive**, and it is the condition driver 1 is stated against. Re-derive per *Go is chosen for who can staff it* above |
 
-The orchestration and controller layer is what makes driver 1 robust rather than incidental. Identity could have been a JVM product and the telemetry stores could have been, and those substitutions leave the decision intact. At axis B maximal there is no non-Go orchestrator that is a real option, and that layer is where the custom controllers and the patches are written — and that layer, rather than a count of projects, is what fixes where the operators are.
+The orchestration and controller layer is what makes driver 1 robust rather than incidental. Identity could have been a JVM product and so could the telemetry stores, and those substitutions leave the decision intact.
+
+At axis B maximal no non-Go orchestrator is a real option, and that layer is where the custom controllers and the patches are written. That layer, rather than a count of projects, is what fixes where the operators are.
 
 ### The JS runtime
 
 | Option | Node API compatibility | Toolchain components | Verdict |
 | --- | --- | --- | --- |
-| **Bun** | **the highest of the three** | **one binary** — runtime, package manager, workspaces, test runner, and bundler | **Chosen.** Driver 2 applied to the toolchain itself |
+| **Bun** | **the highest of the three** | **one binary** — runtime, package manager, workspaces, test runner, and bundler | **Chosen.** Driver 2 applied to the toolchain itself *(reasoned)* |
 | Node.js | the definition of it | a package manager, a test runner, and a bundler selected, pinned, cached, and upgraded separately | Loses on driver 2. Each addition is a version to pin and a supply-chain edge ([ADR-0104](0104-supply-chain-security.md)) |
 | Deno | lowest, reached through an `npm:` specifier | comparable to Bun | A second permissions model and a second registry, for no capability this platform needs |
 

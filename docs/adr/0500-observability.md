@@ -29,7 +29,7 @@ This ADR answers: which signals, which backend, how they are collected, and what
 
 | Option | Dashboards and alerts as code | Signals covered | Query language | Verdict |
 | --- | --- | --- | --- | --- |
-| **Grafana stack — Loki, Prometheus, Tempo, Pyroscope** | **JSON and YAML files in git**, reconciled by Argo | all four, plus browser RUM through a Faro receiver | PromQL, LogQL, TraceQL — portable | **Chosen** |
+| **Grafana stack — Loki, Prometheus, Tempo, Pyroscope** | **JSON and YAML files in git**, reconciled by Argo | all four, plus browser RUM through a Faro receiver | PromQL, LogQL, TraceQL — portable | **Chosen** *(reasoned)* |
 | VictoriaMetrics, VictoriaLogs, VictoriaTraces | files, and Grafana stays the UI | three; no continuous profiling | **PromQL-compatible** plus MetricsQL | The serious challenger on operational weight: markedly lower resource use than Prometheus plus Loki at the same retention, and it keeps driver 5 because Grafana and PromQL are unchanged. It loses on completeness — profiling has no counterpart, so Pyroscope stays and the consolidation is partial — and the components are on different maturity footings, with the traces backend the youngest part |
 | SigNoz | **UI-only click-ops state in ClickHouse** | three; no continuous profiling | its own | Consolidating four components into one is the strongest case any option here makes against a fixed operational budget. It fails driver 1 outright — the same driver that rejects Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)) — and additionally loses continuous profiling and the Faro RUM receiver |
 | OpenObserve | **UI-only click-ops state** | three | its own | Same failure as SigNoz on driver 1, with a non-portable query language on top |
@@ -40,7 +40,7 @@ This ADR answers: which signals, which backend, how they are collected, and what
 
 | Option | Added workloads | Enrichment with pod metadata | Verdict |
 | --- | --- | --- | --- |
-| **OTel Collector as a DaemonSet** | one per node | at the node, from the kubelet | **Chosen.** Every service emits to `localhost:4317`, which makes the destination a collector concern rather than an application one |
+| **OTel Collector as a DaemonSet** | one per node | at the node, from the kubelet | **Chosen.** Every service emits to `localhost:4317`, which makes the destination a collector concern rather than an application one *(reasoned)* |
 | DaemonSet plus a gateway Deployment | one per node, plus a tier | as above | The right shape once spans must be held to sample on outcome. It is the deferral below, and adding it changes no service |
 | A gateway Deployment only | one tier | **no** — the collector is off-node, so pod attributes have to be sent by the workload | Pushes resource-attribute correctness into every service, which is exactly what driver 3 removes |
 | Grafana Alloy for everything | one per node | yes | Already run for `pprof` scraping, and it is a Grafana-flavoured distribution of the same collector. Using it for OTLP too would trade the vendor-neutral collector for a vendor's build, against driver 2 |
@@ -103,7 +103,7 @@ Service authors never touch the OTel SDK. Custom spans and counters go through `
 
 Sizing: production runs Loki and Tempo at two replicas each and Grafana at two, with Prometheus single — its HA story is the Mimir swap, not replica count. Non-prod runs single replicas; failure tolerance for observability there is not worth the resources.
 
-**Mimir is the metrics scale swap.**
+**Mimir is the metrics scale swap**, picked over Thanos and Cortex because it is the one whose query API is Prometheus's without a sidecar or a query layer in front, and over a VictoriaMetrics cluster because that would change the query dialect the dashboards and alert rules are written in.
 
 | Field | Value |
 | --- | --- |

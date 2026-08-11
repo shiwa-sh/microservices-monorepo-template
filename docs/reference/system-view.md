@@ -105,7 +105,7 @@ Where a decision is made about *who* and a separate decision about *what they ma
 | --- | --- | --- |
 | Who is this? | Kratos, through Oathkeeper | once, at the edge ([ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md)) |
 | May they do this? | OpenFGA, through `Checker` | in the handler, per request and per resource ([ADR-0304](../adr/0304-identity-and-authorization.md)) |
-| May they reach this port? | CiliumNetworkPolicy | in the datapath, independent of both ([ADR-0200](../adr/0200-cluster-topology.md)) |
+| May they reach this port? | CiliumNetworkPolicy | in the datapath, independent of both ([ADR-0206](../adr/0206-cluster-networking.md)) |
 | May this operator open a dashboard? | the ops coarse gate — the `operator` claim plus AAL2, deliberately with **no** OpenFGA call | at the edge, so an authorization outage cannot lock operators out of the dashboards that diagnose it |
 
 **The load-bearing asymmetry.** Between the edge and a service, identity is a header trusted because of network position ([ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md)). Authorization is never positional: a request that has arrived is authorized as though it came from anywhere. The seam that makes the first cryptographic is recorded with its trigger, and the second needs no seam because it never made the assumption.

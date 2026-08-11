@@ -26,13 +26,22 @@ A managed forge is the one dependency that cannot be reconciled with principle 3
 
 | Option | Component weight | Pipelines | Governance | Verdict |
 | --- | --- | --- | --- | --- |
-| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together |
+| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together *(reasoned)* |
 | Gitea + Gitea Actions | identical | identical | company-controlled | Functionally equivalent. Provenance is *recorded evidence about exit cost* (principle 4), and the governing body is the only discriminator between two otherwise equal choices |
 | GitLab CE | a suite — Gitaly, Redis, Sidekiq, its own Postgres, several web services | mature and complete | company-controlled, open-core | Rejected by principle 2, as [ADR-0000](0000-platform-foundations.md) already records. It replaces one component with a platform |
 | Self-hosted forge + separate CI engine | two components | Woodpecker, Tekton, or Argo Workflows | varies | Rejected by principle 5, as [ADR-0000](0000-platform-foundations.md) already records: a second system beside the forge |
 | A managed forge — the do-nothing baseline | none | hosted runners | third-party | Fails driver 1 outright. It leaves axis B asserted rather than held, and the identity that signs artefacts in a third party's control |
 
 Forgejo and Gitea are the same software lineage and score identically on every technical row. Principle 4 says provenance does not veto a choice but is recorded; here it is the only distinguishing evidence, so it decides.
+
+### The two tools the pipeline runs on
+
+Both Tier 2 ([ADR-0002](0002-tool-adoption.md)), and both are consequences of the runner shape rather than independent preferences.
+
+| Concern | Chosen | Picked over | Why |
+| --- | --- | --- | --- |
+| Image builds | **BuildKit, rootless** | Buildah, Kaniko, a socket-mounted Docker daemon | The node is immutable and exposes no Docker socket ([ADR-0200](0200-cluster-topology.md)), so a socket-mounted builder is unavailable rather than rejected *(reasoned)*. Of the three that remain, BuildKit is the one the `Dockerfile` syntax is defined against, so cache mounts and multi-stage behaviour need no translation. Buildah is the runner-up and its exit is a task change |
+| Running a workflow locally | **act** | pushing to a branch, running a self-hosted runner on the workstation | Workflow YAML is a thin caller of `mise run ci:*`, so most local verification is running the task directly. `act` covers the remaining case — the workflow wiring itself — without a push |
 
 ## Decision
 

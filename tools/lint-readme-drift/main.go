@@ -1,13 +1,22 @@
-// Command lint-readme-drift is principle 9 applied to the one document that is not
-// generated. The root README duplicates selection guidance by design (ADR-0001), and a
-// duplicate with no check drifts: the stack table kept naming tools the ADRs had
-// rejected, on the first page a reader sees.
+// Command lint-readme-drift is principle 9 applied to the two documents that duplicate by
+// design and are not generated. The root README restates selection guidance for a reader
+// who has not adopted yet (ADR-0001), and ADR-0000 keeps hand copies of verdicts its own
+// downstream ADRs own. A duplicate with no check drifts, and both of these did.
 //
-// Two checks.
+// Four checks.
 //
-// Drift: for every row of the stack table, the tools named in the decision cell are
-// matched against the options the cited ADR rejected. A rejected option presented as a
-// current decision is the failure this catches.
+// Stack drift: for every row of the README's stack table, the tools named in the decision
+// cell are matched against the options the cited ADR rejected. A rejected option presented
+// as a current decision is the failure this catches.
+//
+// Principle blocks: ADR-0000's principles list what each rejected and what each accepted
+// on the same rule. A name under *Rejected:* that some ADR chose, or a name under
+// *Accepted on the same rule:* that every ADR comparing it refused, is one document
+// contradicting another.
+//
+// Anchors: every principle is anchored to an external standard or marked local, and the
+// README states the same anchor at index resolution. The two must agree on which of the
+// two it is, and on the sources cited.
 //
 // Headcount: ADR-0000 states no headcount and none is to be inferred, so no committed
 // document states one. The demand side lives in operational-surface.md as obligations
@@ -25,8 +34,9 @@ import (
 )
 
 const (
-	adrDir     = "docs/adr"
-	readmePath = "README.md"
+	adrDir         = "docs/adr"
+	readmePath     = "README.md"
+	foundationsADR = "docs/adr/0000-platform-foundations.md"
 )
 
 var (
@@ -45,7 +55,26 @@ var (
 	singular  = regexp.MustCompile(`(?i)^(1|one)\b`)
 	linkText  = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
 	inlineTag = regexp.MustCompile("[`*]")
+
+	// A principle heading in ADR-0000, as in "**4. Spend novelty by exit cost**".
+	principleHead = regexp.MustCompile(`^\*\*(\d+)\.\s`)
+	// A principle row in either README table: the number is the first cell.
+	principleRow = regexp.MustCompile(`^\|\s*(\d+)\s*\|`)
+	// Link targets, which are what an anchor is compared on. Prose around a citation is
+	// written to two different lengths on purpose; the source cited is not.
+	linkTarget   = regexp.MustCompile(`\]\(([^)]+)\)`)
+	localMarker  = regexp.MustCompile(`(?i)\*\*local\*\*`)
+	parenthetics = regexp.MustCompile(`\([^)]*\)`)
 )
+
+// principle is one numbered selection or construction principle, as either document
+// states it. Only the fields both documents carry are compared.
+type principle struct {
+	local    bool
+	sources  map[string]bool
+	rejected []string
+	accepted []string
+}
 
 // stopWords are option-cell openings that carry no product name. An option is written as
 // a phrase, and only some phrases start with the thing being named.
@@ -68,18 +97,289 @@ func main() {
 	if err != nil {
 		failf("read %s: %v", readmePath, err)
 	}
+	verdicts, err := loadVerdicts()
+	if err != nil {
+		failf("%v", err)
+	}
+	foundations, err := os.ReadFile(foundationsADR)
+	if err != nil {
+		failf("read %s: %v", foundationsADR, err)
+	}
+	adrPrinciples := principlesInADR(string(foundations))
+	readmePrinciples := principlesInREADME(string(body))
+
 	problems := checkStackTable(string(body), rejected)
+	problems = append(problems, checkPrincipleBlocks(adrPrinciples, verdicts)...)
+	problems = append(problems, checkAnchors(adrPrinciples, readmePrinciples)...)
 	problems = append(problems, checkHeadcount()...)
 
 	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ the README has drifted from the ADR set:")
+		_, _ = fmt.Fprintln(os.Stderr, "✗ the README and ADR-0000 have drifted from the ADR set:")
 		sort.Strings(problems)
 		for _, p := range problems {
 			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
 		}
 		os.Exit(1)
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "✓ the README agrees with the ADR set")
+	_, _ = fmt.Fprintln(os.Stdout, "✓ the README and ADR-0000 agree with the ADR set")
+}
+
+// verdictSet is what every ADR's comparison tables concluded, pooled across the set: the
+// names that won somewhere, and the names that lost somewhere. ADR-0000 chooses no
+// technology, so its principle blocks are claims about these two sets.
+type verdictSet struct {
+	chosen map[string]string // name → the ADR number that chose it
+	lost   map[string]string // name → an ADR number that refused it
+}
+
+func loadVerdicts() (verdictSet, error) {
+	out := verdictSet{chosen: map[string]string{}, lost: map[string]string{}}
+	entries, err := os.ReadDir(adrDir)
+	if err != nil {
+		return out, fmt.Errorf("read %s: %w", adrDir, err)
+	}
+	for _, e := range entries {
+		m := adrFile.FindStringSubmatch(e.Name())
+		if m == nil {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(adrDir, e.Name()))
+		if err != nil {
+			return out, fmt.Errorf("read %s: %w", e.Name(), err)
+		}
+		chosen, lost := comparedNames(string(body))
+		for name := range chosen {
+			out.chosen[name] = m[1]
+		}
+		for name := range lost {
+			_, seen := out.lost[name]
+			if !seen {
+				out.lost[name] = m[1]
+			}
+		}
+	}
+	return out, nil
+}
+
+// principlesInADR reads ADR-0000's principle blocks. A principle opens with a bold
+// numbered heading and carries its anchor, its casualties, and what it admitted on the
+// same rule as sibling bullets.
+func principlesInADR(body string) map[string]principle {
+	out := map[string]principle{}
+	current := ""
+	for line := range strings.SplitSeq(body, "\n") {
+		head := principleHead.FindStringSubmatch(line)
+		if head != nil {
+			current = head[1]
+			out[current] = principle{sources: map[string]bool{}}
+			continue
+		}
+		if current == "" || !strings.HasPrefix(line, "- *") {
+			continue
+		}
+		p := out[current]
+		switch {
+		case strings.HasPrefix(line, "- *Anchor:*"):
+			rest := strings.TrimPrefix(line, "- *Anchor:*")
+			p.sources = externalSources(rest)
+			p.local = localMarker.MatchString(rest) && len(p.sources) == 0
+		case strings.HasPrefix(line, "- *Rejected:*"):
+			p.rejected = namesIn(strings.TrimPrefix(line, "- *Rejected:*"))
+		case strings.HasPrefix(line, "- *Accepted on the same rule:*"):
+			p.accepted = namesIn(strings.TrimPrefix(line, "- *Accepted on the same rule:*"))
+		}
+		out[current] = p
+	}
+	return out
+}
+
+// principlesInREADME reads the two principle tables. Their rows carry the number, the
+// principle, the anchor, and what it rejected, in that order.
+func principlesInREADME(body string) map[string]principle {
+	out := map[string]principle{}
+	for line := range strings.SplitSeq(body, "\n") {
+		m := principleRow.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		cells := splitRow(line)
+		if len(cells) < 4 {
+			continue
+		}
+		p := principle{sources: externalSources(cells[2])}
+		p.local = localMarker.MatchString(cells[2]) && len(p.sources) == 0
+		p.rejected = namesIn(cells[3])
+		out[m[1]] = p
+	}
+	return out
+}
+
+// checkPrincipleBlocks holds ADR-0000's hand copies against the verdicts their owning
+// ADRs reached. This is the check the four stale claims of ADR-0000 needed and did not
+// have: the document every other ADR cites was the one document nothing read back.
+func checkPrincipleBlocks(principles map[string]principle, v verdictSet) []string {
+	var problems []string
+	for num, p := range principles {
+		for _, name := range p.rejected {
+			owner, chosen := v.chosen[name]
+			if !chosen {
+				continue
+			}
+			problem := fmt.Sprintf(
+				"%s: principle %s rejects %q, and ADR-%s chose it",
+				foundationsADR,
+				num,
+				name,
+				owner,
+			)
+			problems = append(problems, problem)
+		}
+		for _, name := range p.accepted {
+			_, chosen := v.chosen[name]
+			if chosen {
+				continue
+			}
+			owner, lost := v.lost[name]
+			if !lost {
+				continue
+			}
+			problem := fmt.Sprintf(
+				"%s: principle %s accepts %q on the exit-cost rule, and ADR-%s rejected it",
+				foundationsADR,
+				num,
+				name,
+				owner,
+			)
+			problems = append(problems, problem)
+		}
+	}
+	return problems
+}
+
+// checkAnchors asserts the two documents agree on what each principle rests on. ADR-0001
+// makes the local-or-borrowed distinction load-bearing — a borrowed criterion survives
+// re-litigation and a house rule does not — so a reader must not learn a different answer
+// depending on which document they opened.
+func checkAnchors(adr, readme map[string]principle) []string {
+	var problems []string
+	for num, r := range readme {
+		a, known := adr[num]
+		if !known {
+			problem := fmt.Sprintf(
+				"%s: states principle %s, and %s has no such principle",
+				readmePath,
+				num,
+				foundationsADR,
+			)
+			problems = append(problems, problem)
+			continue
+		}
+		if a.local != r.local {
+			problem := fmt.Sprintf(
+				"%s: principle %s is anchored %s, and %s marks it %s",
+				readmePath,
+				num,
+				marking(r.local),
+				foundationsADR,
+				marking(a.local),
+			)
+			problems = append(problems, problem)
+		}
+		for src := range r.sources {
+			if a.sources[src] {
+				continue
+			}
+			problem := fmt.Sprintf(
+				"%s: principle %s cites %q, which %s's anchor does not",
+				readmePath,
+				num,
+				src,
+				foundationsADR,
+			)
+			problems = append(problems, problem)
+		}
+	}
+	for num := range adr {
+		_, carried := readme[num]
+		if carried {
+			continue
+		}
+		problem := fmt.Sprintf(
+			"%s: states principle %s, and %s does not carry it",
+			foundationsADR,
+			num,
+			readmePath,
+		)
+		problems = append(problems, problem)
+	}
+	return problems
+}
+
+// externalSources returns the anchor's citations, excluding links into the ADR set. A
+// principle marked local may still point at the ADR that elaborates it, and that pointer
+// is a cross-reference rather than a borrowed criterion.
+func externalSources(s string) map[string]bool {
+	out := map[string]bool{}
+	for _, m := range linkTarget.FindAllStringSubmatch(s, -1) {
+		target := m[1]
+		if adrFile.MatchString(target) || strings.HasPrefix(target, "docs/adr/") {
+			continue
+		}
+		out[target] = true
+	}
+	return out
+}
+
+func marking(local bool) string {
+	if local {
+		return "local"
+	}
+	return "to an external standard"
+}
+
+// namesIn splits a list of tools into the names it holds. The lists are prose — commas,
+// "and", a trailing clause after an em dash, and a parenthesised ADR reference per name —
+// so each fragment is cleaned rather than reduced.
+//
+// The whole fragment is kept, not its leading token. "Argo Workflows" and "Argo CD" share
+// a first word and are different decisions, and collapsing either to "Argo" makes the
+// principle-block check report that principle 5 rejects the deploy engine.
+func namesIn(s string) []string {
+	s = parenthetics.ReplaceAllString(plain(s), "")
+	dash := strings.Index(s, " — ")
+	if dash >= 0 {
+		s = s[:dash]
+	}
+	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), "."))
+	var out []string
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' }) {
+		part = strings.TrimSpace(part)
+		for _, prefix := range []string{"and ", "every ", "all "} {
+			part = strings.TrimPrefix(part, prefix)
+		}
+		name := cleanName(part)
+		if name != "" {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// cleanName returns a fragment that could name a product, or empty. A name is short, its
+// tokens are name-shaped, and it does not open with an article or a verb.
+func cleanName(part string) string {
+	fields := strings.Fields(part)
+	if len(fields) == 0 || len(fields) > 3 {
+		return ""
+	}
+	for i, f := range fields {
+		f = strings.Trim(f, ".,;:()")
+		if !isName(f) || (i == 0 && (len(f) < 3 || stopWords[strings.ToLower(f)])) {
+			return ""
+		}
+		fields[i] = f
+	}
+	return strings.Join(fields, " ")
 }
 
 // loadRejected reads every ADR's comparison tables and returns, per ADR number, the

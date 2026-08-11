@@ -29,9 +29,39 @@ Service-to-service calls bypass the edge entirely and are gated by Cilium Networ
 
 ## Considered options
 
+### The ingress controller
+
+Traefik is Tier 1 ([ADR-0002](0002-tool-adoption.md)): every inbound request crosses it, the forward-auth chain is expressed in its middleware model, and the routes are CRDs the GitOps tree owns. Compared on the two properties that decide this position — how routing is authored, and whether the forward-auth seam is first-class.
+
+| Option | Routing authored as | Forward-auth | Data plane | Verdict |
+| --- | --- | --- | --- | --- |
+| **Traefik** | `IngressRoute` CRDs, with middleware as separate composable resources | **first-class middleware**, and the chained shape the next table needs | its own, in Go | **Chosen.** Middleware is a resource rather than an annotation, so a route's auth chain is readable as a list of objects instead of a string *(reasoned)* |
+| Envoy Gateway | Gateway API resources, with policy attachment | through `ext_authz`, which is Envoy's native and more expressive mechanism | Envoy | **The runner-up**, and the better data plane. It loses on weight: Envoy plus a control plane is two components where Traefik is one, and `ext_authz` buys expressiveness this platform spends at the application layer instead |
+| ingress-nginx | `Ingress` with annotations, plus snippets | `auth-url` annotations | nginx | The most widely deployed, and the annotation model puts routing logic in strings that nothing validates until reload. Configuration-snippet injection has been the recurring class of issue |
+| HAProxy Ingress | `Ingress` with annotations, or a ConfigMap | `auth-url` | HAProxy | The strongest data plane on raw throughput, at a configuration surface authored outside the resource model |
+| Contour | `HTTPProxy` CRDs, or Gateway API | `ext_authz`, delegated to Envoy | Envoy | Envoy Gateway's shape with a longer lineage and a narrower feature set. It is the option Envoy Gateway supersedes |
+| Gateway API on any implementation, no controller chosen | portable resources | implementation-defined | varies | Portability is real and the forward-auth chain is not portable, so the property being bought does not cover the property that decides the row |
+
+**Throughput is not the deciding axis here and is recorded so.** Every option in this table saturates the network before it saturates itself at this platform's shape, so the row that decides it is how a reviewer reads an auth chain in a diff.
+
+### Certificate lifecycle
+
+TLS terminates at the ingress above, so what issues and renews the certificate is decided here.
+
+| Option | Renewal | Configuration | Added components | Verdict |
+| --- | --- | --- | --- | --- |
+| **[cert-manager](https://cert-manager.io/docs/)** | a controller reconciles `Certificate` resources and renews before expiry | CRDs in the repository | one controller | **Chosen.** The certificate is a Kubernetes object, so a renewal failure is a resource condition an alert already reads rather than a log line in a cron job *(reasoned)* |
+| certbot in a `CronJob` | the schedule, and whatever it writes | a shell script and a mounted secret | one Job and a script to own | Renewal failure is silent until TLS breaks, which is the slowest-arriving failure on the floor. Nothing about it is cheaper |
+| A private CA | issued by us, on our own schedule | ours | a CA to run, plus trust-anchor distribution to every client | The exit if the public ACME dependency becomes unacceptable ([ADR-0000](0000-platform-foundations.md)), and it costs a trust anchor on every browser and every client |
+| Manual issuance | a person, annually | none | none | The honest baseline, and it fails on the wildcard-per-environment shape: an expiry that is a person's calendar entry is an expiry |
+
+One wildcard certificate per environment, issued over ACME DNS-01. The record shape and the provider requirement it implies are [ADR-0206](0206-cluster-networking.md).
+
+### The forward-auth mechanism
+
 | Option | Added components | Reads a Kratos browser session | Identity passed onward as | Verdict |
 | --- | --- | --- | --- | --- |
-| **Ory Oathkeeper as ForwardAuth** | **none beyond one Go binary**, no datastore | **yes**, and Hydra JWTs through the same rule set | mutated trusted headers, one shape for every route | **Chosen.** Declarative YAML access rules in git, and the only option that reads both credential formats this platform issues without a hop in between |
+| **Ory Oathkeeper as ForwardAuth** | **none beyond one Go binary**, no datastore | **yes**, and Hydra JWTs through the same rule set | mutated trusted headers, one shape for every route | **Chosen.** Declarative YAML access rules in git, and the only option that reads both credential formats this platform issues without a hop in between *(reasoned)* |
 | Plain Traefik `ForwardAuth` to Kratos `/sessions/whoami` | **none at all** | yes | nothing — `whoami` authenticates but does not mutate the request | The zero-component baseline, and the row that prices the chosen one. Without mutation every service must strip client-supplied identity headers itself, and there is no rule language to mark a route public |
 | oauth2-proxy | one | **no — it speaks OIDC**, and Kratos issues browser sessions rather than OIDC tokens | OIDC claims as headers | The reflexive answer to this problem, and it needs Hydra in front of Kratos before it has anything to validate. That adds an OAuth2 round trip to first-party browser traffic to satisfy a proxy rather than a requirement |
 | Authelia | one, plus a session store | no — it carries its own identity model | headers | An identity provider with a forward-auth front-end. Adopting it re-decides [ADR-0304](0304-identity-and-authorization.md) rather than serving it |
@@ -71,12 +101,12 @@ A reader who knows [NIST SP 800-207](https://csrc.nist.gov/pubs/sp/800/207/final
 | Tenet | Here |
 | --- | --- |
 | Access is granted per-request and per-resource, evaluated dynamically | **held.** Every protected call goes through `Checker` against OpenFGA ([ADR-0304](0304-identity-and-authorization.md)). Nothing is authorised merely by having reached the service |
-| All communication is secured regardless of network location | **held.** WireGuard encrypts all east-west pod traffic ([ADR-0200](0200-cluster-topology.md)) |
+| All communication is secured regardless of network location | **held.** WireGuard encrypts all east-west pod traffic ([ADR-0206](0206-cluster-networking.md)) |
 | No implicit trust is derived from network position | **declined.** A service trusts `X-User-Id` because Cilium default-deny guarantees only sanctioned callers reach its port and Oathkeeper strips client-supplied headers at the edge. That is positional trust, which is precisely the assumption 800-207 removes |
 
 The concession buys handlers with no auth code, one identity shape for every caller, no per-hop token minting or verification, and no sidecar on the hot path. It costs this: code executing inside a sanctioned caller can forge identity to a downstream service. The blast radius is that caller's own egress allowances, bounded further by the `restricted` profile limiting what a compromised pod can do at all ([ADR-0200](0200-cluster-topology.md)).
 
-**The seam is built, and its trigger belongs to this platform rather than to an auditor.** [ADR-0200](0200-cluster-topology.md) makes per-workload certificate identity a Cilium mutual-auth and SPIFFE upgrade. It fires on any of three conditions:
+**The seam is built, and its trigger belongs to this platform rather than to an auditor.** [ADR-0206](0206-cluster-networking.md) makes per-workload certificate identity a Cilium mutual-auth and SPIFFE upgrade. It fires on any of three conditions:
 
 | Trigger | Why it is the right threshold |
 | --- | --- |
@@ -160,6 +190,7 @@ Scalar's request console is why the dev portal is same-origin with `/api` ([ADR-
 
 ## Rules
 
+- Ingress is Traefik with TLS from cert-manager over ACME DNS-01. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. `(ref: RFC 8555)`
 - The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default.
 - Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. `(CI: lint:authz)`
 - Every request carries identity in the same header shape. Services read identity from headers and never parse a token. `(CI: lint:auth-inline)`

@@ -8,7 +8,13 @@
 
 ## Context
 
-Every environment needs secrets: database passwords, JWT signing keys, OAuth client secrets, API tokens. They must be versioned alongside the rest of the configuration so a deploy is reproducible from git, never readable in plaintext by anyone outside the recipient list, decryptable in-cluster by the GitOps controller at sync time without a human in the loop, decryptable locally by engineers running against real infrastructure, and rotatable with a known procedure for compromise and offboarding.
+Every environment needs secrets: database passwords, JWT signing keys, OAuth client secrets, API tokens. Five properties are required of all of them.
+
+- **Versioned** alongside the rest of the configuration, so a deploy is reproducible from git.
+- **Never plaintext** to anyone outside the recipient list.
+- **Decryptable in-cluster** by the GitOps controller at sync time, with no human in the loop.
+- **Decryptable locally** by engineers running against real infrastructure.
+- **Rotatable** by a known procedure, for compromise and for offboarding.
 
 ## Decision drivers
 
@@ -21,7 +27,7 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 
 | Option | Added stateful component | An engineer can decrypt locally | Diff granularity | Verdict |
 | --- | --- | --- | --- | --- |
-| **SOPS + age** | none — the operator is stateless | **yes**, with that engineer's own key | per-value: structure stays readable, values are encrypted blobs | **Chosen.** The only option that holds drivers 3 and 4 together |
+| **SOPS + age** | none — the operator is stateless | **yes**, with that engineer's own key | per-value: structure stays readable, values are encrypted blobs | **Chosen.** The only option that holds drivers 3 and 4 together *(reasoned)* |
 | SOPS + GPG | none | yes | per-value | Key-server and web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
 | sealed-secrets | a controller holding a key it generates, backs up, and rotates | **no — the encryption is one-way by design** | per-value: `encryptedData` is a per-key map. Ciphertext is non-deterministic, so re-sealing rewrites untouched values too | Fails driver 3. An engineer cannot read a committed secret or run against one, so local and cluster need different mechanisms |
 | Vault or OpenBao | **a service to run, unseal, back up, and upgrade** | through the service | n/a | Fails driver 4. Its real prize is dynamic short-lived credentials, which is a separate question from storing static config |
@@ -81,7 +87,7 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 | Key | Backup |
 | --- | --- |
 | Engineer | none — personal. Loss means re-running the onboarding flow with a new key |
-| Cluster | backed up encrypted-to-ops-recovery in the same off-cluster bucket [ADR-0200](0200-cluster-topology.md) uses |
+| Cluster | backed up encrypted-to-ops-recovery in the same off-cluster bucket [ADR-0207](0207-cluster-storage.md) uses |
 | Ops-recovery | offline copies on the hardware tokens of more than one senior engineer, so a single departure does not lose recovery |
 
 ## Consequences

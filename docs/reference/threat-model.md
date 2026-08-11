@@ -35,10 +35,10 @@ This is STRIDE-lite over the three boundaries that matter here. It decides nothi
 | Threat | Control | Owner |
 | --- | --- | --- |
 | **Spoofing** identity between services | none cryptographic. A service trusts `X-User-Id` because default-deny governs who can reach its port. **Accepted risk 2** | [risk 2](risk-register.md) |
-| **Elevation** by a compromised pod reaching the data tier | default-deny east-west, so reachability is an allowance rather than a default | [ADR-0200](../adr/0200-cluster-topology.md) |
-| **Information disclosure** by capturing east-west traffic | WireGuard encryption of all pod traffic | [ADR-0200](../adr/0200-cluster-topology.md) |
-| **Elevation** to the node from a pod | Pod Security Admission `restricted` in every namespace, with a pinned enforce-version, on an immutable node with no shell and no package manager | [ADR-0200](../adr/0200-cluster-topology.md) |
-| **Information disclosure** of cloud credentials through the metadata endpoint | egress policy denies the metadata address specifically | [ADR-0200](../adr/0200-cluster-topology.md) |
+| **Elevation** by a compromised pod reaching the data tier | default-deny east-west, so reachability is an allowance rather than a default | [ADR-0206](../adr/0206-cluster-networking.md) |
+| **Information disclosure** by capturing east-west traffic | WireGuard encryption of all pod traffic | [ADR-0206](../adr/0206-cluster-networking.md) |
+| **Elevation** to the node from a pod | Pod Security Admission `restricted` in every namespace, with a pinned enforce-version, on an immutable node with no shell and no package manager | [ADR-0206](../adr/0206-cluster-networking.md) |
+| **Information disclosure** of cloud credentials through the metadata endpoint | egress policy denies the metadata address specifically | [ADR-0206](../adr/0206-cluster-networking.md) |
 | **Elevation** across tenants in one database | one logical database per service, per-service credentials, and no service reaching another's data | [ADR-0300](../adr/0300-data.md) |
 | **Elevation** by an authenticated user reaching another organisation's resources | every read and every mutation authorized through `Checker` as though the identifier were public | [ADR-0304](../adr/0304-identity-and-authorization.md), [ADR-0003](../adr/0003-naming-and-identifiers.md) |
 | **Tampering** with the authorization store through a side channel | authz-relevant writes are dual-written inside a workflow, never by an ad-hoc path | [ADR-0302](../adr/0302-temporal.md), [ADR-0401](../adr/0401-internal-admin.md) |

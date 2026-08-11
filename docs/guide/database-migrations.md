@@ -4,10 +4,10 @@ How-to for writing and applying schema migrations. The decision (dbmate, sqlc, C
 
 ## Write a migration
 
-- Migrations live under `services/<service>/migrations/` as timestamped SQL files (dbmate format, `-- migrate:up` / `-- migrate:down`).
-- A `down` section exists for local development. **Down migrations are not used in production**: a production rollback is a forward fix, a new migration that reverses the change ([ADR-0300](../adr/0300-data.md)).
-- After changing schema or queries, regenerate the typed data layer: `mise run gen:sqlc` (sqlc). Generated code is committed and drift-checked in CI ([ADR-0300](../adr/0300-data.md)).
-- SQL is linted by sqruff: `mise run lint:sql`.
+1. Create the file under `services/<service>/migrations/`, timestamped, in dbmate format with `-- migrate:up` and `-- migrate:down` sections.
+2. **Write the `down` section for yourself, not for production.** It is what lets you re-run the migration locally. A production rollback is a forward fix — a new migration that reverses the change ([ADR-0300](../adr/0300-data.md)) — so never plan on running it there.
+3. Regenerate the typed data layer after any schema or query change: `mise run gen:sqlc`. Commit what it writes; CI drift-checks it against your SQL.
+4. Run `mise run lint:sql` before you push. It rejects a `timestamp` where `timestamptz` belongs, and an untagged column holding personal data ([ADR-0301](../adr/0301-data-lifecycle-privacy.md)).
 
 ## Apply migrations locally
 
@@ -29,4 +29,4 @@ A migration that adds or changes an authz-relevant table must land together with
 
 ## Backups & recovery
 
-CNPG `ScheduledBackup` + WAL archiving to the off-cluster bucket is the recovery path; restore is rehearsed quarterly ([ADR-0200](../adr/0200-cluster-topology.md), [disaster-recovery](disaster-recovery.md)).
+CNPG `ScheduledBackup` + WAL archiving to the off-cluster bucket is the recovery path; restore is rehearsed quarterly ([ADR-0207](../adr/0207-cluster-storage.md), [disaster-recovery](disaster-recovery.md)).

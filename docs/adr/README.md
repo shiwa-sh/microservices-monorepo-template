@@ -31,6 +31,7 @@ A hundred slots per layer rather than ten, so a layer can grow without renumberi
 | --- | --- | --- |
 | [0000](0000-platform-foundations.md) | Platform Foundations | The three axes and this platform's position on them, the principles, and the ADR process |
 | [0001](0001-documentation-and-output-conventions.md) | Documentation & Output Conventions | How docs, ADRs, logs, CLI output, and code comments are written |
+| [0002](0002-tool-adoption.md) | Tool Adoption & Comparison Requirement | The three exit-cost tiers, the depth of comparison each owes, and the tool register |
 | [0003](0003-naming-and-identifiers.md) | Naming & Identifiers | The resource slug grammar, entity identifiers, and casing per surface |
 
 ### 01xx — Repository and delivery
@@ -43,17 +44,20 @@ A hundred slots per layer rather than ten, so a layer can grow without renumberi
 | [0103](0103-release-and-versioning.md) | Release, Tagging & Versioning | Conventional Commits, CalVer, image tags |
 | [0104](0104-supply-chain-security.md) | Supply-Chain Security | Signing, scanning, admission verification |
 | [0105](0105-image-registry.md) | Image Registry | Where images and their attestations live |
+| [0106](0106-dependency-updates.md) | Dependency Updates & Template Propagation | What moves the pins, and how a template fix reaches a generated project |
 
 ### 02xx — Infrastructure
 
 | ADR | Title | Decides |
 | --- | --- | --- |
-| [0200](0200-cluster-topology.md) | Cluster Topology & Hosting | Distribution, nodes, CNI, storage, backups, traffic flow |
+| [0200](0200-cluster-topology.md) | Cluster Topology & Hosting | Where production runs, what a node is, and what recovering a cluster costs |
 | [0201](0201-gitops.md) | GitOps & Deploy | Argo CD as the delivery engine, repository topology, sync policy |
 | [0202](0202-secrets.md) | Secrets Management | SOPS and age, the recipient model, key lifecycle |
 | [0203](0203-policy-enforcement.md) | Policy Enforcement Strategy | Which layer enforces which class of invariant, and how each layer fails |
 | [0204](0204-resource-management.md) | Resource Management & Scheduling | Requests, limits, priority classes, quotas |
 | [0205](0205-environment-parity.md) | Environment Parity | What may differ across environments, what may not, and the PR preview tier |
+| [0206](0206-cluster-networking.md) | Cluster Networking | The CNI, the day-one postures, and why no service mesh |
+| [0207](0207-cluster-storage.md) | Cluster Storage & Backups | Node-local volumes, one object store everywhere, and where backups live |
 
 ### 03xx — Application platform
 
@@ -97,10 +101,12 @@ A hundred slots per layer rather than ten, so a layer can grow without renumberi
 | --- | --- | --- |
 | [0700](0700-analytics.md) | Marketing & Product Analytics | One browser agent, the Collector split, the analytics store |
 
-## Reserved
+## Registries
 
-These numbers are held so the decisions below land in their layer's block without renumbering the set.
+Three documents are named by an ADR as the only place a fact is recorded, so a decision links to them rather than restating what they hold.
 
-| ADR | Title |
+| Document | Holds |
 | --- | --- |
-| 0002 | Tool Adoption & Comparison Requirement |
+| [`operational-surface.md`](../operational-surface.md) | every platform component, its tier, and what it obliges |
+| [`adoption-path.md`](../adoption-path.md) | the ranked order in which the floor is reduced |
+| [`tool-register.md`](../tool-register.md) | every tool, its exit-cost tier, licence, governing body, and owning ADR |

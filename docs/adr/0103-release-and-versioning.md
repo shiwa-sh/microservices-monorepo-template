@@ -33,7 +33,7 @@ A per-component SemVer line would therefore encode a compatibility promise **no 
 
 | Option | What the number signals | Human judgement per release | Verdict |
 | --- | --- | --- | --- |
-| **[CalVer](https://calver.org/) `vYYYY.0M.MICRO`, one repo-wide line** | when it shipped | none — it is the date | **Chosen.** It answers the only question asked of a release version |
+| **[CalVer](https://calver.org/) `vYYYY.0M.MICRO`, one repo-wide line** | when it shipped | none — it is the date | **Chosen.** It answers the only question asked of a release version *(reasoned)* |
 | [SemVer](https://semver.org/), one repo-wide line | a compatibility contract | bump level, every release | The contract has no independent pinner, so the signal is addressed to nobody and the judgement call is pure cost |
 | SemVer per component, prefixed tag namespaces | per-component compatibility | one judgement per component | Multiplies the same unread promise by the component count, plus tag bookkeeping |
 | Git SHA only, no human version | nothing | none | Deploy identity is already the SHA. A changelog and a release note need a label a human can say aloud |
@@ -52,7 +52,7 @@ Driver 2 is what decides this row: SemVer's number is addressed to a pinner, and
 
 | Option | Machine-readable | How a breaking change is marked | Verdict |
 | --- | --- | --- | --- |
-| **Conventional Commits** | **a specified grammar with parsers in every ecosystem** | `!` after the type or scope, or a `BREAKING CHANGE:` footer | **Chosen.** Driver 3: the changelog and the breaking signal are derived rather than curated |
+| **Conventional Commits** | **a specified grammar with parsers in every ecosystem** | `!` after the type or scope, or a `BREAKING CHANGE:` footer | **Chosen.** Driver 3: the changelog and the breaking signal are derived rather than curated *(reasoned)* |
 | Free-form messages, changelog written by hand | no | by whoever remembers | Makes the changelog a release-time authoring task and the breaking signal a matter of memory |
 | gitmoji | a prefix set, with no grammar behind it | no defined marker | Expressive and popular, and there is nothing for a gate to key off |
 | A house prefix scheme | as far as we build it | as far as we build it | The same grammar, authored and maintained here, with no third-party parser to inherit |
@@ -61,7 +61,7 @@ Driver 2 is what decides this row: SemVer's number is addressed to a pinner, and
 
 | Option | Computes the version | Enforces the grammar | Verdict |
 | --- | --- | --- | --- |
-| **cocogitto, changelog-only** | not used — CalVer comes from the date | **yes, at `commit-msg` and in CI** | **Chosen.** One binary covers enforcement and changelog rendering, and the version it could compute is not wanted |
+| **cocogitto, changelog-only** | not used — CalVer comes from the date | **yes, at `commit-msg` and in CI** | **Chosen.** One binary covers enforcement and changelog rendering, and the version it could compute is not wanted *(reasoned)* |
 | commitlint | no | yes | The same enforcement as a Node program, which [ADR-0100](0100-language-and-runtime.md) bars for authored tooling |
 | release-please | yes, inferring SemVer bumps from commit history | no | Its entire value is bump inference, which the version-line decision above makes moot |
 | changesets | yes, per package, from author-written intent files | no | Built for independently published packages, which the same decision rules out |

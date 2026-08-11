@@ -33,22 +33,22 @@ Each service owns its own database ([ADR-0300](0300-data.md)), and each spec alr
 
 | Option | Config format | Licence | Verdict |
 | --- | --- | --- | --- |
-| **Lowdefy** | **pure YAML**, roughly 30 lines per page | Apache-2.0 | **Chosen.** YAML is what these engineers already read daily for Helm, Kubernetes, mise, and GitOps, and it is dense and well-represented for LLM authoring. First-class REST and Postgres connectors, and stateless when external auth is used |
+| **Lowdefy** | **pure YAML**, roughly 30 lines per page | [Apache-2.0](https://github.com/lowdefy/lowdefy/blob/main/LICENSE) | **Chosen.** YAML is what these engineers already read daily for Helm, Kubernetes, mise, and GitOps, and it is dense and well-represented for LLM authoring. First-class REST and Postgres connectors, and stateless when external auth is used *(documented)* |
 | **An `(admin)` route group in the existing frontend** | **React, in the app already being built** | n/a — first-party | **The baseline, and the real contender.** It adds no component and reuses the design system, session, and generated clients. It loses on driver 4: every CRUD screen is hand-written React by the people driver 4 describes as reluctant to write it, and the generated bulk in the chosen option is exactly that work. It also puts an operator-facing surface inside the product origin, against [ADR-0306](0306-trust-tiers-and-urls.md) |
 | Appsmith | positional widget-tree JSON | Apache-2.0 | Not reviewable in a diff and not LLM-editable. Its OSS authentication is limited |
-| Windmill | scripts plus a YAML app definition | AGPL-3.0 | The closest competitor on driver 1 — a real config-as-files story — and it is a workflow and job platform first, so adopting it puts a second execution engine beside Temporal ([ADR-0302](0302-temporal.md)) |
+| Windmill | scripts plus a YAML app definition | [AGPL-3.0](https://github.com/windmill-labs/windmill/blob/main/LICENSE-AGPL) | The closest competitor on driver 1 — a real config-as-files story — and it is a workflow and job platform first, so adopting it puts a second execution engine beside Temporal ([ADR-0302](0302-temporal.md)) |
 | ToolJet | UI-authored | AGPL-3.0 | Excluded on the authoring model before the licence matters |
 | Budibase | UI-authored | GPL-3.0 | As above |
 | Retool | UI-authored | proprietary, SaaS-first | Fails principle 3 outright |
 | Refine, react-admin | **React** | MIT | Capable and type-safe against the generated clients, and the authoring surface is React. A "small change" lands in hooks and providers, which is the failure mode driver 4 exists to avoid |
 | NocoDB | UI-first | AGPL-3.0 | A database UI rather than an application builder, and driver 2 forbids the direct-SQL shape it is best at |
-| Directus | UI-first | BUSL 1.1 | As above, and the licence is not OSI-approved |
+| Directus | UI-first | [BUSL 1.1](https://directus.io/bsl) | As above, and the licence is not OSI-approved |
 
 ### The read-only database inspector
 
 | Option | Shape | Read-only enforcement | Verdict |
 | --- | --- | --- | --- |
-| **pgweb** | a single Go binary | `--readonly` flag, plus a read-only database role | **Chosen.** The same one-stateless-container shape as Lowdefy, and two independent layers of read-only |
+| **pgweb** | a single Go binary | `--readonly` flag, plus a read-only database role | **Chosen.** The same one-stateless-container shape as Lowdefy, and two independent layers of read-only *(reasoned)* |
 | pgAdmin | a stateful Python application | none — it is a full client | Against a single-binary toolchain ([ADR-0100](0100-language-and-runtime.md)), and it offers write access that the role must then take back |
 | CloudBeaver | a Java server | connection-level | A heavier runtime again, for a superset of features break-glass does not use |
 | `psql` through `talosctl` and a pod | none | the role only | Always available and the actual fallback. It is not a UI, and the point of this row is that the inspector exists to save an operator from needing it during an incident |

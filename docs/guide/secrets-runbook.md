@@ -28,6 +28,23 @@ Locally the key is a throwaway planted at bootstrap ([ADR-0205](../adr/0205-envi
 3. Roll the consuming workloads so they pick up the new Kubernetes Secret.
 4. Rotate the age key too if the private key itself may be exposed.
 
+## Rotate the image-signing key
+
+The cosign key pair signs every first-party image, and Kyverno verifies it at admission ([ADR-0104](../adr/0104-supply-chain-security.md)). Rotating it is the one rotation with an ordering constraint, because the policy that trusts the key is also the policy that blocks every deploy when it is wrong.
+
+**The policy carries both public keys through the window.** Images signed with the old key are already running and will be re-admitted on any reschedule, so removing the old key before those images are gone locks the cluster out of restarting its own workloads.
+
+1. **Generate the new pair** and SOPS-encrypt the private half to the cluster age key. Commit both halves — the public one in plaintext, the private one encrypted.
+2. **Add the new public key to the `ClusterPolicy` as a second attestor**, and merge. The policy now accepts either. Confirm the Application is synced before going further.
+3. **Point CI at the new private key** and merge. Every image built from here is signed with the new key.
+4. **Rebuild and roll every running image.** This is the step with the wall clock in it — the window stays open until nothing signed by the old key can be scheduled, including anything a node replacement would pull.
+5. **Remove the old public key from the policy** and merge.
+6. **Delete the old private key** from the SOPS file.
+
+**Do not compress steps 2 and 5.** A policy that trusts only the new key while old-signed images are still schedulable turns a rotation into a cluster-wide admission failure, which is [`../reference/risk-register.md`](../reference/risk-register.md) row 5 arriving on purpose. The break-glass, if it happens anyway, is the kubeconfig path below plus removing the webhook configuration.
+
+**If the private key may be exposed**, the window is not negotiable and steps 4 and 5 are the incident. Until step 5 lands, an attacker holding the old key can sign an image the cluster admits.
+
 ## Break-glass
 
 Recovering the cluster when the auth plane is down is [break-glass](break-glass.md); sealing local-admin creds in SOPS is the optional secondary break-glass described there.

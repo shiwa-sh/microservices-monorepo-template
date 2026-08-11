@@ -69,8 +69,10 @@ var (
 // rule that mentions a credential.
 var securityAreas = map[string]string{
 	"0104": "Supply chain",
-	"0200": "Network and workload isolation",
+	"0200": "Node and workload isolation",
 	"0202": "Secrets",
+	"0206": "Network isolation",
+	"0207": "Durable data and recovery",
 	"0203": "Policy enforcement",
 	"0301": "Data lifecycle and privacy",
 	"0304": "Identity and authorization",

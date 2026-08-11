@@ -40,7 +40,7 @@ Every option below is MIT and self-hostable as a container, so the column that m
 
 | Option | Server rendering model | Cost of self-hosting | Governance | Verdict |
 | --- | --- | --- | --- | --- |
-| **Next.js, App Router** | Server Components by default, with a client boundary opt-in | `output: standalone` is a first-party target. Image optimisation and incremental regeneration need a cache and a resizer that the vendor otherwise supplies | **Vercel** | **Chosen.** The server-first model is driver 2 as a default rather than an assembly job, and its self-hosting gaps are a cache and a resizer, both replaceable and both inside the cluster |
+| **Next.js, App Router** | Server Components by default, with a client boundary opt-in | `output: standalone` is a first-party target. Image optimisation and incremental regeneration need a cache and a resizer that the vendor otherwise supplies | **Vercel** | **Chosen.** The server-first model is driver 2 as a default rather than an assembly job, and its self-hosting gaps are a cache and a resizer, both replaceable and both inside the cluster *(documented)* |
 | TanStack Start | client-first, with server functions | no vendor path to depend on | TanStack, vendor-neutral, community-funded | **The strongest alternative on driver 5** — the only option here outside a hosting vendor's orbit. Younger, and its server story is server functions rather than a component-level boundary, which puts driver 2 back in the author's hands on every page |
 | React Router, which absorbed Remix | loaders and actions per route, client rendering by default | none — it was built to run anywhere | Shopify | Mature, and the model is a data-router rather than a server-component one. Choosing it accepts a larger client bundle on the marketing routes to gain nothing the panel needs |
 | SvelteKit | server load functions, compiled output, smallest bundles | none; adapters target plain Node | Svelte, with its creator employed by **Vercel** | The best bundle sizes in the field. It is not React, so [ADR-0401](0401-internal-admin.md)'s console, the component library, and the hiring pool all change with it |
@@ -49,6 +49,21 @@ Every option below is MIT and self-hostable as a container, so the column that m
 | A single-page app plus a separate static site | none | none | n/a | The honest baseline. Two build pipelines, two deploy targets, and the API credential has nowhere to live but the browser |
 
 **Driver 5 does not rescue any of them.** Vercel employs the Next.js team, acquired NuxtLabs, and employs Svelte's creator, so three of the six options sit in one vendor's orbit and only TanStack Start is outside it. Since every option is MIT and runs as a container here, the governance column records a relationship rather than a dependency: the exit from Next.js is a rewrite of routing and data loading, which is expensive because of the framework's shape, not because of who funds it.
+
+### Design system
+
+Tier 1 by exit cost ([ADR-0002](0002-tool-adoption.md)), because it is the design-system contract rather than a component library: every screen is composed of it, and replacing it re-authors the markup of the whole surface. Compared on the two properties that survive that observation — where the source lives, and whether the design tool and the code agree.
+
+| Option | Where the component source lives | Design-tool parity | Accessibility base | Licence | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Untitled UI React + Tailwind** | **vendored into the repository as source**, and edited like first-party code | a Figma kit the components are drawn from, so a design hand-off is a lookup rather than a translation *(documented)* | React Aria Components underneath | MIT for the React library; the Figma kit and PRO tiers are commercial *(documented)* | **Chosen.** Driver 3 is design-to-code fidelity, and this is the only option where the two artefacts are the same system rather than two interpretations of one |
+| shadcn/ui | vendored as source — the same model | none first-party; the community kits are approximations | Radix underneath | MIT | **The runner-up, and the same shape.** It loses on the Figma row alone, which is the whole of driver 3. If the project has no designer, this is the better-supported choice |
+| Mantine | an installed package | a community kit | its own, good | MIT | A complete library with its own styling engine, which is a second one beside Tailwind — principle 5 |
+| Park UI | vendored as source, over Ark UI | a Figma kit | Ark UI underneath | MIT | The closest structural match to the choice, on a smaller ecosystem and a younger primitive layer |
+| Material UI | an installed package | an official Figma kit, and the strongest parity in the field | its own, mature | MIT | The one option that beats the choice on driver 3. It carries an opinionated visual language that a product design system then fights, and Emotion is a second styling engine |
+| Radix or React Aria plus hand-written components | ours | none | the primitives' | MIT / Apache-2.0 | The honest baseline, and it is what the chosen option is *plus* the components. Choosing it means authoring the design system, which is the work being bought |
+
+**Vendoring as source is the property that makes the exit affordable.** The components are in the repository and are edited there, so abandoning upstream costs the updates rather than the code — which is what keeps a Tier 1 exit cost at the low end of Tier 1.
 
 ### Everything else
 
@@ -193,7 +208,7 @@ CSRF protection applies to cookie-authenticated state changes. Bearer-token traf
 | Mocking in tests | MSW, an in-process double scoped to the test runner |
 | End-to-end and visual | owned by [ADR-0601](0601-testing-strategy.md), driven by Playwright from the repo-root workspace. MSW and the development API mock are both forbidden there |
 | Bundle size | per-route-group budgets fail the build on regression |
-| Web vitals | Lighthouse-CI on every PR, gating on **LCP < 2.5s**, **INP < 200ms**, **CLS < 0.1** on the mobile profile |
+| Web vitals | Lighthouse CI on every PR, gating on **LCP < 2.5s**, **INP < 200ms**, **CLS < 0.1** on the mobile profile. Picked over WebPageTest and Calibre, which are hosted and so fail principle 3, and over bundle-size checks alone, which measure a proxy rather than the metric |
 | Images and fonts | `next/image` and `next/font`. Raw `<img>` and `@font-face` are not used |
 
 ### Observability

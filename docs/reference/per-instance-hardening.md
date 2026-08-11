@@ -28,7 +28,7 @@ A framework is reached by layering on top of the baseline, without forking the t
 | Requirement | Where it lands |
 | --- | --- |
 | Audit retention over the framework's window | the per-environment observability values. The authorization decision events already flow to the log store ([ADR-0500](../adr/0500-observability.md)) |
-| Network segmentation beyond default-deny | tighter CiliumNetworkPolicy per namespace for the regulated data path ([ADR-0200](../adr/0200-cluster-topology.md)) |
+| Network segmentation beyond default-deny | tighter CiliumNetworkPolicy per namespace for the regulated data path ([ADR-0206](../adr/0206-cluster-networking.md)) |
 | Encryption at rest | the storage class and the database values in the per-environment infrastructure. The template is provider-agnostic and states no default |
 | Stronger authentication | required MFA, shorter session lifetimes, and the ops-tier token isolation above |
 | Periodic access review | a scheduled review of the operator group and dashboard relations, which OpenFGA holds as the source of truth ([ADR-0304](../adr/0304-identity-and-authorization.md)) |

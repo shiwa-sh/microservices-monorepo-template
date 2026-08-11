@@ -67,7 +67,9 @@ Two places, and you need both:
 
 ### `stress` measures concurrency, not maximum throughput
 
-Every scenario includes think time (`sleep` between requests), which is what makes a VU behave like a user rather than a tight loop. The side effect is that **each VU is capped at roughly one request per second**, so the `stress` profile's request rate is a function of its VU count, not of what the platform can absorb. Measured on the local tier: 20 VUs → 17 req/s, 140 VUs → 115 req/s, latency flat at p95 ≈ 5ms throughout. That is a straight line, not a knee — the generator is pacing itself, and the platform was never the constraint.
+Every scenario includes think time (`sleep` between requests), which is what makes a VU behave like a user rather than a tight loop. The side effect is that **each VU is capped at roughly one request per second**, so the `stress` profile's request rate is a function of its VU count rather than of what the platform can absorb.
+
+Measured on the local tier: 20 VUs → 17 req/s, 140 VUs → 115 req/s, with latency flat at p95 ≈ 5ms throughout. That is a straight line, not a knee — the generator is pacing itself, and the platform was never the constraint.
 
 To hunt for the actual ceiling, raise `PERF_VUS` well past the profile default until either latency bends or `Dropped iterations` goes non-zero (at which point see the trap above, and take the k6-operator swap). Removing think time is the other lever, but do it in a separate scenario rather than by editing these — the baseline's comparability depends on its shape staying fixed.
 

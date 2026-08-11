@@ -14,7 +14,7 @@ The cost is that both clusters run at once, so the node set needs headroom for t
 
 1. **Read the release notes for the target major**, specifically the incompatibilities section. Logical replication does not carry sequences or large objects automatically, and it will not warn you about a behaviour change.
 2. **Check extension availability** at the target major for every extension in use ([ADR-0300](../adr/0300-data.md)). An extension that has not been packaged for the new major blocks the upgrade.
-3. **Verify a restore.** The quarterly drill ([ADR-0200](../adr/0200-cluster-topology.md)) is the safety net if the cutover goes wrong. Do not run this procedure on a cluster whose last restore drill failed.
+3. **Verify a restore.** The quarterly drill ([ADR-0207](../adr/0207-cluster-storage.md)) is the safety net if the cutover goes wrong. Do not run this procedure on a cluster whose last restore drill failed.
 4. **Confirm every table has a primary key.** Logical replication of `UPDATE` and `DELETE` needs a replica identity; a table without one silently fails to replicate those rows.
 
 ## The cutover

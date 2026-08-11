@@ -18,7 +18,9 @@ The platform has no instrument for the people who acquire its users. Marketing n
 
 One requirement dominates all three: **an error must be connectable to the journey that produced it.**
 
-The platform already collects browser signals. Faro POSTs to the edge, through the collector, into Loki and Tempo alongside service telemetry ([ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md)). That apparatus answers "is it broken or slow" and was never built to answer "did the campaign convert": Loki does counts adequately and funnels badly — no step joins, weak distinct-over-window — and marketing wants months of retention where ops logs want days.
+The platform already collects browser signals: Faro POSTs to the edge, through the collector, into Loki and Tempo alongside service telemetry ([ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md)).
+
+That apparatus answers "is it broken or slow" and was never built to answer "did the campaign convert": Loki does counts adequately and funnels badly — no step joins, weak distinct-over-window — and marketing wants months of retention where ops logs want days.
 
 **The correlation requirement eliminates most of the market before features are compared.** Every standalone analytics product mints its own session identity in its own store with its own retention, and Faro mints another. With no join key, "this user hit an error, show me their journey" degrades to correlating on timestamp and IP, which [ADR-0301](0301-data-lifecycle-privacy.md) makes worse rather than better.
 
@@ -36,7 +38,7 @@ So the decision is not which analytics tool. It is **which store holds Faro's ev
 
 | Option | Session identity | Components added | Verdict |
 | --- | --- | --- | --- |
-| **Faro events into a first-party service on the existing Postgres** | **shared with ops telemetry** | **none** | **Chosen** |
+| **Faro events into a first-party service on the existing Postgres** | **shared with ops telemetry** | **none** | **Chosen** *(reasoned)* |
 | Umami | **its own, separate from Faro's** | **none — it runs on PostgreSQL**, which the platform already has | The cheapest self-hosted product here on component weight, and it still fails the correlation requirement: its session identity is its own, so a funnel step cannot join to a trace or an error. Privacy-first page and event analytics, without the product-analytics questions this ADR exists to answer |
 | Plausible CE | its own | **ClickHouse in addition to PostgreSQL** | As Umami on correlation, and it brings the datastore Umami does not |
 | Matomo | its own | MariaDB | As above, plus a second SQL engine to operate. Its funnel, cohort, and heatmap features are paid Marketplace plugins rather than free core, which is most of what would justify it |

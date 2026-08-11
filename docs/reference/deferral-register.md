@@ -40,14 +40,14 @@ An **event** row is not a weaker deferral. Some triggers are commercial or organ
 | Registry mirroring | an upstream registry rate-limits or removes a pinned digest the cluster depends on | **alert** — image pull failures are already a signal | [ADR-0105](../adr/0105-image-registry.md) |
 | A transactional mail provider | a sustained delivery-failure or complaint rate that DMARC alignment and warmup do not resolve, or an uncleared blocklist listing | **query** over DMARC aggregate reports, which are reviewed on a cadence either way | [ADR-0307](../adr/0307-outbound-email.md) |
 | Storybook | a component is edited by someone who does not run the app, or a visual regression reaches `master` twice | **event**. Labelled a **bet**: the stories do not exist to enable | [ADR-0400](../adr/0400-frontend.md) |
-| Longhorn | any volume exceeding 50% of node disk | **alert** — node disk and PVC size are both collected | [ADR-0200](../adr/0200-cluster-topology.md) |
+| Longhorn | any volume exceeding 50% of node disk | **alert** — node disk and PVC size are both collected | [ADR-0207](../adr/0207-cluster-storage.md) |
 | Per-workload certificate identity | a service performing a monetary mutation, a second team owning a service, or an auditor requiring a CA chain | **event** | [ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md) |
 
 ## What the column shows
 
 **Seven rows could be alerted and are not.** Those are the cheapest work in this document: the signal is already collected, and what is missing is a rule that fires when the condition the ADR wrote down comes true. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger.
 
-**Six rows are queries** — the data exists, and something has to ask. These belong on the same cadence as the cardinality audit and the restore rehearsal ([ADR-0500](../adr/0500-observability.md), [ADR-0200](../adr/0200-cluster-topology.md)), because that cadence already exists and already opens an issue.
+**Six rows are queries** — the data exists, and something has to ask. They ride the quarterly `Schedule` described in [`upstream-status.md`](upstream-status.md), which opens one tracking issue covering these rows, that document's upstream facts, and [`asvs-verification.md`](asvs-verification.md)'s concerns. A row's owner is the owner of its owning ADR, and a query row walked without its answer being recorded has not been walked.
 
 **The rest are events**, and every one is commercial, organisational, or an incident. They are watched by whoever reads this register, which is why it is one document rather than twenty.
 

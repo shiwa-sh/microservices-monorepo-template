@@ -26,7 +26,7 @@ This ADR answers seven questions in one place: repository topology, layout, task
 
 | Option | A change crossing a service boundary | Dependency drift | CI blast radius | Verdict |
 | --- | --- | --- | --- | --- |
-| **One repository, one Go module** | **one pull request that compiles and tests every consumer** | **structurally impossible** | every change can reach everything, so scoping is mandatory rather than optional | **Chosen** |
+| **One repository, one Go module** | **one pull request that compiles and tests every consumer** | **structurally impossible** | every change can reach everything, so scoping is mandatory rather than optional | **Chosen** *(reasoned)* |
 | Repository per service | N pull requests across N review queues, merged in an order nothing enforces | the default state — each service pins its own versions and they diverge | naturally scoped | The honest baseline, and what happens when nobody decides. The isolation is real and is the wrong purchase at axis A high with one platform team |
 | Hybrid — platform repository, services split out | as repository-per-service for the split parts | as repository-per-service for the split parts | mixed | Two toolchains, two CI shapes, two release paths, and the boundary is relitigated per service |
 | One repository of submodules | a submodule bump per repository, plus a superproject bump | as repository-per-service | mixed | The coordination cost of many repositories with the review surface of one |
@@ -41,7 +41,7 @@ Two questions are bundled here, and the discriminator is that most candidates an
 
 | Option | Runs tasks | Pins tool versions | Verdict |
 | --- | --- | --- | --- |
-| **mise** | **yes** | **yes, in the same file** | **Chosen.** One tool for both, so a task and the toolchain it needs cannot drift apart |
+| **mise** | **yes** | **yes, in the same file** | **Chosen.** One tool for both, so a task and the toolchain it needs cannot drift apart *(reasoned)* |
 | Make | yes | no | Ubiquitous, and the toolchain becomes a separate unpinned problem |
 | `just` | yes | no | Better ergonomics than Make, same gap |
 | asdf | no | yes | The version manager whose plugin ecosystem mise is compatible with, and it needs a task runner beside it |
@@ -74,7 +74,7 @@ It returns as a candidate when hermeticity stops being a nicety, which is the sa
 
 | Option | Dependency consistency | Cross-cutting refactor | Verdict |
 | --- | --- | --- | --- |
-| **Single repo-wide `go.mod`** | **structural — drift is impossible** | one PR | **Chosen** |
+| **Single repo-wide `go.mod`** | **structural — drift is impossible** | one PR | **Chosen** *(reasoned)* |
 | Module per service | isolated | staggered bumps across N modules | Buys isolation the platform does not need and costs consistency it does |
 | `go.work` overlay | partial | workspace-mode ceremony | The complexity of multi-module without the isolation benefit |
 
@@ -84,9 +84,24 @@ It returns as a candidate when hermeticity stops being a nicety, which is the sa
 
 | Option | Verdict |
 | --- | --- |
-| **Bun workspaces alone** | **Chosen.** The workspace protocol is already inside the selected tool, so the repository adds no JavaScript component |
+| **Bun workspaces alone** | **Chosen.** The workspace protocol is already inside the selected tool, so the repository adds no JavaScript component *(reasoned)* |
 | Turborepo | Task orchestration and remote caching for JavaScript. Its value needs multiple frontend applications, and there is one |
 | Nx for JavaScript only | Splits task invocation across two tools, which driver 1 forbids. Considered above as the repo-wide runner instead |
+
+### The lint and format toolchain
+
+One tool per language, each a single pinned binary with no ambient runtime ([ADR-0000](0000-platform-foundations.md), principle 6). Each is Tier 2 ([ADR-0002](0002-tool-adoption.md)): a swap is a configuration file and a task, and the code it judges does not change.
+
+| Surface | Chosen | Picked over | Why |
+| --- | --- | --- | --- |
+| Go | **golangci-lint** | `go vet` alone, revive, staticcheck standalone | It is the aggregator the others are run by, so the alternative is running several of them and reconciling their output *(reasoned)* |
+| TypeScript | **Biome** | ESLint + Prettier, oxlint, dprint | One binary covering lint and format, where the incumbent pair is two tool ecosystems, two configuration languages, and a plugin resolution model. The cost is the small set of framework-specific rules only the incumbent has |
+| Markdown | **rumdl** | markdownlint, Vale, Prettier | One binary for lint and format, and it holds the compact-table rule this repository's diffs depend on ([ADR-0001](0001-documentation-and-output-conventions.md)). markdownlint needs Node; Vale judges prose style rather than structure and would be additive rather than a replacement |
+| Shell | **shellcheck + shfmt** | no shell lint, shellharden | The two-tool exception, and it is the only pairing in the field: nothing formats and lints shell in one binary |
+| SQL | **sqruff** | sqlfluff, no SQL lint | The rule set the incumbent established, reimplemented without the Python runtime principle 6 bars *(reasoned)* |
+| Git hooks | **lefthook** | husky, pre-commit, a committed `.githooks` directory | One binary reading one committed YAML file. husky needs Node in every clone; `pre-commit` needs Python; a hooks directory has no parallelism or staged-file filtering |
+
+**The pattern is one property repeated.** Every row picks the option that is a single static binary over the option that is a runtime plus a dependency tree, and accepts a narrower rule set for it. Where that trade lost — shell — the ADR pays for two binaries rather than pretending one covers it.
 
 ## Decision
 
@@ -260,7 +275,7 @@ One multi-stage `Dockerfile` per service: stage 1 builds with the workspace `go 
 
 | Runtime base | Verdict |
 | --- | --- |
-| **`gcr.io/distroless/static-debian13`** | **Chosen.** No shell and no package manager, so a compromised process has nothing to escalate with, and the CA bundle, `/etc/passwd`, and timezone data a service making outbound TLS calls needs are maintained upstream |
+| **`gcr.io/distroless/static-debian13`** | **Chosen.** No shell and no package manager, so a compromised process has nothing to escalate with, and the CA bundle, `/etc/passwd`, and timezone data a service making outbound TLS calls needs are maintained upstream *(reasoned)* |
 | `scratch` | Smaller and genuinely empty, which means hand-copying the CA bundle, a nonroot passwd entry, and tzdata, and owning the CA refresh when roots rotate |
 | Alpine | A shell and a package manager in production, and musl resolves DNS differently from glibc under Go |
 | Chainguard / Wolfi | Comparable hardening with a stronger SBOM story. Its freely available tags track `latest`, which the floating-tag rule forbids |

@@ -26,7 +26,7 @@ The platform team is small against a whole fleet ([ADR-0000](0000-platform-found
 
 | Option | Where trust is rooted | Key custody | Verdict |
 | --- | --- | --- | --- |
-| **cosign with a key pair in SOPS** | **the cluster's own age key** ([ADR-0202](0202-secrets.md)) | one key pair, in the secret machinery that already holds every other secret | **Chosen.** The only option whose trust root is inside the boundary principle 3 draws |
+| **cosign with a key pair in SOPS** | **the cluster's own age key** ([ADR-0202](0202-secrets.md)) | one key pair, in the secret machinery that already holds every other secret | **Chosen.** The only option whose trust root is inside the boundary principle 3 draws *(reasoned)* |
 | cosign keyless against the public Fulcio and Rekor | a third party's certificate authority and transparency log | none | Its value is verification by parties who do not trust us, and the only verifier here is our own admission controller. It also outsources the trust root, the dependency [ADR-0102](0102-source-control-and-ci.md) rejects a managed forge over. The public instance signs only for issuers named in [its own configuration](https://docs.sigstore.dev/certificate_authority/oidc-in-fulcio/), so a self-hosted forge's issuer has to be internet-reachable and accepted upstream before it can sign at all |
 | cosign keyless against a self-hosted Fulcio and Rekor | a certificate authority we operate | **a CA root key** — strictly more consequential than a signing key, though [Fulcio's backends](https://github.com/sigstore/fulcio/blob/main/docs/setup.md) include an on-disk encrypted key, so it can sit in the same machinery | Custody is solvable; the floor is not. Fulcio, Rekor, TUF root metadata, and a timestamp authority join the always-on floor to serve a single verifier that already trusts us. Principle 2 refuses the purchase |
 | notation, from the Notary Project | a key or a hosted trust store | the same as the chosen option | Equivalent custody, narrower ecosystem and tooling |
@@ -38,11 +38,22 @@ The platform team is small against a whole fleet ([ADR-0000](0000-platform-found
 
 | Option | Added components | Policy as files | Verifies signatures at admission | Verdict |
 | --- | --- | --- | --- | --- |
-| **Kyverno** | one controller | YAML in the repo | yes, natively, including attestations | **Chosen** — the policy language is the same YAML the rest of the platform is written in |
+| **Kyverno** | one controller | YAML in the repo | yes, natively, including attestations | **Chosen** — the policy language is the same YAML the rest of the platform is written in *(documented)* |
 | OPA Gatekeeper | one controller | Rego in the repo | through an external data provider | Rego is a second language for one concern |
 | Ratify with Gatekeeper | two | Rego plus verifier CRDs | yes, as an external verifier | Purpose-built for exactly this, and it costs Gatekeeper's second language *and* a second component |
 | Kubernetes `ValidatingAdmissionPolicy` | **none — in-tree** | CEL in the repo | no — a CEL expression cannot read a registry | The option that expands no floor, and signature verification is the one thing in-process CEL cannot do |
 | Admission in CI only | none | n/a | no — the gate is the pipeline | The deploying party owns the pipeline, so driver 3 rules it out |
+
+### Scanning and SBOM generation
+
+Both Tier 2 ([ADR-0002](0002-tool-adoption.md)): each reads an image and writes a report, so a swap changes a task and leaves the artefacts alone.
+
+| Concern | Chosen | Picked over | Why |
+| --- | --- | --- | --- |
+| Vulnerability scanning | **Trivy** | Grype, Clair, a registry-side scanner, Snyk | One binary covering OS packages, language dependencies, infrastructure-as-code, and secrets, so one gate covers surfaces that would otherwise be several. Grype is the closest and is package-scanning only; a registry-side scanner runs after the push, which is after the merge this gates *(reasoned)* |
+| SBOM generation | **syft** | Trivy's own SBOM output, cdxgen, the build system's | It produces the SPDX document the attestation carries, and it is the implementation the scanner also reads. Using the scanner for both would tie the SBOM's fidelity to a scanner's release cadence |
+
+**Trivy is push-shaped, and that is a property rather than a defect.** It sees what is being built. Nothing here notices that a CVE published today affects an image built months ago — the pull-shaped half — which is [`../operational-surface.md`](../operational-surface.md)'s Dependency-Track row, deferred on the operational budget with its triggers stated there.
 
 ## Decision
 
@@ -88,7 +99,7 @@ The digest-pin rule reinforces [ADR-0103](0103-release-and-versioning.md): produ
 
 ## Rules
 
-- Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. `(CI: publish)`
+- Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. `(CI: ci:publish)`
 - Vulnerability scanning is a merge gate in CI. Neither the registry nor the cluster scans ([ADR-0105](0105-image-registry.md)).
 - The signing private key exists only as a SOPS-encrypted secret; the public key is committed and named by the Kyverno policy. It is never held by a person and never stored unencrypted.
 - Kyverno rejects at admission any image lacking a valid signature or referenced by a floating tag. `(enforced: Kyverno)`

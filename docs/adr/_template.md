@@ -11,7 +11,9 @@ Written to ADR-0001. Before merging, check:
   - Every word is load-bearing. No intensifiers, hedges, meta-commentary, or chronology.
   - Three or more items sharing two or more attributes are a table.
   - A fact appears in exactly one ADR; everywhere else is a link.
-  - Standing law only. No Follow-ups, no roadmap, no TODO, no note on whether the artefact exists yet — gaps go in a local *.local.md working file, which nothing committed links to.
+  - Standing law only. No Follow-ups, no roadmap, no TODO, no note on whether the artefact exists yet. Planned work is not part of the committed record.
+  - Every tool named in the Decision has a tool-register row, and a comparison at the depth its tier owes (ADR-0002).
+  - Every decisive comparison cell is graded (measured), (documented), or (reasoned).
   - Every number survives the doubling test. No illustrative figures, no counting live state that lives elsewhere.
   - No tool release versions. Spec versions, licence identifiers, and a capability boundary stated as a floor are fine; the pin lives in the lockfile or the chart. Prefer /latest/ in a documentation link.
   - Drivers are properties. Swap the winner for a loser and re-read them: they must be unmet, not wrong.
@@ -35,13 +37,15 @@ In priority order. Anchor each to an ADR-0000 principle where one applies.
 
 **Mandatory** ([ADR-0000](0000-platform-foundations.md), principle 7). A table with prose cells, where every option answers the same questions. Not a scoring grid: the trade-offs are qualitative and numeric scores manufacture false precision.
 
-Depth is set by exit cost — spend paragraphs where abandonment costs months and customer data, a line where it costs days. A long deep-dive belongs in the PR discussion, not here.
+Depth is set by the tool's exit-cost tier ([ADR-0002](0002-tool-adoption.md)) — a full table at Tier 1 with a named runner-up, a short one at Tier 2, a register line at Tier 3. A long deep-dive belongs in the PR discussion, not here.
+
+The cell that produces each verdict is graded *(measured)*, *(documented)*, or *(reasoned)*. Cells that do not decide the row are not graded.
 
 | Option | <the question that decides it> | <the second question> | Verdict |
 | --- | --- | --- | --- |
-| **Chosen option** | | | **Chosen.** Why |
-| Alternative | | | Why it lost |
-| Alternative | | | Why it lost |
+| **Chosen option** | | | **Chosen.** Why *(grade)* |
+| Alternative | | | Why it lost *(grade)*. The runner-up says so |
+| Alternative | | | Why it lost *(grade)* |
 | Do nothing | | | The honest baseline, and why it does not survive |
 
 ## Decision

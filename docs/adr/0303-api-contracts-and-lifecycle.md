@@ -35,7 +35,7 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 
 | Option | Browser | Public consumers | Cost |
 | --- | --- | --- | --- |
-| **OpenAPI 3.1 + ogen + openapi-typescript** | native `fetch` | docs and SDKs generated | **Chosen** — one spec drives server, both clients, docs, SDKs |
+| **OpenAPI 3.1 + ogen + openapi-typescript** | native `fetch` | docs and SDKs generated | **Chosen** — one spec drives server, both clients, docs, SDKs *(reasoned)* |
 | gRPC + `grpc-web` | needs an Envoy/Connect proxy, loses streaming semantics | expect OpenAPI anyway | a proxy tier plus a second IDL |
 | Connect-RPC (Buf) | speaks HTTP/JSON | workable | an RPC framework where OpenAPI and JSON already satisfy every consumer. Its advantage is a binary wire format, which the Context above rules out as a priority |
 | GraphQL | good | poor fit for service-to-service | a query planner is a platform component the budget does not hold ([ADR-0000](0000-platform-foundations.md)) |
@@ -45,7 +45,7 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 
 | Option | URL stability | Why not |
 | --- | --- | --- |
-| **Date in a request header** (`Api-Version: 2026-07-01`) | flat resource URL preserved | **Chosen** — the convention continuously-evolving REST APIs converge on, Stripe's `Stripe-Version` and GitHub's `X-GitHub-Api-Version` among them, and one calendar spans release and contract. Azure pins a version too, as a query parameter rather than a header, which forks the URL for a caching layer while leaving the path intact |
+| **Date in a request header** (`Api-Version: 2026-07-01`) | flat resource URL preserved | **Chosen** — the convention continuously-evolving REST APIs converge on, Stripe's `Stripe-Version` and GitHub's `X-GitHub-Api-Version` among them, and one calendar spans release and contract. Azure pins a version too, as a query parameter rather than a header, which forks the URL for a caching layer while leaving the path intact *(documented)* |
 | SemVer major in path (`/api/v2/...`) | forks the URL | Fights the topology-hidden flat URL ([ADR-0306](0306-trust-tiers-and-urls.md)). Its value is the breaking signal to an independent pinner, which pin-and-sunset already delivers |
 | Google AIP path-major | forks the URL | Exposes only the major and serves both from one backend — the same idea with a coarser label |
 | Query parameter (`?api-version=`) | path preserved, cache key forked | Azure's shape. A version in the query string is part of the cache key and of every logged URL, and it is trivially omitted by a caller, which makes the default version load-bearing |
@@ -55,13 +55,22 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 
 | Option | Direction | What it generates | Where request validation lives | Verdict |
 | --- | --- | --- | --- | --- |
-| **ogen** | spec-first | the server itself, with typed handlers | **in the generated decoder**, from the same spec | **Chosen.** Driver 2 and driver 5 fall out of the design rather than being enforced on top of it |
+| **ogen** | spec-first | the server itself, with typed handlers | **in the generated decoder**, from the same spec | **Chosen.** Driver 2 and driver 5 fall out of the design rather than being enforced on top of it *(reasoned)* |
 | oapi-codegen | spec-first | stubs *into* chi, echo, gin, or `net/http` | an optional middleware that reads the spec at runtime | The incumbent, and the closest alternative. Validation as runtime middleware means a second copy of the contract is consulted at request time rather than compiled into the types |
 | huma | **code-first** — the spec is emitted from Go types | the spec | struct tags | Inverts driver 5: the code becomes the source and the contract the artefact. Right when an API has one co-shipped consumer, wrong when a third party pins it |
 | OpenAPI Generator | spec-first | stubs in many languages | varies by generator | A JVM toolchain ([ADR-0100](0100-language-and-runtime.md)), and its Go output is among its weakest targets. Retained below for public SDKs, where breadth of language is the entire point |
 | Hand-written handlers plus a runtime spec validator | neither | nothing | a runtime check | Nothing forces the spec and the handlers to agree, which is driver 5 |
 
-On the TypeScript side `openapi-typescript` emits types only and `openapi-fetch` is a thin typed wrapper over `fetch`. The alternatives — orval, kubb, hey-api — generate a client *plus* framework-specific hooks, which couples the published SDK to whatever the frontend uses for data fetching ([ADR-0400](0400-frontend.md)).
+### The rest of the spec toolchain
+
+Four tools read the same OpenAPI files, each Tier 2 ([ADR-0002](0002-tool-adoption.md)): a swap changes a task and the specs stay as they are.
+
+| Concern | Chosen | Picked over | Why |
+| --- | --- | --- | --- |
+| TypeScript client | **`openapi-typescript` + `openapi-fetch`** | Kubb, orval, Hey API, a hand-written `fetch` wrapper | It emits types plus a thin typed `fetch`, and nothing else. The alternatives emit framework-specific hooks, which couples the published SDK to the frontend's data-fetching choice — so replacing that choice would mean regenerating the client ([ADR-0400](0400-frontend.md)) *(reasoned)* |
+| Spec linting | **vacuum** | Spectral, Redocly CLI, no spec lint | Spectral's rule model as a Go binary rather than a Node program ([ADR-0100](0100-language-and-runtime.md)). Rules are portable between the two, so the exit is one ruleset file |
+| Breaking-change detection | **oasdiff** | openapi-diff, Optic, review alone | The only option that classifies a diff as breaking or not against a rule set, rather than rendering the diff for a human to judge. Optic covers the same ground inside a hosted workflow |
+| Reference rendering | **Scalar** | Redoc, Swagger UI, Stoplight Elements | Its request console is in the open distribution where Redoc's is paywalled, and a console served from a different origin than the API loses the session the developer portal exists to exercise ([ADR-0306](0306-trust-tiers-and-urls.md)) *(documented)* |
 
 ## Decision
 

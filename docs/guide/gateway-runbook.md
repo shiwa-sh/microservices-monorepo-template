@@ -10,8 +10,16 @@ How-to for operating the Traefik + Oathkeeper edge. The decision (Traefik ingres
 
 ## Add a route
 
-- Product API: a flat `/api/<resource>` IngressRoute on the apex `<host>` behind the Oathkeeper forward-auth ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)). The service declares the resources it owns in `ingress.resources`; the edge routes each `/api/<resource>` and strips `/api`. No two services may own the same resource (CI-linted, [ADR-0303](../adr/0303-api-contracts-and-lifecycle.md)). Every forward-auth route MUST apply `strip-identity-headers` before forward-auth — enforced by `mise run lint:authz`.
-- Ops tool: a `Host({tool}.ops.<host>)` IngressRoute behind the ops forward-auth, whose coarse gate is the `operator` claim + AAL2 ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)). Add the Oathkeeper access rule in `infra/auth/oathkeeper/access-rules.json` (`mise run lint:authz` checks it uses `remote_json`, never `allow`).
+**For a product API resource:**
+
+1. Declare the resource in the service's `ingress.resources`. The edge routes `/api/<resource>` on the apex host and strips the `/api` prefix.
+2. Check no other service already owns that resource name. `mise run lint:openapi` rejects the collision, and finding it yourself is faster ([ADR-0303](../adr/0303-api-contracts-and-lifecycle.md)).
+3. Apply `strip-identity-headers` **before** forward-auth in the middleware chain. Get this backwards and a client can inject its own `X-User-Id`; `mise run lint:authz` fails the build if you do.
+
+**For an ops tool:**
+
+1. Add a `Host({tool}.ops.<host>)` IngressRoute behind the ops forward-auth. Its coarse gate is the `operator` claim plus AAL2 ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)).
+2. Add the Oathkeeper access rule in `infra/auth/oathkeeper/access-rules.json`. Use `remote_json` — `mise run lint:authz` rejects `allow`, because an `allow` rule on the ops tier is an unauthenticated origin on the cluster's control surface.
 
 ## Certificates & DNS
 

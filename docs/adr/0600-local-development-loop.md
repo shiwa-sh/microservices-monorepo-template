@@ -18,7 +18,9 @@ Three jobs need different tiers, and one tier cannot serve all three:
 | Build a UI screen | speed, but across many services | an authenticated page; the services behind it are not under change |
 | Validate the platform behaves like production | fidelity | the real charts, the real operators |
 
-The second job is the one that has no cheap answer by default. A single panel screen fans out across `/products`, `/orders`, `/orgs`, and `/charges` — four services the engineer is not changing. The full-platform tier serves them at a footprint the platform dominates entirely, the observability stack outweighing every service ([ADR-0601](0601-testing-strategy.md)). None of that renders a table, and the gap widens as the fleet grows: services behind a screen grow while services under change stay at one.
+The second job has no cheap answer by default. A single panel screen fans out across `/products`, `/orders`, `/orgs`, and `/charges` — four services the engineer is not changing.
+
+The full-platform tier serves them at a footprint the platform dominates entirely, the observability stack outweighing every service ([ADR-0601](0601-testing-strategy.md)). None of that renders a table, and the gap widens as the fleet grows: services behind a screen grow while services under change stay at one.
 
 Two properties make the missing tier cheap:
 
@@ -42,7 +44,7 @@ The question is therefore not how to simulate the platform, but **which parts ar
 
 | Approach | How it works | Cost | Verdict |
 | --- | --- | --- | --- |
-| **Local cluster** | scaled-down whole system on the laptop | laptop resource ceiling; stand-ins can drift | **Chosen** — no shared infra, no platform team, full isolation, works offline |
+| **Local cluster** | scaled-down whole system on the laptop | laptop resource ceiling; stand-ins can drift | **Chosen** — no shared infra, no platform team, full isolation, works offline *(reasoned)* |
 | Sync tools | a tool watches files, rebuilds images, redeploys | a second orchestrator beside Helm and Argo; an image build on the hot path | **Partially** — the deploy step, not the watch loop |
 | Shared cluster, one service local | the base cluster runs remotely; the service under development joins it | needs a platform team, and contention unless request-level isolation is built | Highest fidelity, and the destination past the ceiling below |
 | Cloud workspaces | the whole dev environment moves to a remote machine | cost per engineer, network-dependent, weakest local tooling | Orthogonal to parity |
@@ -53,7 +55,7 @@ The approach above says "a cluster on the laptop" and this row says which one. E
 
 | Option | Node shape | Getting an image in | Distance from [ADR-0200](0200-cluster-topology.md)'s production distribution | Verdict |
 | --- | --- | --- | --- | --- |
-| **k3d** | k3s in Docker containers | `k3d image import`, or the built-in registry | k3s, not Talos-shipped upstream Kubernetes | **Chosen.** The fastest create-and-destroy cycle of the field, and a built-in registry means the image path is one command rather than a local registry to run |
+| **k3d** | k3s in Docker containers | `k3d image import`, or the built-in registry | k3s, not Talos-shipped upstream Kubernetes | **Chosen.** The fastest create-and-destroy cycle of the field, and a built-in registry means the image path is one command rather than a local registry to run *(measured)* |
 | kind | upstream Kubernetes in Docker | `kind load docker-image` | **upstream Kubernetes, as production runs** | The closest to production of the four, and slower to create and to load images into. Its advantage is the control plane the cluster runs, which matters for a Kubernetes-version-sensitive change and not for a service change |
 | minikube | a VM or a container, many drivers | `minikube image load`, or its Docker daemon | upstream, with its own addon layer | The most portable across host operating systems, and the heaviest per cluster. Its addons are a second source of cluster configuration, against parity |
 | Talos in Docker | **Talos, as production runs** | a local registry | **none — the same OS and distribution** | The highest fidelity available, and the fidelity is at the layer the inner loop does not exercise. Booting Talos nodes to iterate on a Go handler pays production's bootstrap cost on every recreate |
@@ -76,14 +78,16 @@ Live file sync is the headline feature of Skaffold, Tilt, DevSpace, and Okteto, 
 | Tilt | **explicitly not** — documented behaviour | Starlark | The healthiest project in the set, and its subset mechanism ignores dependencies, which is the exact failure being fixed |
 | DevSpace | coarse — cross-repo, always first | `devspace.yaml` | Wrong granularity |
 | Okteto | no | `okteto.yml` | Remote-namespace oriented |
-| **mise + bash + Helm + Argo** | no — **the gap** | none | **Chosen**, with the gap closed below |
+| **mise + bash + Helm + Argo** | no — **the gap** | none | **Chosen**, with the gap closed below *(reasoned)* |
 
 **Garden's convention is adopted; Garden is not.** Two independent reasons:
 
 - *Stewardship.* Garden's open-source repository is under corporate ownership and its commit and release cadence trails Tilt's and Skaffold's by an order of magnitude. Driver 6 makes active maintenance an entry gate rather than a scoring column, and it is not met.
 - *Architecture.* Adopting Garden means adopting its whole config system: its own build, test, and deploy verbs and its own environment model. That does not sit beside Helm, Argo CD, and mise; it duplicates them, colliding with [ADR-0101](0101-monorepo.md) and [ADR-0201](0201-gitops.md). Two orchestrators would resolve a graph over six services.
 
-A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610) — real, and consisting mostly of readiness-gated ordering and image build/import. It does **not** win on graph resolution, the property that attracted us: mise already dedupes and parallelises. The three gnarliest pieces — docker-bridge discovery in the edge glue, SOPS secret materialisation, and the Argo pause/resume — have no Garden model and survive in bash either way.
+A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610), consisting mostly of readiness-gated ordering and image build/import.
+
+It does **not** win on graph resolution, the property that attracted us: mise already dedupes and parallelises. The three gnarliest pieces — docker-bridge discovery in the edge glue, SOPS secret materialisation, and the Argo pause/resume — have no Garden model and survive in bash either way.
 
 ### Local-process seam
 
@@ -100,7 +104,7 @@ A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610)
 
 | Tool | 3.1 support | Source of truth | Runtime added | Verdict |
 | --- | --- | --- | --- | --- |
-| **Prism (Stoplight)** | full | the spec — serves committed `examples`, generates from schemas otherwise | a container; no `mise` tool, no `package.json` | **Chosen** — request validation is free feedback: unknown route 404, bad body 422 |
+| **Prism (Stoplight)** | full | the spec — serves committed `examples`, generates from schemas otherwise | a container; no `mise` tool, no `package.json` | **Chosen** — request validation is free feedback: unknown route 404, bad body 422 *(documented)* |
 | MSW | n/a | typed handlers | in-process | An in-process double, not a running API. Nothing outside the Next server can reach it. It owns the test layer, which is the different-concern justification driver 5 requires |
 | Microcks | full | the spec, GitOps-native | **MongoDB** | The best GitOps fit and the only one that also does contract testing, but a datastore joining the floor for a development mock fails the budget rule |
 | `muonsoft/openapi-mock` | **3.0 core (kin-openapi)** | the spec | none — a Go binary | Best language fit. Rejected as primary on a correctness risk: the specs are 3.1. The documented fallback if the vendored container proves unacceptable, gated on demonstrating 3.1 support |
@@ -114,7 +118,7 @@ A like-for-like sizing put Garden at roughly 210 fewer lines (~400 against ~610)
 
 | Option | Why |
 | --- | --- |
-| **The real Kratos** | **Chosen.** Cheap, and its behaviour *is* the contract |
+| **The real Kratos** | **Chosen.** Cheap, and its behaviour *is* the contract *(reasoned)* |
 | A fake IdP — `mock-oauth2-server`, Dex, seeded Keycloak | The standard answer elsewhere, because OIDC is a **protocol boundary** where any conforming provider is interchangeable. Kratos is not that boundary: the frontend couples to Kratos's own surface — browser self-service flows, flow ids, `ui.nodes`, CSRF in flow state, opaque session cookies, `/sessions/whoami`. A convincing fake reimplements Kratos's flow state machine, which is a second implementation. This is a property of Kratos, not a ban: **Hydra** *is* a protocol boundary, so a fake OAuth2 provider is legitimate for third-party client work |
 | An in-application bypass | Rejected on driver 2, and it saves nothing: a bypass that functions must return a fully-populated `Session` — identity id, email, roles, AAL — for the gates downstream of `whoami()`, so a hand-maintained fake identity survives anyway, without the login, expiry, or cookie behaviour that made keeping Kratos real worthwhile |
 
@@ -140,13 +144,17 @@ The full platform runs the same charts production runs, scaled to one replica th
 
 **Any number of services can be native at once**, each bound to its own registered port. Debugging a flow spanning three services means running all three natively with breakpoints in all three, while everything they call stays in the cluster.
 
-That requires a **committed port registry** (`scripts/lib/ports.sh`), not a convention. Every server binds `:8080` in-cluster, which collides the moment a second runs on the host, and ad-hoc ports would live in each engineer's gitignored `.env` where they cannot be shared or defaulted. One stable port per service on every machine is what lets a caller's `CATALOG_URL` ship a working default. `lint:ports` enforces uniqueness and that each service binds what the registry assigns. `:8080` stays unassigned because the host maps it to the edge.
+That requires a **committed port registry** (`scripts/lib/ports.sh`), not a convention. Every server binds `:8080` in-cluster, which collides the moment a second runs on the host.
+
+Ad-hoc ports would live in each engineer's gitignored `.env`, where they cannot be shared or defaulted. One stable port per service on every machine is what lets a caller's `CATALOG_URL` ship a working default. `lint:ports` enforces uniqueness and that each service binds what the registry assigns. `:8080` stays unassigned because the host maps it to the edge.
 
 ### Composition: a floor, plus per-service declarations
 
 There are no named profiles. **A floor**: `cluster:base` brings up Traefik, cert-manager, Postgres, Kratos, and Oathkeeper, plus the host edge glue and the seeded test identities. It is unconditional.
 
-The identity stack is in the floor deliberately. Kratos and Oathkeeper are cheap, and their behaviour — cookies, CSRF, session expiry, AAL, `401`/`403` — **is** the contract every service consumes. A service reached through this edge gets real Oathkeeper identity headers; one curled directly on `:8080` is handed forged ones. A backend engineer who wants only Postgres still pays for the edge; that trade is accepted here rather than discovered later.
+The identity stack is in the floor deliberately. Kratos and Oathkeeper are cheap, and their behaviour — cookies, CSRF, session expiry, AAL, `401`/`403` — **is** the contract every service consumes.
+
+A service reached through this edge gets real Oathkeeper identity headers; one curled directly on `:8080` is handed forged ones. A backend engineer who wants only Postgres still pays for the edge; that trade is accepted here rather than discovered later.
 
 **Everything else is opt-in, declared by the service that needs it**, in its own `.mise.toml`:
 
@@ -214,7 +222,9 @@ The deployment surface of this platform is the set of values files, and it is st
 
 ### GitOps locally
 
-Argo CD reconciles committed git state, so it is **not** the inner loop's engine. The **full tier does run Argo CD**: a local bootstrap (`infra/gitops/local-bootstrap/`) applies the same app-of-apps production uses, syncing committed `master`, so sync ordering, app discovery, and secret materialisation are exercised as in production. Only the two components Argo cannot self-create — the CNI and Argo CD itself — are installed imperatively before the root app.
+Argo CD reconciles committed git state, so it is **not** the inner loop's engine.
+
+The **full tier does run Argo CD**: a local bootstrap (`infra/gitops/local-bootstrap/`) applies the same app-of-apps production uses, syncing committed `master`, so sync ordering, app discovery, and secret materialisation are exercised as in production. Only the two components Argo cannot self-create — the CNI and Argo CD itself — are installed imperatively before the root app.
 
 Three escape hatches cover uncommitted infra:
 
@@ -270,7 +280,9 @@ It joins no tier in [`docs/operational-surface.md`](../operational-surface.md) �
 
 It is forbidden anywhere correctness is asserted ([ADR-0601](0601-testing-strategy.md), driver 4): never in `mise run test`, `ci:affected`, the e2e or visual suites, or any deployed environment. Its only consumer is a human looking at a browser.
 
-The mock's validating-proxy mode is not used either. The platform answers that question twice already: the server is generated from the spec by ogen, and every generated Go client validates responses against it, so a spec-violating response fails the integration tests that drive it. What escapes both is the edge's own error responses — `401`, `403`, `429` from Traefik and Oathkeeper — which reach no generated client; that fixed, small set is asserted against the Problem envelope in e2e.
+The mock's validating-proxy mode is not used either, because the platform answers that question twice already: the server is generated from the spec by ogen, and every generated Go client validates responses against it, so a spec-violating response fails the integration tests that drive it.
+
+What escapes both is the edge's own error responses — `401`, `403`, `429` from Traefik and Oathkeeper — which reach no generated client. That fixed, small set is asserted against the Problem envelope in e2e.
 
 ### Local domain and local-only manifests
 

@@ -40,7 +40,7 @@ This ADR owns the **grammar and charset** of every name the platform assigns. Wh
 
 | Option | File–console parity | Provider agnostic | Verdict |
 | --- | --- | --- | --- |
-| **One slug on a standards-derived charset, plus one mechanical compact form** | exact | yes — the charset is RFC 1123, not a provider survey | **Chosen** |
+| **One slug on a standards-derived charset, plus one mechanical compact form** | exact | yes — the charset is RFC 1123, not a provider survey | **Chosen** *(reasoned)* |
 | One slug on the intersection of a named provider set | exact | no — the intersection changes when the provider set does, and a template cannot name its provider set | Re-derivable only by re-surveying providers, which nobody does. The cap becomes folklore |
 | Per-provider name variants | broken by construction | yes | Every name needs a translation table, and the grep across the boundary fails |
 | Org prefix on every name (`acme-corp-…`) | exact | yes | Spends characters of a tight budget on a constant, and the project slug already discriminates |
@@ -53,7 +53,7 @@ Exit cost is months and customer data: an identifier is embedded in every row, e
 
 | Option | Enumeration exposure | Index behaviour | Type safety | Verdict |
 | --- | --- | --- | --- | --- |
-| **UUIDv7 stored, type-prefixed on the wire** | none — 74 random bits per value | sequential prefix, so inserts append | the prefix names the type at every boundary | **Chosen.** [RFC 9562](https://www.rfc-editor.org/info/rfc9562/) for the value, the Stripe/[TypeID](https://github.com/jetify-com/typeid) convention for the surface |
+| **UUIDv7 stored, type-prefixed on the wire** | none — 74 random bits per value | sequential prefix, so inserts append | the prefix names the type at every boundary | **Chosen.** [RFC 9562](https://www.rfc-editor.org/info/rfc9562/) for the value, the Stripe/[TypeID](https://github.com/jetify-com/typeid) convention for the surface *(documented)* |
 | `bigserial` | total — count and creation order leak from any single ID | ideal | none | Two services cannot mint IDs independently, and a leaked count is a business fact we did not choose to publish |
 | UUIDv4 | none | random, so every insert lands in a cold page and the B-tree fragments | none | The write-amplification is paid on every table forever, and v7 removes it at no cost |
 | ULID | none | sequential | none | Solves the same problem as v7 outside the RFC. No database type, no `uuid` column, no library in every language |
@@ -104,7 +104,7 @@ Driver 4 is not satisfied by a scheme with one free-text field. `role` takes a v
 | `fw` | a firewall or security group |
 | `dns` | a DNS zone |
 | `assets` | the public object-storage bucket |
-| `backup` | the backup object-storage bucket ([ADR-0200](0200-cluster-topology.md)) |
+| `backup` | the backup object-storage bucket ([ADR-0207](0207-cluster-storage.md)) |
 | `state` | the infrastructure-state bucket |
 
 Adding a resource class adds a row here in the same PR that adds the resource. A token is at most six characters, which is why the table reads `cp` rather than `control-plane`.
@@ -130,7 +130,9 @@ northwind-prod-assets   canonical, used everywhere that accepts a DNS label
 northwindprodassets     compact, used only where hyphens are rejected
 ```
 
-This is one pure function applied identically on every provider, not the per-provider translation table rejected in *Considered options*: there is nothing to look up, and either form is derivable from the other by eye. The project-slug cap is set so the compact form always fits 24 characters. Ordinals are excluded from that budget because a role taking an ordinal is a node or an instance, which never lands in a flattened namespace.
+This is one pure function applied identically on every provider, not the per-provider translation table rejected in *Considered options*: there is nothing to look up, and either form is derivable from the other by eye.
+
+The project-slug cap is set so the compact form always fits 24 characters. Ordinals are excluded from that budget, because a role taking an ordinal is a node or an instance and never lands in a flattened namespace.
 
 ### Names carry identity, labels carry provenance
 

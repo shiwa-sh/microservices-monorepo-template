@@ -17,12 +17,25 @@ How to operate the Argo CD deploy path. The decision is [ADR-0201](../adr/0201-g
 
 Both are files reconciled by their own Application ([ADR-0500](../adr/0500-observability.md)).
 
-| Artefact | Location | Extra step |
+| Artefact | Location | What to check before merging |
 | --- | --- | --- |
-| Prometheus alert rule | `infra/observability/alerts/*.yaml` | **add the file to that directory's `kustomization.yaml`**, or it is not shipped and nothing reports it |
-| Grafana dashboard | `infra/observability/dashboards/*.json` | add the file to the dashboards `kustomization.yaml` |
+| Prometheus alert rule | `infra/observability/alerts/*.yaml` | the rule carries a `severity` of `page` or `ticket` ([ADR-0502](../adr/0502-alerting-and-on-call.md)) |
+| Grafana dashboard | `infra/observability/dashboards/*.json` | the `uid` is stable, because links and the funnel depend on it ([ADR-0501](../adr/0501-operator-uis-and-dashboards.md)) |
 
-A firing alert appears on the Prometheus alerts page, as the `ALERTS` series, and at whichever Alertmanager receiver its `severity` selects ([ADR-0502](../adr/0502-alerting-and-on-call.md)). A rule without a `severity` label is a defect. Nothing pages anyone: no escalation receiver is attached.
+Each directory is reconciled by its own Application with a recursive directory source, so **adding the file is the whole step** — there is no index to update. Kustomize is not used anywhere ([ADR-0201](../adr/0201-gitops.md)). The failure mode this shape has instead: one malformed file fails the sync for the whole directory, and the Application's condition names the file.
+
+A firing alert appears on the Prometheus alerts page, as the `ALERTS` series, and at whichever Alertmanager receiver its `severity` selects. A rule without a `severity` label is a defect. Nothing pages anyone: no escalation receiver is attached.
+
+## Silence an alert
+
+Silences are configuration, so they live in the repository like everything else ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). A silence created in the Alertmanager UI is invisible to review and vanishes on the next reconcile.
+
+1. Add the matcher to `infra/observability/alertmanager/silences.yaml`.
+2. **Set `endsAt` to an explicit timestamp.** A silence with no end is how an alert stops existing without anyone deciding it should.
+3. Put the reason in the comment above the matcher — what is being suppressed, and what would make it safe to remove.
+4. Merge. Argo CD reconciles it like any other file.
+
+An expired silence is deleted from the file rather than extended. Extending one twice is the signal that the rule underneath it is wrong: either the threshold is set where it fires without a human action, in which case demote it to `ticket`, or the condition is genuinely acceptable, in which case the rule is deleted and the reason recorded in the owning ADR.
 
 ## Bring up the full platform locally
 

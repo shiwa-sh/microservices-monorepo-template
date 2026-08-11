@@ -17,7 +17,7 @@
 | What pods exist, describe them, tail their logs | Headlamp |
 | What is deployed, and did it sync? | Argo CD ([ADR-0201](0201-gitops.md)) |
 
-Cilium already runs Hubble agent and relay as the audit surface for the default-deny NetworkPolicy posture ([ADR-0200](0200-cluster-topology.md)), so a live flow graph exists in the cluster and only its UI is open.
+Cilium already runs Hubble agent and relay as the audit surface for the default-deny NetworkPolicy posture ([ADR-0206](0206-cluster-networking.md)), so a live flow graph exists in the cluster and only its UI is open.
 
 Without a stated dashboard structure, a growing dashboard set invites two failure modes: one mega-dashboard nobody reads, and unowned sprawl.
 
@@ -35,8 +35,8 @@ Without a stated dashboard structure, a growing dashboard set invites two failur
 
 | Option | Service map | Dashboards as code | Footprint | Verdict |
 | --- | --- | --- | --- | --- |
-| **Grafana stack + bundled Hubble UI** | Hubble UI, live | JSON in git | zero marginal — both already run | **Chosen** |
-| Coroot Community Edition (Apache-2.0) | keyed by Deployment, no name collapse | **UI-only click-ops state in ClickHouse** — not in git, not reviewable, invisible to Argo | five always-on components plus ClickHouse | Rejected. Fails driver 2 outright, and duplicates most of the Grafana stack. CE also has no SSO/RBAC, ~7-day retention, requires tracefs/debugfs mounts, and exposes no stable query API for the acceptance gauge ([ADR-0601](0601-testing-strategy.md)). Its eBPF extras cover uninstrumented workloads, which instrumented services already exceed through OTLP |
+| **Grafana stack + bundled Hubble UI** | Hubble UI, live | JSON in git | zero marginal — both already run | **Chosen** *(reasoned)* |
+| [Coroot Community Edition](https://github.com/coroot/coroot/blob/main/LICENSE) (Apache-2.0) | keyed by Deployment, no name collapse | **UI-only click-ops state in ClickHouse** — not in git, not reviewable, invisible to Argo | five always-on components plus ClickHouse | Rejected. Fails driver 2 outright, and duplicates most of the Grafana stack. CE also has no SSO/RBAC, ~7-day retention, requires tracefs/debugfs mounts, and exposes no stable query API for the acceptance gauge ([ADR-0601](0601-testing-strategy.md)). Its eBPF extras cover uninstrumented workloads, which instrumented services already exceed through OTLP |
 | Isovalent/Cisco Enterprise Hubble | maintained, no collapse defect | n/a | n/a | Commercial ([ADR-0000](0000-platform-foundations.md), principle 3) |
 | No map at all | `hubble` CLI answers point queries only | n/a | zero | The UI is free once Hubble runs |
 
@@ -53,7 +53,7 @@ Both candidate feeds fail structurally, so no Grafana service-map dashboard is b
 
 | Option | Shared web origin | Verdict |
 | --- | --- | --- |
-| **Headlamp** (CNCF Sandbox, Apache-2.0) | yes, OIDC/header aware | **Chosen** — one in-cluster deployment, drops into the existing ops-origin pattern |
+| **[Headlamp](https://headlamp.dev/)** (CNCF Sandbox, Apache-2.0) | yes, OIDC/header aware | **Chosen** — one in-cluster deployment, drops into the existing ops-origin pattern *(documented)* |
 | k9s | no — a TUI | No shared origin, no edge gating. It is what an engineer with cluster credentials already uses, which is the point: this row is about the operator who has none |
 | Lens, or its OpenLens build | no — a desktop application | Per-workstation install and per-workstation credentials, so access is granted by distributing kubeconfigs rather than by an edge session |
 | Skooner | yes | A lighter in-cluster dashboard with a service-account token model rather than a forward-auth one, and a smaller maintainer base than the chosen option |

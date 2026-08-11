@@ -8,7 +8,7 @@
 
 ## Context
 
-Other ADRs pin pieces of testing and none owns the whole: [ADR-0101](0101-monorepo.md) gives the `test` and `ci:test` task names and affected-detection, [ADR-0400](0400-frontend.md) covers frontend unit and component tests, [ADR-0205](0205-environment-parity.md) names the tier that e2e runs on, and [ADR-0304](0304-identity-and-authorization.md) has its own authz conformance suite. This ADR owns the cross-cutting question: what is the acceptance test for "the platform works", where does it live, what drives it, and when does it run.
+Other ADRs pin pieces of testing and none owns the whole — [ADR-0101](0101-monorepo.md) the task names and affected-detection, [ADR-0400](0400-frontend.md) frontend unit and component tests, [ADR-0205](0205-environment-parity.md) the tier e2e runs on, and [ADR-0304](0304-identity-and-authorization.md) its own authz conformance suite. This ADR owns the cross-cutting question: what is the acceptance test for "the platform works", where does it live, what drives it, and when does it run.
 
 Testing answers two separable questions, and conflating them produces a suite that answers neither:
 
@@ -23,7 +23,9 @@ Three accepted decisions depend on the second answer:
 - [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) define the apparatus that observes saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — and an alert nobody has seen fire is an alert nobody knows the shape of.
 - [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative, and this is what quantifies it.
 
-Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At about one user the cost is entirely platform. The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
+Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At about one user the cost is entirely platform.
+
+The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
 
 ## Decision drivers
 
@@ -41,7 +43,7 @@ Measured on `cluster:full`, one node, during the e2e suite, and re-derivable fro
 
 | Option | Cross-origin | Visual regression | Runtime | Verdict |
 | --- | --- | --- | --- | --- |
-| **Playwright (TypeScript)** | native, out-of-process driver | built in (`toHaveScreenshot`) | Node | **Chosen** — lowest-flake auto-waiting for heavy SPA dashboards, and it crosses the Kratos redirect and `*.ops.<host>` subdomains ([ADR-0306](0306-trust-tiers-and-urls.md)) natively |
+| **Playwright (TypeScript)** | native, out-of-process driver | built in ([`toHaveScreenshot`](https://playwright.dev/docs/test-snapshots)) | Node | **Chosen** — lowest-flake auto-waiting for heavy SPA dashboards, and it crosses the Kratos redirect and `*.ops.<host>` subdomains ([ADR-0306](0306-trust-tiers-and-urls.md)) natively *(documented)* |
 | WebdriverIO | BiDi | bolt-on service | Node | Higher baseline flakiness and bolt-on visual land exactly where sensitivity is highest. Its decisive edge, native mobile, is unused. Buys back no runtime purity |
 | Cypress | fights it — single browser context | good | Node | The auth-redirect and ops-subdomain topology is its weak spot |
 | Rod / chromedp (pure Go) | workable | **none** — pixel diffing, baselines, and a review flow would be hand-rolled | Go | The only Node-free path, rejected on the two capabilities needed most. Raw-CDP auto-wait is weaker on heavy dashboards |
@@ -51,7 +53,7 @@ Measured on `cluster:full`, one node, during the e2e suite, and re-derivable fro
 
 | Option | Runtime added | Scenario artefact | Metrics path | Verdict |
 | --- | --- | --- | --- | --- |
-| **k6 (Grafana)** | none — a single static Go binary with an embedded JS engine (Sobek) | committed JS files | built-in OTLP output | **Chosen** — thresholds set the exit code, so a run is a CI gate without a wrapper |
+| **k6 (Grafana)** | none — a single static Go binary with an embedded JS engine (Sobek) | committed JS files | built-in OTLP output | **Chosen** — thresholds set the exit code, so a run is a CI gate without a wrapper *(documented)* |
 | Locust | Python: a third toolchain, a pip tree, an image | committed Python | its own store, needs an exporter sidecar | Fails drivers 6 and 7 |
 | Gatling | JVM (Scala/Java DSL) | committed DSL | HTML report — a parallel offline results plane | Strongest reporting in the field, rejected on drivers 6 and 7 |
 | JMeter | JVM | **GUI-authored XML blob** | its own | Reviews as a blob, against config-as-code ([ADR-0000](0000-platform-foundations.md), principle 1) |
@@ -62,7 +64,7 @@ Measured on `cluster:full`, one node, during the e2e suite, and re-derivable fro
 
 | Option | Postgres, Temporal, OpenFGA come from | Fidelity to production | Cost per run | Verdict |
 | --- | --- | --- | --- | --- |
-| **`cluster:base` plus the service's declared components** | the same charts production runs ([ADR-0205](0205-environment-parity.md)) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** The dependencies are already declared per service for deployment, so the test environment is derived from the deploy manifest rather than described twice |
+| **`cluster:base` plus the service's declared components** | the same charts production runs ([ADR-0205](0205-environment-parity.md)) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** The dependencies are already declared per service for deployment, so the test environment is derived from the deploy manifest rather than described twice *(reasoned)* |
 | testcontainers-go | a container per dependency, started by the test process | plain images: no CNPG, no operator behaviour, no NetworkPolicy | one container set per package, torn down after | The industry default for Go service tests, and it would require each service to declare its dependencies a second time in Go. It also cannot exercise the operator-managed behaviour — failover, pooler, seeded authz model — that this platform's data tier has |
 | A shared long-lived test database | a persistent environment | high | none per run, and cross-test interference forever | State leaks between runs, and a failing test becomes a question about who else was running |
 | Mocks at the repository boundary | nothing | none — the SQL is never executed | fastest | It tests the code against its own assumptions about Postgres, which is the layer these tests exist to check |
@@ -73,14 +75,16 @@ Measured on `cluster:full`, one node, during the e2e suite, and re-derivable fro
 
 | Option | What it verifies | Where the truth lives | Verdict |
 | --- | --- | --- | --- |
-| **The generated client, compiled against the spec** | that consumer and provider agree, at build time | the OpenAPI spec ([ADR-0303](0303-api-contracts-and-lifecycle.md)) | **Chosen by inheritance.** Every consumer calls through generated code, and CI fails on stale generation, so a contract break is a compile error rather than a test failure |
+| **The generated client, compiled against the spec** | that consumer and provider agree, at build time | the OpenAPI spec ([ADR-0303](0303-api-contracts-and-lifecycle.md)) | **Chosen by inheritance.** Every consumer calls through generated code, and CI fails on stale generation, so a contract break is a compile error rather than a test failure *(reasoned)* |
 | Pact, or another consumer-driven contract broker | that a consumer's expectations still hold | consumer-written pacts, plus a broker to store them | Consumer-driven contracts solve a problem this repo does not have: consumers that ship separately from providers. Here they ship in the same commit ([ADR-0103](0103-release-and-versioning.md)), and the broker is a component |
 | Microcks as a contract test | that a running provider matches the spec | the spec | Already compared as a mock in [ADR-0600](0600-local-development-loop.md) and rejected there on its MongoDB dependency; the same cost applies here |
 | schemathesis or another spec-fuzzer | that the provider handles inputs the spec permits | the spec | Genuinely additive rather than an alternative: it tests robustness where the generated client tests agreement |
 
 ### Runtime for the Playwright runner
 
-Bun is the sole JS runtime ([ADR-0100](0100-language-and-runtime.md)) and **cannot reliably run a browser test runner**. Playwright, like every Node browser runner, spawns the browser with extra file descriptors (fd 3/4) as a pipe transport and forks workers over Node IPC — the least-travelled corners of `child_process` that Bun has not matched. Browser launch hangs or segfaults, and the runner produces no output. This is a Node-ecosystem-wide gap, not a Playwright bug, and not a "temporary" to build on ([ADR-0000](0000-platform-foundations.md)).
+Bun is the sole JS runtime ([ADR-0100](0100-language-and-runtime.md)) and **cannot reliably run a browser test runner**.
+
+Playwright, like every Node browser runner, spawns the browser with extra file descriptors (fd 3/4) as a pipe transport and forks workers over Node IPC — the least-travelled corners of `child_process` that Bun has not matched. Browser launch hangs or segfaults, and the runner produces no output. This is a Node-ecosystem-wide gap, not a Playwright bug, and not a "temporary" to build on ([ADR-0000](0000-platform-foundations.md)).
 
 Node is therefore sanctioned as a **test-only escape hatch**, scoped to the e2e and visual runner alone.
 

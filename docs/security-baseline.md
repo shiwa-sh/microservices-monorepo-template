@@ -14,7 +14,7 @@ The security controls every project built from this template inherits, each one 
 
 | Control | Enforced by |
 | --- | --- |
-| Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. | `publish` in CI |
+| Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. | `ci:publish` in CI |
 | Vulnerability scanning is a merge gate in CI. Neither the registry nor the cluster scans ([ADR-0105](adr/0105-image-registry.md)). | review |
 | The signing private key exists only as a SOPS-encrypted secret; the public key is committed and named by the Kyverno policy. It is never held by a person and never stored unencrypted. | review |
 | Kyverno rejects at admission any image lacking a valid signature or referenced by a floating tag. | admission: Kyverno |
@@ -22,7 +22,7 @@ The security controls every project built from this template inherits, each one 
 | Third-party images are pinned by digest and allow-listed, with upstream signatures verified where published. | review |
 | Admission policy is committed YAML reconciled by Argo CD, never applied by hand. | review |
 
-## Network and workload isolation
+## Node and workload isolation
 
 [ADR-0200 — Cluster Topology & Hosting](adr/0200-cluster-topology.md)
 
@@ -32,25 +32,11 @@ The security controls every project built from this template inherits, each one 
 | Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node. | review |
 | Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger. | review |
 | Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory. | review |
-| Ingress is Traefik with TLS from cert-manager over ACME. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. | standard: RFC 8555 |
-| Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier. | review |
-| Production runs it outside the cluster. No object store holding production data runs on the cluster it serves. | review |
-| Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention. | review |
-| Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. | review |
-| The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. | review |
-| CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy. | review |
-| KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic. | review |
-| Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation. | review |
 | Every namespace carries the Pod Security Standards `restricted` labels with a pinned `enforce-version`. A namespace at `baseline` or `privileged` records why in its manifest. | standard: Pod Security Standards; admission: PSA |
 | Service containers run as non-root with a read-only root filesystem, `ALL` capabilities dropped, `allowPrivilegeEscalation: false`, and `seccompProfile: RuntimeDefault`. A writable path is an `emptyDir`. | admission: PSA |
 | A component requiring privilege runs in its own namespace and never shares one with a `restricted` workload. | review |
-| Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. | admission: CiliumNetworkPolicy |
-| WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped. | review |
-| A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. | admission: CiliumNetworkPolicy |
 | A new cluster bootstraps with the machine-config apply then the Argo CD root Application. There is no configuration-management step between them and no further manual steps. | review |
 | Growth beyond the day-one topology happens only on one of the documented triggers firing. | review |
-| No dedicated service mesh is deployed, sidecar or ambient. A mesh runs over the CNI rather than instead of it, so it is a second component re-providing encryption, identity, and L4 policy that Cilium already provides, and its L7 layer is already covered at the edge and in-app. | review |
-| Cilium NetworkPolicy is the internal service-to-service trust boundary, and each service declares its allowed callers. | `lint:service-contract` in CI |
 
 ## Secrets
 
@@ -79,6 +65,37 @@ The security controls every project built from this template inherits, each one 
 | Kyverno's scope is image provenance. Extending it to a class this ADR assigns elsewhere requires amending this ADR. | admission: Kyverno |
 | A rule carries the annotation of the layer that enforces it, and an unannotated rule is enforced by review. | standard: ADR-0001 |
 | No component is added whose only purpose is enforcing a rule an in-tree mechanism already enforces. | review |
+
+## Network isolation
+
+[ADR-0206 — Cluster Networking](adr/0206-cluster-networking.md)
+
+| Control | Enforced by |
+| --- | --- |
+| CNI is Cilium from day one, delivered as an inline manifest in the machine config and adopted by Argo CD for upgrades. Talos ships neither its default CNI nor kube-proxy. | review |
+| KubeSpan is not enabled. East-west encryption is Cilium's WireGuard, and enabling both breaks cross-node pod traffic. | review |
+| Talos's host firewall governs the node's own ports and is never treated as pod-to-pod segmentation. | review |
+| `SYS_MODULE` is dropped from Cilium's capability set, and the API server host and port are set explicitly. | review |
+| Default-deny is enforced for ingress and egress across every platform pod; all allows are additive. | admission: CiliumNetworkPolicy |
+| WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west is not shipped. | review |
+| A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. | admission: CiliumNetworkPolicy |
+| Cilium NetworkPolicy is the internal service-to-service trust boundary, and each service declares its allowed callers. | `lint:service-contract` in CI |
+| No dedicated service mesh is deployed, sidecar or ambient. A mesh runs over the CNI rather than instead of it, so it is a second component re-providing encryption, identity, and L4 policy that Cilium already provides, and its L7 layer is already covered at the edge and in-app. | review |
+| One wildcard `A` record and one wildcard certificate per environment. `external-dns` is not used. | review |
+| An environment is provisioned only where the provider offers a cert-manager-supported DNS API and `PTR` delegation on the mail egress IP. | review |
+
+## Durable data and recovery
+
+[ADR-0207 — Cluster Storage & Backups](adr/0207-cluster-storage.md)
+
+| Control | Enforced by |
+| --- | --- |
+| The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. | review |
+| Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier. | review |
+| Production runs it outside the cluster. No object store holding production data runs on the cluster it serves. | review |
+| Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention. | review |
+| Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. | review |
+| Loki, Tempo, CNPG backups, and Pyroscope write to object storage rather than to a block volume. | review |
 
 ## Data lifecycle and privacy
 
@@ -125,6 +142,7 @@ The security controls every project built from this template inherits, each one 
 
 | Control | Enforced by |
 | --- | --- |
+| Ingress is Traefik with TLS from cert-manager over ACME DNS-01. Oathkeeper sits behind it as the edge identity filter; there is no API-management gateway. | standard: RFC 8555 |
 | The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default. | review |
 | Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. | `lint:authz` in CI |
 | Every request carries identity in the same header shape. Services read identity from headers and never parse a token. | `lint:auth-inline` in CI |

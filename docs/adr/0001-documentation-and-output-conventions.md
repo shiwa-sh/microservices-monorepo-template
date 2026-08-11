@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-tool-adoption.md), [ADR-0500](0500-observability.md)
 - **Decides:** Docs, ADRs, logs, CLI output, and code comments adopt ISO 24495-1, the Google developer style, OTel log conventions, and clig.dev, with only the local deltas normative.
 
 ## Context
@@ -25,7 +25,7 @@ Most of what a house style would say is already published. Re-deriving it produc
 | --- | --- | --- | --- |
 | No written style | none | none | The default outcome is four dialects and no way to call a PR wrong |
 | Write a complete house style guide | total | high — a second standards body to run | Duplicates Google, OTel, and clig.dev at lower quality, and drifts from them silently |
-| **Adopt standards by reference; make only the deltas normative** | total | low — deltas are short | **Chosen** |
+| **Adopt standards by reference; make only the deltas normative** | total | low — deltas are short | **Chosen** *(reasoned)* |
 | Adopt [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119)/[8174](https://www.rfc-editor.org/rfc/rfc8174) keywords for Rules | normative strength | low | Its `SHOULD`/`MAY` tiers invite negotiation. Every Rule here is binding; strength is carried by the enforcement annotation instead |
 
 ## Decision
@@ -53,7 +53,7 @@ Diátaxis is adopted as the organising standard, so it organises the tree and no
 | `docs/reference/` | reference | a lookup, a registry, or live state |
 | `docs/*.md` | entry, and canonical registries | the ordered way in, and the documents this set cites by name as the only place a fact is recorded |
 
-**The root is not a genre and is not a default.** A file sits at `docs/` only by being the set's entry point or a registry an ADR names as canonical — [`operational-surface.md`](../operational-surface.md) for components, [`adoption-path.md`](../adoption-path.md) for the reduction order. Everything else takes a genre directory.
+**The root is not a genre and is not a default.** A file sits at `docs/` only by being the set's entry point or a registry an ADR names as canonical — [`operational-surface.md`](../operational-surface.md) for components, [`adoption-path.md`](../adoption-path.md) for the reduction order, [`tool-register.md`](../tool-register.md) for tools ([ADR-0002](0002-tool-adoption.md)). Everything else takes a genre directory.
 
 **Topic lives in the filename.** A directory holding one file groups nothing, and a filename repeated once per topic — four documents all called `runbook.md` — is four files a search cannot separate. The name states the subject and the directory states the genre, so `guide/secrets-runbook.md` is both without a nested tree.
 
@@ -77,7 +77,7 @@ Sections appear in this order. A section with nothing to say is omitted, not fil
 
 **The header's `Decides` line is one sentence, and it is the set's skim surface.** Density optimises total length at the cost of read rate: every sentence in an ADR is load-bearing, so there is nothing to skip and no way to read the set quickly. One declarative sentence per ADR restores that without loosening anything below it, and the [index](README.md)'s *Decides* column is the same line at index resolution. It states what is true of the platform, never what the document contains — *"Go is the backend language and TypeScript the frontend one"*, not *"chooses the languages"*.
 
-The comparison table uses prose cells where every option answers the same questions. It is not a scoring grid: the trade-offs are qualitative, and numeric scores manufacture false precision.
+The comparison table uses prose cells where every option answers the same questions. It is not a scoring grid: the trade-offs are qualitative, and numeric scores manufacture false precision. [ADR-0002](0002-tool-adoption.md) owns its depth and the grading its decisive cells carry.
 
 [ADR-0000](0000-platform-foundations.md) is the one exemption. It chooses no technology, so it has no options to compare and no single decision to state; it carries the thesis, principles, process, prior art, and vocabulary instead. Every other ADR uses the order above.
 
@@ -107,9 +107,9 @@ An ADR states what is true of this platform. It never states what someone intend
 | Binds every reader, including a generated project's | Binds one person in one repo |
 | A reviewer cites it to reject a PR | A reviewer cannot cite it at all |
 
-**A gap between an ADR and the repo does not weaken the ADR.** An unbuilt artefact is unfinished work, not an unfinished decision. Recording the gap inside the ADR converts a standing rule into a status report, which is what guarantees it goes stale.
+**Planned work is not part of the committed record.** A tracked plan is inherited by every generated project, which then carries a queue belonging to someone else, and as per-engineer working state it makes one person's backlog everyone's merge conflict. A task belongs in the forge's issues ([ADR-0102](0102-source-control-and-ci.md)), which is where it has an assignee and a close condition.
 
-Gaps go in a **local working file, never committed** — `*.local.md`, ignored by `.gitignore`, described in [`AGENTS.md`](../../AGENTS.md). A tracked plan is inherited by every generated project, which then carries a backlog belonging to someone else; as per-engineer working state, committing it also makes one person's queue everyone's merge conflict. No committed file links to it: a link that resolves in one clone dangles in every other.
+A committed document therefore states the platform as it stands. It does not annotate a rule with how far along the rule is, and it does not link to a working file: a link that resolves in one clone dangles in every other.
 
 ### Density
 
@@ -170,7 +170,7 @@ The argument almost never needs the figure. "A floor of a couple of dozen compon
 | **Meta-commentary** | "It is worth knowing", "Note that", "It should be noted" | State the thing |
 | **Rhetorical questions** | "But is the pod actually running the new code?" | The answer, as a statement |
 | **Dated section headings** | `## Implementation (2026-07-26)` | An undated heading |
-| **Planned work** — a `Follow-ups` list, a `TODO`, a roadmap | "`tools/lint-prose` for the intensifier and hedge lists" | Nothing. State the law and stop. The gap belongs in a working file |
+| **Planned work** — a `Follow-ups` list, a `TODO`, a roadmap | "`tools/lint-prose` for the intensifier and hedge lists" | Nothing. State the law and stop. A task belongs in an issue |
 | **The implementation's status** | "tracked in", "not yet wired", "lands in a later phase", "the status quo", a count of what exists so far | The rule, unqualified. Whether the artefact exists is not the ADR's subject, and an option loses on its merits rather than on being what happens to run |
 | **A link to an untracked file** | ``[`plan.md`](plan.md)`` | Nothing. The file is absent from every other clone |
 
@@ -247,7 +247,7 @@ A Rule that is machine-checkable names the mechanism, so a reader can go and rea
 
 | Annotation | Means |
 | --- | --- |
-| `(CI: <task>)` | a named `mise` task or workflow rejects the violation |
+| `(CI: <task>)` | a named `mise` task rejects the violation. The task, never the workflow file that calls it — [ADR-0102](0102-source-control-and-ci.md) makes the task the portable name and the workflow a thin caller |
 | `(enforced: <policy>)` | admission control rejects it in the cluster, which CI cannot bypass |
 | `(ref: <standard>)` | the adopted external standard is the rule |
 
@@ -286,9 +286,8 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - An ADR uses the section order Context → Decision drivers → Considered options → Decision → Consequences → Rules, and omits rather than pads an empty section.
 - An ADR's header carries a one-sentence `Decides` line stating what is true of the platform because of it, and the ADR index carries that line as its *Decides* column. `(CI: lint:adr-xref)`
 - A decision driver states a property being optimised for, never the chosen option restated and never a rejected option's worst form. Swapping the winner for a loser must leave the drivers unmet, not wrong.
-- An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and does not weaken the rule.
-- Gaps between the decided platform and the built one are recorded in a local `*.local.md` working file, which is ignored by `.gitignore` and never committed.
-- No committed file links to a local working file. `(CI: lint:md, lint:prose)`
+- An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet.
+- Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. `(CI: lint:md, lint:prose)`
 - ADR numbers are allocated in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md).
 - A document's genre decides its directory: `docs/adr/` decisions, `docs/guide/` procedures, `docs/reference/` lookups. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. `(CI: lint:adr-xref)`
 - Topic is carried by the filename, never by a directory holding a single file, and no two documents in `docs/` share a filename. `(CI: lint:adr-xref)`
