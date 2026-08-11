@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0307](0307-outbound-email.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0307](0307-outbound-email.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
 
 ## Context
 
@@ -63,7 +63,9 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 
 **`severity: page` is a claim about a human.** A rule carries it only when a person must act within minutes. Every other rule is `ticket`. Without that discipline the routing tree is decoration, because a receiver that fires forty times a night is muted by its recipient within a week.
 
-The test for which one a rule carries is [Google SRE's symptom rule](https://sre.google/sre-book/monitoring-distributed-systems/): page on what the user experiences, ticket on what merely explains it. A saturated queue is a `ticket`; the latency it eventually causes is a `page`. This is the discipline the review gate above is enforcing, and naming it gives a reviewer something to apply rather than a judgement to make. Error budgets are the other half of that framing and are **not** adopted — they need an SLO per service, which nothing here produces ([ADR-0601](0601-testing-strategy.md)).
+The test for which one a rule carries is [Google SRE's symptom rule](https://sre.google/sre-book/monitoring-distributed-systems/): page on what the user experiences, ticket on what merely explains it. A saturated queue is a `ticket`; the latency it eventually causes is a `page`. Naming the test gives a reviewer something to apply rather than a judgement to make.
+
+Error budgets are the other half of that framing and are **not** adopted — they need an SLO per service, which nothing here produces ([ADR-0601](0601-testing-strategy.md)).
 
 ### On-call rotation is deferred, with the seam built
 

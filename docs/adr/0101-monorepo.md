@@ -51,9 +51,23 @@ Two questions are bundled here, and the discriminator is that most candidates an
 | Pants | yes | yes, hermetically | Bazel's family, with [dependency inference](https://www.pantsbuild.org/blog/2022/10/27/why-dependency-inference) instead of hand-written build files and a real Go backend. Held against the same compliance trigger, where it is the more likely answer than Bazel |
 | Bazel | yes | yes, hermetically | Reserved for the compliance trigger below, alongside Pants and Nix |
 
-**On moon specifically.** It answers both questions, and it ships the one capability this ADR otherwise builds by hand: a project graph with affected detection and task caching. *Consequences* records that custom affected detection is this repository's most load-bearing piece of tooling and a bug in it produces a green run against a broken service — moon would retire that code. Three things decide against it now. It is two binaries where mise is one file, since tool pinning lives in `proto` beside it. Its depth is in the JavaScript ecosystem, with [other languages arriving as WASM toolchain plugins](https://moonrepo.dev/docs/how-it-works/languages) and Bun a later addition than the Node package managers — the inverse of a repository that is Go-primary with one JavaScript application. And the two pin tools by different architectures: `proto` resolves from a curated registry, its own [documentation](https://moonrepo.dev/docs/proto/plugins) stating that it is "not possible for proto to support *everything* in core directly", so a tool outside the core toolchain and the community registry is a plugin written here — configuration-based in simple cases, WASM otherwise. mise resolves a tool from its GitHub releases with no plugin and no per-tool entry. That difference is invisible for Go and Bun and decisive for the rest of the pinned set, which is largely single-binary Go releases. Driver 5 applies as it does to Nx: the graph is bought when the need is measured, and the seam is that tasks are already declarative and named `group:member`.
+**On moon specifically.** It answers both questions, and it ships the one capability this ADR otherwise builds by hand: a project graph with affected detection and task caching. *Consequences* records that custom affected detection is this repository's most load-bearing piece of tooling, and that a bug in it produces a green run against a broken service. moon would retire that code.
 
-**On Nix specifically.** It pins system libraries rather than only tool versions, which is a real capability nothing else here has. Three things weigh against it. It is not a task runner, so one sits beside it, and driver 1 forbids splitting task invocation across two tools. It puts a second language and a daemon on every workstation and every CI runner, paid from the platform-engineering budget that is the binding constraint ([ADR-0000](0000-platform-foundations.md)). And the gap it closes is the system-library layer — a statically linked Go binary on a distroless base has almost none of that surface, so the payoff here is a fraction of what it is for a dynamically linked polyglot fleet. It returns as a candidate when hermeticity stops being a nicety, which is the same trigger Bazel is held against.
+Three things decide against it now:
+
+- **Two binaries where mise is one file.** Tool pinning lives in `proto`, beside it.
+- **Its depth is in the JavaScript ecosystem**, with [other languages arriving as WASM toolchain plugins](https://moonrepo.dev/docs/how-it-works/languages) and Bun a later addition than the Node package managers. That is the inverse of a repository that is Go-primary with one JavaScript application.
+- **The two pin tools by different architectures.** `proto` resolves from a curated registry, its own [documentation](https://moonrepo.dev/docs/proto/plugins) stating that it is "not possible for proto to support *everything* in core directly", so a tool outside the core toolchain and the community registry is a plugin written here. mise resolves a tool from its GitHub releases with no plugin and no per-tool entry. The difference is invisible for Go and Bun, and decisive for the rest of the pinned set, which is largely single-binary Go releases.
+
+Driver 5 applies as it does to Nx: the graph is bought when the need is measured, and the seam is that tasks are already declarative and named `group:member`.
+
+**On Nix specifically.** It pins system libraries rather than only tool versions, which is a real capability nothing else here has. Three things weigh against it:
+
+- **It is not a task runner**, so one sits beside it, and driver 1 forbids splitting task invocation across two tools.
+- **It puts a second language and a daemon** on every workstation and every CI runner, paid from the platform-engineering budget that is the binding constraint ([ADR-0000](0000-platform-foundations.md)).
+- **The gap it closes is the system-library layer.** A statically linked Go binary on a distroless base has almost none of that surface, so the payoff here is a fraction of what it is for a dynamically linked polyglot fleet.
+
+It returns as a candidate when hermeticity stops being a nicety, which is the same trigger Bazel is held against.
 
 ### Go module strategy
 
@@ -137,7 +151,7 @@ Tasks live in `.mise.toml` files: a root file for repo-wide tasks, one per servi
 
 The two long-running service tasks are named for the process type they start, matching `cmd/{server,worker}/`, the `<service>-{server,worker}` images, and the in-cluster DNS names — one vocabulary end to end. A frontend is not a service and keeps `run`: it has no worker to be symmetric with, and the task starts a dev server rather than a production binary.
 
-**Task naming.** A task name is `group:member`, where the group is the axis you want to list and run together. Two shapes are correct, and which one applies is decided by asking what you would browse or aggregate by:
+**Task naming.** A task name is `group:member`, where the group is the axis to list and run together. Two shapes are correct, and the axis worth aggregating by decides which one applies:
 
 | Shape | Use when | Examples |
 | --- | --- | --- |

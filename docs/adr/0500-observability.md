@@ -130,7 +130,7 @@ The OTel Collector runs as a **DaemonSet** on every node. Services send OTLP to 
 
 ### Continuous profiling
 
-`obs.Init` already registers pprof endpoints, so every Go service is profileable at zero cost. An **Alloy** agent scrapes those endpoints and pushes to **Pyroscope**, and Grafana renders the result as the flame-graph panel on the service-detail dashboard ([ADR-0501](0501-operator-uis-and-dashboards.md)) — profiles sit in the same pane as the signals that led you there.
+`obs.Init` already registers pprof endpoints, so every Go service is profileable at zero cost. An **Alloy** agent scrapes those endpoints and pushes to **Pyroscope**, and Grafana renders the result as the flame-graph panel on the service-detail dashboard ([ADR-0501](0501-operator-uis-and-dashboards.md)) — profiles sit in the same pane as the signals that led to them.
 
 An eBPF node-agent profiler was considered as a zero-instrumentation alternative and rejected with its suite as a whole ([ADR-0501](0501-operator-uis-and-dashboards.md)). The pprof endpoints already exist, so scraping them adds no instrumentation cost and keeps profiles in the same backend family.
 

@@ -110,7 +110,9 @@ Cilium and Argo CD sit in the prod base tier and are excluded locally, where the
 
 **Why the waves inside one set are inert:** Applications a single ApplicationSet generates are created by the ApplicationSet controller rather than synced as a parent's resources, so Argo never sequences them among themselves and applies them concurrently. Ordering exists only at the granularity of a root-app-of-apps child, which is why each tier is its own set.
 
-**What makes the waves real gates:** default ApplicationSet health reflects only successful templating. A custom health check on the `ApplicationSet` kind walks `.status.resources` and reports Progressing until every generated Application is Synced and Healthy, so wave 3 blocks until waves 0 through 2 are up. A companion health check on the CNPG `Cluster` kind makes the data-to-core gate honest — without it Argo reports the unknown CRD Healthy the instant it applies, and core starts against a Postgres that is not ready. Charts within a tier are still concurrent and must tolerate that.
+**What makes the waves real gates:** default ApplicationSet health reflects only successful templating. A custom health check on the `ApplicationSet` kind walks `.status.resources` and reports Progressing until every generated Application is Synced and Healthy, so wave 3 blocks until waves 0 through 2 are up.
+
+A companion health check on the CNPG `Cluster` kind makes the data-to-core gate honest — without it Argo reports the unknown CRD Healthy the instant it applies, and core starts against a Postgres that is not ready. Charts within a tier are still concurrent and must tolerate that.
 
 A new service appears in dev the moment its values file lands in `master`, with no Argo configuration change. **This is what keeps onboarding cost flat as the fleet grows.**
 

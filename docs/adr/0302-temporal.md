@@ -162,11 +162,15 @@ The controller is a real cost, and four properties are why a chart cannot replac
 | **Promotion belongs to the controller** | It registers each version, promotes per `rollout.strategy`, and injects the deployment and build-ID environment variables itself. Upstream is explicit that those must not be set by hand. Rollback sets the current version to the previous Build ID, whose pods still exist precisely because sunset is delayed |
 | **Sessions and versioning are mutually exclusive** | The SDK refuses `EnableSessionWorker` together with versioning, so a service needing sessions opts out explicitly and owes a patching plan instead |
 
-**Deleting a `WorkerDeployment` blocks while its workers still poll.** The CR carries a delete-protection finalizer; on delete the controller asks Temporal to remove each version, and Temporal refuses while pods of that version exist and for a further poller-expiry window after they are gone. The controller retries indefinitely, so the CR sits `Terminating` and Argo cannot recreate it. Removing a worker therefore means scaling the versioned Deployments to zero first and waiting for pollers to expire. The break-glass is patching the finalizer away, which leaves the Temporal-side version records to age out.
+**Deleting a `WorkerDeployment` blocks while its workers still poll.** The CR carries a delete-protection finalizer; on delete the controller asks Temporal to remove each version, and Temporal refuses while pods of that version exist and for a further poller-expiry window after they are gone. The controller retries indefinitely, so the CR sits `Terminating` and Argo cannot recreate it.
+
+Removing a worker therefore means scaling the versioned Deployments to zero first and waiting for pollers to expire. The break-glass is patching the finalizer away, which leaves the Temporal-side version records to age out.
 
 ### Draining a worker on rollout
 
-Distinct from replay safety and routinely confused with it: when a worker pod is rolled, **activities currently executing are lost unless the worker is told to wait**. The Go SDK's `WorkerStopTimeout` defaults to no wait, so the platform sets it explicitly, and the chart derives `terminationGracePeriodSeconds` from it so kubelet always waits strictly longer than the worker. Configuring the grace period independently is how this silently regresses. This is [12-Factor IX](https://12factor.net/disposability) taken past where the factor stops: it asks that a process shut down gracefully on `SIGTERM` and leaves to the platform the question of how long *gracefully* is. For a worker holding an in-flight activity, the answer is the stop timeout, and the grace period follows from it.
+Distinct from replay safety and routinely confused with it: when a worker pod is rolled, **in-flight activities are lost unless the worker is told to wait**. The Go SDK's `WorkerStopTimeout` defaults to no wait, so the platform sets it explicitly, and the chart derives `terminationGracePeriodSeconds` from it so kubelet always waits strictly longer than the worker. Configuring the grace period independently is how this silently regresses.
+
+This is [12-Factor IX](https://12factor.net/disposability) taken past where the factor stops. The factor asks that a process shut down gracefully on `SIGTERM`, and leaves to the platform the question of how long *gracefully* is. For a worker holding an in-flight activity, the answer is the stop timeout, and the grace period follows from it.
 
 ### What Temporal replaces
 
@@ -182,7 +186,7 @@ Distinct from replay safety and routinely confused with it: when a worker pod is
 | Field | Value |
 | --- | --- |
 | **Trigger** | one event has three or more independent consumers whose identities the producer should not know, or a consumer needs to replay an event stream it was not running for |
-| **Seam** | ⚠ **a bet.** Cross-service notification is point-to-point today — an HTTP call or a signal naming its target — so adopting a bus rewrites the producers, not just the transport. Nothing here is publishing to a topic that a broker could simply back |
+| **Seam** | ⚠ **a bet.** Cross-service notification is point-to-point — an HTTP call or a signal naming its target — so adopting a bus rewrites the producers, not just the transport. Nothing here publishes to a topic that a broker could take over |
 | **Cost if adopted late** | every producer already names its consumers, so the fan-out has been encoded into N call sites that each have to be found and inverted |
 
 ### Operational shape

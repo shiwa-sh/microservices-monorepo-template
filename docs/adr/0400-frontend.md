@@ -120,7 +120,7 @@ There is exactly one consumer of the frontend code. Route groups are folders in 
 
 Primitives live under `src/components/` in Untitled UI's own layout. Route groups compose them by explicit path and do not duplicate them. The heuristic: if two route groups would copy a component, it belongs under `src/components/`.
 
-Untitled UI ships source you own, built on [React Aria Components](https://react-spectrum.adobe.com/react-aria/) for accessibility, vendored as committed source rather than fetched at runtime. Keeping upstream's folder layout and utility names verbatim is deliberate: it makes adding a component or taking a yearly bump a clean diff rather than a rewrite.
+Untitled UI ships source the project owns, built on [React Aria Components](https://react-spectrum.adobe.com/react-aria/) for accessibility, vendored as committed source rather than fetched at runtime. Keeping upstream's folder layout and utility names verbatim is deliberate: it makes adding a component or taking a yearly bump a clean diff rather than a rewrite.
 
 **The kitchen-sink page** renders every primitive once. It is the cheap alternative to Storybook: one route, no separate toolchain, gated by the devportal session. Every primitive added under `src/components/` gets a section there in the same PR.
 
@@ -236,7 +236,7 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - **Untitled UI source is vendored and committed**, so upgrading is a real PR. Mitigated by keeping the upstream layout verbatim, tracking bumps, and taking them yearly.
 - **The OpenTelemetry web SDK is heavier than Faro alone.** Accepted; browser-to-service trace continuity is worth the bytes, and the perf gates keep it honest.
 - **Deferring i18n risks a painful retrofit.** Mitigated by the one-file-per-route-group string layout.
-- **A green axe run is not WCAG conformance.** Automated scanning catches only the machine-checkable subset of the success criteria; the rest — meaningful alt text, sensible reading order, whether a flow is actually completable by keyboard — is not detectable by a tool. The AA claim rests on the primitives being right and on the keyboard pass, and the gate only prevents regressions in the part a machine can see.
+- **A green axe run is not WCAG conformance.** Automated scanning catches only the machine-checkable subset of the success criteria; the rest — meaningful alt text, sensible reading order, whether a flow is completable by keyboard — is not detectable by a tool. The AA claim rests on the primitives being right and on the keyboard pass, and the gate only prevents regressions in the part a machine can see.
 - **AA is claimed for first-party surfaces and refused for vendored ones.** A user who needs it meets an accessible product panel and an inaccessible Grafana. This is honest rather than good, and it is the direct cost of not building operator tooling.
 - **A Server Action is an implicit endpoint.** Its surface is defined by what the function accepts rather than by a spec, so it is limited to single-service mutations and never becomes an ad-hoc API for another consumer.
 

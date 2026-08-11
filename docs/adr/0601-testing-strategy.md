@@ -16,7 +16,11 @@ Testing answers two separable questions, and conflating them produces a suite th
 | **Is it correct?** | works / broken | approximately one user |
 | **What does it cost, and where does it break?** | within budget / regressed / saturated | deliberately past the knee |
 
-Three accepted decisions depend on the second answer. [ADR-0204](0204-resource-management.md) requires CPU and memory requests per container and makes HPA opt-in "on a documented sustained-load signal", both because nothing produces the number. [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) define the apparatus that observes saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — and an alert nobody has seen fire is an alert nobody knows the shape of. [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative, and this is what quantifies it.
+Three accepted decisions depend on the second answer:
+
+- [ADR-0204](0204-resource-management.md) requires CPU and memory requests per container and makes HPA opt-in "on a documented sustained-load signal", both because nothing produces the number.
+- [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) define the apparatus that observes saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — and an alert nobody has seen fire is an alert nobody knows the shape of.
+- [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative, and this is what quantifies it.
 
 Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At approximately one user the cost is entirely platform. The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
 
@@ -58,7 +62,7 @@ Measured on `cluster:full`, one node, during the e2e suite, and re-derivable fro
 | Option | Postgres, Temporal, OpenFGA come from | Fidelity to production | Cost per run | Verdict |
 | --- | --- | --- | --- | --- |
 | **`cluster:base` plus the service's declared components** | the same charts production runs ([ADR-0205](0205-environment-parity.md)) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** The dependencies are already declared per service for deployment, so the test environment is derived from the deploy manifest rather than described twice |
-| testcontainers-go | a container per dependency, started by the test process | plain images: no CNPG, no operator behaviour, no NetworkPolicy | one container set per package, torn down after | The industry default for Go service tests, and it would require each service to declare its dependencies a second time in Go. It also cannot exercise the operator-managed behaviour — failover, pooler, seeded authz model — that this platform's data tier actually has |
+| testcontainers-go | a container per dependency, started by the test process | plain images: no CNPG, no operator behaviour, no NetworkPolicy | one container set per package, torn down after | The industry default for Go service tests, and it would require each service to declare its dependencies a second time in Go. It also cannot exercise the operator-managed behaviour — failover, pooler, seeded authz model — that this platform's data tier has |
 | A shared long-lived test database | a persistent environment | high | none per run, and cross-test interference forever | State leaks between runs, and a failing test becomes a question about who else was running |
 | Mocks at the repository boundary | nothing | none — the SQL is never executed | fastest | It tests the code against its own assumptions about Postgres, which is the layer these tests exist to check |
 
@@ -81,7 +85,7 @@ Node is therefore sanctioned as a **test-only escape hatch**, scoped to the e2e 
 
 ## Decision
 
-### The correctness pyramid
+### Correctness layers
 
 | Layer | Tool | Environment | Role |
 | --- | --- | --- | --- |
@@ -93,11 +97,15 @@ Node is therefore sanctioned as a **test-only escape hatch**, scoped to the e2e 
 
 Preflight runs before the browser suite so a red e2e reads immediately as "infra down" rather than "app broken". It is triage, not a competing acceptance test. The browser test is the final word.
 
-**The shape is not a pyramid, and the name is conventional rather than descriptive.** Counted by tests rather than by scope it is closer to a honeycomb: a thin base, a thick middle, and a top that carries the verdict. Three properties put it there. Clients and validators are generated from the spec and drift-checked ([ADR-0303](0303-api-contracts-and-lifecycle.md)), so the mock-heavy integration tier a pyramid thickens has little left to catch. The failures that actually cost this platform are cross-service and auth-shaped — a header injected at the edge, an AAL2 session, an OpenFGA tuple — and none of them is observable below the browser layer. And `cluster:full` runs the same charts as production ([ADR-0205](0205-environment-parity.md)), so the usual objection to a heavy top, that end-to-end runs against a fiction, does not hold here.
+**These are layers, not a pyramid.** Counted by tests rather than by scope, the shape is closer to a honeycomb: a thin base, a thick middle, and a top that carries the verdict. Three properties put it there:
+
+- **The mock-heavy integration tier a pyramid thickens has little left to catch.** Clients and validators are generated from the spec and drift-checked ([ADR-0303](0303-api-contracts-and-lifecycle.md)).
+- **The failures that cost this platform are cross-service and auth-shaped** — a header injected at the edge, an AAL2 session, an OpenFGA tuple. None is observable below the browser layer.
+- **The usual objection to a heavy top does not hold here.** `cluster:full` runs the same charts as production ([ADR-0205](0205-environment-parity.md)), so end-to-end is not running against a fiction.
 
 ### Load is a fourth concern, not a fifth layer
 
-Load testing sits beside the pyramid, not on it. A red load run means "slower than the budget", not "broken", so **performance tests are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge**.
+Load testing sits beside these layers, not on them. A red load run means "slower than the budget", not "broken", so **performance tests are not part of `mise run test`, `ci:affected`, or the e2e suites, and never implicitly gate a merge**.
 
 ### Layout
 
@@ -162,7 +170,9 @@ Load thresholds live in the scenario files and are **budgets, not SLOs** — del
 
 ### Test data
 
-Kratos starts with an empty identity store and no seeded user, and mail goes to the non-production sink ([ADR-0307](0307-outbound-email.md)) rather than to a recipient. E2e ships a **committed deterministic test-identity bootstrap** — an AAL1 product user and an AAL2 operator — provisioned identically in CI and locally, the same throwaway-credential pattern SOPS uses for the local age key ([ADR-0205](0205-environment-parity.md)). No test depends on hand-created state. The same bootstrap provisions the identity the `edge` development profile logs in as ([ADR-0600](0600-local-development-loop.md)), so it is exercised daily rather than only nightly.
+Kratos starts with an empty identity store and no seeded user, and mail goes to the non-production sink ([ADR-0307](0307-outbound-email.md)) rather than to a recipient. E2e ships a **committed deterministic test-identity bootstrap** — an AAL1 product user and an AAL2 operator — provisioned identically in CI and locally, the same throwaway-credential pattern SOPS uses for the local age key ([ADR-0205](0205-environment-parity.md)).
+
+No test depends on hand-created state. The same bootstrap provisions the identity the `edge` development profile logs in as ([ADR-0600](0600-local-development-loop.md)), so it is exercised daily rather than only nightly.
 
 Load runs generate real data: a checkout run creates real orders and Temporal executions in whatever environment it targets. `perf/` refuses to run against a target it was not explicitly pointed at, and seeded data carries a recognisable prefix so it can be identified and removed.
 

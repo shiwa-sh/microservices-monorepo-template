@@ -58,7 +58,7 @@ Service count is derived, not chosen. Each force below independently justifies a
 
 The axes say what a system *should* be. They say nothing about whether it can be operated.
 
-> **Need determines what you build. Capacity determines what you can run. The gap between them is the risk.**
+> **Need determines what gets built. Capacity determines what can be run. The gap between them is the risk.**
 
 Team size is therefore not a design driver — it is a budget. It does not tell a project to build thirty services; it tells the project what it can afford to operate. Stating a platform's target as a headcount conflates the two questions and produces a thesis whose halves never reconcile.
 
@@ -127,7 +127,9 @@ Each principle is **anchored** to an external standard, or explicitly marked **l
 - *Anchor:* axis B, above. The position is ours; the axis is not.
 - *Rejected:* every managed service, including where one would plainly be cheaper.
 
-*Why there is no soft exit.* The tempting version of this principle moves components to managed when the platform crowds out feature work. That inverts the causality the thesis states: **capacity is the thing to change, not the constraint.** Where sovereignty is genuinely binding — data residency, regulatory control, cost predictability, or a refusal to depend on third-party operators — a capacity shortfall is resolved by hiring. Where it is not binding, the position on axis B is different and is recorded in its own ADR, not treated as an escape hatch inside this one.
+*Why there is no soft exit.* The tempting version of this principle moves components to managed when the platform crowds out feature work. That inverts the causality the thesis states: **capacity is the thing to change, not the constraint.**
+
+Where sovereignty is genuinely binding — data residency, regulatory control, cost predictability, or a refusal to depend on third-party operators — a capacity shortfall is resolved by hiring. Where it is not binding, the position on axis B is different and is recorded in its own ADR, not treated as an escape hatch inside this one.
 
 *Consequence, stated plainly.* Axis B at maximum removes a set of services that are otherwise invisible defaults: transactional email delivery ([ADR-0307](0307-outbound-email.md)), alert routing ([ADR-0502](0502-alerting-and-on-call.md)), source control and CI ([ADR-0102](0102-source-control-and-ci.md)), image registry ([ADR-0105](0105-image-registry.md)), object storage ([ADR-0200](0200-cluster-topology.md)), and single sign-on across platform consoles ([ADR-0304](0304-identity-and-authorization.md)). Each is a first-class decision here rather than a signup. Some — outbound email deliverability in particular — carry costs that engineering effort cannot fully retire.
 
@@ -291,6 +293,17 @@ Used consistently across all ADRs. If a term is ambiguous in a later ADR, this g
 - **Axis position** — this platform's load-bearing assumption, set in *Thesis* above: **A high, B maximal, C high**. An ADR cites the axis position rather than restating a service count or a headcount, so it changes in that one place.
 - **Seam** — a pre-built slot a deferred capability drops into without restructuring. A deferral with a seam is additive; one without is a bet.
 - **Anchor** — the external standard a principle rests on. A principle without one is marked **local**.
+- **Trigger** — the observable condition that makes a deferred capability due. A deferral states one, or it is indefinite.
+- **Day one** — present in the first deployment rather than deferred behind a trigger.
+- **Floor** — the guaranteed minimum. Of the platform, the components running before any service is added; of a library or a primitive, what it supplies before composition. A floor is not a target.
+- **Ceiling** — the point at which an approach stops working. A ceiling is stated as a trigger, never as a limit quietly tolerated.
+- **Escape hatch** — a sanctioned, bounded exception to a default, naming what is permitted and where. An unbounded one is a second default.
+- **Island** — a bounded region running something other than the platform default: a language, a runtime, or a signal store. An island pins its own tools and does not widen the exception around it.
+- **Load-bearing** — a fact the decision rests on. Remove it and the decision changes; a fact that survives removal is context.
+- **First-class** — served by the default path rather than by a special case beside it.
+- **Hot path** — the per-request code path. Cost added here is paid on every request.
+- **Blast radius** — what a failure or a compromise reaches before something stops it.
+- **Break-glass** — the documented procedure for bypassing a normal control during an incident, written down before it is needed.
 - **Service** — a deployable unit under `services/<name>/` owning a slice of business state and an OpenAPI surface. May include HTTP server, Temporal worker, and migrations.
 - **Frontend app** — the single Next.js application under `apps/frontend/`. Route groups separate audiences; the deploy unit is one app.
 - **Platform component** — infrastructure software the services depend on (Postgres, Temporal server, gateway, IdP, observability stack). Lives under `infra/helm/platform/`.

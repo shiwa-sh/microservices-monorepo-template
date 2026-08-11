@@ -33,13 +33,15 @@ Most of what a house style would say is already published. Re-deriving it produc
 
 | Surface | Adopted standard | Local delta (normative) |
 | --- | --- | --- |
-| Prose / docs | [ISO 24495-1:2023](https://www.iso.org/standard/78907.html) plain language; [Google Developer Documentation Style Guide](https://developers.google.com/style) (second person, present tense, active voice); [Diátaxis](https://diataxis.fr) genres | the density rules and banned constructs below; `ADR-XXXX` citation form; final-state facts |
+| Prose / docs | [ISO 24495-1:2023](https://www.iso.org/standard/78907.html) plain language; [Google Developer Documentation Style Guide](https://developers.google.com/style) (present tense, active voice); [Diátaxis](https://diataxis.fr) genres | the density rules and banned constructs below; `ADR-XXXX` citation form; final-state facts; second person scoped by genre |
 | ADR structure | [MADR](https://adr.github.io/madr/) section set | the fixed section order below; mandatory comparison table ([ADR-0000](0000-platform-foundations.md), principle 7) |
 | Structured logs | [OTel Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/); [RFC 5424](https://www.rfc-editor.org/rfc/rfc5424) severity | no symbols; context as attributes, never interpolated |
 | CLI / human stdout | [clig.dev](https://clig.dev); POSIX Utility Conventions (exit codes, `--help`, `--version`) | the fixed `→ ✓ ✗ ⚠` vocabulary and 2-space sub-detail indent |
 | Code comments | [Effective Go](https://go.dev/doc/effective_go), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments); [Google Style Guides](https://google.github.io/styleguide/) for TypeScript | the comment rules below |
 
 Diátaxis classifies an ADR as **explanation plus reference**. It is not a tutorial and not a how-to: it records a decision and its constraints, and never walks a reader through a task.
+
+**Second person follows the genre, not the repository.** Google's *you* addresses someone performing a task, which is the tutorial and how-to genres — `docs/dev-loop.md`, `docs/ops/break-glass.md`, and their neighbours, where it is the correct voice. An ADR addresses nobody. It states what is true of the platform, so its subject is the platform and its rules take the imperative of law: *deployments reference images by digest*, never *you reference images by digest*.
 
 ### ADR structure
 
@@ -68,7 +70,7 @@ Two failures make a driver useless, and both read as reasoning:
 | Failure | Example | Instead |
 | --- | --- | --- |
 | **The driver names its own answer** | "One repo-wide release version, because the repo ships as a unit" | "The unit of versioning is the unit of shipping" — the property, which the version line then follows from |
-| **The driver caricatures the loser** | "Keyless over key management. A team this size should not operate a signing-key HSM" — when the alternative was a key in the secret store already running | State the property, and let the option lose on what it actually is |
+| **The driver caricatures the loser** | "Keyless over key management. A team this size should not operate a signing-key HSM" — when the alternative was a key in the secret store already running | State the property, and let the option lose on what it is |
 
 Both failures produce a Considered options table whose verdicts cite a driver written to eliminate them. That is circular, and it reads as rigour.
 
@@ -250,7 +252,8 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 
 ## Rules
 
-- Prose follows the Google developer-docs voice (second person, present tense, active) and ISO 24495-1 plain language, organised by Diátaxis genre. An ADR is explanation plus reference, never a tutorial. `(ref: Google dev-docs, ISO 24495-1, Diátaxis)`
+- Prose follows the Google developer-docs voice (present tense, active) and ISO 24495-1 plain language, organised by Diátaxis genre. An ADR is explanation plus reference, never a tutorial. `(ref: Google dev-docs, ISO 24495-1, Diátaxis)`
+- Second person is the voice of the tutorial and how-to genres. An ADR addresses no reader: it states what is true of the platform, and its Rules read as law rather than as instructions.
 - Every word is load-bearing. A clause whose deletion does not change the meaning is deleted.
 - Three or more items sharing two or more attributes are a table; three or more parallel items are a list.
 - Intensifiers, hedges, meta-commentary, rhetorical questions, and chronology are not used in template docs.

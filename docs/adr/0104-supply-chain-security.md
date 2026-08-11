@@ -31,7 +31,7 @@ The platform team is small against a whole fleet ([ADR-0000](0000-platform-found
 | notation, from the Notary Project | a key or a hosted trust store | the same as the chosen option | Equivalent custody, narrower ecosystem and tooling |
 | No signing, digest pins only | nothing | none | Digest pins prove immutability, not origin. A pinned digest from a compromised builder is still pinned |
 
-**Keyless is an axis-B-low technology.** It works by trusting somebody else to attest who you are, and its payoff — a public, tamper-evident log a stranger can check without your cooperation — is addressed to an audience this platform does not have. That is the same reasoning [ADR-0103](0103-release-and-versioning.md) applies to SemVer: a signal with no reader is cost without benefit.
+**Keyless is an axis-B-low technology.** It works by trusting somebody else to attest who the signer is, and its payoff — a public, tamper-evident log a stranger can check without the signer's cooperation — is addressed to an audience this platform does not have. That is the same reasoning [ADR-0103](0103-release-and-versioning.md) applies to SemVer: a signal with no reader is cost without benefit.
 
 ### Admission enforcement
 

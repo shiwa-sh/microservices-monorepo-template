@@ -43,7 +43,7 @@ The question is therefore not how to simulate the platform, but **which parts ar
 | --- | --- | --- | --- |
 | **Local cluster** | scaled-down whole system on the laptop | laptop resource ceiling; stand-ins can drift | **Chosen** — no shared infra, no platform team, full isolation, works offline |
 | Sync tools | a tool watches files, rebuilds images, redeploys | a second orchestrator beside Helm and Argo; an image build on the hot path | **Partially** — the deploy step, not the watch loop |
-| Shared cluster, one service local | the base cluster runs remotely; your service joins it | needs a platform team, and contention unless request-level isolation is built | Highest fidelity, and the destination past the ceiling below |
+| Shared cluster, one service local | the base cluster runs remotely; the service under development joins it | needs a platform team, and contention unless request-level isolation is built | Highest fidelity, and the destination past the ceiling below |
 | Cloud workspaces | the whole dev environment moves to a remote machine | cost per engineer, network-dependent, weakest local tooling | Orthogonal to parity |
 
 ### Local Kubernetes distribution
@@ -53,12 +53,14 @@ The approach above says "a cluster on the laptop" and this row says which one. E
 | Option | Node shape | Getting an image in | Distance from [ADR-0200](0200-cluster-topology.md)'s production distribution | Verdict |
 | --- | --- | --- | --- | --- |
 | **k3d** | k3s in Docker containers | `k3d image import`, or the built-in registry | k3s, not Talos-shipped upstream Kubernetes | **Chosen.** The fastest create-and-destroy cycle of the field, and a built-in registry means the image path is one command rather than a local registry to run |
-| kind | upstream Kubernetes in Docker | `kind load docker-image` | **upstream Kubernetes, as production runs** | The closest to production of the four, and slower to create and to load images into. Its advantage is the control plane the cluster actually runs, which matters for a Kubernetes-version-sensitive change and not for a service change |
+| kind | upstream Kubernetes in Docker | `kind load docker-image` | **upstream Kubernetes, as production runs** | The closest to production of the four, and slower to create and to load images into. Its advantage is the control plane the cluster runs, which matters for a Kubernetes-version-sensitive change and not for a service change |
 | minikube | a VM or a container, many drivers | `minikube image load`, or its Docker daemon | upstream, with its own addon layer | The most portable across host operating systems, and the heaviest per cluster. Its addons are a second source of cluster configuration, against parity |
 | Talos in Docker | **Talos, as production runs** | a local registry | **none — the same OS and distribution** | The highest fidelity available, and the fidelity is at the layer the inner loop does not exercise. Booting Talos nodes to iterate on a Go handler pays production's bootstrap cost on every recreate |
 | Docker Desktop or Orbstack Kubernetes | bundled with the host tool | shares the host image store, so no load step at all | upstream, vendor-managed | The best image path of the field and no cluster lifecycle to control: it is one cluster, tied to a specific desktop product, which [ADR-0205](0205-environment-parity.md)'s per-engineer recreate-freely lifecycle needs |
 
-**The distance from production is deliberate and bounded.** Parity is at the artifact layer, so what must match is the charts, the images, and the API — not the distribution ([ADR-0205](0205-environment-parity.md)). k3s and upstream Kubernetes are both conformant, so a chart that applies to one applies to the other, and the Talos-specific decisions in [ADR-0200](0200-cluster-topology.md) — machine config, system extensions, KubeSpan — have no laptop counterpart to diverge from. The failure this could hide is a Kubernetes-version or CNI-behaviour difference, which is what the CI e2e tier exists to catch on the real thing.
+**The distance from production is deliberate and bounded.** Parity is at the artifact layer, so what must match is the charts, the images, and the API — not the distribution ([ADR-0205](0205-environment-parity.md)). k3s and upstream Kubernetes are both conformant, so a chart that applies to one applies to the other, and the Talos-specific decisions in [ADR-0200](0200-cluster-topology.md) — machine config, system extensions, KubeSpan — have no laptop counterpart to diverge from.
+
+The failure this could hide is a Kubernetes-version or CNI-behaviour difference, which is what the CI e2e tier exists to catch on the real thing.
 
 **The ~20-service ceiling is the trigger to revisit.** "Run it all locally" is the consensus-correct choice below it and the consensus-wrong one above it. A project that grows past it moves to the third approach. The cheap thing to protect meanwhile is **trace-context propagation**, because request-level isolation (Lyft's staging overrides, Uber's SLATE, Signadot's sandboxes) is built on it. OTel is already wired; keeping propagation honest keeps that door open.
 
@@ -203,7 +205,9 @@ Every service participates identically. Checked by `lint:service-contract`.
 | Ship a `Dockerfile` and a `README.md` | The image is built by the same path in CI and `cluster:add` |
 | Bind `httpmw.ListenAddr()` | `:8080` in-cluster — the chart's containerPort, the IngressRoutes, and the NetworkPolicies all assume it |
 
-**The values-file rule needs an explicit opt-out because absence is not an error state in a git-directory generator.** A missing file produces no Application and no diagnostic. The failure it guards is silent and cross-service: `infra/auth/oathkeeper/values.yaml` points the `remote_json` authorizer at `authz-server` by service DNS in every environment, so an `authz` with no values file for an environment leaves every gated dashboard request there resolving to a Service that does not exist. The deployment surface of this platform is the set of values files, and it is stated rather than inferred.
+**The values-file rule needs an explicit opt-out because absence is not an error state in a git-directory generator.** A missing file produces no Application and no diagnostic. The failure it guards is silent and cross-service: `infra/auth/oathkeeper/values.yaml` points the `remote_json` authorizer at `authz-server` by service DNS in every environment, so an `authz` with no values file for an environment leaves every gated dashboard request there resolving to a Service that does not exist.
+
+The deployment surface of this platform is the set of values files, and it is stated rather than inferred.
 
 **The check cannot verify the declarations are true.** That a service listing `dep:temporal` uses Temporal at all, or that a new HTTP call gained its `svc:*` edge, is a reviewer's job. Adding a cross-service call without its edge is the most likely way to regress the local loop.
 
@@ -286,7 +290,7 @@ A short enumerated set of manifests has no production analogue:
 
 ### Positive
 
-- The inner loop stays fast: above the floor, you pay only for what your service declares.
+- The inner loop stays fast: above the floor, a service pays only for what it declares.
 - The full tier validates the same software production runs — operators, sync ordering, chart wiring — before a change reaches a deployed environment.
 - The frontend has a tier costing a fraction of `cluster:full` with the authentication path untouched.
 - No development-only code ships in `apps/frontend/`. The class of bug where a screen works locally and `403`s in staging cannot occur, because the local gates are the real gates.

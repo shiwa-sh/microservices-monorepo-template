@@ -86,7 +86,7 @@ A hundred slots per layer rather than ten, so a layer can grow without renumberi
 | ADR | Title | Decides |
 | --- | --- | --- |
 | [0600](0600-local-development-loop.md) | Local Development Loop | The two local tiers, dependency graph, service contract, API mock |
-| [0601](0601-testing-strategy.md) | Testing Strategy | The correctness pyramid, the acceptance gauge, load testing |
+| [0601](0601-testing-strategy.md) | Testing Strategy | Correctness layers, the acceptance gauge, load testing |
 
 ### 07xx — Product
 

@@ -83,7 +83,7 @@ The template spawns many products and only some need ReBAC, so shipping flat RBA
 | Cost | Difficulty | Why |
 | --- | --- | --- |
 | **Check sites** | ≈ free | `Checker.Allowed(ctx, action, resource)` is already the sole authz seam, and inline role checks are already forbidden. Bought regardless of engine |
-| **Data model** | hard, and it grows with accumulated data | RBAC stores subject→role; ReBAC stores subject→relation→object. Switching means backfilling a tuple per existing relationship — trivial while you only stored "alice is org-admin", brutal once per-resource ACL tables exist |
+| **Data model** | hard, and it grows with accumulated data | RBAC stores subject→role; ReBAC stores subject→relation→object. Switching means backfilling a tuple per existing relationship — trivial while the store holds only "alice is org-admin", brutal once per-resource ACL tables exist |
 | **Dual-write discipline** | hard and invasive | RBAC in one database is one transaction; ReBAC keeps two stores in sync. Retrofitting that into every authz-relevant mutation path late is the genuinely difficult part |
 
 The deciding distinction is the **shape of the question**. RBAC answers a *subject-shaped* one — what role has this user. ReBAC also answers an *object-shaped* one — may this user act on *this specific* resource, which is sharing, per-resource roles, and cross-org ownership. So:
@@ -117,7 +117,9 @@ The shape follows [NIST SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.ht
 
 A control that reads as enabled in the manifest and is inert on the wire is worse than one that is honestly off, because it invites the reviewer to stop looking.
 
-Where it earns its keep is the B2C tier, whose users are AAL1 with no forced second factor; operators carry [TOTP](https://www.rfc-editor.org/rfc/rfc6238) or [WebAuthn](https://www.w3.org/TR/webauthn-3/) regardless. An environment with the egress enables it by setting `haveibeenpwned_enabled` with `max_breaches: 0` and restoring the `toFQDNs` allow and its companion L7 DNS rule, which the network policy keeps as a comment. A closed network can instead point `haveibeenpwned_host` at a self-hosted k-anonymity API — planning for the constraint that Kratos has no setting for a custom CA chain, so that host must serve a certificate the container already trusts.
+Where it earns its keep is the B2C tier, whose users are AAL1 with no forced second factor; operators carry [TOTP](https://www.rfc-editor.org/rfc/rfc6238) or [WebAuthn](https://www.w3.org/TR/webauthn-3/) regardless.
+
+An environment with the egress enables it by setting `haveibeenpwned_enabled` with `max_breaches: 0` and restoring the `toFQDNs` allow and its companion L7 DNS rule, which the network policy keeps as a comment. A closed network can instead point `haveibeenpwned_host` at a self-hosted k-anonymity API. Kratos has no setting for a custom CA chain, so that host must serve a certificate the container already trusts.
 
 This is a per-environment security posture, not a parity violation: the policy is identical in every environment that can enforce it. The pattern [ADR-0205](0205-environment-parity.md) forbids is the opposite one — enabling it in production and quietly disabling it locally, so local enforces a weaker policy while looking the same.
 
@@ -248,7 +250,9 @@ This is the only sanctioned edge-side permission decision. Product surfaces deci
 
 ### Security verification: ASVS Level 2
 
-**The application security bar is [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) Level 2**, pinned to version 5.0. L2 is the level ASVS describes as appropriate for an application handling significant transactions and personal data, which is this platform's default posture. L1 is a floor reachable without design support and asserts little. L3 targets systems where a breach is a safety event, and its demands — per-transaction reauthentication, full segregation of duties, exhaustive access audit — would reshape decisions taken deliberately elsewhere in this set.
+**The application security bar is [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) Level 2**, pinned to version 5.0. L2 is the level ASVS describes as appropriate for an application handling significant transactions and personal data, which is this platform's default posture.
+
+The neighbouring levels do not fit. L1 is a floor reachable without design support and asserts little. L3 targets systems where a breach is a safety event, and its demands — per-transaction reauthentication, full segregation of duties, exhaustive access audit — would reshape decisions taken deliberately elsewhere in this set.
 
 The version is pinned so an upstream revision is a reviewed bump rather than a silently moved goalpost, the same discipline as the Pod Security Standards version in [ADR-0200](0200-cluster-topology.md).
 

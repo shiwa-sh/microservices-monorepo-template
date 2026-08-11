@@ -140,7 +140,9 @@ The cost of self-hosting is operational, and the machine configuration under `in
 | Anything outside the base image — drivers, iSCSI, GPU | a system extension baked into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory), referenced by schematic and pinned like any other artefact ([ADR-0104](0104-supply-chain-security.md)) |
 | Machine secrets | the cluster CA and `talosconfig`, SOPS-encrypted in git like every other secret ([ADR-0202](0202-secrets.md)) |
 
-Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell, and a one-off manual fix are unavailable by construction, which is the property being bought rather than a limitation being tolerated. This is narrower than it sounds against [12-Factor XII](https://12factor.net/admin-processes): one-off admin work still runs, in the same image and release as the service — migrations as an init container ([ADR-0300](0300-data.md)), operator tasks through the admin UIs ([ADR-0401](0401-internal-admin.md)). What is unavailable is the host shell, not the one-off process.
+Nothing runs on these nodes outside Kubernetes. A host agent, a debugging shell, and a one-off manual fix are unavailable by construction, which is the property being bought rather than a limitation being tolerated.
+
+This is narrower than it sounds against [12-Factor XII](https://12factor.net/admin-processes): one-off admin work still runs, in the same image and release as the service — migrations as an init container ([ADR-0300](0300-data.md)), operator tasks through the admin UIs ([ADR-0401](0401-internal-admin.md)). What is unavailable is the host shell, not the one-off process.
 
 ### Topology and growth
 
@@ -173,11 +175,18 @@ Traefik  (TLS via cert-manager, L7 routing, rate limiting)
 
 **DNS.** One wildcard `A` record per environment points at the LB IP, and cert-manager requests one wildcard certificate per environment via DNS-01. `external-dns` is not used, because the wildcard absorbs new services.
 
-Two provider capabilities are therefore requirements rather than conveniences, and both are verified before an environment is provisioned. **A DNS provider API that cert-manager supports**, without which DNS-01 issuance has no path. **Reverse-DNS (`PTR`) delegation on the mail egress IP**, which [ADR-0307](0307-outbound-email.md) needs to match maddy's HELO name — not every provider offers it, and where it is offered it is often manual, request-only, or unavailable for load-balancer addresses. Both are cheap to confirm at provider selection and expensive to discover afterwards: a missing `PTR` surfaces as mail being rejected at first send, not as a failed deploy.
+Two provider capabilities are therefore requirements rather than conveniences, and both are verified before an environment is provisioned:
+
+- **A DNS provider API that cert-manager supports**, without which DNS-01 issuance has no path.
+- **Reverse-DNS (`PTR`) delegation on the mail egress IP**, which [ADR-0307](0307-outbound-email.md) needs to match maddy's HELO name. Not every provider offers it, and where it is offered it is often manual, request-only, or unavailable for load-balancer addresses.
+
+Both are cheap to confirm at provider selection and expensive to discover afterwards: a missing `PTR` surfaces as mail being rejected at first send, not as a failed deploy.
 
 ### Cluster networking
 
-Cilium is the CNI from day one. The [machine config](https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium) sets `cluster.network.cni.name: none` and `cluster.proxy.disabled: true`, so Talos ships neither its default CNI nor kube-proxy, and Cilium provides both. Cilium is delivered as an inline manifest in the machine config rather than installed afterwards: a node reports `NotReady` until a CNI runs, and a cluster left without one reboots to retry, so shipping it with the bootstrap removes a timed race. Argo CD adopts the release afterwards for upgrades. **CNI cannot be hot-swapped on a live cluster**, so the security posture is set at bootstrap rather than retrofitted.
+Cilium is the CNI from day one. The [machine config](https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium) sets `cluster.network.cni.name: none` and `cluster.proxy.disabled: true`, so Talos ships neither its default CNI nor kube-proxy, and Cilium provides both.
+
+Cilium is delivered as an inline manifest in the machine config rather than installed afterwards: a node reports `NotReady` until a CNI runs, and a cluster left without one reboots to retry, so shipping it with the bootstrap removes a timed race. Argo CD adopts the release afterwards for upgrades. **CNI cannot be hot-swapped on a live cluster**, so the security posture is set at bootstrap rather than retrofitted.
 
 Three Talos properties constrain how Cilium is configured, and each is an invariant rather than a preference:
 
@@ -209,7 +218,7 @@ Talos removes the host attack surface and Cilium removes the network's. Neither 
 
 ```yaml
 pod-security.kubernetes.io/enforce: restricted
-pod-security.kubernetes.io/enforce-version: v1.34
+pod-security.kubernetes.io/enforce-version: <cluster minor>
 pod-security.kubernetes.io/warn: restricted
 pod-security.kubernetes.io/audit: restricted
 ```

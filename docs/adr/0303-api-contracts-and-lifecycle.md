@@ -60,7 +60,7 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP everywhere:
 | OpenAPI Generator | spec-first | stubs in many languages | varies by generator | A JVM toolchain ([ADR-0100](0100-language-and-runtime.md)), and its Go output is among its weakest targets. Retained below for public SDKs, where breadth of language is the entire point |
 | Hand-written handlers plus a runtime spec validator | neither | nothing | a runtime check | Nothing forces the spec and the handlers to agree, which is driver 5 |
 
-On the TypeScript side `openapi-typescript` emits types only and `openapi-fetch` is a thin typed wrapper over `fetch`. The alternatives — orval, kubb, hey-api — generate a client *plus* framework-specific hooks, which couples the published SDK to whatever the frontend currently uses for data fetching ([ADR-0400](0400-frontend.md)).
+On the TypeScript side `openapi-typescript` emits types only and `openapi-fetch` is a thin typed wrapper over `fetch`. The alternatives — orval, kubb, hey-api — generate a client *plus* framework-specific hooks, which couples the published SDK to whatever the frontend uses for data fetching ([ADR-0400](0400-frontend.md)).
 
 ## Decision
 
@@ -100,9 +100,7 @@ The edge produces errors too — Oathkeeper denies before a handler runs ([ADR-0
 
 **Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md)**, carried as a `string` with the prefix pattern declared in the schema. A bare UUID on the wire is a lint failure.
 
-### Keeping the shared shapes identical
-
-The canonical fragment is `tools/codegen/shared-components.yaml`. It is the source; a spec's copy is a copy, and `lint:openapi` fails when the two diverge. The duplication is deliberate and it is not trusted — the check is what makes "identical" a fact rather than a habit.
+The canonical fragment keeping these identical is `tools/codegen/shared-components.yaml`. It is the source; a spec's copy is a copy, and `lint:openapi` fails when the two diverge. The duplication is deliberate and it is not trusted — the check is what makes "identical" a fact rather than a habit.
 
 ### URL shape: flat resource namespace
 

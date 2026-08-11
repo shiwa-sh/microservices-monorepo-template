@@ -80,7 +80,9 @@ Dashboards form a three-level funnel. Each level answers one question and links 
 4. Per-service SLO table — the same expressions as the Service detail SLO tiles, rows linking to it.
 5. One-line platform-dependency stats — Postgres, Temporal, policy drops — linking to their L3 dashboards.
 
-Capacity sits above the alert count, the one departure from verdict-before-everything. It earns the position by being the only *leading* row: exhausting disk, memory, or schedulable capacity is still actionable, whereas a firing alert is already the incident. It also has no other home, because every other panel is per-service or per-dependency. Both ceilings are shown because they are different failures — requests-committed predicts "the scheduler refuses the next pod", real usage predicts "the kernel kills a container", and either can occur while the other looks healthy.
+Capacity sits above the alert count, the one departure from verdict-before-everything. It earns the position by being the only *leading* row: exhausting disk, memory, or schedulable capacity is still actionable, whereas a firing alert is already the incident. It also has no other home, because every other panel is per-service or per-dependency.
+
+Both ceilings are shown because they are different failures — requests-committed predicts "the scheduler refuses the next pod", real usage predicts "the kernel kills a container", and either can occur while the other looks healthy.
 
 **Applications** is the workload directory one click below Overview: kubeletstats-driven, so idle and non-HTTP pods appear, which the HTTP-traffic-driven SLO table does not guarantee.
 
