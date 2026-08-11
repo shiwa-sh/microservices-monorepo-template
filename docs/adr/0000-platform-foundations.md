@@ -229,7 +229,7 @@ There is no `Rejected` or `Draft` status. Rejected proposals are closed PRs, not
 
 ### Who decides
 
-The platform team. One reviewer with platform-team approval is sufficient for an ADR to merge. Disagreement is resolved by a 24-hour async comment window; unresolved disagreements escalate to a synchronous decision call.
+The platform team. One reviewer with platform-team approval is enough for an ADR to merge. Disagreement is resolved by a 24-hour async comment window; unresolved disagreements escalate to a synchronous decision call.
 
 ## Prior art
 

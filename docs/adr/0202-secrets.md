@@ -96,7 +96,7 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 
 - **Offboarding requires re-encrypting every file and rotating every secret.** The scope of the work is set by how many secrets one engineer could read, which is every secret in the repo. The [secrets runbook](../secrets/runbook.md) carries the steps.
 - **A lost engineer key loses that engineer's access.** Acceptable: regenerate, PR the new public key, re-onboard.
-- **A compromised cluster key exposes that environment's secrets on any subsequent git access.** Mitigated by the rotation procedure and by limiting cluster keys to env-scoped files.
+- **A compromised cluster key exposes that environment's secrets on any later git access.** Mitigated by the rotation procedure and by limiting cluster keys to env-scoped files.
 - **The ops-recovery key is a high-value target.** Mitigated by offline storage on hardware tokens and annual rotation.
 - **Credentials are static.** Rotation is a procedure rather than an expiry. Dynamic short-lived credentials are the one thing the rejected options buy, and adopting them is a separate decision with its own operational cost.
 

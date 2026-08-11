@@ -121,7 +121,7 @@ Every escape-hatch service carries its own ADR recording the measured need, and 
 - **Go is not the strongest available language on driver 3**, and this ADR knowingly ranks driver 1 above it. Accepted, on the argument above.
 - Verbose error handling is accepted. No bespoke error-handling DSLs.
 - **The money type is first-party code on a correctness-critical path.** A bug in it is a bug in every price, total, and ledger entry at once, where a language with a native decimal inherits a vetted implementation instead. It carries no third-party dependency, so the exposure is ours to test rather than ours to trust.
-- **Bun is a single-vendor runtime with one implementation.** The exit is affordable only because its Node API compatibility is high enough to run the same code on Node, which the islands already demonstrate is installable.
+- **Bun is a single-vendor runtime with one implementation.** The exit is affordable only because its Node API compatibility is high enough to run the same code on Node, which the islands already show is installable.
 - Every escape-hatch service is a permanent tax: a toolchain, codegen pipeline, CI cache, base image, and review pool that exist for one service.
 
 ## Rules

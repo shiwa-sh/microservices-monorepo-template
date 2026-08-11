@@ -13,7 +13,7 @@ Testing answers two separable questions, and conflating them produces a suite th
 
 | Question | Verdict | Load |
 | --- | --- | --- |
-| **Is it correct?** | works / broken | approximately one user |
+| **Is it correct?** | works / broken | about one user |
 | **What does it cost, and where does it break?** | within budget / regressed / saturated | deliberately past the knee |
 
 Three accepted decisions depend on the second answer:
@@ -22,7 +22,7 @@ Three accepted decisions depend on the second answer:
 - [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) define the apparatus that observes saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — and an alert nobody has seen fire is an alert nobody knows the shape of.
 - [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative, and this is what quantifies it.
 
-Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At approximately one user the cost is entirely platform. The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
+Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At about one user the cost is entirely platform. The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
 
 ## Decision drivers
 

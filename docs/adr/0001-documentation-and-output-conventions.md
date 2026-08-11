@@ -279,4 +279,4 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`.
 - No file under `docs/` links to the root `README.md`, and the ADR set defines every term, test, and table it uses. A generated project rewrites that README, so duplication there is expected and correct.
 - A term enters the [ADR-0000](0000-platform-foundations.md) vocabulary only when the ADR set uses it, and only if the repo does not already use that word in another sense.
-- A Rule that a task, a policy, or a standard enforces names it: `(CI: <task>)`, `(enforced: <policy>)`, or `(ref: <standard>)`. A Rule with no such mechanism carries no annotation, and is not thereby weaker.
+- A Rule that a task, a policy, or a standard enforces names it: `(CI: <task>)`, `(enforced: <policy>)`, or `(ref: <standard>)`. A Rule with no such mechanism carries no annotation, and is not weaker for it.

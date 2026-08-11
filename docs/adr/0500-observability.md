@@ -188,7 +188,7 @@ Service code is unchanged between local and production: the same `obs.Init` work
 ### Negative / Risks
 
 - **Backend operational cost is real** even in monolithic mode; each backend remains a system with its own runbook. Mitigated by single-binary deployments, bucket durability, a zero-dependency local TSDB for metrics, and single-replica non-prod sizing.
-- **Cardinality discipline depends on three layered defences**, none sufficient alone.
+- **Cardinality discipline depends on three layered defences**, none of them enough on its own.
 - **No tail sampling by default.** Head sampling can drop a slow trace whose siblings looked healthy. Accepted, with the gateway seam documented.
 - **Profiling scrape scope is first-party only.** Third-party components without pprof endpoints are not profiled; their health is covered by metrics and logs.
 - **Alerts route but nothing pages.** [ADR-0502](0502-alerting-and-on-call.md) ships the routing tree and leaves escalation as a recorded concession, so an overnight incident is found in the morning.

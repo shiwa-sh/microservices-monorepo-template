@@ -38,7 +38,7 @@ The decision splits into three: the identity provider, the OAuth2 authorization 
 | Option | Headless flow | Config source of truth | Verdict |
 | --- | --- | --- | --- |
 | **Ory Kratos** | fully headless self-service flows | **JSON Schema identity files and YAML in git** | **Chosen.** Go, Apache-2.0, the reference implementation of the headless pattern |
-| Zitadel | a genuine headless Session API covering password, MFA, passkeys, and external IdPs | **its own event-sourced database**, Terraform provider notwithstanding | Rejected on driver 1 — the same driver that rejected Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)). Secondary: its own guide makes hosted login the default and states it was "designed with security in mind, which limits the customization capabilities", and its headline customization story is forking a beta Next.js app, which the UI constraint excludes by name |
+| Zitadel | a genuine headless Session API covering password, MFA, passkeys, and external IdPs | **its own event-sourced database**, despite its Terraform provider | Rejected on driver 1 — the same driver that rejected Coroot ([ADR-0501](0501-operator-uis-and-dashboards.md)). Secondary: its own guide makes hosted login the default and states it was "designed with security in mind, which limits the customization capabilities", and its headline customization story is forking a beta Next.js app, which the UI constraint excludes by name |
 | Keycloak | themes, or the Admin and Account REST APIs — not a first-class headless self-service flow | realm import/export, with drift back to the database | The most mature OSS provider, at a JVM footprint incompatible with [ADR-0100](0100-language-and-runtime.md), and extension work in Java |
 | Authentik | flow-based | database | Python, Django, Celery, and Redis is a third runtime and three components. B2C self-service flows are less mature |
 | SuperTokens | fully headless — the recipe model is API-first, with the UI entirely the caller's | **its own core service and database**, with configuration partly in code and partly in that store | The closest competitor to Kratos on driver 2, and it splits configuration between the SDK's initialisation code and the core's state, so no single committed file describes the identity setup |
@@ -288,7 +288,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 ### Positive
 
 - Login UI freedom: the Figma design is implemented exactly, with no fight against vendor templates.
-- One way to obtain a token for human or machine identity.
+- One way to get a token for human or machine identity.
 - Authz is a single coherent model from day one — no deferred migration, no per-service RBAC tables.
 - Schema in files, tests in files, a CLI for debugging, GitOps for everything.
 - Polyglot-safe: auth integration is a protocol contract, so escape-hatch services participate on equal terms.
