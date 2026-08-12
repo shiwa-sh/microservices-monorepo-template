@@ -14,6 +14,7 @@ sqlc = "1.31.1"
 # API contracts & codegen
 "go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
 vacuum = "0.29.2"
+"ubi:oasdiff/oasdiff" = "1.28.0"
 
 # Frontend toolchain
 biome = "2.5.0"
@@ -490,6 +491,12 @@ run = "go run ./tools/lint-thin-workflows"
 # WIP commits are not yet rewritten. BASE_REF picks the base; it defaults to master.
 run = "bash scripts/lint-commits.sh"
 
+[tasks."lint:api-breaking"]
+# oasdiff labels breaking contract changes for review; it is NOT a version gate
+# (ADR-0303). Exits 0 either way — the signal is the label, and a break that a
+# reviewer sees is the outcome the rule wants. Reads BASE_REF like lint:commits.
+run = "bash scripts/lint-api-breaking.sh"
+
 [tasks."lint:secrets-history"]
 # The history scope of lint:secrets. Separate task, because it answers a different
 # question from the working-tree scan: not "is this change clean" but "is anything
@@ -499,7 +506,7 @@ env = { GITLEAKS_HISTORY = "1" }
 run = "bash scripts/lint-secrets.sh"
 
 [tasks."ci:lint"]
-depends = ["lint", "lint:commits", "lint:secrets-history"]
+depends = ["lint", "lint:commits", "lint:secrets-history", "lint:api-breaking"]
 
 [tasks."ci:test"]
 depends = ["test"]
