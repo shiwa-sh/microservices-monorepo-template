@@ -5,9 +5,11 @@
   "scripts": {
     "test": "playwright test",
     "test:smoke": "playwright test --grep @smoke",
-    "install:browsers": "playwright install chromium"
+    "install:browsers": "playwright install chromium",
+    "test:a11y": "playwright test --grep @a11y"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.11.0",
     "@playwright/test": "1.61.1",
     "@types/node": "22.10.7",
     "otplib": "12.0.1",

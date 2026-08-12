@@ -1,0 +1,325 @@
+## Unreleased (2f9299e..06a756e)
+#### Features
+- (**admin**) add generated CRUD pages for products and orgs, update roles and network policies - (b5e85e7) - Tab
+- (**analytics**) implement ADR-0028 for marketing analytics with Faro integration and custom backend - (9157c78) - Tab
+- (**api**) serve response examples from the contract, and require them - (845ee8c) - Tab
+- (**apis**) remove custom admin pages and add CRUD endpoints for organizations - (aae6f9d) - Tab
+- (**argocd**) add tasks for pausing and resuming application-controller for live-patch scenarios - (02f88ce) - Tab
+- (**argocd**) introduce secrets ApplicationSet for managing per-env SopsSecrets at sync-wave 1 - (2d1cfe3) - Tab
+- (**argocd**) restructure platform tier into base, data, and core application sets with dependency-based sync-waves - (e086172) - Tab
+- (**authz**) replace SpiceDB integration with OpenFGA for improved authorization modeling and testing - (d1b147c) - Tab
+- (**authz**) gate destructive mutations with SpiceDB operator checks and validate /api rules - (d464888) - Tab
+- (**authz**) remove numeric `page` parameter, update pagination to keyset-based model - (65e97e0) - Tab
+- (**cluster**) add `cluster-edge.sh` to manage host-only edge glue for dev setups - (f4355f5) - Tab
+- (**dev-tools**) implement ADR-0030 for local dev-loop tooling and in-cluster readiness - (8dce30f) - Tab
+- (**docs**) introduce ADR-0015 for standardized naming and identifiers system - (ea3d687) - Tab
+- (**e2e**) implement full purchase scenario with end-to-end observability validations - (ce927e3) - Tab
+- (**e2e**) add test for self-service registration and personal org creation, update network policies and env settings for orgs worker authz integration - (8bb8a35) - Tab
+- (**edge**) introduce `cluster:edge` profile for authenticated UI development with real edge stack - (df789b9) - Tab
+- (**frontend**) add .env.example for local dev server configuration and improve documentation for alternate dev setups - (ac8f75b) - Tab
+- (**frontend**) implement EDGE_ORIGIN support for server components and CSRF allowlist - (fe2b152) - Tab
+- (**observability**) add capacity and saturation alerts, refine cluster disk metrics, update dashboards for overview and resource ceilings - (3c2706e) - Tab
+- (**observability**) refine Hubble drops dashboard, disable phone-home telemetry for Temporal and MinIO, and update network policies for external object storage and breach check - (b215544) - Tab
+- (**observability**) refactor Pyroscope config for dynamic updates, disable Ory SQA telemetry across all deployments - (45c88e4) - Tab
+- (**observability**) exclude long-poll operations from Temporal frontend latency metrics to improve percentile accuracy - (b438e8e) - Tab
+- (**observability**) disable phone-home telemetry for Pyroscope, Alloy, and Ory; update network policies for Faro RUM support - (027b3a4) - Tab
+- (**observability**) introduce Grafana dashboard hierarchy per ADR-0026, add overview and platform components dashboards, refine navigation flow - (04d6258) - Tab
+- (**observability**) add otel-cluster metrics collector, workload-health alerts, and dashboard updates for resource utilization insights - (4c0f222) - Tab
+- (**observability**) enable GitOps for Prometheus alerts with Kustomize apps and integrate alerts-as-code workflow - (cc285de) - Tab
+- (**observability**) replace Coroot with Hubble UI and remove all related configurations and tests - (854c5bc) - Tab
+- (**observability**) update dashboards to use stable OTel HTTP server duration histograms and improve SLO metric expressions - (c7ab610) - Tab
+- (**observability**) add applications overview dashboard with workload metrics and integrate into Grafana configuration - (fc24320) - Tab
+- (**observability**) refine service detail dashboard with updated SLO metrics and improved PromQL expressions - (d82b935) - Tab
+- (**observability**) add eBPF-based Hubble service map dashboard, update flow metrics, and integrate with Grafana - (5d022a6) - Tab
+- (**observability**) enhance service detail dashboard with SLO monitoring, update resource promotions, and improve layout - (f8edd05) - Tab
+- (**observability**) add continuous profiling via Pyroscope and Alloy agent, integrate with Grafana dashboards and service insights - (78ce890) - Tab
+- (**observability**) enable GitOps for Grafana dashboards with Kustomize apps in bootstrap and local environments - (b0d57c7) - Tab
+- (**observability**) add service map and service detail dashboards with support for traces, logs, metrics, and profiling - (fb8412f) - Tab
+- (**observability**) introduce Coroot dashboards, transition from Hubble UI, and deprecate redundant Prometheus instance - (8ff7d50) - Tab
+- (**ops**) replace Hubble UI with Coroot for service maps and APM observability - (bd6785c) - Tab
+- (**orgs**) remove email dependency from personal org creation and improve privacy - (302d0b1) - Tab
+- (**orgs**) implement post-registration dual-write workflow and Temporal worker (ADR-0006/0010) - (9eb7a4e) - Tab
+- (**payment**) add refund workflow and OpenAPI endpoint integration (ADR-0006) - (2d3ec27) - Tab
+- (**performance**) add load and performance testing suite with k6 scenarios and Grafana integrations - (121f00b) - Tab
+- (**platform**) ensure chart dependencies are vendored to support CI linting and rendering - (c4a78c4) - Tab
+- (**platform**) implement ADR-0020 resource governance linter and update resource settings across components - (a7ee6c9) - Tab
+- (**platform**) add Temporal Worker Controller for versioned worker deployment - (954c626) - Tab
+- (**ui-dev**) add ADR-0029 for API mocking and UI development loop with mock API and `edge` profile - (1e99062) - Tab
+- add identity management to authz service and admin console - (a1dd925) - Tab
+- add identities list to authz service and admin panel - (aacc2cb) - Tab
+- bootstrap Cilium as the default CNI for improved networking and observability - (d1b925d) - Tab
+- add Skaffold and fix errors - (b7ff296) - Tab
+- add template draft - (77d38f3) - Tab
+- add clay app - (f4cc754) - Xurvan
+- add gateway app - (bd9d7f8) - Xurvan
+- add perfect app - (ed03f1a) - Xurvan
+- add app4 to Tyk - (9e4339c) - Xurvan
+- add Twirp server - (92e240c) - Xurvan
+- return gRPC server - (c2e8317) - Xurvan
+- add request sample files - (0137a80) - Xurvan
+- add gRPC server - (a95cb79) - Xurvan
+- add starting log to HTTP server - (7b68009) - Xurvan
+- add app2 to Tyk - (367e79c) - Xurvan
+- add app1 and app2 to docker compose - (a56c376) - Xurvan
+- add HTTP microservice - (362fe50) - Xurvan
+- add Tyk - (ca6a733) - Xurvan
+- add infinite loop to apps - (6856b6d) - Xurvan
+- add 2 sample Go services - (ae2207e) - Xurvan
+#### Bug Fixes
+- (**gitops**) stable Helm releaseName=chart basename in platform appsets - (f1dff1c) - Tab
+- (**gitops**) enable goTemplate on appsets (names/paths were literal) - (d882dc7) - Tab
+- (**platform**) update network policies for Temporal, including stale peer ingress and connection pooler rules; harden password policy enforcement - (a97edea) - Tab
+- (**platform**) update network policies to allow stale peer connections for Temporal and Alloy - (50b7e14) - Tab
+- keep k3s Traefik for full-tier edge; pin minio service name (Argo release-name coupling) - (e4f93d4) - Tab
+- update ports - (110a001) - Xurvan
+- update new HTTP server port - (aede4d3) - Xurvan
+- change default HTTP port to 8080 to avoid permission error - (442a405) - Xurvan
+- replace network driver with ipam - (314f398) - Xurvan
+- change default HTTP server port to 80 - (23e6e03) - Xurvan
+#### Performance
+- add optimization flags to go build command - (ae1b744) - Xurvan
+#### Documentation
+- (**adr**) update ADR references across codebase for improved alignment and consistency - (dea1182) - Tab
+- (**adr**) enhance policy enforcement documentation, refine principle alignment, and address README and ADR consistency - (fd800a0) - Tab
+- (**adr**) document policy enforcement strategy, incident management, cost model, and deferral register - (0778be4) - Tab
+- (**adr**) refine phrasing for clarity and consistency across multiple ADRs - (4184980) - Tab
+- (**adr**) restructure paragraphs for clarity, refine explanations, and expand supporting context across ADRs - (6692726) - Tab
+- (**adr**) refine references and expand security, provisioning, and compliance clarifications - (0518947) - Tab
+- (**adr**) document non-adopted standards with rationale and clarify scope exclusions - (55e8c91) - Tab
+- (**adr**) update references to external standards, refine links, and clarify enforcement annotations across ADRs - (6565a6e) - Tab
+- (**adr**) refine edge denial handling, Oathkeeper error shaping, and session tracking constraints - (d5b1137) - Tab
+- (**adr**) refine analytics consent model, clarify enforcement paths, and update storage constraints - (64a28f4) - Tab
+- (**adr**) add workload hardening decisions to ADR-0200, define PSA enforcement, and refine privilege constraints - (2654621) - Tab
+- (**adr**) clarify WCAG 2.2 AA conformance, update accessibility enforcement, and refine related ADR links - (2c3a29d) - Tab
+- (**adr**) expand outbound email ADR with delivery security, authentication links, and unsubscribe handling - (489ad99) - Tab
+- (**adr**) update ADR-0303 to define shared components, link related ADRs, and clarify constraints - (e618b47) - Tab
+- (**adr**) expand context with external standards, clarify decision drivers, and update related links across ADRs - (9cf9ef9) - Tab
+- (**adr**) map 12-Factor principles to decisions, clarify conformance across ADRs - (7698415) - Tab
+- (**adr**) refine CNI evaluation in ADR-0200, clarify east-west security, mesh considerations, and Cilium decision - (a44f6b2) - Tab
+- (**adr**) refine CNI comparison in ADR-0200, clarify Talos defaults and decision drivers - (afe09db) - Tab
+- (**adr**) clarify `PTR` delegation requirements for outbound email, refine DNS provider constraints, and update related ADR links - (ccc6dd6) - Tab
+- (**adr**) refine outbound email ADR to clarify sender separation, update related links, and enhance decision context - (1efbd9d) - Tab
+- (**adr**) clarify separation of platform and human mail, refine mailbox hosting considerations - (457a251) - Tab
+- (**adr**) refine wording, clarify decision drivers, and update comparisons across ADRs - (3656bf8) - Tab
+- (**adr**) update ADR-0105 to clarify registry separation rationale and bundled registry constraints - (77dcb87) - Tab
+- (**adr**) expand ADR format guidelines, clarify drivers, and consolidate rules - (e1726e2) - Tab
+- (**adr**) refine wording, update links, and clarify decision drivers across ADRs - (eb328c0) - Tab
+- (**adr**) rewrite ADR-0102 to refine CI/forge drivers, clarify sovereignty concerns, and update tooling choices - (6f0c53d) - Tab
+- (**adr**) rewrite ADR-0103 to refine release and versioning rules, clarify drivers, and update tooling choices - (dfa9a78) - Tab
+- (**adr**) rewrite ADR-0101 to clarify monorepo decision, update drivers, and refine tooling choices - (39f6347) - Tab
+- (**adr**) rewrite ADR-0100 to clarify Go selection, escape hatches, and JS runtime choice - (bca3d8d) - Tab
+- (**adr**) expand resource naming and identifier rules, formalize slug constraints and identifier formats - (f0f41c4) - Tab
+- (**adr**) refine enforcement annotations and clarify rule enforcement mechanics - (754c384) - Tab
+- (**adr**) remove all `Follow-ups` sections and consolidate ADRs to standing law only - (62778e1) - Tab
+- (**adr**) rewrite all docs - (891b782) - Tab
+- (**adr**) correct ADR-0001/0016/0029 to the profile as built - (3849de8) - Tab
+- (**adr**) expand authz engine evaluation with detailed Casbin rejection and OpenFGA context - (2c4e6ae) - Tab
+- (**adr**) clarify `services/` naming to avoid ambiguity with Kubernetes svc - (9f6f7f3) - Tab
+- (**agents**) expand ADR guidance to clarify rules usage and pre-commit checks - (4ae2589) - Tab
+- (**cluster**) migrate from k3s to Talos, update topology and operational model - (697e07b) - Tab
+- (**observability**) clarify head sampling overrides for local development - (8f5480b) - Tab
+- align structure and paths with genre-based organization, enhance reference accuracy, and refine enforcement and procedural clarity - (5493f6f) - Tab
+- add adoption path guidelines for scaling platform operations - (97766c2) - Tab
+- add adoption path guidelines for scaling platform operations - (b872526) - Tab
+- update description of app2 - (64995f6) - Xurvan
+#### Tests
+- (**e2e**) add smoke tests for generated admin pages rendering under operator session - (784dc06) - Tab
+- add unit tests for order cancellation and payment refund handlers; update Querier interface usage in handlers - (4744f25) - Tab
+- add unit tests for order cancellation, payment refund, and org update workflows; improve e2e test coverage in admin codegen - (b664c74) - Tab
+- point local bootstrap at argo-full-test branch (revert before merge) - (d29a1eb) - Tab
+#### CI
+- (**lint**) enforce thin workflows, commit range, and API prefix ownership - (06a756e) - Tab, *Claude Opus 5*
+#### Refactor
+- (**api**) collapse audience labels into one `x-audience` ladder - (c8d6029) - Tab
+- (**ci**) replace shared setup workflow with composite action for toolchain installation and caching - (c00f96a) - Tab
+- (**observability**) rename and simplify RUM ingest route to `/api/rum` - (f260cee) - Tab
+- move "openapi-typescript" to script - (19acd71) - Tab
+- replace "oapi-codegen" with "ogen", "spectral" with "vacuum" - (9c2c098) - Tab
+- rename all apps to give them more descriptive names - (4d6ee94) - Xurvan
+- improve service and server variable names - (46a6c3b) - Xurvan
+- replace grpc with twirp - (ef8a080) - Xurvan
+- rearrange tools - (82d8c36) - Xurvan
+- rearrange services order - (78a669c) - Xurvan
+- rename binary file to app - (23c05d8) - Xurvan
+- rename projects to app - (5caccd6) - Xurvan
+- merge app1 and app2 - (3623569) - Xurvan
+- rename folders - (891d314) - Xurvan
+- follow Go standard layout - (93977e6) - Xurvan
+#### Chore
+- (**admin**) update Lowdefy console URL to admin.ops.<host>; adjust docs accordingly - (bf770ef) - Tab
+- (**admin**) remove admin route and migrate internal console to dedicated admin.ops.<host> origin - (7d147b8) - Tab
+- (**api**) update URL paths for east-west and internal endpoints; align OpenAPI specs, codegen, and docs with ADR-0008 and ADR-0017 - (a756587) - Tab
+- (**api**) strip `x-*` keys from OpenAPI projections; enforce leak checks; update dev portal artifact generation - (417d792) - Tab
+- (**api**) add OpenAPI specs for catalog, orders, orgs, and payment services; implement public/internal API separation with updated dev portal paths - (3323bdb) - Tab
+- (**api**) enforce audience↔exposure consistency (ADR-0008); add `tools/lint-api-audience`, update OpenAPI specs, per-service Dockerfile ignores, and ADR documentation - (9700611) - Tab
+- (**api**) implement flat resource namespace for `/api` routes (ADR-0017); update edge routing, ingress configs, headers, OpenAPI specs, and dev portal paths - (0c1114e) - Tab
+- (**argocd**) enable anonymous UI access for edge-authenticated operators; adjust RBAC default to admin - (2b26152) - Tab
+- (**auth**) update SpiceDB schema to align org permissions with `read` and `write` relations - (7c24060) - Tab
+- (**auth**) refactor and consolidate Kratos and Oathkeeper configs; implement inline-auth lint; add support for tiered ops-tool access via subdomains - (df877e4) - Tab
+- (**authz**) restrict Oathkeeper API access rules to specific resource domains - (5c37028) - Tab
+- (**authz**) remove unused ops-tier authorization implementation and related tests; replace with ogen-generated client and server for authorization operations - (0d5f119) - Tab
+- (**authz**) integrate SpiceDB Checker for product creation authorization in catalog service (ADR-0010) - (f453307) - Tab
+- (**authz**) add coarse and fine-grained gates for operator and tool-specific access; update tests, docs, and scripts to align with ADR-0017 - (49eeda4) - Tab
+- (**build**) isolate sanctioned Node.js usage into scoped island configs for e2e and admin; update Node version handling and tooling integration - (b9e2617) - Tab
+- (**cluster**) use loopback address for registry pushes to avoid TLS issues with k3d - (c004a15) - Tab
+- (**cluster**) expand `preload` script to handle all platform chart images - (4e63960) - Tab
+- (**cluster**) adjust kubelet image GC thresholds to reduce noise on near-full developer disks - (6917aaa) - Tab
+- (**cluster**) fix `image import` logic to handle digest-pinned refs correctly - (3688c8e) - Tab
+- (**cluster**) add `cluster:unwedge` task to recover stalled image pulls behind proxies - (f3c5d1b) - Tab
+- (**cluster**) rename `cilium:install` to `cluster:cilium` - (97177bf) - Tab
+- (**cluster**) rename and cleanup mise tasks and scripts - (b4a08c6) - Tab
+- (**cluster**) update `cluster:down` to stop rather than delete k3d cluster, preserving image cache and volumes for faster resumes - (ad44619) - Tab
+- (**cluster:full**) migrate Lowdefy console to GitOps; build and push repo images to local registry - (6d7504d) - Tab
+- (**cluster:full**) streamline ArgoCD sync with CLI; Lowdefy console as imperative install - (f7996c8) - Tab
+- (**config**) update Lowdefy and Grafana settings to improve air-gapped cluster compatibility - (c83fbab) - Tab
+- (**config**) bump `act` to v0.2.89 and remove unused job flag - (ba336f3) - Tab
+- (**config**) remove IntelliJ IDEA project files and update `.gitignore` - (9faec68) - Tab
+- (**config**) remove unused Makefile section - (ca418c8) - Tab
+- (**config**) cleanup frontend toolchain settings - (9a9669f) - Tab
+- (**deps**) downgrade `react-aria-components` as 1.18.0+ marks Radio/Checkbox/Switch as @deprecated - (77232e2) - Tab
+- (**deps**) update dependencies in bun.lock, including TypeScript, Next.js, React, and OpenTelemetry - (bd52f63) - Tab
+- (**deps**) update dependencies across monorepo (TypeScript, Go tooling, gRPC, OpenTelemetry, etc.) to latest versions - (5ee56c9) - Tab
+- (**deps**) create bun.lock to define dependency and version resolutions for monorepo - (bc6d973) - Tab
+- (**dev**) replace `umbrella` charts and scripts with lightweight dev environment - (31d1abd) - Tab
+- (**docker**) scope Dockerfile copies to libs and service-specific directories, update .dockerignore and Skaffold config for modular builds - (a038c7f) - Tab
+- (**docs**) simplify proxy setup instructions in dev-loop guide; streamline examples for Docker CLI, daemon, and k3d node configuration - (05196b2) - Tab
+- (**docs**) clarify host vs container proxy addressing in dev-loop guide; add examples for Docker CLI and daemon proxy settings - (aae3bf2) - Tab
+- (**docs**) update cluster-full script for flat namespace (ADR-0017); remove outdated opt-in comment and update Traefik route description - (78662ee) - Tab
+- (**docs**) update ADR-0017 and related ADRs to refine public/anonymous API docs structure, trust isolation, and audience labels - (6398bfa) - Tab
+- (**docs**) clarify ingress route definitions and update auth details for dashboard tools - (ce88a56) - Tab
+- (**docs**) refactor ops-tier URLs to align with concept-based naming in ADR-0017; update configs, tests, and supporting docs - (31104e1) - Tab
+- (**docs**) update local edge docs and tables; adjust URLs and formatting for clarity - (33c6a8b) - Tab
+- (**docs**) update ADRs to clarify per-engineer key naming with `{handle}` and environmental scoping - (d3ed005) - Tab
+- (**docs**) clarify proxy configuration for k3d clusters and in-cluster image pulls in `dev-loop.md` - (33edbdc) - Tab
+- (**docs**) native-loop/ArgoCD ADRs + docs; drop Skaffold & dead scripts - (93dca3c) - Tab
+- (**docs**) add ADR-0018 defining testing strategy with Playwright for e2e and visual regression tests - (4c967cf) - Tab
+- (**docs**) add ADR-0017 defining URL and domain structure with trust-tier isolation and ops tooling subdomains - (cabc0c9) - Tab
+- (**docs**) document endpoint routes and access patterns for full development profile - (2883a8c) - Tab
+- (**docs**) add ADR-0016 for environment parity and local development tiers integration - (8b9c6e4) - Tab
+- (**docs**) clarify multi-tenant RLS setup and `app.org_id` usage in ADR - (e08c5b3) - Tab
+- (**docs**) refine auth, observability, cluster and gateway ADRs - (80a3b9c) - Tab
+- (**docs**) update local dev loop and observability setup instructions - (619b156) - Tab
+- (**docs**) add detailed rationale and adaptation guidelines for target scale assumptions - (e2285d1) - Tab
+- (**docs**) update ADRs to standardize terminology, consolidate references, and improve formatting consistency - (75ff6c1) - Tab
+- (**docs**) update ADRs for observability structure and cluster routing changes - (4b3e8ad) - Tab
+- (**docs**) generalize VPS provider references in cluster topology ADR for flexibility across projects - (9de72c5) - Tab
+- (**docs**) streamline and clarify ADRs, consolidate references to related decisions - (1c2cb5b) - Tab
+- (**docs**) clarify naming rules for shared infrastructure in ADR-0015 - (aee31c6) - Tab
+- (**docs**) update directory structure references for Go/TS SDKs - (46c10fa) - Tab
+- (**docs**) add foundational ADRs for platform architecture - (4f9dbcb) - Tab
+- (**e2e**) update registration flow to handle two-step form submission and enforce anonymous context for accurate testing - (81f353b) - Tab
+- (**e2e**) make identity revert conditional on original name to handle empty-name cases - (f6a75bc) - Tab
+- (**e2e**) remove `--with-deps` from Chromium install to improve cross-platform compatibility - (5957c38) - Tab
+- (**e2e**) upgrade Playwright to 1.61.1 in dependencies and lockfile - (5b55343) - Tab
+- (**e2e**) implement Playwright e2e testing framework with full and smoke test suites, preflight checks, and visual regression support - (4bc5e20) - Tab
+- (**env**) update OpenFGA `API_URL` in `.env.example` files and scripts to use port `18080` to avoid conflicts with k3d mappings - (60b214f) - Tab
+- (**env**) add `.env.example` templates and `.env` loading to all services for improved development experience - (240fda9) - Tab
+- (**frontend**) implement shared `KratosFlow` component and integrate self-service auth pages - (89c40e1) - Tab
+- (**frontend**) remove tsconfig build info file - (c2647fa) - Tab
+- (**frontend**) refine CSP logic and enable `allowedDevOrigins` for improved dev-mode compatibility - (5314aa0) - Tab
+- (**frontend**) add Faro ingest API shim for local development and production 404 handling - (455f6d5) - Tab
+- (**frontend**) update CSP logic to allow `unsafe-eval` in non-production - (35ca035) - Tab
+- (**frontend**) add Next.js `Metadata` type annotations to layout and kitchen sink pages - (bc3cf78) - Tab
+- (**frontend**) migrate first-party frontend code from `libs/ts/*` to `apps/frontend/src/` - (eb036e7) - Tab
+- (**gateway**) remove Tyk-related configs and migrate to Oathkeeper - (890913e) - Tab
+- (**gitignore**) add Rumble cache to ignore list - (71efdef) - Tab
+- (**gitops**) add retry policies to all ArgoCD Applications and ApplicationSets per ADR-0004; enhance resilience against transient sync errors - (8835f77) - Tab
+- (**gitops**) refactor local and environment-specific ArgoCD configurations to align with ADR-0004; update labels, AppProjects, sync waves, and bootstrap structure - (f1c7783) - Tab
+- (**gitops**) add dashboards checksum annotation to trigger sync on grant changes - (8a02e93) - Tab
+- (**gitops**) align sync-wave annotations across ApplicationSets for dependency resolution and stability - (47bf820) - Tab
+- (**gitops**) add sync-wave annotations and health checks for ApplicationSets - (f795314) - Tab
+- (**go**) enhance error handling, linting, and const usage across services and libraries - (bd7e19f) - Tab
+- (**helm**) switch Lowdefy readinessProbe to TCP to prevent dashboard event spam - (c1071f1) - Tab
+- (**helm**) upgrade dependencies across platform charts (ArgoCD, Cert-Manager, SpiceDB, Temporal, Ory, Cilium, Postgres, Observability) - (8b9da7e) - Tab
+- (**helm**) refactor local development stack for environment parity with production - (45f759d) - Tab
+- (**helm,docs**) update Hubble UI to use subdomain root (`hubble.<host>`) and adjust configs and docs for React Router routing constraints - (38eebc2) - Tab
+- (**hetzner**) switch Ubuntu 24.04 to Debian 12 - (9676abd) - Tab
+- (**lint**) add shell linting and formatting with `shellcheck` and `shfmt` - (ad3c6ee) - Tab
+- (**lint**) replace `sqlfluff` with `sqruff` - (36bf087) - Tab
+- (**lint**) add markdownlint configs and format all the files - (63ab844) - Tab
+- (**linting**) update schema version and adjust linter rule configuration - (2ffde78) - Tab
+- (**linting**) exclude `node_modules` from grep in floating tag linter - (ed3b14e) - Tab
+- (**linting**) enforce explicit error handling for fmt and file operations - (ed1cf8a) - Tab
+- (**linting**) update ruleguard path in golangci-lint config - (3bd1358) - Tab
+- (**linting**) add custom ruleguard for error comparison, disable errorlint comparison to avoid duplication, and improve http.Server error handling - (2330db5) - Tab
+- (**linting**) enforce explicit variable declarations across services, add custom ruleguard rule to ban assignments in `if` initialization - (827fe14) - Tab
+- (**linting**) replace `gofumpt` with `golangci-lint fmt`, update hooks, tasks, and docs to reflect formatting improvements and generated file exclusions - (0eb837c) - Tab
+- (**local**) native inner loop + ArgoCD full tier (drop Skaffold) - (3d7fabc) - Tab
+- (**minio**) update root password and document login details across configs - (535e381) - Tab
+- (**mise**) rename `dev:*` tasks to `cluster:*`, update all references in docs and scripts for consistency - (17eb40d) - Tab
+- (**mise**) fix `.mise.toml` formatting across services for consistency - (7bfdd42) - Tab
+- (**mise**) remove `dev:debug` task and update related references in ADR and Skaffold configuration - (b39569b) - Tab
+- (**network**) update network policies for pgweb, metadata egress handling, and kube-apiserver host reachability; refine local Cilium config - (0fe7106) - Tab
+- (**network-policies**) add Helm chart for namespace-wide default-deny with granular ingress/egress rules - (c348820) - Tab
+- (**observability**) reformat JSON structures in Grafana dashboards for consistency and update Biome glob to capture all JSON files - (d2b3b6f) - Tab
+- (**observability**) update OTLP metrics to Prometheus naming convention (underscore escaping) and adjust dashboards for unit alignment - (111101d) - Tab
+- (**observability**) replace Mimir deployment with Prometheus as Core-tier metrics store; add observability and logging conventions, adjust operational surface docs - (54e2bc9) - Tab
+- (**observability**) add OpenTelemetry metrics and tracing to core services - (d6addae) - Tab
+- (**observability**) vendor Helm subcharts for offline rendering; update configs for local MinIO and dashboard paths - (7396eec) - Tab
+- (**observability**) set default Grafana home dashboard to service-red.json - (deacef9) - Tab
+- (**observability**) integrate Grafana behind edge with Kratos auth and update access configuration - (5a888c3) - Tab
+- (**observability**) add OTEL_SDK_DISABLED and DEPLOY_ENV logic, enable plaintext OTLP exporters for local dev, and enhance http.Server error handling across services - (03a7fce) - Tab
+- (**observability**) add DEPLOY_ENV support to control stdout logging - (85ce657) - Tab
+- (**observability**) add fanout handler to enable logging to both stdout and OTLP, update Skaffold port-forwarding - (fd34431) - Tab
+- (**openapi**) remove examples from schemas - (4a3d17d) - Tab
+- (**openapi**) enforce snake_case property names, add missing descriptions, and enhance schema consistency across services - (5ac095b) - Tab
+- (**ops**) implement per-Dockerfile ignores and extend GitOps workflows for app builds (ADR-0014); refine release process with digest-based prod pinning (ADR-0013) - (a2812cb) - Tab
+- (**ops**) patch Cilium hubble-peer service to publishNotReadyAddresses; prevent relay failures during agent restarts - (69d60f2) - Tab
+- (**ops**) promote Headlamp and pgweb to Core components; update Helm charts, ingress routes, ADRs, and docs - (31bd888) - Tab
+- (**ops**) bump pgweb image tag to v0.17.0 in Helm values - (b14ae4c) - Tab
+- (**ops**) update Headlamp to v0.43.0; enhance pgweb startup with initContainer DB readiness check; refine Cilium config, network policies, and operator trait enforcement - (ba98ee3) - Tab
+- (**ops**) enforce operator trait with group:operator actions; clarify AAL2 requirement as per ADR-0017 - (75c1c99) - Tab
+- (**ops**) add opt-in tools Headlamp (k8s debug UI) and pgweb (DB inspector); update charts, ingress, scripts, network policies, and e2e tests - (70eee8d) - Tab
+- (**scripts**) clean stale port-forwards before starting ops-grant tasks to avoid binding conflicts - (c68551d) - Tab
+- (**scripts**) pin kubelet eviction thresholds to avoid premature pod evictions on near-full developer disks - (f0f6ed6) - Tab
+- (**scripts**) handle missing images to distinguish build/config gaps from proxy stalls - (b2eae02) - Tab
+- (**scripts**) update Cilium install script to fix API server addressing in k3d environments - (90bddc6) - Tab
+- (**scripts**) include `orgs` service in worker build loop in `cluster-full.sh` - (d410cfe) - Tab
+- (**scripts**) remove `doctor.sh` and proxy handling logic; document HTTP proxy setup in `dev-loop.md` - (8da1c39) - Tab
+- (**sdks**) regenerate ogen client and server - (f28a4da) - Tab
+- (**skaffold**) fix deps and port-forwarding configuration to prevent unnecessary rollouts and correct service targets - (3192200) - Tab
+- (**tasks**) rename `run` task to `server` across all services for consistency with process naming and documentation - (4ad3d14) - Tab
+- (**tasks**) restructure and expand task definitions (upgrade, cluster, dev) for clarity and consistency - (0068456) - Tab
+- (**tasks**) replace `gen:all` task with `gen` across repo to standardize task names - (5df7ae4) - Tab
+- (**terraform**) update Cloudflare provider to v5, adjust DNS record resource and improve configuration consistency - (f709f16) - Tab
+- (**tools**) update Next.js type import path - (e38baf3) - Tab
+- (**tools**) add comment for explaining config usage for compatibility - (85b1e16) - Tab
+- (**tools**) update comments for clarity - (dba1493) - Tab
+- (**tools**) disable `oas3-missing-example` rule in OpenAPI ruleset to reduce maintenance overhead - (d52571c) - Tab
+- (**tools**) replace `biome.json` with `biome.jsonc`, refine linter rules - (22e03b6) - Tab
+- (**tools**) introduce `gostyle` analyzer and integrate custom lint rules - (79f888d) - Tab
+- (**ui**) improve KratosFlow node key generation for stability and uniqueness in React keys - (674163d) - Tab
+- (**ui**) update landing page links and strings; add new routes for auth and admin access - (6af62f0) - Tab
+- (**ui**) add new Avatar, Table, and LoadingIndicator components; implement examples and utilities for flexible usage - (f8079d9) - Tab
+- (**ui**) migrate Button component to Untitled UI React; replace legacy styles and utilities with upstream components - (398cdd5) - Tab
+- (**workflows**) reformat activity options in `RegisterUser` to fix CI error - (a683ea8) - Tab
+- (**workflows**) add concurrency control and repository template checks across workflows - (a51daf9) - Tab
+- remove linguist-generated flag for infra/gateway/apis/*.yaml - (99aea9d) - Tab
+- implement readiness probe support for deep dependency checks; add /readyz and /livez endpoints - (3ab9748) - Tab
+- remove unused .gitkeep files from infra and libs directories - (f5cdd2b) - Tab
+- expand access rules and improve build/push resilience - (b9ecc0f) - Tab
+- pin Redis image to IPv4-reachable mirror; improve robustness of image pull retries in `unwedge` script - (47aae59) - Tab
+- add ArgoCD console URL and configure namespace in ingress routes - (f307722) - Tab
+- add ArgoCD and MinIO dashboard tests; grant group:operator access - (07feefe) - Tab
+- fix Pooler naming to avoid CNPG ownership conflict; handle stale ArgoCD sync plans after `cluster:stop` - (1765993) - Tab
+- add operator management feature to Lowdefy console, create Kratos identities, and grant operator roles in SpiceDB - (a5b3412) - Tab
+- deploy Lowdefy admin console (ADR-0012) with updated Node-based build, add ops-tier access tests, and integrate into full cluster profile - (a49dfbb) - Tab
+- rename `CMD` to `APP_CMD` for clarity across Dockerfiles, GitHub workflows, and Skaffold config - (bd5c8f0) - Tab
+- fix formatting and consolidate code structure in generated SDKs - (209c49e) - Tab
+- mark generated files as linguist-generated - (e50d6fa) - Tab
+- move sdks to language subdirectory - (60fb34f) - Tab
+- add basic configs from mother repo - (c9e5014) - Tab
+- remove old architecture - (509807f) - Tab
+- update license copyright and update security contacts - (5e1a8d2) - Tab
+- remove protoc-gen-go-grpc - (3292d84) - Xurvan
+- add sqlc plugin - (2b401c8) - Xurvan
+- add protoc-gen-go and protoc-gen-go-grpc plugins - (7d360d1) - Xurvan
+- add protoc and migrate - (332b27c) - Xurvan
+- add moon - (2fed03d) - Xurvan
+- add Go gitignores - (b944cb2) - Xurvan
+- add proto to manage tool versions - (398a640) - Xurvan
+- initial commit - (2f9299e) - xurvan
+#### Style
+- (**go**) fully explode multiline call args to satisfy gostyle - (0793824) - Tab
+
+
