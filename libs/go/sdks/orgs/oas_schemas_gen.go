@@ -5,7 +5,6 @@ package orgs
 import (
 	"fmt"
 
-	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 )
 
@@ -69,52 +68,6 @@ func (s *OnIdentityCreatedReq) SetIdentityID(val OptString) {
 // SetEmail sets the value of Email.
 func (s *OnIdentityCreatedReq) SetEmail(val OptString) {
 	s.Email = val
-}
-
-// NewOptProblemDetails returns new OptProblemDetails with value set to v.
-func NewOptProblemDetails(v ProblemDetails) OptProblemDetails {
-	return OptProblemDetails{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptProblemDetails is optional ProblemDetails.
-type OptProblemDetails struct {
-	Value ProblemDetails
-	Set   bool
-}
-
-// IsSet returns true if OptProblemDetails was set.
-func (o OptProblemDetails) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptProblemDetails) Reset() {
-	var v ProblemDetails
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptProblemDetails) SetTo(v ProblemDetails) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptProblemDetails) Get() (v ProblemDetails, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptProblemDetails) Or(d ProblemDetails) ProblemDetails {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
 }
 
 // NewOptString returns new OptString with value set to v.
@@ -206,51 +159,110 @@ func (s *OrgInput) SetName(val string) {
 	s.Name = val
 }
 
-// RFC 7807 problem document.
+// RFC 9457 problem details. Served as `application/problem+json` by services and by the edge alike, so
+// a generated client has one error branch rather than two.
 // Ref: #/components/schemas/Problem
 type Problem struct {
-	Code    string            `json:"code"`
-	Message string            `json:"message"`
-	Details OptProblemDetails `json:"details"`
+	// `about:blank`, except where two errors share a status code and a client handles them differently.
+	// That case takes a `urn:problem-type:<service>:<slug>` URN — never a dereferenceable URL, which
+	// would put an error taxonomy into the flat public URL namespace.
+	Type string `json:"type"`
+	// A stable, human-readable summary. Does not vary with the instance.
+	Title string `json:"title"`
+	// The HTTP status, duplicated in the body.
+	Status int `json:"status"`
+	// Instance-specific and safe to show a user. Never a stack trace, a query, or an internal hostname.
+	Detail OptString `json:"detail"`
+	// The W3C Trace Context trace-id of the failing request, so a user-reported error reaches its trace.
+	// Supplied from the active span, not by the handler.
+	TraceID OptString `json:"trace_id"`
+	// Field-level validation failures, populated from the generated validator. Absent when the failure is
+	// not a validation failure.
+	Errors []ProblemErrorsItem `json:"errors"`
 }
 
-// GetCode returns the value of Code.
-func (s *Problem) GetCode() string {
-	return s.Code
+// GetType returns the value of Type.
+func (s *Problem) GetType() string {
+	return s.Type
+}
+
+// GetTitle returns the value of Title.
+func (s *Problem) GetTitle() string {
+	return s.Title
+}
+
+// GetStatus returns the value of Status.
+func (s *Problem) GetStatus() int {
+	return s.Status
+}
+
+// GetDetail returns the value of Detail.
+func (s *Problem) GetDetail() OptString {
+	return s.Detail
+}
+
+// GetTraceID returns the value of TraceID.
+func (s *Problem) GetTraceID() OptString {
+	return s.TraceID
+}
+
+// GetErrors returns the value of Errors.
+func (s *Problem) GetErrors() []ProblemErrorsItem {
+	return s.Errors
+}
+
+// SetType sets the value of Type.
+func (s *Problem) SetType(val string) {
+	s.Type = val
+}
+
+// SetTitle sets the value of Title.
+func (s *Problem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Problem) SetStatus(val int) {
+	s.Status = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *Problem) SetDetail(val OptString) {
+	s.Detail = val
+}
+
+// SetTraceID sets the value of TraceID.
+func (s *Problem) SetTraceID(val OptString) {
+	s.TraceID = val
+}
+
+// SetErrors sets the value of Errors.
+func (s *Problem) SetErrors(val []ProblemErrorsItem) {
+	s.Errors = val
+}
+
+type ProblemErrorsItem struct {
+	// RFC 6901 JSON Pointer to the offending member.
+	Pointer string `json:"pointer"`
+	Message string `json:"message"`
+}
+
+// GetPointer returns the value of Pointer.
+func (s *ProblemErrorsItem) GetPointer() string {
+	return s.Pointer
 }
 
 // GetMessage returns the value of Message.
-func (s *Problem) GetMessage() string {
+func (s *ProblemErrorsItem) GetMessage() string {
 	return s.Message
 }
 
-// GetDetails returns the value of Details.
-func (s *Problem) GetDetails() OptProblemDetails {
-	return s.Details
-}
-
-// SetCode sets the value of Code.
-func (s *Problem) SetCode(val string) {
-	s.Code = val
+// SetPointer sets the value of Pointer.
+func (s *ProblemErrorsItem) SetPointer(val string) {
+	s.Pointer = val
 }
 
 // SetMessage sets the value of Message.
-func (s *Problem) SetMessage(val string) {
+func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
-}
-
-// SetDetails sets the value of Details.
-func (s *Problem) SetDetails(val OptProblemDetails) {
-	s.Details = val
-}
-
-type ProblemDetails map[string]jx.Raw
-
-func (s *ProblemDetails) init() ProblemDetails {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
 }

@@ -719,7 +719,7 @@
   "components": {
     "responses": {
       "Error": {
-        "description": "Error response",
+        "description": "An error, as RFC 9457 problem details.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -732,22 +732,71 @@
     "schemas": {
       "Problem": {
         "type": "object",
-        "description": "RFC 7807 problem document.",
+        "description": "RFC 9457 problem details. Served as `application/problem+json` by services and\nby the edge alike, so a generated client has one error branch rather than two.\n",
         "required": [
-          "code",
-          "message"
+          "type",
+          "title",
+          "status"
         ],
         "properties": {
-          "code": {
-            "type": "string"
+          "type": {
+            "type": "string",
+            "description": "`about:blank`, except where two errors share a status code and a client\nhandles them differently. That case takes a `urn:problem-type:<service>:<slug>`\nURN — never a dereferenceable URL, which would put an error taxonomy into\nthe flat public URL namespace.\n",
+            "default": "about:blank",
+            "example": "about:blank"
           },
-          "message": {
-            "type": "string"
+          "title": {
+            "type": "string",
+            "description": "A stable, human-readable summary. Does not vary with the instance.",
+            "example": "Not Found"
           },
-          "details": {
-            "type": "object",
-            "additionalProperties": true
+          "status": {
+            "type": "integer",
+            "description": "The HTTP status, duplicated in the body.",
+            "minimum": 100,
+            "maximum": 599,
+            "example": 404
+          },
+          "detail": {
+            "type": "string",
+            "description": "Instance-specific and safe to show a user. Never a stack trace, a query, or\nan internal hostname.\n",
+            "example": "No product with that identifier."
+          },
+          "trace_id": {
+            "type": "string",
+            "description": "The W3C Trace Context trace-id of the failing request, so a user-reported\nerror reaches its trace. Supplied from the active span, not by the handler.\n",
+            "pattern": "^[0-9a-f]{32}$",
+            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+          },
+          "errors": {
+            "type": "array",
+            "description": "Field-level validation failures, populated from the generated validator.\nAbsent when the failure is not a validation failure.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "pointer",
+                "message"
+              ],
+              "properties": {
+                "pointer": {
+                  "type": "string",
+                  "description": "RFC 6901 JSON Pointer to the offending member.",
+                  "example": "/price_cents"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "must be greater than or equal to 0"
+                }
+              }
+            }
           }
+        },
+        "example": {
+          "type": "about:blank",
+          "title": "Not Found",
+          "status": 404,
+          "detail": "No product with that identifier.",
+          "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
         }
       },
       "Product": {

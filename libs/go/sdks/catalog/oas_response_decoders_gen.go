@@ -92,6 +92,15 @@ func decodeCreateProductResponse(resp *http.Response) (res *Product, _ error) {
 				}
 				return res, err
 			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
 			return &ErrorStatusCode{
 				StatusCode: resp.StatusCode,
 				Response:   response,
@@ -142,6 +151,15 @@ func decodeDeleteProductResponse(resp *http.Response) (res *DeleteProductNoConte
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &ErrorStatusCode{
 				StatusCode: resp.StatusCode,
@@ -234,6 +252,15 @@ func decodeGetProductResponse(resp *http.Response) (res *Product, _ error) {
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &ErrorStatusCode{
 				StatusCode: resp.StatusCode,
@@ -352,6 +379,15 @@ func decodeListProductsResponse(resp *http.Response) (res []Product, _ error) {
 				}
 				return res, err
 			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
 			return &ErrorStatusCode{
 				StatusCode: resp.StatusCode,
 				Response:   response,
@@ -443,6 +479,15 @@ func decodeUpdateProductResponse(resp *http.Response) (res *Product, _ error) {
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &ErrorStatusCode{
 				StatusCode: resp.StatusCode,

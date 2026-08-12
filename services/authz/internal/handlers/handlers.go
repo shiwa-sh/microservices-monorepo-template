@@ -82,7 +82,16 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 		slog.String("reason", reason),
 	)
 	if !allowed {
-		return &authzsdk.Problem{Code: "forbidden", Message: reason}, nil
+		// A deny is the expected answer here, not a failure: Oathkeeper reads the
+		// body. It still carries the platform error shape (ADR-0303) so a client
+		// parses one thing whatever produced it.
+		denied := apierr.Forbidden(reason).WithTrace(ctx)
+		return &authzsdk.Problem{
+			Type:   denied.Type,
+			Title:  denied.Title,
+			Status: denied.Status,
+			Detail: authzsdk.NewOptString(denied.Detail),
+		}, nil
 	}
 	return &authzsdk.AuthorizeOK{}, nil
 }
@@ -158,13 +167,27 @@ func (h *Handlers) UpdateIdentity(
 	return &id, nil
 }
 
-// NewError maps a handler error onto the generated RFC 7807 default response.
-func (h *Handlers) NewError(_ context.Context, err error) *authzsdk.ErrorStatusCode {
+// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// The trace-id is stamped here rather than in each handler: a handler that forgets
+// it produces an error nobody can correlate, and nothing signals the omission.
+func (h *Handlers) NewError(ctx context.Context, err error) *authzsdk.ErrorStatusCode {
 	e, ok := apierr.As(err)
-	if ok {
-		return &authzsdk.ErrorStatusCode{StatusCode: e.Status, Response: authzsdk.Problem{Code: e.Code, Message: e.Message}}
+	if !ok {
+		e = apierr.Internal(err.Error())
 	}
-	return &authzsdk.ErrorStatusCode{StatusCode: 500, Response: authzsdk.Problem{Code: "internal", Message: err.Error()}}
+	e = e.WithTrace(ctx)
+
+	problem := authzsdk.Problem{Type: e.Type, Title: e.Title, Status: e.Status}
+	if e.Detail != "" {
+		problem.Detail = authzsdk.NewOptString(e.Detail)
+	}
+	if e.TraceID != "" {
+		problem.TraceID = authzsdk.NewOptString(e.TraceID)
+	}
+	for _, v := range e.Errors {
+		problem.Errors = append(problem.Errors, authzsdk.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
+	}
+	return &authzsdk.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
 // decide returns the allow/deny decision and its reason. The error is non-nil only

@@ -260,7 +260,7 @@ run = "bash scripts/identity-seed.sh"
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
 # OpenAPI spec (ADR-0305). Generators: ogen + openapi-typescript (SDKs), sqlc
 # (queries), and the devportal spec projections rendered by Scalar (ADR-0303).
-depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:adr-rules"]
+depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:adr-rules"]
 
 [tasks."gen:adr-rules"]
 # Two documents are views over the ADR set's Rules sections: the rules index and the
@@ -268,7 +268,14 @@ depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:ad
 # ADRs, so both are generated and drift-checked like any other generated artefact.
 run = "go run ./tools/adr-rules"
 
+[tasks."gen:shared-components"]
+# Writes the canonical error envelope, money, and timestamp components into every
+# spec from tools/codegen/shared-components.yaml (ADR-0303). Runs BEFORE the SDK
+# generators, so they read specs that already carry the current shared shapes.
+run = "go run ./tools/shared-components"
+
 [tasks."gen:openapi"]
+depends = ["gen:shared-components"]
 run = "bash scripts/gen-openapi.sh"
 
 [tasks."gen:admin"]

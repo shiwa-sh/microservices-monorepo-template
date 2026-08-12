@@ -77,14 +77,92 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description RFC 7807 problem document. */
+        /**
+         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
+         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @example {
+         *       "type": "about:blank",
+         *       "title": "Not Found",
+         *       "status": 404,
+         *       "detail": "No product with that identifier.",
+         *       "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+         *     }
+         */
         Problem: {
-            code: string;
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @description `about:blank`, except where two errors share a status code and a client
+             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     the flat public URL namespace.
+             * @default about:blank
+             * @example about:blank
+             */
+            type: string;
+            /**
+             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @example Not Found
+             */
+            title: string;
+            /**
+             * @description The HTTP status, duplicated in the body.
+             * @example 404
+             */
+            status: number;
+            /**
+             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
+             *     an internal hostname.
+             * @example No product with that identifier.
+             */
+            detail?: string;
+            /**
+             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
+             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @example 4bf92f3577b34da6a3ce929d0e0e4736
+             */
+            trace_id?: string;
+            /**
+             * @description Field-level validation failures, populated from the generated validator.
+             *     Absent when the failure is not a validation failure.
+             */
+            errors?: {
+                /**
+                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @example /price_cents
+                 */
+                pointer: string;
+                /** @example must be greater than or equal to 0 */
+                message: string;
+            }[];
         };
+        /**
+         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+         *     double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. Currency travels with the amount, because an amount without one is
+         *     not a quantity of anything.
+         * @example {
+         *       "amount": "1299.00",
+         *       "currency": "EUR"
+         *     }
+         */
+        Money: {
+            /**
+             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @example 1299.00
+             */
+            amount: string;
+            /**
+             * @description ISO 4217 alphabetic code, uppercase.
+             * @example EUR
+             */
+            currency: string;
+        };
+        /**
+         * Format: date-time
+         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
+         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
+         * @example 2026-08-12T09:30:00Z
+         */
+        Timestamp: string;
         /** @description The remote_json payload Oathkeeper POSTs per ops-dashboard request. */
         AuthorizeRequest: {
             /** @description Kratos identity id; empty for anonymous. */
@@ -134,7 +212,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Error response */
+        /** @description An error, as RFC 9457 problem details. */
         Error: {
             headers: {
                 [name: string]: unknown;

@@ -25,3 +25,9 @@ vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error "
 # of the SET of specs, and vacuum lints one document at a time (ADR-0303).
 step "checking resource-prefix ownership across the /api namespace"
 go run ./tools/lint-api-prefixes
+
+# The shared components are copied into each spec rather than $ref'd across files,
+# so each document stays self-contained for ogen and vacuum (ADR-0303). This is
+# what makes "identical across specs" a fact rather than a habit.
+step "checking the shared components have not diverged"
+go run ./tools/shared-components -check
