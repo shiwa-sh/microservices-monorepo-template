@@ -40,7 +40,20 @@ k3d = "5.9.0"
 # and ADR-0106 asks for the pin here so the version lives in one file like every
 # other tool.
 "pipx:copier" = "9.17.1"
-"npm:renovate" = "44.26.0"
+# The exclude is a reviewed supply-chain exception, not a convenience bypass.
+# mise's npm backend refuses a "trust downgrade": @yarnpkg/libzip 3.2.0 and 3.2.1
+# were published by the yarnbot CI identity carrying SLSA provenance, and 3.2.2 —
+# still the `latest` tag, so no renovate bump avoids it — was published manually by
+# arcanis, Yarn's lead maintainer, on 2025-09-18 with a registry signature but no
+# provenance attestation. Checked against npmjs.org: publisher, signature and
+# integrity are consistent with a manual maintainer publish, which is one of the
+# benign causes mise's own message enumerates. Scoped to the exact package@version
+# so any other downgrade in this tree still fails the install.
+# Revisit when @yarnpkg/libzip publishes a provenance-carrying release above 3.2.2:
+# the exclude should then be deleted, not widened.
+"npm:renovate" = { version = "44.26.0", trust_policy_excludes = [
+  "@yarnpkg/libzip@3.2.2",
+] }
 
 # Secrets
 age = "1.3.1"
