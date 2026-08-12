@@ -445,7 +445,16 @@ bash scripts/lint-strip-headers.sh
 
 # ── Test & build ──────────────────────────────────────────────────────────────
 [tasks.test]
+depends = ["test:go", "test:ts"]
+
+[tasks."test:go"]
 run = "go test ./..."
+
+[tasks."test:ts"]
+# The shared TypeScript libraries under libs/ts/ — not the frontend, whose browser
+# behaviour is covered by the e2e suite (ADR-0601). Bun's runner, so this needs no
+# second toolchain and no Node.
+run = "bun test libs/ts/"
 
 [tasks.build]
 run = "go build ./..."

@@ -95,6 +95,21 @@
   },
   "overrides": [
     {
+      // libs/ts/id is a bit-level codec: it packs a 128-bit value into 26 base32
+      // characters five bits at a time (ADR-0003). Bitwise operators and an index
+      // counter ARE the domain here, and the rules banning them exist to keep them
+      // out of React code, which this is not. The published alphabet and the TypeID
+      // conformance vectors also read as high-entropy strings to the secret scanner.
+      "includes": ["**/libs/ts/id/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noBitwiseOperators": "off" },
+          "style": { "noIncrementDecrement": "off" },
+          "security": { "noSecrets": "off" }
+        }
+      }
+    },
+    {
       // App Router route segments and config files use default exports.
       "includes": ["**/app/**", "**/*.config.{js,cjs,mjs,ts}"],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
