@@ -62,6 +62,6 @@ Anonymise-versus-hard-delete is a per-category decision, recorded with the data 
 ## Rules
 
 - Every stored data category has a declared class and retention period, enforced by a Temporal `Schedule`.
-- A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query.
+- A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query. `(CI: lint:sql)`
 - Right-to-erasure and DSAR run as Temporal workflows acting across every owning service **and** OpenFGA. A raw multi-store delete script is not used.
 - Anonymise-versus-delete is recorded per data class, never decided per request.

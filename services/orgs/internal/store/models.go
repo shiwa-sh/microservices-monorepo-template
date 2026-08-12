@@ -9,13 +9,15 @@ import (
 )
 
 type Org struct {
-	ID        pgtype.UUID        `json:"id"`
+	ID pgtype.UUID `json:"id"`
+	// pii:none
 	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type OrgMember struct {
-	OrgID  pgtype.UUID `json:"org_id"`
-	UserID string      `json:"user_id"`
-	Role   string      `json:"role"`
+	OrgID pgtype.UUID `json:"org_id"`
+	// pii:identifier
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
 }

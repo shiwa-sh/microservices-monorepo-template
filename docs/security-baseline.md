@@ -104,7 +104,7 @@ The security controls every project built from this template inherits, each one 
 | Control | Enforced by |
 | --- | --- |
 | Every stored data category has a declared class and retention period, enforced by a Temporal `Schedule`. | review |
-| A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query. | review |
+| A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query. | `lint:sql` in CI |
 | Right-to-erasure and DSAR run as Temporal workflows acting across every owning service **and** OpenFGA. A raw multi-store delete script is not used. | review |
 | Anonymise-versus-delete is recorded per data class, never decided per request. | review |
 

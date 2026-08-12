@@ -8,8 +8,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 145 |
-| Review-enforced | 301 |
+| Machine-enforced | 146 |
+| Review-enforced | 300 |
 | **Total** | **446** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
@@ -385,7 +385,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | Every stored data category has a declared class and retention period, enforced by a Temporal `Schedule`. | review |
-| A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query. | review |
+| A column holding personal data carries a `pii:<class>` column comment in the migration that creates it, so erasure, export, and redaction enumerate their targets by query. | `lint:sql` in CI |
 | Right-to-erasure and DSAR run as Temporal workflows acting across every owning service **and** OpenFGA. A raw multi-store delete script is not used. | review |
 | Anonymise-versus-delete is recorded per data class, never decided per request. | review |
 
