@@ -118,6 +118,7 @@ Removal is a mechanical edit inside the packages that import it. Each row names 
 | `go-faster/jx` | JSON, as ogen's dependency | `encoding/json`, `jsoniter` |
 | `go-faster/errors` | error wrapping, as ogen's dependency | `fmt.Errorf`, `pkg/errors` |
 | `google/uuid` | UUID generation | `gofrs/uuid`, `oklog/ulid` |
+| `math/big` | money arithmetic | `shopspring/decimal`, `govalues/decimal`, integer minor units |
 | `ruleguard/dsl` | custom static-analysis rules | hand-written `go/analysis` passes |
 | `yaml.v3` | YAML parsing | `ghodss/yaml`, `goccy/go-yaml` |
 
