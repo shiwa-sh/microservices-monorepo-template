@@ -1,4 +1,4 @@
-// Package dbmw wires pgx with OTel tracing + per-query metrics (ADR-0011).
+// Package dbmw wires pgx with OTel tracing + per-query metrics (ADR-0500).
 // Services pass the returned tracer to pgxpool.Config.ConnConfig.Tracer.
 package dbmw
 
@@ -15,13 +15,13 @@ import (
 )
 
 // MustOpen opens a pgxpool with the platform-default tracer.
-// dsn typically comes from an envFrom-mounted Secret (ADR-0005).
+// dsn typically comes from an envFrom-mounted Secret (ADR-0202).
 func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		panic(err)
 	}
-	// PgBouncer transaction-mode compatibility (ADR-0007).
+	// PgBouncer transaction-mode compatibility (ADR-0300).
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
@@ -37,7 +37,7 @@ func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	if err != nil {
 		panic(err)
 	}
-	// Auto-register the /readyz check for this dependency (ADR-0011).
+	// Auto-register the /readyz check for this dependency (ADR-0500).
 	observability.RegisterReadinessCheck("postgres", pool.Ping)
 	return pool
 }

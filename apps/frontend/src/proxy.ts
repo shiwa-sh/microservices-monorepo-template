@@ -1,4 +1,4 @@
-// Kratos session gate + per-request CSP nonce (ADR-0010, ADR-0014, ADR-0009).
+// Kratos session gate + per-request CSP nonce (ADR-0304, ADR-0400, ADR-0305).
 // (landing) is public except for /auth/*; the other route groups require a
 // session. The frontend never validates JWTs — Oathkeeper does that at the edge
 // for /api/* calls. Here we only check that a Kratos session cookie is present,

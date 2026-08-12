@@ -1,4 +1,4 @@
-// Command lint-strip-headers is the anti-spoofing gate (ADR-0009). Every
+// Command lint-strip-headers is the anti-spoofing gate (ADR-0305). Every
 // IngressRoute that authenticates via the Oathkeeper forwardAuth middleware MUST
 // also apply strip-identity-headers BEFORE it, so a client cannot inject
 // X-User-* / X-Org-Id / X-Roles on any route (anonymous routes especially). It

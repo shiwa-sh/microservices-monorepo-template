@@ -1,4 +1,4 @@
-# Workload-health alerts (ADR-0025 follow-up). Fed by the otel-cluster singleton
+# Workload-health alerts (ADR-0501 follow-up). Fed by the otel-cluster singleton
 # (observability chart, templates/otel-cluster.yaml) — the k8s_cluster receiver's
 # view of desired vs observed state. This is the alerting seam of the
 # "Grafana answers 'is something wrong?', Headlamp answers 'what exactly'"

@@ -1,4 +1,4 @@
-// Lowdefy admin console ops dashboard (ADR-0012, ADR-0017). Same staged gauge as
+// Lowdefy admin console ops dashboard (ADR-0401, ADR-0306). Same staged gauge as
 // the other ops tools: gated at the edge (unauthenticated / AAL1 / AAL2 operator
 // holding dashboard:lowdefy#view), then the Lowdefy app paints behind a real AAL2
 // session.
@@ -97,7 +97,7 @@ test.describe("lowdefy ops dashboard", () => {
   });
 
   // The identities resource wired to Kratos through authz: the changelist and edit
-  // page (ADR-0012). Unlike products, the rows come from Kratos admin (GET
+  // page (ADR-0401). Unlike products, the rows come from Kratos admin (GET
   // /admin/identities) via authz — a path that only works when authz can reach the
   // Kratos admin API (network-policies/30-ory.yaml) and the deployed authz image
   // actually serves /identities. A paint-only check would pass on an empty grid; this

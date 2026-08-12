@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# `cluster:base` (ADR-0016, ADR-0030) — the local floor every service needs.
+# `cluster:base` (ADR-0205, ADR-0600) — the local floor every service needs.
 #
 #   Traefik · cert-manager · Postgres · Kratos · Oathkeeper   real
 #   Temporal · OpenFGA · CNPG · observability · ArgoCD        absent, opt-in per service
@@ -7,9 +7,9 @@
 # Everything above the floor is opt-in, declared by the service that needs it
 # (`dep:*` in each `services/<svc>/.mise.toml`) rather than by a named profile.
 # There is no `min`/`backend`/`edge`/`obs` tier: what is up is base ∪ the declared
-# dependencies of whatever you are running. See ADR-0016.
+# dependencies of whatever you are running. See ADR-0205.
 #
-# The identity stack is in the floor deliberately (ADR-0029's argument, generalised
+# The identity stack is in the floor deliberately (ADR-0600's argument, generalised
 # from the frontend to every service): Kratos and Oathkeeper are cheap, and their
 # behaviour — cookies, CSRF, session expiry, the 401/403 — IS the contract every
 # service consumes. A service reached through this edge gets real Oathkeeper
@@ -22,7 +22,7 @@
 # uses. This script names which ones, and nothing else — no second values file to
 # drift.
 #
-# Not ArgoCD-driven, deliberately: Argo is the full tier's engine (ADR-0016), and
+# Not ArgoCD-driven, deliberately: Argo is the full tier's engine (ADR-0205), and
 # this is the inner loop.
 #
 # Related: `scripts/dep-apply.sh` adds one opt-in component on top of this floor;
@@ -53,7 +53,7 @@ step "applying the postgres dependency stand-in (Kratos's store)"
 k apply -f infra/local/deps.yaml -l 'local.platform/component in (base,postgres)'
 k -n "$NS" rollout status deploy/postgres --timeout=180s
 
-# 3. TLS. cert-manager IS the mechanism in every environment (ADR-0016); only the
+# 3. TLS. cert-manager IS the mechanism in every environment (ADR-0205); only the
 #    issuer differs, and the local values already select the SelfSigned one.
 #    Helm applies the chart's ClusterIssuer/Certificates in the same pass that
 #    creates the webhook they must be admitted by, so a cold install can lose that
@@ -75,7 +75,7 @@ for attempt in 1 2 3; do
 done
 k -n "$NS" wait --for=condition=Ready certificate/wildcard --timeout=120s
 
-# 4. The shared edge middlewares (ADR-0009): identity-header stripping, Oathkeeper
+# 4. The shared edge middlewares (ADR-0305): identity-header stripping, Oathkeeper
 #    forward-auth, the rate limit, security headers. Only middlewares.yaml — the
 #    rest of infra/gateway routes the ops tier, which this profile does not run.
 step "applying the edge middlewares"
@@ -126,7 +126,7 @@ k -n kube-system rollout status deploy/coredns --timeout=120s
 k apply -f infra/local/traefik-config.yaml
 bash scripts/cluster-edge-glue.sh
 
-# 9. The committed test identities (ADR-0018) — the same ones the e2e suite uses,
+# 9. The committed test identities (ADR-0601) — the same ones the e2e suite uses,
 #    not a parallel development-only identity.
 bash scripts/identity-seed.sh
 

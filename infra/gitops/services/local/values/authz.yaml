@@ -1,4 +1,4 @@
-# Local full-tier values for the authz edge authorizer (ADR-0017). authz is
+# Local full-tier values for the authz edge authorizer (ADR-0306). authz is
 # INTERNAL: Oathkeeper's remote_json authorizer calls it by service DNS, so it gets
 # no /api edge route (ingress off). It has no database (migrations off). It talks to
 # the real OpenFGA chart using the SOPS-managed preshared key (openfga-creds).
@@ -7,7 +7,7 @@
 name: authz
 image:
   repository: k3d-registry.localhost:5000/authz-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0002)
+  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:     { enabled: false }
 server:     { replicas: 1 }

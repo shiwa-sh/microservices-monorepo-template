@@ -1,10 +1,10 @@
-// Read-path load: the catalog browse journey (ADR-0027).
+// Read-path load: the catalog browse journey (ADR-0601).
 //
 //   GET /api/products        — the list, the query every storefront page makes
 //   GET /api/products/{id}   — a detail read, indexed single-row lookup
 //
 // Driven through the edge, so each request pays Traefik routing + the Oathkeeper
-// forward-auth hop (ADR-0009) before catalog ever sees it. Both operations are
+// forward-auth hop (ADR-0305) before catalog ever sees it. Both operations are
 // unauthenticated by design (catalog gates only writes — services/catalog
 // handlers.requireOperator), so this scenario needs no session and its numbers
 // are not distorted by login cost.
@@ -36,7 +36,7 @@ import { API, options as buildOptions, summaryTrailer } from "../lib/config.js";
 const pageSize = new Trend("catalog_page_size");
 
 export const options = buildOptions("browse", 1, {
-  // Budgets, not SLOs (ADR-0027). Generous enough that a green run means "no
+  // Budgets, not SLOs (ADR-0601). Generous enough that a green run means "no
   // regression", not "indistinguishable from idle".
   http_req_failed: ["rate<0.01"],
   "http_req_duration{endpoint:list_products}": ["p(95)<800"],

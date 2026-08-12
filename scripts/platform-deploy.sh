@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot working-tree overlay of a platform chart (ADR-0016) — the rare local
+# One-shot working-tree overlay of a platform chart (ADR-0205) — the rare local
 # infra-iteration case (e.g. changing Ory or the observability chart and testing
 # before pushing). Pauses ArgoCD auto-sync on that one app so self-heal does not
 # revert you, then helm-upgrades the chart from the working tree with the local
@@ -28,7 +28,7 @@ CHART_DIR="infra/helm/platform/${CHART}"
 k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 
-# The lowdefy admin console (ADR-0012) is the one platform chart whose image we
+# The lowdefy admin console (ADR-0401) is the one platform chart whose image we
 # build: `lowdefy build` bakes the YAML pages (apps/admin, incl. _generated/) into
 # the image, so a chart/values change alone is not enough — rebuild + push the
 # image, then roll the pod (the local overlay pins :local, pullPolicy Always, so a
@@ -67,7 +67,7 @@ extra_args=(
 case "$CHART" in
 openfga)
   # Without this seed.model is empty and the seed Job is disabled (no store is
-  # created) — ADR-0010.
+  # created) — ADR-0304.
   extra_args+=(--set-file "seed.model=infra/auth/openfga/model.json")
   ;;
 ory)

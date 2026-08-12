@@ -7,6 +7,6 @@ cert-manager:
 envHost: ""
 
 # Local / non-public TLS: when true, issue the wildcard secrets from a SelfSigned
-# ClusterIssuer in the platform namespace instead of Let's Encrypt (ADR-0016).
+# ClusterIssuer in the platform namespace instead of Let's Encrypt (ADR-0205).
 selfSigned:
   enabled: false

@@ -26,7 +26,7 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: orders }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: orgs }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: payment }
-        # pgweb (ADR-0012) — read-only DB inspector panel; connects to postgres-rw.
+        # pgweb (ADR-0401) — read-only DB inspector panel; connects to postgres-rw.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
@@ -35,14 +35,14 @@ spec:
       toPorts:
         - ports: [{ port: "8000", protocol: TCP }]
     # otel-cluster scrapes the CNPG instance manager's built-in exporter
-    # (metrics port 9187) and re-exports over OTLP (ADR-0011: Prometheus itself
+    # (metrics port 9187) and re-exports over OTLP (ADR-0500: Prometheus itself
     # scrapes nothing) — the postgres component metrics on the dashboards.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
       toPorts:
         - ports: [{ port: "9187", protocol: TCP }]
 ---
-## The CNPG poolers (`postgres-pgbouncer-rw`, ADR-0007 transaction mode) — the same
+## The CNPG poolers (`postgres-pgbouncer-rw`, ADR-0300 transaction mode) — the same
 ## database behind a connection pooler, and so the same caller list as the Cluster
 ## above. They are a SEPARATE policy because the `postgres` rule selects
 ## `app.kubernetes.io/component: database` and the pooler pods carry
@@ -97,7 +97,7 @@ spec:
 ## OpenFGA — authorization store (HTTP API, port 8080). authz-server checks
 ## permissions; the openfga-seed job creates the store + writes the model and
 ## bootstrap grants at bring-up. Business services that authorize writes via the
-## shared Checker (ADR-0010) dial it directly too — catalog gates product creation
+## shared Checker (ADR-0304) dial it directly too — catalog gates product creation
 ## on group:operator, orders the cancel, payment the refund, and the orgs worker
 ## WRITES the org#admin tuple as leg 2 of the registration dual-write. Every service
 ## holding a Checker or Granter must be listed here or it fails closed at the

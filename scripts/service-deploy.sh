@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-shot in-cluster deploy of a service from the WORKING TREE (ADR-0003,
-# ADR-0016) — the occasional "I need my uncommitted service in the cluster for
+# One-shot in-cluster deploy of a service from the WORKING TREE (ADR-0200,
+# ADR-0205) — the occasional "I need my uncommitted service in the cluster for
 # edge/auth/e2e testing" case. No watch loop (that was Skaffold's job; the daily
 # loop is native execution). Builds the image(s), imports them into k3d, and helm-
 # upgrades the same chart prod uses with the local values overlay.
@@ -32,8 +32,8 @@ VALUES="infra/gitops/services/local/values/${SVC}.yaml"
 k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 
-# Bring up what this service declares it needs, before deploying it (ADR-0016,
-# ADR-0030). Without this a deploy onto a bare base silently CrashLoops: orders
+# Bring up what this service declares it needs, before deploying it (ADR-0205,
+# ADR-0600). Without this a deploy onto a bare base silently CrashLoops: orders
 # wants Temporal and OpenFGA, catalog's values mount openfga-creds and point at an
 # in-cluster OpenFGA URL, and every service chart mounts a <svc>-db secret. The
 # dependency list is the service's own — the same declaration its native tasks use
@@ -83,7 +83,7 @@ done
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
 SET=(--set "image.repository=${SVC}-server" --set "image.tag=${TAG}")
 
-# Build identity baked into the image (ADR-0013): the working-tree SHA (+ -dirty
+# Build identity baked into the image (ADR-0103): the working-tree SHA (+ -dirty
 # for uncommitted edits — the norm for this local path), so /version and the
 # X-App-Version header report exactly what you deployed.
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"

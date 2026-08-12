@@ -1,5 +1,5 @@
-# Install k3s in HA mode with embedded etcd (ADR-0003).
-# Flannel is disabled so Cilium can own the CNI (ADR-0003).
+# Install k3s in HA mode with embedded etcd (ADR-0200).
+# Flannel is disabled so Cilium can own the CNI (ADR-0206).
 - name: Install k3s on the first server node
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} \

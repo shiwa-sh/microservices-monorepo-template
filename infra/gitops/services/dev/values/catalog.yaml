@@ -11,16 +11,16 @@ ingress:
   host: dev.example.com
   resources: [products]
 # The Lowdefy admin console (apps/admin) calls catalog server-side, east-west on
-# the server port, bypassing the /api edge (ADR-0012). allowFromGateway only
+# the server port, bypassing the /api edge (ADR-0401). allowFromGateway only
 # covers Traefik → /api/products, so the console must be allowed explicitly.
 # `orders` covers the checkout saga: the orders worker's LookupProductActivity
-# dials catalog east-west (ADR-0006).
+# dials catalog east-west (ADR-0302).
 networkPolicy: { allowFrom: [lowdefy, orders] }
 secrets:
   envFrom: [catalog-db-creds, openfga-creds]
 env:
   DATABASE_URL_SECRET_REF: catalog-db-creds
-  # Write authz (ADR-0010): dial OpenFGA via the shared Checker. Blank preshared key
+  # Write authz (ADR-0304): dial OpenFGA via the shared Checker. Blank preshared key
   # falls back to openfga-creds.preshared_key (envFrom), as the authz service does.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

@@ -1,5 +1,5 @@
 {{/*
-ResourceQuota per namespace (ADR-0020) — the aggregate cap, so one namespace
+ResourceQuota per namespace (ADR-0204) — the aggregate cap, so one namespace
 cannot consume the cluster.
 
 This is the sharpest object in the chart and the one most likely to hurt, so the
@@ -7,7 +7,7 @@ contract is worth stating plainly: a ResourceQuota does NOT evict anything. It
 rejects *new* pods once the namespace's summed requests would exceed the cap. The
 failure therefore shows up as a pod that never gets created, with the reason on the
 owning ReplicaSet/StatefulSet — not on the pod, because there is no pod. That is
-the "silent pending pod" ADR-0020 calls out as unacceptable; `mise run
+the "silent pending pod" ADR-0204 calls out as unacceptable; `mise run
 lint:resource-governance` and the runbook exist so it is legible instead.
 
 Two invariants this depends on:
@@ -40,7 +40,7 @@ spec:
   hard:
     requests.cpu: {{ $cfg.requestsCPU | quote }}
     requests.memory: {{ $cfg.requestsMemory | quote }}
-    # No `limits.cpu` key: nothing in this platform sets a CPU limit (ADR-0020), so
+    # No `limits.cpu` key: nothing in this platform sets a CPU limit (ADR-0204), so
     # a quota on it would be a cap on zero — and worse, it would force every future
     # container to declare a cpu limit just to be admitted, quietly reintroducing
     # the throttling policy we rejected.

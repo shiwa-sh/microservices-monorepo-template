@@ -1,4 +1,4 @@
-# Ansible is the day-one prod bootstrap (ADR-0003) and the only tool here that is
+# Ansible is the day-one prod bootstrap (ADR-0200) and the only tool here that is
 # not a single static binary — it is Python, and mise's registry resolves it to the
 # `pipx:` backend. Two consequences, handled below.
 #
@@ -6,7 +6,7 @@
 #    operator runs `ansible-playbook -i inventory/<env> bootstrap.yml` by hand
 #    against remote hosts (docs/guide/disaster-recovery.md). Pinning it at the root
 #    would make every dev install a Python toolchain to run `lint`. So it lives
-#    here instead — a tool-confined island, the same exception ADR-0018 makes for
+#    here instead — a tool-confined island, the same exception ADR-0601 makes for
 #    the Playwright runner and apps/admin makes for Lowdefy's pnpm. It installs on
 #    `cd infra/ansible`, for the operators who actually run it.
 #

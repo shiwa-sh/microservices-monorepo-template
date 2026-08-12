@@ -1,7 +1,7 @@
 apiVersion: v2
 name: temporal-worker-controller
 description: |
-  Rainbow deploys for Temporal workers (ADR-0006). Reconciles one Kubernetes
+  Rainbow deploys for Temporal workers (ADR-0302). Reconciles one Kubernetes
   Deployment per Worker Deployment Version so a version's pods outlive the
   rollout that replaced it, which is what makes Pinned versioning a real
   guarantee rather than a best-effort one.

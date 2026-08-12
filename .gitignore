@@ -12,7 +12,7 @@
 .DS_Store
 Thumbs.db
 
-# Env files (ADR-0005: never commit real secrets; encrypted .enc.yaml is ok)
+# Env files (ADR-0202: never commit real secrets; encrypted .enc.yaml is ok)
 .env
 .env.*
 !.env.example
@@ -31,17 +31,17 @@ out/
 .bun/
 *.tsbuildinfo
 
-# Biome (ADR-0014)
+# Biome (ADR-0400)
 .biome/
 
-# Playwright e2e (ADR-0014, ADR-0018)
+# Playwright e2e (ADR-0400, ADR-0601)
 playwright-report/
 test-results/
 blob-report/
 # Saved auth storage states (session cookies) from the e2e setup project.
 test/e2e/.auth/
 
-# k6 load-run summaries (ADR-0027). Evidence attached to a PR or a CI artifact,
+# k6 load-run summaries (ADR-0601). Evidence attached to a PR or a CI artifact,
 # not repo content — a committed one would be stale the next day.
 test/perf/results/
 

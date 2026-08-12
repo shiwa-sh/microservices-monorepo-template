@@ -8,7 +8,7 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = { title: "Platform" };
 
-// Untitled UI's --font-inter hook (ADR-0014). theme.css falls back to system
+// Untitled UI's --font-inter hook (ADR-0400). theme.css falls back to system
 // fonts if this is absent; next/font is the sanctioned font loader.
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 

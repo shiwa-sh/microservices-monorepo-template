@@ -1,4 +1,4 @@
-# Prometheus alerts Application (ADR-0011). Makes alerts-as-code actually flow
+# Prometheus alerts Application (ADR-0500). Makes alerts-as-code actually flow
 # through GitOps: a Kustomize app that generates the `prometheus-alerts` ConfigMap
 # from infra/observability/alerts/*.yaml, which the observability Helm chart
 # mounts into Prometheus (rule_files: /etc/prometheus/rules/*.yaml). The exact

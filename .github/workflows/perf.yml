@@ -1,4 +1,4 @@
-# Load & performance (ADR-0027). Shares the e2e workflow's expensive prerequisite —
+# Load & performance (ADR-0601). Shares the e2e workflow's expensive prerequisite —
 # a running cluster:full — and the same reasoning about cadence, but answers a
 # different question: not "is it correct" but "what does it cost and where does it
 # break". These jobs are NOT part of ci:affected and never implicitly gate a merge.
@@ -10,13 +10,13 @@
 #
 # A threshold breach here is a PERFORMANCE REGRESSION TO TRIAGE, not a broken
 # build: the budgets in test/perf/scenarios/*.js are deliberately looser than the
-# ADR-0011 service SLOs, and a CI runner is a noisy place to measure. Read a red
+# ADR-0500 service SLOs, and a CI runner is a noisy place to measure. Read a red
 # nightly next to the previous night's, not in isolation.
 #
 # NOTE: cluster:full is heavy (~16GB RAM) — the whole of a standard GitHub-hosted
 # runner — and here it shares that runner with the load generator, so k6 and the
 # platform contend for the same cores. Absolute numbers from CI are not capacity
-# figures (ADR-0027);
+# figures (ADR-0601);
 # they are a series to diff against yesterday's.
 name: perf
 
@@ -24,7 +24,7 @@ on:
   schedule:
     - cron: "0 4 * * *" # nightly, after the e2e suite's 03:00
   push:
-    tags: ["v*", "services/*/v*"] # pre-release (ADR-0013)
+    tags: ["v*", "services/*/v*"] # pre-release (ADR-0103)
   pull_request:
     types: [labeled, synchronize, reopened]
   workflow_dispatch:

@@ -28,7 +28,7 @@ spec:
       toPorts:
         - ports: [{ port: "9443", protocol: TCP }]
 ---
-## Temporal Worker Controller (ADR-0006). Its WorkerResourceTemplate validating
+## Temporal Worker Controller (ADR-0302). Its WorkerResourceTemplate validating
 ## webhook is always on — not optional like the WorkerDeployment one — so the
 ## apiserver must reach 9443 or every WorkerResourceTemplate write hangs.
 ##

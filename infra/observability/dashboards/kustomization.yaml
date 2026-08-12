@@ -1,4 +1,4 @@
-# Dashboards-as-code (ADR-0011). This kustomization turns the committed dashboard
+# Dashboards-as-code (ADR-0500). This kustomization turns the committed dashboard
 # JSON in this directory into the `grafana-dashboards` ConfigMap the Grafana chart
 # mounts (observability values: dashboardsConfigMaps.default). It is synced by the
 # grafana-dashboards ArgoCD Application (infra/gitops/{bootstrap,local-bootstrap}/

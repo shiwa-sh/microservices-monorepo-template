@@ -52,7 +52,7 @@ func (f fakeTemporal) ExecuteWorkflow(
 }
 
 // fakeChecker stands in for the OpenFGA Checker so the operator gate can be
-// exercised without a cluster (ADR-0010).
+// exercised without a cluster (ADR-0304).
 type fakeChecker struct {
 	allowed bool
 	err     error
@@ -70,7 +70,7 @@ func opCtx() context.Context {
 
 func okChecker() authz.Checker { return fakeChecker{allowed: true} }
 
-// CancelOrder is operator-gated (ADR-0010): the gate rejects before any DB
+// CancelOrder is operator-gated (ADR-0304): the gate rejects before any DB
 // access, so a nil store is fine for these cases.
 func TestCancelOrderAuthz(t *testing.T) {
 	t.Parallel()

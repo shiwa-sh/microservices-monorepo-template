@@ -16,7 +16,7 @@ type CancelResult struct {
 	Status string // "cancelled"
 }
 
-// CancelOrder marks an order cancelled (ADR-0006). Reuses MarkOrderStatusActivity;
+// CancelOrder marks an order cancelled (ADR-0302). Reuses MarkOrderStatusActivity;
 // activities are looked up by name so this file has no dependency on the activities
 // package. Compensation (releasing the charge) is left to the payment refund path.
 func CancelOrder(ctx workflow.Context, in CancelInput) (CancelResult, error) {

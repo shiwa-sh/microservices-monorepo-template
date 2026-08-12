@@ -1,6 +1,6 @@
 // Package handlers implements the ogen-generated authz.Handler interface
-// (ADR-0008): authz is a spec-first service like every other HTTP service, even
-// though it owns no database and sits east-west behind Oathkeeper (ADR-0017).
+// (ADR-0303): authz is a spec-first service like every other HTTP service, even
+// though it owns no database and sits east-west behind Oathkeeper (ADR-0306).
 //
 // Two operations:
 //
@@ -9,7 +9,7 @@
 //	                so it returns the 403 response variant with nil error; only real
 //	                infrastructure failures return an error (→ NewError → 5xx).
 //	CreateOperator — mints a Kratos identity with the `operator` trait and grants
-//	                group:operator#member in OpenFGA (ADR-0012), the generated admin
+//	                group:operator#member in OpenFGA (ADR-0401), the generated admin
 //	                page target (x-admin: action).
 package handlers
 
@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	aalLevel2         = "aal2"    // operator MFA assurance level (ADR-0010)
+	aalLevel2         = "aal2"    // operator MFA assurance level (ADR-0304)
 	operatorTraitTrue = "true"    // the `operator` identity trait, when set
 	schemaUserV1      = "user_v1" // the Kratos identity schema id (user.v1.json)
 )
@@ -57,7 +57,7 @@ func New(checker authz.Checker, granter authz.Granter, fineGrained bool, log *sl
 
 var _ authzsdk.Handler = (*Handlers)(nil)
 
-// Authorize is the ops-tier edge authorizer (ADR-0017). It answers in two layers:
+// Authorize is the ops-tier edge authorizer (ADR-0306). It answers in two layers:
 //
 //	coarse (mandatory) — a CLAIM check: the `operator` trait and AAL2. It makes NO
 //	    OpenFGA call, so a product-authz outage cannot lock operators out of the
@@ -71,7 +71,7 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	// Auth audit event (ADR-0017): who reached which tool, and the outcome.
+	// Auth audit event (ADR-0306): who reached which tool, and the outcome.
 	h.log.LogAttrs(
 		ctx,
 		slog.LevelInfo,
@@ -89,7 +89,7 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 
 // CreateOperator mints a Kratos identity carrying the `operator` trait — the coarse
 // ops-tier claim gate — and grants group:operator#member in OpenFGA to seed the
-// optional fine per-tool layer (ADR-0012).
+// optional fine per-tool layer (ADR-0401).
 func (h *Handlers) CreateOperator(ctx context.Context, req *authzsdk.OperatorInput) (*authzsdk.Operator, error) {
 	id, err := h.createKratosIdentity(ctx, req.Email, req.Password)
 	if err != nil {
@@ -105,7 +105,7 @@ func (h *Handlers) CreateOperator(ctx context.Context, req *authzsdk.OperatorInp
 }
 
 // ListIdentities returns Kratos identities (product users and operators), flattened
-// from traits — the console's Users changelist (ADR-0012). Only authz may reach the
+// from traits — the console's Users changelist (ADR-0401). Only authz may reach the
 // Kratos admin API (network-policies/30-ory.yaml), so the console fetches through
 // here rather than talking to Kratos directly. Pagination is forwarded to Kratos.
 func (h *Handlers) ListIdentities(
@@ -119,7 +119,7 @@ func (h *Handlers) ListIdentities(
 	return ids, nil
 }
 
-// GetIdentity returns one identity by id — the console's edit-form prefill (ADR-0012).
+// GetIdentity returns one identity by id — the console's edit-form prefill (ADR-0401).
 func (h *Handlers) GetIdentity(ctx context.Context, params authzsdk.GetIdentityParams) (*authzsdk.Identity, error) {
 	full, err := h.getKratosIdentity(ctx, params.ID)
 	if err != nil {

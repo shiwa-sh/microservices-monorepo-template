@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Shared human-output vocabulary for scripts (ADR-0019). Source it, don't execute:
+# Shared human-output vocabulary for scripts (ADR-0001). Source it, don't execute:
 #   source "$(dirname "$0")/lib/log.sh"
 # Then: step "doing X"; ok "done"; warn "heads up"; fail "fatal" (fail exits 1).
 #

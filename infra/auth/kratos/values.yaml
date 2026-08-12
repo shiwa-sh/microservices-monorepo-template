@@ -1,4 +1,4 @@
-# Canonical Kratos config (ADR-0010), the single source of truth — injected into
+# Canonical Kratos config (ADR-0304), the single source of truth — injected into
 # the Ory umbrella chart as a Helm values overlay (`-f` locally via
 # scripts/cluster-full.sh; ArgoCD `valueFiles` per env). The identity schema is a
 # string artefact injected separately with `--set-file` (it lands at
@@ -23,7 +23,7 @@ kratos:
       selfservice:
         default_browser_return_url: https://dev.example.com/
         # Kratos forbids any post-flow `return_to` not prefixed by an entry here.
-        # The proxy (ADR-0014) sends a session-less visit to a gated route
+        # The proxy (ADR-0400) sends a session-less visit to a gated route
         # (/panel, /devportal) to login with `return_to=<that path>`, so the app
         # origin must be allow-listed or the login redirect 400s into the error
         # flow. Per-env overlays override the host.
@@ -38,8 +38,8 @@ kratos:
             ui_url: https://dev.example.com/auth/register
             after:
               # After a successful registration, create the identity's personal
-              # org (ADR-0010). East-west call to the orgs service (in-cluster,
-              # off the edge — ADR-0017); the handler starts a Temporal dual-write
+              # org (ADR-0304). East-west call to the orgs service (in-cluster,
+              # off the edge — ADR-0306); the handler starts a Temporal dual-write
               # workflow. Blocking (default `ignore: false`) so a failed enqueue
               # surfaces as a registration error the user can retry, rather than
               # silently losing the org — once enqueued, Temporal guarantees it.
@@ -65,14 +65,14 @@ kratos:
             ui_url: https://dev.example.com/auth/verification
           settings:
             ui_url: https://dev.example.com/auth/settings
-            # Step-up (ADR-0010): mutating credentials/MFA requires a recent login.
+            # Step-up (ADR-0304): mutating credentials/MFA requires a recent login.
             privileged_session_max_age: 15m
             required_aal: highest_available
-        # Authentication methods (ADR-0010). password is the first factor; TOTP and
+        # Authentication methods (ADR-0304). password is the first factor; TOTP and
         # WebAuthn/passkeys are the operator second factor (AAL2 is enforced on the
         # ops tier by services/authz, not forced on B2C product users here).
         #
-        # The breach check is OFF by default (ADR-0010). It requires egress to
+        # The breach check is OFF by default (ADR-0304). It requires egress to
         # api.pwnedpasswords.com on every password operation, which a platform
         # deployed on a closed company network cannot reach — and Kratos'
         # `ignore_network_errors` defaults to true, so an unreachable check does not
@@ -125,7 +125,7 @@ kratos:
         smtp:
           connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false"
   # Cookie/cipher/system secrets + dsn come from a SOPS-managed Secret, never
-  # inline values (ADR-0005, Phase 5). `secret` is a top-level kratos-subchart key
+  # inline values (ADR-0202, Phase 5). `secret` is a top-level kratos-subchart key
   # (sibling of the `kratos:` config block above), so it sits one level up. Every
   # env's secrets bundle must provide a `kratos-secrets` Secret with keys
   # secretsDefault / secretsCookie / secretsCipher / dsn / smtpConnectionURI

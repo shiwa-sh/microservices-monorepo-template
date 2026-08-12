@@ -16,7 +16,7 @@ server:
 ingress: { enabled: true, host: dev.example.com, pathPrefix: "/" }
 migrations: { enabled: false }
 # Server components call the edge, not a service directly: the /api routes match on
-# Host(<env host>) and Oathkeeper injects identity there (ADR-0009/0010/0014). Same
+# Host(<env host>) and Oathkeeper injects identity there (ADR-0305/0010/0014). Same
 # origin as `ingress.host` — the browser and the server hit the same URLs.
 env:
   EDGE_PUBLIC_ORIGIN: https://dev.example.com

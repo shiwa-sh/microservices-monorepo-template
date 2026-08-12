@@ -1,4 +1,4 @@
-# Services ApplicationSet (ADR-0004). Git-directory generator over per-env
+# Services ApplicationSet (ADR-0201). Git-directory generator over per-env
 # values files; one Application per service per environment, auto-onboarded
 # when its values file lands in master.
 #
@@ -57,7 +57,7 @@ spec:
         syncOptions: [CreateNamespace=true, ServerSideApply=true]
         # Retry on failure — automated+selfHeal won't re-run a sync that errored
         # on the same commit; without this a transient repo-server/network blip
-        # parks the generated app until a manual sync. Caps at 2m (ADR-0004).
+        # parks the generated app until a manual sync. Caps at 2m (ADR-0201).
         retry:
           limit: 20
           backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

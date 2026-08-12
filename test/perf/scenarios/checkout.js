@@ -1,6 +1,6 @@
-// Write-path load: the checkout saga (ADR-0027).
+// Write-path load: the checkout saga (ADR-0601).
 //
-//   POST /api/orders          — starts the Checkout Temporal workflow (ADR-0006)
+//   POST /api/orders          — starts the Checkout Temporal workflow (ADR-0302)
 //   GET  /api/orders/{id} …   — polled until the saga reaches a terminal status
 //
 // This is the expensive path and the interesting one. A single iteration touches

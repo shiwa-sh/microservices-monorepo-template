@@ -1,4 +1,4 @@
-// orders — checkout saga over catalog + payment (ADR-0006).
+// orders — checkout saga over catalog + payment (ADR-0302).
 package main
 
 import (
@@ -51,7 +51,7 @@ func run() error {
 	}
 	defer tc.Close()
 
-	// Authz plane (ADR-0010): the shared OpenFGA Checker gates the operator-only
+	// Authz plane (ADR-0304): the shared OpenFGA Checker gates the operator-only
 	// cancel. Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
 	checker, err := authz.New()
 	if err != nil {

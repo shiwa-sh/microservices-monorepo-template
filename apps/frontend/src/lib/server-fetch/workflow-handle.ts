@@ -1,4 +1,4 @@
-// Cross-service mutation polling (ADR-0006, ADR-0014). Services that start a
+// Cross-service mutation polling (ADR-0302, ADR-0400). Services that start a
 // workflow respond with 202 + a WorkflowHandle (the schema declared in each
 // service's openapi.yaml): { id, run_id, status, result_url }. The handle's
 // result_url points at the resource's GET endpoint (e.g. /api/orders/<id>), whose

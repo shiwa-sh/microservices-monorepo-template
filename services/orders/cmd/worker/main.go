@@ -1,4 +1,4 @@
-// Temporal worker for orders.Checkout (ADR-0006).
+// Temporal worker for orders.Checkout (ADR-0302).
 package main
 
 import (

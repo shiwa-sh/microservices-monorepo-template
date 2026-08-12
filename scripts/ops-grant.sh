@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Operator onboarding (ADR-0010, ADR-0017): grant a human the ops tier by adding
+# Operator onboarding (ADR-0304, ADR-0306): grant a human the ops tier by adding
 # them to group:operator in OpenFGA. Resolves the Kratos identity id by email so
 # operators are referenced by who they are, not an opaque id. Idempotent.
 #
@@ -58,7 +58,7 @@ if [ -z "$id" ]; then
   exit 1
 fi
 
-# Coarse ops gate (ADR-0017) is a CLAIM check on the `operator` identity trait, NOT
+# Coarse ops gate (ADR-0306) is a CLAIM check on the `operator` identity trait, NOT
 # an OpenFGA call — and it is ALWAYS enforced (the OpenFGA group:operator membership
 # below only feeds the optional fine gate, OPS_FINE_GRAINED). Setting group:operator
 # without the trait grants nothing, so set the trait here too. The gate additionally

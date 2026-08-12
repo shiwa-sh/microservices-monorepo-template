@@ -7,7 +7,7 @@ cluster:
     retentionPolicy: "7d"
     s3: { endpointURL: "http://minio.platform.svc.cluster.local:9000", destinationPath: "s3://platform-backups/postgres" }
 
-# Non-prod object storage is in-cluster MinIO (ADR-0016); prod keeps the
+# Non-prod object storage is in-cluster MinIO (ADR-0205); prod keeps the
 # chart defaults (the off-cluster bucket) and disables this chart entirely.
 loki:
   loki:
@@ -24,7 +24,7 @@ tempo:
           endpoint: minio.platform.svc.cluster.local:9000
           insecure: true
 
-# Lowdefy admin console (ADR-0012): the one repo-built platform image, promoted by
+# Lowdefy admin console (ADR-0401): the one repo-built platform image, promoted by
 # git SHA on merge (promote-on-merge), like the services and the frontend.
 lowdefy:
   image:

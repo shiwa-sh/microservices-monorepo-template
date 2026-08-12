@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Heal a local k3d cluster after a host reboot (ADR-0003).
+# Heal a local k3d cluster after a host reboot (ADR-0200).
 #
 # Docker's restart policy on the k3d node is `unless-stopped`, so on daemon start
 # (after a reboot) Docker replays the node container RAW — without k3d's own start

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# k6 runner (ADR-0027): wires a scenario to the cluster's telemetry plane, then runs it.
+# k6 runner (ADR-0601): wires a scenario to the cluster's telemetry plane, then runs it.
 #
 #   test/perf/run.sh <scenario> [profile]
 #   test/perf/run.sh browse load
 #
 # Two things this handles that a bare `k6 run` cannot:
 #
-#  1. THE OTLP PATH. ADR-0011's invariant is that metrics reach Prometheus only as
+#  1. THE OTLP PATH. ADR-0500's invariant is that metrics reach Prometheus only as
 #     an OTLP push through the collector — Prometheus has no scrape config and no
 #     remote-write receiver. The collector is cluster-internal (ClusterIP), so a
 #     host-side k6 reaches it through a short-lived port-forward, exactly as the
@@ -71,7 +71,7 @@ if [ "${PERF_OTLP:-1}" = "1" ]; then
   # Namespace k6's built-ins. Without this they export as bare `http_req_duration`,
   # `http_reqs`, `checks`, `vus` — generic names squatting the global metric
   # namespace of a Prometheus that every service shares, and confusingly adjacent
-  # to the platform's own `http_server_request_duration_seconds` from ADR-0011.
+  # to the platform's own `http_server_request_duration_seconds` from ADR-0500.
   # The prefix applies to the scenarios' custom metrics too, which is why those
   # are named bare (`checkout_settle`, not `perf_checkout_settle`) — they arrive
   # as `k6_checkout_settle_milliseconds`. Everything from a load run is therefore
@@ -90,7 +90,7 @@ export PERF_PROFILE="$profile"
 step "k6 ${scenario} @ profile=${profile} → ${PERF_HOST:-dev.localtest.me:8443}"
 
 # The Load test dashboard is deliberately NOT linked from the Overview landing page
-# (ADR-0026 reserves that for incident triage; a load run is a planned experiment).
+# (ADR-0501 reserves that for incident triage; a load run is a planned experiment).
 # This line is therefore its primary entry point — printed BEFORE the run so it can
 # be opened and watched live, with from/to bracketing exactly this run.
 started_ms="$(($(date +%s) * 1000))"

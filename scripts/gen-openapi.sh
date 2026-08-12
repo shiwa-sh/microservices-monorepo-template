@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerate Go servers/clients and TS clients from every service's OpenAPI spec.
-# Outputs land in libs/{go,ts}/sdks/<service>/ (ADR-0008).
+# Outputs land in libs/{go,ts}/sdks/<service>/ (ADR-0303).
 #   - Go:  ogen emits one type-safe package per spec (server + client + types,
 #          with built-in OpenTelemetry instrumentation).
 #   - TS:  openapi-typescript emits the types consumed via openapi-fetch.

@@ -1,6 +1,6 @@
 // Browser helpers that drive the REAL self-service auth UI (apps/frontend
 // KratosFlow): native Kratos UI nodes rendered as a form that POSTs back to Kratos.
-// No SDK, no API shortcut — the e2e logs in the way a human would (ADR-0018: the
+// No SDK, no API shortcut — the e2e logs in the way a human would (ADR-0601: the
 // rendered, authenticated UI is the gauge).
 //
 // Navigation goes through Kratos's `*/browser` init endpoints: Kratos mints the

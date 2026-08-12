@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The local port registry gate (ADR-0016). Two services quietly sharing a port is a
+# The local port registry gate (ADR-0205). Two services quietly sharing a port is a
 # bind race that only surfaces when someone runs both — which is exactly the
 # multi-service debugging case the registry exists to make possible. So it is
 # checked here rather than discovered there.

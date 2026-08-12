@@ -7,7 +7,7 @@
   "lockFileMaintenance": { "enabled": true, "schedule": ["before 6am on monday"] },
   "packageRules": [
     {
-      "description": "Group all Go module updates into one PR for the single go.mod (ADR-0002).",
+      "description": "Group all Go module updates into one PR for the single go.mod (ADR-0101).",
       "matchManagers": ["gomod"],
       "groupName": "go modules",
       "groupSlug": "gomod"

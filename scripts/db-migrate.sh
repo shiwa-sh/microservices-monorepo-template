@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply each service's migrations to the local Postgres (ADR-0007).
+# Apply each service's migrations to the local Postgres (ADR-0300).
 # Run after `cluster:base`; this opens its own port-forward, so it is independent of
 # whether `dev:forward` is running and of the native inner loop. Schema migrations
 # are run separately here, not by the service in the inner loop (the service runs

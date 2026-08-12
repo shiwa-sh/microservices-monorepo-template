@@ -3,7 +3,7 @@
 # .dockerignore the Go service images rely on (it excludes apps/).
 #
 # Lowdefy 5 requires Node + pnpm, so this image — unlike the Go/bun runtime images
-# — is Node-based. One of the two Node exceptions ADR-0001 sanctions, and the only
+# — is Node-based. One of the two Node exceptions ADR-0100 sanctions, and the only
 # one that ships as an image. No repo runtime code is Node: Lowdefy is a
 # third-party app we install and run, so the runtime is upstream's choice, not
 # ours. Concretely, bun cannot displace it: the CLI aborts unless pnpm is on PATH
@@ -15,7 +15,7 @@ ARG NODE_VERSION=22
 ARG LOWDEFY_VERSION=5.4.0
 FROM node:${NODE_VERSION}-alpine
 ARG LOWDEFY_VERSION
-# Build identity (ADR-0013): the commit SHA, recorded as the standard OCI revision
+# Build identity (ADR-0103): the commit SHA, recorded as the standard OCI revision
 # label so the image reports exactly what was built (the same SERVICE_VERSION build
 # arg the frontend takes, so one apps matrix builds both).
 ARG SERVICE_VERSION=dev
@@ -40,5 +40,5 @@ RUN npm install -g lowdefy@${LOWDEFY_VERSION} \
   && lowdefy build
 EXPOSE 3000
 # `lowdefy start` serves the built app on :3000; auth is enforced upstream at the
-# edge (ADR-0012), this process trusts the forwarded X-User-Email header.
+# edge (ADR-0401), this process trusts the forwarded X-User-Email header.
 CMD ["lowdefy", "start"]

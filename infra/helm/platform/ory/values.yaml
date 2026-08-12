@@ -1,4 +1,4 @@
-# Ory umbrella chart values (ADR-0009, ADR-0010).
+# Ory umbrella chart values (ADR-0305, ADR-0304).
 #
 # The auth config is NOT inlined here — it lives once in the canonical tree under
 # infra/auth/ and is injected at install time (Phase 0.4 of the auth plan):
@@ -14,9 +14,9 @@
 oathkeeper:
   enabled: true
   deployment:
-    # ADR-0020. Measured 2026-07-26 under the ADR-0027 read-path load: 66Mi working
+    # ADR-0204. Measured 2026-07-26 under the ADR-0601 read-path load: 66Mi working
     # set but 192m CPU — the BUSIEST component on the /api path, ahead of catalog
-    # itself, because every request pays a forward-auth hop here (ADR-0009). Bursty
+    # itself, because every request pays a forward-auth hop here (ADR-0305). Bursty
     # by nature and therefore deliberately un-CPU-limited: throttling this throttles
     # the whole edge.
     resources:
@@ -34,7 +34,7 @@ oathkeeper:
 # infra/auth/.
 kratos:
   deployment:
-    # ADR-0020. Measured: 121Mi working set, 89m CPU. Explicit because 121Mi is
+    # ADR-0204. Measured: 121Mi working set, 89m CPU. Explicit because 121Mi is
     # nearly double the namespace LimitRange's 64Mi default request.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
@@ -43,7 +43,7 @@ kratos:
       - name: SQA_OPT_OUT
         value: "true"
 
-# Hydra is a public-API add-on (ADR-0009). Off by default — internal-only
+# Hydra is a public-API add-on (ADR-0305). Off by default — internal-only
 # projects run Kratos + Oathkeeper + OpenFGA. The `hydra_thirdparty` flag flips
 # `hydra.enabled` on in the per-env GitOps values.
 hydra:

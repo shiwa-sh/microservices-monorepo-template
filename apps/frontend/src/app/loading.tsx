@@ -1,4 +1,4 @@
-// Root loading boundary (ADR-0014). Per-route-group versions override this.
+// Root loading boundary (ADR-0400). Per-route-group versions override this.
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 
 export default function Loading() {

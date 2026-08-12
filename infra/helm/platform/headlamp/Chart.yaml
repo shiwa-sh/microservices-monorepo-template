@@ -1,7 +1,7 @@
 apiVersion: v2
 name: headlamp
 description: |
-  Headlamp Kubernetes debug UI (ADR-0024), one more ops-tier origin at
+  Headlamp Kubernetes debug UI (ADR-0501), one more ops-tier origin at
   headlamp.ops.<host>. Core: on in every environment; set headlamp.enabled=false in an
   env overlay to drop it. Read-only by default via the built-in `view`
   ClusterRole — a debugging surface, not a control surface.

@@ -62,7 +62,7 @@ func decideStatus(t *testing.T, h *Handlers, r *authzsdk.AuthorizeRequest) int {
 }
 
 // The coarse gate is a claim check: operator trait + AAL2, and — critically — no
-// OpenFGA call, so a product-authz outage cannot lock operators out (ADR-0017).
+// OpenFGA call, so a product-authz outage cannot lock operators out (ADR-0306).
 func TestCoarseClaimGate(t *testing.T) {
 	t.Parallel()
 	checker := &fakeChecker{}
@@ -94,7 +94,7 @@ func TestCoarseClaimGate(t *testing.T) {
 	}
 
 	if checker.called {
-		t.Fatal("coarse gate called OpenFGA; it must not (break-glass independence, ADR-0017)")
+		t.Fatal("coarse gate called OpenFGA; it must not (break-glass independence, ADR-0306)")
 	}
 }
 

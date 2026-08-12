@@ -1,4 +1,4 @@
-# Policy-drop alert (ADR-0011, ADR-0025). Native Prometheus rule-file format —
+# Policy-drop alert (ADR-0500, ADR-0501). Native Prometheus rule-file format —
 # mounted into Prometheus via the `prometheus-alerts` ConfigMap (see
 # service-availability.yaml header for the delivery path).
 #

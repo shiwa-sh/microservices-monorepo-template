@@ -15,7 +15,7 @@ spec:
         component: server
     spec:
       serviceAccountName: {{ include "service.fullname" . }}
-      # ADR-0020 eviction order. Declared explicitly (not inherited) because the
+      # ADR-0204 eviction order. Declared explicitly (not inherited) because the
       # PriorityClass globalDefault is platform-critical — product workloads must sit
       # BELOW the platform they depend on, so this is the one place that opts down.
       priorityClassName: {{ .Values.priorityClassName }}
@@ -24,7 +24,7 @@ spec:
       initContainers:
         # dbmate runs from the service image itself — it carries the static dbmate
         # binary and the baked /db/migrations (see the service Dockerfile). `migrate`
-        # (not `up`) skips DB creation: CNPG provisions the databases (ADR-0007).
+        # (not `up`) skips DB creation: CNPG provisions the databases (ADR-0300).
         - name: migrations
           image: {{ include "service.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -55,12 +55,12 @@ spec:
             - secretRef: { name: {{ . }} }
             {{- end }}
           # readiness = deep (deps pinged) → gates Service traffic without restarting;
-          # liveness = shallow (process alive) → never dep-aware (ADR-0011).
+          # liveness = shallow (process alive) → never dep-aware (ADR-0500).
           #
           # Overridable because not every workload this chart deploys is a Go service
           # with an admin port: the frontend is a Next standalone server with one
           # port and no /readyz. The DEFAULTS are the Go contract, so overriding is a
-          # deliberate act by the one values file that needs to (ADR-0016 — same
+          # deliberate act by the one values file that needs to (ADR-0205 — same
           # chart everywhere, differences expressed as values, never as a fork).
           readinessProbe: {{- toYaml .Values.server.probes.readiness | nindent 12 }}
           livenessProbe: {{- toYaml .Values.server.probes.liveness | nindent 12 }}

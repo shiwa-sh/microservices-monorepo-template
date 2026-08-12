@@ -7,7 +7,7 @@ import (
 )
 
 // Readiness checks answer "can this pod serve right now?" — the /readyz probe
-// (ADR-0011). They are DEEP: each pings a live dependency (Postgres, Temporal).
+// (ADR-0500). They are DEEP: each pings a live dependency (Postgres, Temporal).
 // The shared dependency wiring registers its own check automatically — dbmw.Open
 // registers "postgres", temporalmw.NewClient registers "temporal" — so a service
 // gets exactly the checks for the dependencies it actually opens, with no per-

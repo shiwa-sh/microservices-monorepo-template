@@ -1,4 +1,4 @@
-# Capacity + saturation alerts (ADR-0011). Native Prometheus rule-file format —
+# Capacity + saturation alerts (ADR-0500). Native Prometheus rule-file format —
 # mounted into Prometheus via the `prometheus-alerts` ConfigMap (see
 # service-availability.yaml for the delivery path).
 #
@@ -12,7 +12,7 @@
 #   2. REAL saturation — actual usage vs capacity. This is what OOM-kills pods
 #      and throttles CPU.
 #
-# Sources are the metrics the platform already collects (ADR-0011: Prometheus
+# Sources are the metrics the platform already collects (ADR-0500: Prometheus
 # scrapes nothing): `k8s_node_*` from the kubeletstats receiver on the node-local
 # collector, `k8s_node_allocatable_*` from the k8s_cluster receiver on
 # otel-cluster, `k8s_container_*_request*` likewise. No node_exporter and no

@@ -1,4 +1,4 @@
-// Kratos self-service error flow renderer (ADR-0010, ADR-0014). Kratos redirects
+// Kratos self-service error flow renderer (ADR-0304, ADR-0400). Kratos redirects
 // here (selfservice.flows.error.ui_url) with ?id=<error>; we read the detail from
 // the Kratos public API (same origin via Traefik, /auth/self-service/errors) and
 // show it instead of Kratos' hosted fallback page. Client component: the id and

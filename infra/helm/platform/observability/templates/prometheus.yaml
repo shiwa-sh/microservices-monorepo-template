@@ -1,4 +1,4 @@
-# Prometheus (ADR-0011): the Core-tier metrics store — a single prom/prometheus
+# Prometheus (ADR-0500): the Core-tier metrics store — a single prom/prometheus
 # process with a local TSDB and native OTLP ingest, no object-storage dependency.
 # One Deployment, mirroring Loki (SingleBinary) and Tempo. The horizontally
 # scalable, object-storage-backed variant is the Mimir Scale swap (see values.yaml
@@ -25,7 +25,7 @@
       translation_strategy: UnderscoreEscapingWithSuffixes
       # Resource attributes are otherwise dropped from series. Promote service.name/
       # namespace so dashboards can group by service — this is the label the RED, log,
-      # trace AND kubeletstats CPU/memory series (ADR-0025 POC) all share, since
+      # trace AND kubeletstats CPU/memory series (ADR-0501 POC) all share, since
       # k8sattributes derives service.name from each pod's app.kubernetes.io/name.
       # k8s.deployment.name / k8s.statefulset.name: otel-cluster folds role
       # deployments into one service identity (orders-server + orders-worker →
@@ -61,7 +61,7 @@
         out_of_order_time_window: 30m
     # Services push via OTLP; nothing is scraped by default.
     scrape_configs: []
-    # Alerts-as-code (ADR-0011): rule files from infra/observability/alerts/,
+    # Alerts-as-code (ADR-0500): rule files from infra/observability/alerts/,
     # delivered as the `prometheus-alerts` ConfigMap by the prometheus-alerts
     # ArgoCD Application (same pattern as the Grafana dashboards ConfigMap) and
     # mounted below. No Alertmanager in the default stack: firing alerts are

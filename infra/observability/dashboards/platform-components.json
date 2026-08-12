@@ -3,7 +3,7 @@
   "uid": "platform-components",
   "schemaVersion": 39,
   "tags": ["platform", "components"],
-  "description": "Component-native metrics for the platform tier (ADR-0025): postgres via the CNPG instance manager's built-in exporter (:9187, includes the pgbouncer poolers) and the Temporal server roles (:9090) — scraped by the otel-cluster collector and re-exported over OTLP, so Prometheus itself still scrapes nothing (ADR-0011). These are the components' REAL golden signals (transactions, task latencies) — they are not HTTP servers, so forcing them into the service-detail SLO/RED panels would be fake. Universal health for the same workloads (pods/restarts/logs/resources) lives on service-detail.",
+  "description": "Component-native metrics for the platform tier (ADR-0501): postgres via the CNPG instance manager's built-in exporter (:9187, includes the pgbouncer poolers) and the Temporal server roles (:9090) — scraped by the otel-cluster collector and re-exported over OTLP, so Prometheus itself still scrapes nothing (ADR-0500). These are the components' REAL golden signals (transactions, task latencies) — they are not HTTP servers, so forcing them into the service-detail SLO/RED panels would be fake. Universal health for the same workloads (pods/restarts/logs/resources) lives on service-detail.",
   "links": [
     {
       "title": "◀ Back to Applications",
@@ -38,7 +38,7 @@
     {
       "type": "timeseries",
       "title": "Backends by database",
-      "description": "Open server connections per database. The poolers keep this low and steady (ADR-0007, transaction mode); a climb here means something is bypassing pgbouncer or leaking connections.",
+      "description": "Open server connections per database. The poolers keep this low and steady (ADR-0300, transaction mode); a climb here means something is bypassing pgbouncer or leaking connections.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
       "fieldConfig": { "defaults": { "unit": "short" } },

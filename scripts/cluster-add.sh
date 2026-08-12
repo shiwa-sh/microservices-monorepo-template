@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One verb for "put this in the cluster" (ADR-0030), over the two kinds of thing
+# One verb for "put this in the cluster" (ADR-0600), over the two kinds of thing
 # you can add to `cluster:base`:
 #
 #   mise run cluster:add -- orders     # a service      → scripts/service-deploy.sh
@@ -39,7 +39,7 @@ is_chart=false
 
 # A name that is both is a repo bug, not a user error — say so plainly rather than
 # silently picking one. Keeping services and platform charts disjoint is the rule
-# that makes this dispatcher unambiguous (ADR-0030).
+# that makes this dispatcher unambiguous (ADR-0600).
 if [ "$is_service" = true ] && [ "$is_chart" = true ]; then
   fail "'${NAME}' is both a service and a platform chart — rename one; the two namespaces must stay disjoint"
 fi

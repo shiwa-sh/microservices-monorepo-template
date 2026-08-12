@@ -1,5 +1,5 @@
 {{/*
-PodDisruptionBudgets (ADR-0020) for the multi-replica and stateful Core.
+PodDisruptionBudgets (ADR-0204) for the multi-replica and stateful Core.
 
 The important thing to understand before adding one: a PDB constrains only
 VOLUNTARY disruption (`kubectl drain`, a node upgrade, the descheduler). It does
@@ -15,7 +15,7 @@ own `postgres-primary` PDB, and `kubectl get pdb` reports ALLOWED DISRUPTIONS = 
 
 Therefore each entry is explicitly `enabled`, and on the local tier only the
 genuinely multi-replica workloads turn it on. This is a real doc-vs-reality gap and
-ADR-0020 names it rather than pretending the file covers everything.
+ADR-0204 names it rather than pretending the file covers everything.
 
 Postgres itself is deliberately absent: the CNPG operator owns that PDB, and a
 second one over the same pods would be redundant at best and conflicting at worst.

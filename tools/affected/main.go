@@ -1,6 +1,6 @@
 // Command affected emits a JSON manifest describing which services, apps,
 // libraries, and infra are affected by the current diff against the merge base
-// with origin/master. Consumed by CI workflows (ADR-0002 §"Affected detection").
+// with origin/master. Consumed by CI workflows (ADR-0101 §"Affected detection").
 package main
 
 import (
@@ -120,7 +120,7 @@ func classify(files []string, forceAll bool) Manifest {
 
 // isGlobalTrigger reports whether a changed path forces a full-repo build.
 func isGlobalTrigger(f string) bool {
-	exact := []string{"go.mod", "go.sum", "package.json", "bun.lockb", ".mise.toml"}
+	exact := []string{"go.mod", "go.sum", "package.json", "bun.lock", ".mise.toml"}
 	if slices.Contains(exact, f) {
 		return true
 	}

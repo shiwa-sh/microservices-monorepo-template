@@ -1,4 +1,4 @@
-// Shared Kratos self-service flow renderer (ADR-0010, ADR-0014). Every /auth/*
+// Shared Kratos self-service flow renderer (ADR-0304, ADR-0400). Every /auth/*
 // page is the same shape: fetch the flow from the Kratos public API (same origin
 // via Traefik, /auth/self-service/<flow>/* → ory-kratos-public) and render its UI
 // nodes as a native form that POSTs straight back to Kratos — no client SDK; the
@@ -141,7 +141,7 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
 
 // Renders a single Kratos UI node. Beyond inputs, settings flows for MFA emit
 // `text` (the TOTP secret), `img` (the TOTP QR code) and `script` (the WebAuthn
-// helper) nodes, so an operator can enrol a second factor (AAL2, ADR-0010).
+// helper) nodes, so an operator can enrol a second factor (AAL2, ADR-0304).
 function FlowNode({ node, submitLabel }: { node: UiNode; submitLabel: string }) {
   const attr = node.attributes;
   const labelText = node.meta.label ? node.meta.label.text : undefined;

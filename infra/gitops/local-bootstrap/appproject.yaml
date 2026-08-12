@@ -1,4 +1,4 @@
-# Local AppProject (ADR-0004). ArgoCD's real tenancy/grouping primitive — the
+# Local AppProject (ADR-0201). ArgoCD's real tenancy/grouping primitive — the
 # thing every local Application is grouped *by* (spec.project: local), so grouping
 # no longer relies on parsing the `local-` name prefix. The prefix is now just a
 # display convenience; this is the boundary.

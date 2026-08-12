@@ -1,4 +1,4 @@
-# Local Grafana dashboards Application (ADR-0011, ADR-0016). Local counterpart to
+# Local Grafana dashboards Application (ADR-0500, ADR-0205). Local counterpart to
 # bootstrap/app-grafana-dashboards.yaml: a Kustomize app that generates the
 # `grafana-dashboards` ConfigMap from infra/observability/dashboards/*.json for the
 # observability chart to mount (dashboardsConfigMaps.default). Makes dashboards-as-

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bulk test data for the load suite (ADR-0027).
+# Bulk test data for the load suite (ADR-0601).
 #
 # Why this exists: `GET /api/products` is
 # `order by created_at desc limit 100` over an UNINDEXED `created_at`
@@ -11,7 +11,7 @@
 #
 # Why SQL and not the API: creating 5,000 products over HTTP is itself a load
 # test, takes minutes, and needs an operator session (catalog gates writes on
-# group:operator — ADR-0010). Seeding is setup, not the measurement, so it goes
+# group:operator — ADR-0304). Seeding is setup, not the measurement, so it goes
 # straight to the database.
 #
 #   mise run perf:seed              # 5000 products
@@ -53,7 +53,7 @@ if [ "${1:-}" = "--clean" ]; then
   ok "removed ${before} seeded product(s)"
   # Orders are NOT removed, and this is deliberate rather than an oversight: a
   # checkout run creates real orders and real Temporal workflow executions
-  # (ADR-0027 §Negative), and an order carries no marker distinguishing "created
+  # (ADR-0601 §Negative), and an order carries no marker distinguishing "created
   # by a load run" from "created by a human". Guessing — by timestamp, or by
   # orphaned product_id — risks deleting real rows, so this script does not.
   # Drop the whole environment instead when order volume matters.

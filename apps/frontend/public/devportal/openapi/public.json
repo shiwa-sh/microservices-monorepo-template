@@ -110,7 +110,7 @@
         "tags": [
           "orders"
         ],
-        "description": "Starts the Checkout Temporal saga (ADR-0006).",
+        "description": "Starts the Checkout Temporal saga (ADR-0302).",
         "requestBody": {
           "required": true,
           "description": "The checkout to start.",
@@ -252,7 +252,7 @@
         "tags": [
           "charges"
         ],
-        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0006).\n",
+        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0302).\n",
         "parameters": [
           {
             "name": "Idempotency-Key",

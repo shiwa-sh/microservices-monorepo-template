@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Node-confinement lint (ADR-0001 §runtime, ADR-0018 §Node escape hatch).
+# Node-confinement lint (ADR-0100 §runtime, ADR-0601 §Node escape hatch).
 #
 # Node is a sanctioned test-only runtime: it drives the Playwright e2e/visual
 # runner and nothing else. The whole npm world therefore lives exactly once, in
@@ -18,7 +18,7 @@ stray=$(find . \
   -path '*/node_modules' -prune -o \
   -name package-lock.json -print 2>/dev/null || true)
 if [ -n "$stray" ]; then
-  echo "✗ npm lockfile(s) outside test/e2e/ — Node is e2e-only (ADR-0001/0018):" >&2
+  echo "✗ npm lockfile(s) outside test/e2e/ — Node is e2e-only (ADR-0100/0601):" >&2
   echo "$stray" >&2
   fail=1
 fi

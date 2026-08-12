@@ -1,6 +1,6 @@
-# Grafana Alloy (ADR-0025 POC) — the pprof-scraping agent that feeds Pyroscope.
+# Grafana Alloy (ADR-0501 POC) — the pprof-scraping agent that feeds Pyroscope.
 # It discovers pods in the platform namespace, keeps those exposing the `admin`
-# port (the pprof endpoint every Go service serves via obs.Init, ADR-0011), scrapes
+# port (the pprof endpoint every Go service serves via obs.Init, ADR-0500), scrapes
 # CPU/heap/goroutine profiles, and pushes them to Pyroscope. Runs as a single
 # Deployment (not a DaemonSet): pull-based profiling is node-agnostic, and one
 # replica keeps the POC footprint small.

@@ -1,4 +1,4 @@
-# Root App-of-Apps (ADR-0004). One manual `kubectl apply` of this file at cluster
+# Root App-of-Apps (ADR-0201). One manual `kubectl apply` of this file at cluster
 # bootstrap; everything else is reconciled from git.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -28,7 +28,7 @@ spec:
     # Retry the sync operation on failure: automated+selfHeal does NOT re-run a
     # sync that errored on the same commit, so a transient repo-server/network
     # blip during bootstrap would otherwise park this keystone app until a manual
-    # `argocd app sync`. Backoff caps at 2m (ADR-0004).
+    # `argocd app sync`. Backoff caps at 2m (ADR-0201).
     retry:
       limit: 20
       backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

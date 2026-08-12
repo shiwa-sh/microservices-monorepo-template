@@ -1,5 +1,5 @@
 // Package authconformance exercises the platform's edge→service identity
-// contract (ADR-0009, ADR-0010): given the identity headers the edge injects,
+// contract (ADR-0305, ADR-0304): given the identity headers the edge injects,
 // authmw must parse a known Principal, and a role-gated authorisation must
 // resolve the expected way. The fixtures are identity-header inputs with
 // expected principals + authz outcomes; the test in conformance_test.go runs

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run sqruff across all service migrations and sqlc queries (ADR-0007).
+# Run sqruff across all service migrations and sqlc queries (ADR-0300).
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info: { title: catalog, version: 0.1.0, description: Product catalog service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
 # scaffolds list/detail/create/edit pages for, from the operations present below.
 tags: [{ name: products, x-admin: crud }]
 paths:
@@ -18,7 +18,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Product" }
-                # List examples are load-bearing (ADR-0029): the API mock serves them
+                # List examples are load-bearing (ADR-0600): the API mock serves them
                 # verbatim, and an unconstrained array schema generates an empty list —
                 # a UI built against that has no rows, no pagination, and no truncation.
                 example:
@@ -30,7 +30,7 @@ paths:
       operationId: createProduct
       # First-party edge op: writing the catalog is an internal/admin action, so it
       # is edge-reachable but kept out of the public docs (overrides the service's
-      # `public` default — ADR-0008 audience ladder). The public catalog is read-only.
+      # `public` default — ADR-0303 audience ladder). The public catalog is read-only.
       x-audience: internal
       description: Create a product.
       tags: [products]
@@ -52,7 +52,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     put:
       operationId: updateProduct
-      # First-party edit action, kept out of public docs (ADR-0008 audience ladder).
+      # First-party edit action, kept out of public docs (ADR-0303 audience ladder).
       x-audience: internal
       description: Update a product.
       tags: [products]
@@ -99,7 +99,7 @@ components:
         price_cents: { type: integer, minimum: 0 }
       # One example on the schema serves every response that references it — the
       # detail page, the create/update echo, the developer portal, and the API mock
-      # (ADR-0008, ADR-0029). It is code-reviewed data, not generated noise.
+      # (ADR-0303, ADR-0600). It is code-reviewed data, not generated noise.
       example: { id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001, name: Aeron chair, price_cents: 129900 }
     ProductInput:
       type: object

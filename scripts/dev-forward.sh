@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Port-forward the inner-loop dependencies (ADR-0003, ADR-0016) so a service run
+# Port-forward the inner-loop dependencies (ADR-0200, ADR-0205) so a service run
 # NATIVELY on the host (in any editor/IDE, or `go run ./services/<svc>/...`) can
 # reach them. Replaces the Skaffold `platform` module's port-forwards. Long-running
 # — run it in a separate terminal (or background) and leave it up while you iterate.

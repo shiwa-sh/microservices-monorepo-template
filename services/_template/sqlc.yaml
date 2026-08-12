@@ -1,4 +1,4 @@
-# sqlc config for the template service (ADR-0007). Copy alongside the rest
+# sqlc config for the template service (ADR-0300). Copy alongside the rest
 # when scaffolding a new service.
 version: "2"
 sql:

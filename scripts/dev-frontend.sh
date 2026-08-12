@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The host-run `next dev` the local edge routes `/` to (ADR-0014, ADR-0016).
+# The host-run `next dev` the local edge routes `/` to (ADR-0400, ADR-0205).
 # Long-running — use a separate terminal.
 #
 # Its whole job beyond `next dev` is TLS trust. The local wildcard used to be a

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Make ONE sibling service reachable from a natively-run process (ADR-0016,
-# ADR-0030). Backs the `svc:*` mise tasks, which services declare for themselves
+# Make ONE sibling service reachable from a natively-run process (ADR-0205,
+# ADR-0600). Backs the `svc:*` mise tasks, which services declare for themselves
 # exactly as they declare `dep:*`:
 #
 #   # services/orders/.mise.toml
@@ -16,7 +16,7 @@
 # list, deploying each one, port-forwarding each one, and editing .env — four steps
 # a named profile can't help with and the service itself already knows.
 #
-# This is the precise failure mode ADR-0030 rejected Tilt for: enabling a subset
+# This is the precise failure mode ADR-0600 rejected Tilt for: enabling a subset
 # without considering its dependencies turns "why is my service failing" into a
 # scavenger hunt. Declaring callees here makes the graph tell the truth.
 #
@@ -28,7 +28,7 @@
 #   1. The callee runs natively too — you are debugging across services and
 #      started it yourself. Nothing to do; this must not stomp on it.
 #   2. The callee is in the cluster, port-forwarded to that same port. The default
-#      (ADR-0016): you are working on the CALLER, and the callees should be opaque.
+#      (ADR-0205): you are working on the CALLER, and the callees should be opaque.
 #
 # So the guard probes the PORT, not the deployment. Case 1 then falls out for free
 # rather than needing a flag — start catalog natively and orders stops managing it.

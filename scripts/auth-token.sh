@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Mint a Kratos session token for a registered identity so you can hit
-# authenticated endpoints locally (ADR-0009, ADR-0010). Requires the full tier
+# authenticated endpoints locally (ADR-0305, ADR-0304). Requires the full tier
 # (Ory) up (mise run cluster:full). Drives the native (API) login flow against the
 # Kratos public API via a port-forward and prints the session token.
 #

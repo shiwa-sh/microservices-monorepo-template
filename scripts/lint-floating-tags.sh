@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail on floating container image / tool tags (ADR-0002).
+# Fail on floating container image / tool tags (ADR-0101).
 # Looks at Dockerfiles, Helm values, GitHub workflows, and .mise.toml.
 
 set -euo pipefail
@@ -36,7 +36,7 @@ scan "unpinned GitHub Action references" \
 
 if [[ "$FOUND" -ne 0 ]]; then
   echo
-  echo "Floating tags forbidden by ADR-0002. Pin to a concrete version/SHA."
+  echo "Floating tags forbidden by ADR-0101. Pin to a concrete version/SHA."
   exit 1
 fi
 

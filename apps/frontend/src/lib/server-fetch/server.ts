@@ -1,4 +1,4 @@
-// Server-only fetcher (ADR-0014). Wraps openapi-fetch so server components
+// Server-only fetcher (ADR-0400). Wraps openapi-fetch so server components
 // call services with the Kratos session cookie and W3C trace context attached.
 // Client components must use ./client.ts.
 import "server-only";
@@ -13,7 +13,7 @@ import createClient, { type Client } from "openapi-fetch";
 //   in-cluster pod   → https://dev.localtest.me        (Traefik's 443 directly)
 //
 // Both must still carry the env HOST: the /api IngressRoutes match on
-// Host(<env host>), Oathkeeper injects identity there (ADR-0009/0010), and the
+// Host(<env host>), Oathkeeper injects identity there (ADR-0305/0010), and the
 // wildcard cert is issued for it. So a call that skips the edge is unrouted,
 // unauthenticated AND untrusted. In-cluster that host resolves to Traefik via the
 // CoreDNS rewrite in infra/local/coredns-rewrite.yaml — without it the name
@@ -33,7 +33,7 @@ import createClient, { type Client } from "openapi-fetch";
 // and this fetcher forwards the user's session cookie.
 const API_BASE = process.env.EDGE_INTERNAL_ORIGIN ?? process.env.EDGE_PUBLIC_ORIGIN;
 
-// Flat API (ADR-0017): server components call the edge under the shared /api
+// Flat API (ADR-0306): server components call the edge under the shared /api
 // prefix; the typed resource path selects the endpoint, service topology hidden.
 // The prefix cannot be relative — a server-side fetch has no document to resolve
 // against, so the origin is required even though the browser calls the same paths

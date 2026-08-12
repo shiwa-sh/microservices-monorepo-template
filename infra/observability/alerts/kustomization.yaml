@@ -1,4 +1,4 @@
-# Alerts-as-code (ADR-0011). This kustomization turns the committed Prometheus
+# Alerts-as-code (ADR-0500). This kustomization turns the committed Prometheus
 # rule files in this directory into the `prometheus-alerts` ConfigMap the
 # observability chart mounts into Prometheus at /etc/prometheus/rules
 # (rule_files: /etc/prometheus/rules/*.yaml). It is synced by the

@@ -14,7 +14,7 @@ export interface paths {
         /** @description List all orders. */
         get: operations["listOrders"];
         put?: never;
-        /** @description Starts the Checkout Temporal saga (ADR-0006). */
+        /** @description Starts the Checkout Temporal saga (ADR-0302). */
         post: operations["checkout"];
         delete?: never;
         options?: never;
@@ -48,7 +48,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Cancel an order. Starts the CancelOrder workflow (ADR-0006). */
+        /** @description Cancel an order. Starts the CancelOrder workflow (ADR-0302). */
         post: operations["cancelOrder"];
         delete?: never;
         options?: never;

@@ -13,7 +13,7 @@ hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
 [tasks.server]
-# Dependency components this service needs in the cluster (ADR-0016, ADR-0030).
+# Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
 # Declared here, with the service, because the service knows its own dependencies
 # and a named profile never can. mise resolves the graph: the shared cluster:base
 # edge is deduped, independent components come up in parallel, and each one
@@ -23,7 +23,7 @@ run = "go run ./cmd/server"
 
 [tasks.worker]
 # svc:* are the OTHER SERVICES this one calls, declared for the same reason dep:*
-# are: the checkout saga's activities dial catalog and payment (ADR-0006), so a
+# are: the checkout saga's activities dial catalog and payment (ADR-0302), so a
 # worker without them starts cleanly and dies on the first checkout. Each is made
 # to answer on its registered local port, which CATALOG_URL/PAYMENT_URL default to.
 # Only the worker needs them — the server has no cross-service calls.

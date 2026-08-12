@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scaffold a new service from services/_template/ (ADR-0002).
+# Scaffold a new service from services/_template/ (ADR-0101).
 # Usage: scripts/new-service.sh <name>
 set -euo pipefail
 
@@ -39,4 +39,4 @@ echo "    6. Add infra/gitops/services/<env>/values/${NAME}.yaml for EVERY env â
 echo "       the ApplicationSet generates one Argo app per values file, so a missing"
 echo "       one means you are silently absent from that environment"
 echo ""
-echo "  Then: mise run lint:service-contract   # checks all of the above (ADR-0016)"
+echo "  Then: mise run lint:service-contract   # checks all of the above (ADR-0205)"

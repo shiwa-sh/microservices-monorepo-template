@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-// Cross-service mutation (ADR-0006, ADR-0014). The orders service returns
+// Cross-service mutation (ADR-0302, ADR-0400). The orders service returns
 // 202 + a workflow handle; we poll it with the shared helper instead of
 // hand-rolling fetch loops.
 import { useState } from "react";
@@ -77,7 +77,7 @@ export default function Checkout() {
     setStatus({ text: panel.checkout.running(data.id), tone: "blue" });
     try {
       // Poll the order (handle.result_url) until it reaches a terminal status; the
-      // saga confirms it once catalog + payment succeed (ADR-0006).
+      // saga confirms it once catalog + payment succeed (ADR-0302).
       const order = await pollWorkflow<{ id: string; status: string }>(data);
       setStatus({
         text: order.status,

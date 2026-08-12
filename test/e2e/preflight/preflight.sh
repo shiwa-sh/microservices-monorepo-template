@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# e2e readiness gate (ADR-0018). Runs before the browser suite as a fast failure
+# e2e readiness gate (ADR-0601). Runs before the browser suite as a fast failure
 # *localiser*, not an acceptance test: if this is red, cluster:full is not up, so a
 # red e2e reads "infra down" rather than "app broken". Two cheap classes of check:
 #   1. the dashboards' backing deploys report an available replica, and
@@ -50,7 +50,7 @@ deploy_ready platform headlamp
 deploy_ready platform pgweb
 deploy_ready kube-system hubble-relay
 deploy_ready kube-system hubble-ui
-# Ops origins are named after the tool (ADR-0017), matching dashboard:<tool> one-for-one.
+# Ops origins are named after the tool (ADR-0306), matching dashboard:<tool> one-for-one.
 edge_gates grafana
 edge_gates temporal
 edge_gates hubble

@@ -30,13 +30,13 @@ func trimTrailingSlashes(u *url.URL) {
 type Invoker interface {
 	// CancelOrder invokes cancelOrder operation.
 	//
-	// Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+	// Cancel an order. Starts the CancelOrder workflow (ADR-0302).
 	//
 	// POST /orders/{id}/cancel
 	CancelOrder(ctx context.Context, params CancelOrderParams) (*WorkflowHandle, error)
 	// Checkout invokes checkout operation.
 	//
-	// Starts the Checkout Temporal saga (ADR-0006).
+	// Starts the Checkout Temporal saga (ADR-0302).
 	//
 	// POST /orders
 	Checkout(ctx context.Context, request *CheckoutInput) (*WorkflowHandle, error)
@@ -95,7 +95,7 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 
 // CancelOrder invokes cancelOrder operation.
 //
-// Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+// Cancel an order. Starts the CancelOrder workflow (ADR-0302).
 //
 // POST /orders/{id}/cancel
 func (c *Client) CancelOrder(ctx context.Context, params CancelOrderParams) (*WorkflowHandle, error) {
@@ -194,7 +194,7 @@ func (c *Client) sendCancelOrder(ctx context.Context, params CancelOrderParams) 
 
 // Checkout invokes checkout operation.
 //
-// Starts the Checkout Temporal saga (ADR-0006).
+// Starts the Checkout Temporal saga (ADR-0302).
 //
 // POST /orders
 func (c *Client) Checkout(ctx context.Context, request *CheckoutInput) (*WorkflowHandle, error) {

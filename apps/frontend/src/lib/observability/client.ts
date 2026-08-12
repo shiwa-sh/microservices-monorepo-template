@@ -1,4 +1,4 @@
-// Browser observability init (ADR-0011, ADR-0014). OpenTelemetry-JS web SDK
+// Browser observability init (ADR-0500, ADR-0400). OpenTelemetry-JS web SDK
 // for traces (joining the upstream trace via traceparent) plus Grafana Faro
 // for RUM, errors, and Web Vitals. Both ship to the cluster's OTel Collector
 // via a Traefik-fronted ingest route at /api/rum (a vendor-neutral path — the

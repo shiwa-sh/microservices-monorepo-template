@@ -1,4 +1,4 @@
-# Dev values for the authz edge authorizer (ADR-0017).
+# Dev values for the authz edge authorizer (ADR-0306).
 #
 # This file is what DEPLOYS authz to dev: the services ApplicationSet
 # (infra/gitops/bootstrap/appset-services.yaml) generates one Argo Application per

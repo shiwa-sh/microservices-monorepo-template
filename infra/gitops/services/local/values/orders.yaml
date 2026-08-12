@@ -1,4 +1,4 @@
-# Local full-tier values for the orders service (ADR-0016). Read by the local
+# Local full-tier values for the orders service (ADR-0205). Read by the local
 # services ApplicationSet (infra/gitops/local-bootstrap/appset-services.yaml).
 # Same chart as dev/prod; only host, image tag, and the SOPS secret name differ.
 # The secret name (orders-db) matches the local SopsSecret resource
@@ -6,7 +6,7 @@
 name: orders
 image:
   repository: k3d-registry.localhost:5000/orders-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0002)
+  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:
   enabled: true
@@ -17,13 +17,13 @@ server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [orders] }
 otel:    { deployEnv: local }
 # The Lowdefy admin console (apps/admin) calls orders server-side, east-west on
-# the server port, bypassing the /api edge (ADR-0012).
+# the server port, bypassing the /api edge (ADR-0401).
 networkPolicy: { allowFrom: [lowdefy] }
 secrets: { envFrom: [orders-db, openfga-creds] }
 env:
   CATALOG_URL: http://catalog-server.platform.svc.cluster.local
   PAYMENT_URL: http://payment-server.platform.svc.cluster.local
-  # Write authz (ADR-0010): the server gates the operator-only cancel via the shared
+  # Write authz (ADR-0304): the server gates the operator-only cancel via the shared
   # Checker. Blank preshared key falls back to openfga-creds.preshared_key (envFrom),
   # as catalog and the authz service do.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"

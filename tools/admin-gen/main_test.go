@@ -65,7 +65,7 @@ func newOp(method, path string, respCodes []string, pathParams ...string) op {
 
 // TestClassify pins the role assignment, including the 201-vs-202 heuristic: a
 // synchronous create (201) becomes a form; an async workflow create (202) is left
-// unassigned so the resource stays list-only (ADR-0012).
+// unassigned so the resource stays list-only (ADR-0401).
 func TestClassify(t *testing.T) {
 	t.Parallel()
 

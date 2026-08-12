@@ -13,11 +13,11 @@ linters:
     # --- contradict idiomatic Go / the ADRs ---
     - exhaustruct         # demands every zero-value field be spelled out
     - varnamelen          # bans idiomatic short names (i, tx, db, r, w)
-    - err113              # ADR-0001: no bespoke error DSLs; sentinel-per-error ceremony
+    - err113              # ADR-0100: no bespoke error DSLs; sentinel-per-error ceremony
     - ireturn             # returns are ADR-mandated interfaces (otel/temporal/authz)
-    - gochecknoglobals    # ADR-0011 metrics + CLI flags are idiomatic globals
+    - gochecknoglobals    # ADR-0500 metrics + CLI flags are idiomatic globals
     - mnd                 # magic-number noise for timeouts/pool sizes
-    - tagliatelle         # ADR-0008 API uses snake_case json tags
+    - tagliatelle         # ADR-0303 API uses snake_case json tags
     - testpackage         # white-box tests of unexported funcs are deliberate
     # --- redundant within the complexity family (keep cyclop + gocognit + funlen) ---
     - gocyclo             # cyclomatic, redundant with cyclop
@@ -53,7 +53,7 @@ linters:
             - '**/libs/go/dbmw/**'
           deny:
             - pkg: github.com/jackc/pgx/v5/stdlib
-              desc: Use *pgxpool.Pool, not stdlib database/sql. ADR-0007 §SQL access.
+              desc: Use *pgxpool.Pool, not stdlib database/sql. ADR-0300 §SQL access.
         authz-sdk-confinement:
           list-mode: lax
           files:
@@ -61,7 +61,7 @@ linters:
             - '!**/libs/go/authz/**'
           deny:
             - pkg: github.com/openfga/go-sdk
-              desc: Authorization is OpenFGA, accessed only through libs/go/authz/ (ADR-0010).
+              desc: Authorization is OpenFGA, accessed only through libs/go/authz/ (ADR-0304).
   exclusions:
     generated: lax
     presets:

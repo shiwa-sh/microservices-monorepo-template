@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# The local port registry (ADR-0016). Source it, don't execute:
+# The local port registry (ADR-0205). Source it, don't execute:
 #   source "$(dirname "$0")/lib/ports.sh"
 #   port="$(service_port catalog)"
 #

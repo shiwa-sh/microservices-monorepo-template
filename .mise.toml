@@ -2,7 +2,7 @@
 # Languages & runtimes
 go = "1.26.4"
 bun = "1.3.14"
-# node is NOT pinned here — it is an island tool (ADR-0001/ADR-0018). Its consumers
+# node is NOT pinned here — it is an island tool (ADR-0100/ADR-0601). Its consumers
 # are test/e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
 # loop), so each pins it in its own config against NODE_VERSION below. See [env].
 
@@ -41,7 +41,7 @@ sops = "3.13.1"
 # Go tools/ instead; this is the one reproducible binary for shell-side JSON.
 jq = "1.8.1"
 # YAML counterpart of jq, for the prod-promotion glue (promote-on-release writes
-# image digests into the prod values files — ADR-0013). Same rationale as jq.
+# image digests into the prod values files — ADR-0103). Same rationale as jq.
 "aqua:mikefarah/yq" = "4.47.1"
 
 # Authorization (OpenFGA model validation + ops-grant tuple writes)
@@ -53,7 +53,7 @@ cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "2.12.2"
 rumdl = "0.2.18"
-# Shell scripts are first-class here (all glue is bash, ADR-0002) — shellcheck
+# Shell scripts are first-class here (all glue is bash, ADR-0101) — shellcheck
 # lints, shfmt (mvdan/sh) formats. Wired into lint:shell / format:shell and the
 # pre-commit hook so a scripts/ edit gets the same gate as Go/TS/Markdown.
 "aqua:koalaman/shellcheck" = "0.11.0"
@@ -67,7 +67,7 @@ CGO_ENABLED = "0"
 # nested config's [tools], so there is exactly one place to bump.
 NODE_VERSION = "22"
 
-# Task naming: `group:member`, group = the axis you list/run together (ADR-0002).
+# Task naming: `group:member`, group = the axis you list/run together (ADR-0101).
 # `activity:target` for fan-out families with an umbrella (gen, lint, format);
 # `resource:operation` for lifecycles (cluster, service, db).
 
@@ -81,21 +81,21 @@ run = "lefthook install"
 run = "bash scripts/cluster-ensure.sh"
 
 [tasks."cluster:cilium"]
-# Install Cilium as the CNI (ADR-0003). Needs the cluster first. Internal plumbing
+# Install Cilium as the CNI (ADR-0200). Needs the cluster first. Internal plumbing
 # (a dependency node for cluster:base), not a command you run directly — hence hidden.
 hide = true
 depends = ["cluster:ensure"]
 run = "bash scripts/cilium-install.sh"
 
 [tasks."cluster:base"]
-# The local floor (ADR-0016, ADR-0030): Traefik + cert-manager + Postgres + Kratos
+# The local floor (ADR-0205, ADR-0600): Traefik + cert-manager + Postgres + Kratos
 # + Oathkeeper, plus the host edge glue and the seeded test identities. Everything
 # above it is opt-in and declared by the service that needs it — there are no named
 # profiles. You rarely run this by hand: a service's own tasks depend on it.
 run = "bash scripts/cluster-base.sh"
 
 [tasks."cluster:full"]
-# Full local platform via ArgoCD (ADR-0004, ADR-0016): syncs committed master.
+# Full local platform via ArgoCD (ADR-0201, ADR-0205): syncs committed master.
 # Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
 run = "bash scripts/cluster-full.sh"
 
@@ -128,7 +128,7 @@ run = "bash scripts/dep-apply.sh db-secrets"
 # ── Sibling services ──────────────────────────────────────────────────────────
 # `dep:*` covers the infrastructure a service needs; these cover the OTHER SERVICES
 # it calls. Same shape, same guard, same reason: the service knows its own callees
-# and a named profile never can (ADR-0016, ADR-0030).
+# and a named profile never can (ADR-0205, ADR-0600).
 #
 # Each one makes the callee answer on its registered local port
 # (scripts/lib/ports.sh), which is what lets the caller's .env.example ship a
@@ -221,7 +221,7 @@ run = "kubectl --context k3d-${CLUSTER:-platform} -n argocd scale statefulset/ar
 run = "bash scripts/dev-forward.sh"
 
 [tasks."dev:frontend"]
-# The host-run `next dev` the local edge routes `/` to (ADR-0014/0016). Long-running
+# The host-run `next dev` the local edge routes `/` to (ADR-0400/0016). Long-running
 # — use a separate terminal. One env var is what makes a host process behave like
 # the in-cluster frontend; see docs/dev-loop.md:
 #   EDGE_PUBLIC_ORIGIN  where server components fetch — the edge, not a cluster DNS
@@ -241,15 +241,15 @@ run = "bash scripts/dev-frontend.sh"
 run = "bash scripts/db-migrate.sh"
 
 [tasks."auth:seed"]
-# Seed the committed deterministic test identities (ADR-0018) into a running Kratos.
+# Seed the committed deterministic test identities (ADR-0601) into a running Kratos.
 # cluster:base does this for you; run it alone after a Kratos reinstall.
 run = "bash scripts/identity-seed.sh"
 
 # ── Code generation ───────────────────────────────────────────────────────────
 [tasks.gen]
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
-# OpenAPI spec (ADR-0009). Generators: ogen + openapi-typescript (SDKs), sqlc
-# (queries), and the devportal spec projections rendered by Scalar (ADR-0008).
+# OpenAPI spec (ADR-0305). Generators: ogen + openapi-typescript (SDKs), sqlc
+# (queries), and the devportal spec projections rendered by Scalar (ADR-0303).
 depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:adr-rules"]
 
 [tasks."gen:adr-rules"]
@@ -262,18 +262,18 @@ run = "go run ./tools/adr-rules"
 run = "bash scripts/gen-openapi.sh"
 
 [tasks."gen:admin"]
-# Scaffold the Lowdefy admin pages from the OpenAPI specs (ADR-0012). Depends on
+# Scaffold the Lowdefy admin pages from the OpenAPI specs (ADR-0401). Depends on
 # gen:openapi so it reads specs that have already passed a generation cycle.
 depends = ["gen:openapi"]
 run = "bash scripts/gen-admin.sh"
 
 [tasks."gen:openapi-public"]
-# Filtered OpenAPI projections for the Scalar developer portals (ADR-0008/0009/0014).
+# Filtered OpenAPI projections for the Scalar developer portals (ADR-0303/0009/0014).
 run = "bash scripts/gen-openapi-public.sh"
 
 [tasks."gen:authz-model"]
 # Regenerate infra/auth/openfga/model.json from the canonical model.fga DSL
-# (ADR-0010). The seed Job posts this JSON to the OpenFGA API; lint:authz asserts
+# (ADR-0304). The seed Job posts this JSON to the OpenFGA API; lint:authz asserts
 # it stays in sync with the DSL.
 run = "fga model transform --file infra/auth/openfga/model.fga --output-format json | jq -S . > infra/auth/openfga/model.json"
 
@@ -327,7 +327,7 @@ run = "bash scripts/lint-sql.sh"
 run = "bash scripts/lint-openapi.sh"
 
 [tasks."lint:service-contract"]
-# ADR-0016 gate: every service provides the same artifacts, because the platform
+# ADR-0205 gate: every service provides the same artifacts, because the platform
 # DISCOVERS services through those artifacts. Most sharply, the ApplicationSet
 # generates one Argo app per values file, so a missing values file means the service
 # is absent from that environment with nothing to notice — how authz ended up
@@ -335,19 +335,19 @@ run = "bash scripts/lint-openapi.sh"
 run = "bash scripts/lint-service-contract.sh"
 
 [tasks."lint:ports"]
-# Local port registry gate (ADR-0016): ports unique, every service registered, and
+# Local port registry gate (ADR-0205): ports unique, every service registered, and
 # each service's .mise.toml binding what the registry assigns it. A drift there
 # fails at runtime as a bare connection-refused, so it is caught at lint instead.
 run = "bash scripts/lint-ports.sh"
 
 [tasks."lint:api-audience"]
-# Audience↔exposure gate (ADR-0008): a spec's info.x-audience must match whether the
+# Audience↔exposure gate (ADR-0303): a spec's info.x-audience must match whether the
 # service is edge-exposed (public ⇔ has an /api route). Spec-less control-plane
 # services (authz) are exempt. Prevents the finding-D omission from recurring.
 run = "go run ./tools/lint-api-audience"
 
 [tasks."lint:resource-governance"]
-# ADR-0020 gate: renders every chart (each service separately) and checks the
+# ADR-0204 gate: renders every chart (each service separately) and checks the
 # declared resources against the guardrails in infra/helm/platform/resource-governance
 # BEFORE they reach a cluster — LimitRange floors that would REJECT a pod, containers
 # with no requests/memory limit and no namespace default, unsanctioned CPU limits, and
@@ -358,6 +358,12 @@ run = "go run ./tools/lint-resource-governance"
 
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
+
+[tasks."image:digest"]
+# Resolve a tag to the index digest a Dockerfile or values file pins to, so the
+# pin is read from the registry rather than copied by hand (ADR-0101, ADR-0104).
+#   mise run image:digest -- gcr.io/distroless/static-debian13:nonroot
+run = "bash scripts/image-digest.sh"
 
 [tasks."lint:prose"]
 # ADR-0001's banned-constructs table, enforced. The table is deliberately grep-shaped;
@@ -385,23 +391,23 @@ run = "go run ./tools/adr-rules -check"
 run = "rumdl check ."
 
 [tasks."lint:shell"]
-# shellcheck over every tracked *.sh (ADR-0002). All glue here is bash, so it gets
+# shellcheck over every tracked *.sh (ADR-0101). All glue here is bash, so it gets
 # the same static analysis Go/TS do.
 run = "bash scripts/lint-shell.sh"
 
 [tasks."lint:log-vocab"]
-# Human-output vocabulary gate (ADR-0019): scripts use →/✓/✗/⚠ via scripts/lib/log.sh,
+# Human-output vocabulary gate (ADR-0001): scripts use →/✓/✗/⚠ via scripts/lib/log.sh,
 # not bare WARN/ERROR/FAIL prose.
 run = "bash scripts/lint-log-vocab.sh"
 
 [tasks."lint:node-scope"]
-# Node confinement guard (ADR-0001/ADR-0018): Node/npm may appear ONLY in the
+# Node confinement guard (ADR-0100/ADR-0601): Node/npm may appear ONLY in the
 # repo-root test/e2e/ workspace. Fails if a package-lock.json or node_modules leaks
 # elsewhere, or if test/e2e/ is pulled into the Bun workspace.
 run = "bash scripts/lint-node-scope.sh"
 
 [tasks."lint:auth-inline"]
-# Auth single-source guard (ADR-0009/0010/0029): fails if kratos/oathkeeper config
+# Auth single-source guard (ADR-0305/0010/0029): fails if kratos/oathkeeper config
 # is re-inlined into the Ory chart values instead of living in infra/auth/*, or if
 # the frontend grows development-only auth code (a session bypass in proxy.ts or
 # src/lib/auth/ — local UI work logs in for real via cluster:base).
@@ -466,7 +472,7 @@ git diff --exit-code
 
 # ── Deploy to cluster (working-tree overrides) ────────────────────────────────
 [tasks."cluster:add"]
-# One verb for "put this in the cluster" (ADR-0030). Resolves <name> to a service
+# One verb for "put this in the cluster" (ADR-0600). Resolves <name> to a service
 # or a platform chart and dispatches; errors if a name is both. Dependency
 # components are NOT nouns here — they are graph-internal (`dep:*`), which is what
 # keeps `postgres` (a platform chart AND a deps.yaml slice) unambiguous.
@@ -512,12 +518,12 @@ run = "bash scripts/platform-deploy.sh"
 run = "bash scripts/auth-token.sh"
 
 [tasks."ops:grant"]
-# Operator onboarding (ADR-0010/0017): add/revoke a human's group:operator
+# Operator onboarding (ADR-0304/0017): add/revoke a human's group:operator
 # membership by email. Usage: mise run ops:grant -- <email> [--revoke].
 run = "bash scripts/ops-grant.sh"
 
 [tasks."secrets:age"]
-# Idempotent; also writes .sops.yaml (ADR-0005).
+# Idempotent; also writes .sops.yaml (ADR-0202).
 run = "bash scripts/secrets-age.sh"
 
 # ── End-to-end tests ──────────────────────────────────────────────────────────
@@ -537,7 +543,7 @@ run = "mise run -C test/e2e test:smoke"
 # ── Load & performance tests ──────────────────────────────────────────────────
 # Thin delegates into the k6 island, same reason as the e2e ones above: the k6
 # pin lives in test/perf/.mise.toml and mise tools flow down a config tree, never up.
-# These are NOT part of `test`, `check` or `ci:affected` (ADR-0027) — they answer
+# These are NOT part of `test`, `check` or `ci:affected` (ADR-0601) — they answer
 # "what does it cost and where does it break", not "is it correct", and they need
 # a running cluster:full.
 [tasks.perf]

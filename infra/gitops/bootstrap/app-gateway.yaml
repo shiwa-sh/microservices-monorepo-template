@@ -1,4 +1,4 @@
-# Gateway Application (ADR-0009). Applies the Traefik edge config (middlewares +
+# Gateway Application (ADR-0305). Applies the Traefik edge config (middlewares +
 # cross-cutting IngressRoutes) from infra/gateway. Picked up by the root
 # app-of-apps, which recurses infra/gitops/bootstrap.
 apiVersion: argoproj.io/v1alpha1
@@ -29,7 +29,7 @@ spec:
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
     # Retry on failure — automated+selfHeal won't re-run a sync that errored on
     # the same commit, so a transient blip would otherwise leave the edge
-    # unrouted until a manual sync. Backoff caps at 2m (ADR-0004).
+    # unrouted until a manual sync. Backoff caps at 2m (ADR-0201).
     retry:
       limit: 20
       backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

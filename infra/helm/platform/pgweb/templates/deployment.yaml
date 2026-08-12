@@ -26,7 +26,7 @@ spec:
         - name: pgweb
           image: "{{ .Values.pgweb.image.repository }}:{{ .Values.pgweb.image.tag }}"
           imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
-          # --readonly is pgweb's own session guard (ADR-0012 break-glass intent);
+          # --readonly is pgweb's own session guard (ADR-0401 break-glass intent);
           # --bind/--listen must be repeated when args are overridden. The DSN is
           # read from PGWEB_DATABASE_URL below.
           args: ["--bind=0.0.0.0", "--listen=8081", "--readonly"]

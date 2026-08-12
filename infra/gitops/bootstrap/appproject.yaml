@@ -1,4 +1,4 @@
-# Per-environment AppProjects (ADR-0004). ArgoCD's real tenancy/grouping
+# Per-environment AppProjects (ADR-0201). ArgoCD's real tenancy/grouping
 # primitive — the platform/service Applications the appsets fan out are grouped
 # *by* these (spec.project: <env>), not by parsing the `<env>-` name prefix.
 #
@@ -48,7 +48,7 @@ spec:
     - { group: "*", kind: "*" }
   namespaceResourceWhitelist:
     - { group: "*", kind: "*" }
-  # ADR-0004: staging auto-syncs only inside a daily 05:00 UTC / 1h window;
+  # ADR-0201: staging auto-syncs only inside a daily 05:00 UTC / 1h window;
   # manualSync permits ad-hoc `argocd app sync` outside it for incident response.
   syncWindows:
     - kind: allow

@@ -1,4 +1,4 @@
-# Browser telemetry ingest (ADR-0011, ADR-0014). The frontend's Grafana Faro
+# Browser telemetry ingest (ADR-0500, ADR-0400). The frontend's Grafana Faro
 # agent POSTs RUM, JS errors, and web traces to /api/rum from both anonymous
 # (landing) and authenticated users, so this route is intentionally
 # unauthenticated — no Oathkeeper ForwardAuth — and forwards straight to the

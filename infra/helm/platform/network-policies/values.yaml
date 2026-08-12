@@ -1,10 +1,10 @@
 # When true, allow the log/trace backends (loki/tempo) egress to external
 # HTTPS — needed in prod, where object storage is a real off-cluster S3 bucket
-# (ADR-0003). Local runs against in-cluster MinIO (covered by intra-namespace
+# (ADR-0206). Local runs against in-cluster MinIO (covered by intra-namespace
 # egress), so it stays false and no pod reaches the internet at all.
 externalObjectStorage: false
 
-# The cluster's pod CIDR (k3s `--cluster-cidr`, default 10.42.0.0/16 — ADR-0003).
+# The cluster's pod CIDR (k3s `--cluster-cidr`, default 10.42.0.0/16 — ADR-0206).
 #
 # Used ONLY by the "stale peer" allows (20-temporal.yaml, 40-observability.yaml),
 # where a workload keeps dialling the IP of a pod that has since been deleted.

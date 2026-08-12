@@ -1,6 +1,6 @@
 openapi: 3.1.0
-info: { title: authz, version: 0.1.0, description: Ops-tier edge authorizer and operator admin (ADR-0010/0012/0017)., x-audience: cluster }
-servers: [{ url: / }]   # east-west control-plane service; no /api edge route (ADR-0009)
+info: { title: authz, version: 0.1.0, description: Ops-tier edge authorizer and operator admin (ADR-0304/0012/0017)., x-audience: cluster }
+servers: [{ url: / }]   # east-west control-plane service; no /api edge route (ADR-0305)
 tags: [{ name: authorize }, { name: operators }, { name: identities, x-admin: crud }]
 paths:
   /authorize:
@@ -25,7 +25,7 @@ paths:
   /identities:
     get:
       operationId: listIdentities
-      # Changelist target (ADR-0012): the console's Users page. The list is served from
+      # Changelist target (ADR-0401): the console's Users page. The list is served from
       # Kratos admin (GET /admin/identities), which only authz may reach
       # (network-policies/30-ory.yaml) — the console fetches it through here, never
       # directly. Adding a create op here would scaffold an "add user" page; we don't
@@ -50,7 +50,7 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/Identity" }
                 # An unconstrained array generates an empty list, which is the one
-                # answer a changelist cannot be built against (ADR-0029).
+                # answer a changelist cannot be built against (ADR-0600).
                 example:
                   - { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b001, email: operator@e2e.localtest.me, name: Test Operator, operator: true }
                   - { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002, email: user@e2e.localtest.me, name: Test User, operator: false }
@@ -68,7 +68,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     put:
       operationId: updateIdentity
-      # Edit target (ADR-0012): the console's per-row change page. Updates the editable
+      # Edit target (ADR-0401): the console's per-row change page. Updates the editable
       # traits only; email is the login identifier and is intentionally not editable.
       description: Update an identity's editable traits.
       tags: [identities]
@@ -84,7 +84,7 @@ paths:
   /operators:
     post:
       operationId: createOperator
-      # Generated admin page target (ADR-0012): a control-plane action, not CRUD.
+      # Generated admin page target (ADR-0401): a control-plane action, not CRUD.
       x-admin: action
       description: Create an operator identity and grant the operator role.
       tags: [operators]

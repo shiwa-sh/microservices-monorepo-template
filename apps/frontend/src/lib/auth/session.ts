@@ -1,4 +1,4 @@
-// Server-side session/identity helper (ADR-0010, ADR-0017). Product surfaces are
+// Server-side session/identity helper (ADR-0304, ADR-0306). Product surfaces are
 // our code, so they authorize in the app — page-level access to /admin is a
 // permission check in the RSC layer, not a bare session-cookie presence check
 // (that is what proxy.ts does, which only proves *a* session exists). This reads

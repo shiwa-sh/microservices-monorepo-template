@@ -3,7 +3,7 @@
   "uid": "overview",
   "schemaVersion": 39,
   "tags": ["overview", "landing", "slo"],
-  "description": "L1 landing page (ADR-0026): answers 'is anything wrong right now, and where?' and nothing else. Every panel either turns red or links down a level — firing alerts, cluster-wide golden signals, per-service SLO status (linking to Service detail), and one-line health for the platform dependencies (linking to Platform components / Network: policy denials). Deep-dive timeseries live one click down; if a panel here cannot demand action, it does not belong here. The Applications dashboard remains the full workload directory (every pod, incl. idle ones).",
+  "description": "L1 landing page (ADR-0501): answers 'is anything wrong right now, and where?' and nothing else. Every panel either turns red or links down a level — firing alerts, cluster-wide golden signals, per-service SLO status (linking to Service detail), and one-line health for the platform dependencies (linking to Platform components / Network: policy denials). Deep-dive timeseries live one click down; if a panel here cannot demand action, it does not belong here. The Applications dashboard remains the full workload directory (every pod, incl. idle ones).",
   "time": {
     "from": "now-1h",
     "to": "now"

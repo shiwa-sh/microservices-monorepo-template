@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 {{- if .Values.ingress.resources }}
-# Flat-API routing (ADR-0017): the edge routes each /api/<resource> the service
+# Flat-API routing (ADR-0306): the edge routes each /api/<resource> the service
 # owns and strips the shared /api prefix, so the service mounts its resources at
 # root (e.g. /products) and the service topology stays hidden from the URL.
 # Applied AFTER oathkeeper-forward-auth so Oathkeeper still matches on /api/.
@@ -15,13 +15,13 @@ spec:
       - /api
 ---
 {{- end }}
-# Traefik IngressRoute (ADR-0003, ADR-0009, ADR-0017). Traefik fronts the edge:
+# Traefik IngressRoute (ADR-0305, ADR-0306). Traefik fronts the edge:
 # /api/<resource> traffic passes through the Oathkeeper ForwardAuth middleware,
 # which validates the Kratos session / Hydra JWT and injects the trusted identity
 # headers the service reads. Static browser-security headers are stamped on every
 # response. Which service owns a resource is a routing detail here, not a URL: a
 # resource can move between services without a URL change (CI lints that no two
-# x-audience specs claim the same resource — ADR-0008).
+# x-audience specs claim the same resource — ADR-0303).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -33,7 +33,7 @@ spec:
     - kind: Rule
       match: {{ include "service.ingressMatch" . }}
       middlewares:
-        # Anti-spoofing (ADR-0009): strip any client-supplied identity headers
+        # Anti-spoofing (ADR-0305): strip any client-supplied identity headers
         # BEFORE forwardAuth, so a client cannot inject X-User-* on an anonymous
         # /api route (Oathkeeper re-adds the authoritative values).
         - name: strip-identity-headers

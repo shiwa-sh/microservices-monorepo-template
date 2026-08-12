@@ -13,7 +13,7 @@ hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
 [tasks.server]
-# Dependency components this service needs in the cluster (ADR-0016, ADR-0030).
+# Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
 # Declared here, with the service, because the service knows its own dependencies
 # and a named profile never can. mise resolves the graph: the shared cluster:base
 # edge is deduped, independent components come up in parallel, and each one

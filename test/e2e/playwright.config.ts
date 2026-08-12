@@ -1,4 +1,4 @@
-// One config, one runner (ADR-0018). The Go/shell preflight runs first as a
+// One config, one runner (ADR-0601). The Go/shell preflight runs first as a
 // failure localiser (globalSetup); the `setup` project provisions the committed
 // test identities and saves their sessions; the `platform` project is the browser
 // acceptance gauge — operator dashboards rendered behind a real AAL2 session.

@@ -6,9 +6,9 @@ import { ApiReferenceReact } from "@scalar/api-reference-react";
 // same-origin (style-src 'self'), no CDN.
 import "@scalar/api-reference-react/style.css";
 
-// Scalar mounts a Vue app into a ref on the client (ADR-0009/0014). One merged
+// Scalar mounts a Vue app into a ref on the client (ADR-0305/0014). One merged
 // document (gen:openapi-public) → a single unified sidebar grouped by resource
-// tag, not a per-service switcher: the flat /api namespace (ADR-0017) hides
+// tag, not a per-service switcher: the flat /api namespace (ADR-0306) hides
 // service topology. Served same-origin under the /devportal session gate; the
 // built-in "try it" hits the real edge.
 export function ApiReference() {
@@ -17,7 +17,7 @@ export function ApiReference() {
       configuration={{
         url: "/devportal/openapi/internal.json",
         // No CDN: self-host fonts so the bundle stays offline-clean and CSP-safe
-        // (font-src 'self', ADR-0014). Scalar's own theme is a deliberate island.
+        // (font-src 'self', ADR-0400). Scalar's own theme is a deliberate island.
         withDefaultFonts: false,
       }}
     />

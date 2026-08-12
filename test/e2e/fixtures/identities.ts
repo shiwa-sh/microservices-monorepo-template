@@ -1,4 +1,4 @@
-// Committed deterministic test identities (ADR-0018). Provisioned the same way in
+// Committed deterministic test identities (ADR-0601). Provisioned the same way in
 // CI and locally — nothing is hand-seeded. `operator` mirrors OpenFGA `user:alice`
 // (an AAL2 operator in group:operator); `user` mirrors `user:bob` (a bare AAL1
 // product user with no ops grant). See infra/auth/openfga/fga.yaml.

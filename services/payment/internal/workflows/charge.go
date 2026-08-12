@@ -1,4 +1,4 @@
-// Package workflows holds the Charge workflow (ADR-0006). It demonstrates an
+// Package workflows holds the Charge workflow (ADR-0302). It demonstrates an
 // idempotent activity sequence with compensation on failure. Real payment
 // processors are mocked by the SettleActivity for template purposes.
 package workflows

@@ -1,4 +1,4 @@
-# Service-local tasks. These are the standard task names (ADR-0002) that
+# Service-local tasks. These are the standard task names (ADR-0101) that
 # every service exposes.
 
 # Inner-loop config comes from .env (copy .env.example). Absent, tasks still run —
@@ -17,7 +17,7 @@ _.file = ".env"
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
-# Dependency components this service needs in the cluster (ADR-0016, ADR-0030).
+# Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
 # Declare them here, with the service — the service knows its own dependencies and
 # a named profile never can. mise resolves the graph: the shared cluster:base edge
 # is deduped, independent components come up in parallel, and each one fast-exits

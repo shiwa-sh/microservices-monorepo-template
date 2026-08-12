@@ -1,4 +1,4 @@
-# Make the env host resolve to the edge FROM INSIDE the cluster (ADR-0016).
+# Make the env host resolve to the edge FROM INSIDE the cluster (ADR-0205).
 #
 # `dev.localtest.me` is real public DNS that resolves to 127.0.0.1. That is exactly
 # right on the host and exactly wrong in a pod, where 127.0.0.1 is the pod's own

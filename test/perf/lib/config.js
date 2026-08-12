@@ -1,4 +1,4 @@
-// Shared configuration for every k6 scenario (ADR-0027).
+// Shared configuration for every k6 scenario (ADR-0601).
 //
 // Three things live here so a scenario file contains only its request logic:
 //   1. TARGET  — which edge to hit, defaulting to the local one and nothing else.
@@ -8,18 +8,18 @@
 //
 // This runs on k6's embedded JS engine (Sobek), NOT Node: there is no npm, no
 // package.json and no node_modules in perf/, and there must never be one — that
-// boundary is what keeps ADR-0018's Node escape hatch scoped to e2e/.
+// boundary is what keeps ADR-0601's Node escape hatch scoped to e2e/.
 
 // ── Target ───────────────────────────────────────────────────────────────────
 // Host-agnostic like the e2e suite (e2e/fixtures/env.ts): override PERF_HOST to
 // point at a deployed environment. The default is the local edge and only the
 // local edge — a load run must never drift onto a shared environment because
-// someone forgot a flag (ADR-0027).
+// someone forgot a flag (ADR-0601).
 export const HOST = __ENV.PERF_HOST || "dev.localtest.me:8443";
 export const BASE_URL = `https://${HOST}`;
-// Flat resource namespace behind the gateway (ADR-0017). Scenarios drive this,
+// Flat resource namespace behind the gateway (ADR-0306). Scenarios drive this,
 // not a port-forwarded pod, so Traefik and the Oathkeeper forward-auth hop are
-// inside the measurement (ADR-0009, ADR-0027).
+// inside the measurement (ADR-0305, ADR-0601).
 export const API = `${BASE_URL}/api`;
 
 // Everything this suite writes carries this prefix, so seeded and load-generated
@@ -74,7 +74,7 @@ const PROFILES = {
 export const PROFILE = __ENV.PERF_PROFILE || "smoke";
 
 // ── Cardinality control ──────────────────────────────────────────────────────
-// ADR-0011 forbids high-cardinality metric labels, and k6's default system tags
+// ADR-0500 forbids high-cardinality metric labels, and k6's default system tags
 // violate that badly against a Prometheus every service shares. This is an
 // ALLOW-LIST: any system tag not named here is not emitted. What is deliberately
 // missing, and why:
@@ -106,7 +106,7 @@ const SYSTEM_TAGS = [
 //              so the two runs stay distinguishable in Prometheus.
 //   weight     scenario-specific multiplier on the profile's VU count (1 = the
 //              profile's headline number; 0.25 = a quarter of it, for heavy paths).
-//   thresholds the scenario's budgets. Budgets, not SLOs (ADR-0027) — a load run
+//   thresholds the scenario's budgets. Budgets, not SLOs (ADR-0601) — a load run
 //              deliberately pushes past the SLO, so reusing the SLO here would
 //              make every run red and teach everyone to ignore it.
 export function options(scenario, weight, thresholds) {
@@ -145,7 +145,7 @@ export function options(scenario, weight, thresholds) {
 // summaryTrailer is printed from every scenario's teardown() so a captured run
 // always carries the caveat with it — a co-hosted generator competes with the
 // cluster for host CPU, so these are relative regression signals, not capacity
-// figures (ADR-0027).
+// figures (ADR-0601).
 export function summaryTrailer() {
   return [
     "",

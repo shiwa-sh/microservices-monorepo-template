@@ -1,4 +1,4 @@
-# MinIO is non-prod only (ADR-0016); gate the whole chart off here, the same
+# MinIO is non-prod only (ADR-0205); gate the whole chart off here, the same
 # values-only way every other per-env delta is expressed.
 minio:
   enabled: false
@@ -23,7 +23,7 @@ cluster:
     retentionPolicy: "30d"
     s3: { destinationPath: "s3://platform-prod-backups/postgres" }
 
-# Observability backends run 2 replicas in prod for availability (ADR-0011);
+# Observability backends run 2 replicas in prod for availability (ADR-0500);
 # dev/staging keep the single-replica chart defaults.
 loki:
   singleBinary: { replicas: 2 }
@@ -32,7 +32,7 @@ tempo:
 grafana:
   replicas: 2
 
-# Lowdefy admin console (ADR-0012): the one repo-built platform image. Pinned to
+# Lowdefy admin console (ADR-0401): the one repo-built platform image. Pinned to
 # the release commit by digest on a CalVer release (promote-on-release), the same
 # immutable-identity guarantee every prod service gets.
 lowdefy:

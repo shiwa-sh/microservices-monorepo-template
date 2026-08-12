@@ -1,4 +1,4 @@
-# Lightweight local dependencies for the inner dev loop (ADR-0003).
+# Lightweight local dependencies for the inner dev loop (ADR-0200).
 # NOT the production components — these are throwaway, in-memory/ephemeral stand-ins
 # so a service (run natively on the host) has Postgres, Temporal and OpenFGA to talk to.
 # The production-grade versions (CNPG, the Temporal Helm chart, operator-backed
@@ -6,7 +6,7 @@
 #
 # Every resource carries `local.platform/component`, so a caller applies a SLICE of
 # this file rather than forking it — `kubectl apply -f` honours `--selector`. That
-# is what makes a component a SELECTION (ADR-0016): there is one manifest, and
+# is what makes a component a SELECTION (ADR-0205): there is one manifest, and
 # nothing can drift from it.
 #
 # cluster:base takes `in (base,postgres)` — Kratos needs a store, so every base has
@@ -22,7 +22,7 @@ metadata:
 ---
 # --- Postgres (plain image, ephemeral) -------------------------------------
 # `kratos` is here because cluster:base runs the real Kratos against this stand-in
-# instead of CNPG (ADR-0029). Free either way — the pod has no volume, so initdb
+# instead of CNPG (ADR-0600). Free either way — the pod has no volume, so initdb
 # re-runs on every start.
 apiVersion: v1
 kind: ConfigMap

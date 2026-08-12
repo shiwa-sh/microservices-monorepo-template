@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seed the committed deterministic test identities into Kratos (ADR-0018, ADR-0029).
+# Seed the committed deterministic test identities into Kratos (ADR-0601, ADR-0600).
 #
 # The `edge` profile logs in for real, so it needs a real identity — and it consumes
 # the one the e2e suite already defines rather than inventing a development-only
@@ -48,7 +48,7 @@ for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
   # Import path: Kratos hashes the password and does NOT run it through the sign-up
   # policy (HIBP/length), so committed deterministic credentials are fine. The
   # address is pre-verified so login never waits on the (unwired) SMTP sink. The
-  # `operator` trait is the coarse ops-tier claim (ADR-0017) and is always enforced.
+  # `operator` trait is the coarse ops-tier claim (ADR-0306) and is always enforced.
   body="$(jq -n --argjson i "$id" '{
     schema_id: "user_v1",
     traits: { email: $i.email, operator: $i.operator },

@@ -1,4 +1,4 @@
-// Package httpmw provides default HTTP middleware (ADR-0011): a tracing span,
+// Package httpmw provides default HTTP middleware (ADR-0500): a tracing span,
 // RED metrics, and a structured access log. Services compose them via Chain.
 package httpmw
 
@@ -33,7 +33,7 @@ func Chain(h http.Handler, serviceName string) http.Handler {
 	return version(traced)
 }
 
-// version stamps the running binary's identity on every response (ADR-0013), so a
+// version stamps the running binary's identity on every response (ADR-0103), so a
 // client — the frontend, a curl, DevOps — can confirm which build answered without
 // trusting the deploy pipeline. Set outermost so the headers land before any write.
 func version(next http.Handler) http.Handler {
@@ -78,7 +78,7 @@ func access(next http.Handler) http.Handler {
 // all assume it, and the chart sets no PORT.
 //
 // PORT overrides it for host-native runs, where every service instead binds the
-// stable port assigned to it in scripts/lib/ports.sh (ADR-0016). Without that they
+// stable port assigned to it in scripts/lib/ports.sh (ADR-0205). Without that they
 // would all bind :8080 and only one could run at a time, which made reproducing a
 // cross-service bug — the orders checkout saga calls catalog and payment — mean
 // deploying the callees and giving up breakpoints in them. The registry also lets

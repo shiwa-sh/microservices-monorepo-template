@@ -12,7 +12,7 @@ import (
 )
 
 // fakeChecker stands in for the OpenFGA Checker so the authz gate can be
-// exercised without a cluster (ADR-0010).
+// exercised without a cluster (ADR-0304).
 type fakeChecker struct {
 	allowed bool
 	err     error
@@ -22,7 +22,7 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 	return f.allowed, f.err
 }
 
-// CreateProduct is operator-gated (x-audience: internal, ADR-0008). The gate
+// CreateProduct is operator-gated (x-audience: internal, ADR-0303). The gate
 // rejects before any DB access, so a nil store is fine for these cases.
 func TestCreateProductAuthz(t *testing.T) {
 	t.Parallel()
@@ -61,7 +61,7 @@ func TestCreateProductAuthz(t *testing.T) {
 	}
 }
 
-// UpdateProduct and DeleteProduct (ADR-0006) run the same operator gate as
+// UpdateProduct and DeleteProduct (ADR-0302) run the same operator gate as
 // CreateProduct, before any DB access — so a nil store is fine for these cases.
 func TestWriteAuthz(t *testing.T) {
 	t.Parallel()

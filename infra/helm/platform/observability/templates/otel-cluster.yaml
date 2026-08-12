@@ -1,4 +1,4 @@
-# Cluster-state metrics collector (ADR-0025 follow-up) — a 1-replica Deployment
+# Cluster-state metrics collector (ADR-0501 follow-up) — a 1-replica Deployment
 # running ONLY the k8s_cluster receiver, which watches the Kubernetes API and
 # emits desired/observed state as OTLP metrics: deployment desired vs available
 # replicas, container restart counts, and container CPU/memory limits in real
@@ -95,13 +95,13 @@ subjects:
         # 2% (scripts/cluster-ensure.sh), which means kubelet gives almost no
         # warning of its own.
         allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage, pods]
-      # Platform-component exporters (ADR-0025 follow-up): postgres (the CNPG
+      # Platform-component exporters (ADR-0501 follow-up): postgres (the CNPG
       # instance manager's built-in exporter on :9187) and the Temporal server
       # roles (:9090) already publish Prometheus metrics — this scrapes what
       # exists rather than instrumenting anything. Lives HERE and not in the
       # DaemonSet for the same reason k8s_cluster does: these are cluster-scoped
       # targets, and N node agents would scrape N duplicate copies. Prometheus
-      # itself still scrapes nothing (ADR-0011) — this re-exports over OTLP.
+      # itself still scrapes nothing (ADR-0500) — this re-exports over OTLP.
       # Discovery is label-selected pods, with a keep on the container port
       # NAMED `metrics` — that is what skips temporal-web/admintools (no such
       # port) and pins the exporter port on multi-port pods. The prometheus

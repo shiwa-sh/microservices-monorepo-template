@@ -1,7 +1,7 @@
 apiVersion: v2
 name: minio
 description: |
-  MinIO for LOCAL development only (ADR-0003). Production uses an external S3
+  MinIO for LOCAL development only (ADR-0207). Production uses an external S3
   bucket. This chart is gated to non-prod environments by the umbrella chart.
 type: application
 version: 0.1.0

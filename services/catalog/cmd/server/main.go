@@ -45,7 +45,7 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	// Authz plane (ADR-0010): the shared OpenFGA Checker for write authorization.
+	// Authz plane (ADR-0304): the shared OpenFGA Checker for write authorization.
 	// Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
 	checker, err := authz.New()
 	if err != nil {

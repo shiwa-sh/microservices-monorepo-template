@@ -1,11 +1,11 @@
-# Local Platform ApplicationSets (ADR-0004, ADR-0016). Identical to
+# Local Platform ApplicationSets (ADR-0201, ADR-0205). Identical to
 # bootstrap/appset-platform.yaml except each list generator carries a single
 # { env: local } element, and the base tier omits cilium + argocd — cluster:full
 # installs those imperatively before Argo can run (a CNI must exist before any pod
 # schedules; Argo cannot install itself), so Argo must not fight the imperative
 # releases.
 #
-# Naming: env-prefix throughout (ADR-0004). Every generated Application is
+# Naming: env-prefix throughout (ADR-0201). Every generated Application is
 # `local-platform-<chart>` regardless of which tier set produced it — grouping is
 # by the `local` AppProject + labels (appproject.yaml), not the ApplicationSet
 # name.
@@ -43,7 +43,7 @@ spec:
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
-                  # ADR-0020 guardrails (PriorityClass, LimitRange, ResourceQuota,
+                  # ADR-0204 guardrails (PriorityClass, LimitRange, ResourceQuota,
                   # PDB). Base tier because a LimitRange only defaults pods created
                   # AFTER it exists, and the PriorityClasses must exist before any
                   # workload names one — a pod naming a missing class is rejected.

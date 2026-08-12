@@ -1,21 +1,21 @@
-# Shared Traefik IngressRoutes (ADR-0009, ADR-0017). Per-service /api/<svc> routes
+# Shared Traefik IngressRoutes (ADR-0305, ADR-0306). Per-service /api/<svc> routes
 # are emitted by the service Helm chart (infra/helm/service/templates/ingressroute.yaml)
 # on the product apex. These are the cross-cutting OPS-TIER routes.
 #
-# Trust-tier split (ADR-0017): every operator dashboard lives on its own origin
+# Trust-tier split (ADR-0306): every operator dashboard lives on its own origin
 # `{tool}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
-# host-agnostic (env parity, ADR-0016) — `^{tool}\.ops\..+` matches
+# host-agnostic (env parity, ADR-0205) — `^{tool}\.ops\..+` matches
 # {tool}.ops.dev.localtest.me locally and {tool}.ops.<apex> in every deployed env.
 # The `*.ops.<host>` wildcard cert (secret wildcard-ops-tls) covers all of them.
 #
 # Each route is behind the ops forward-auth (Oathkeeper validates an AAL2 operator
-# session and the per-tool `dashboard:<tool>#view` grant — ADR-0010/0017) and the
+# session and the per-tool `dashboard:<tool>#view` grant — ADR-0304/0017) and the
 # identity-header strip + security-headers middlewares.
 ---
-# Hubble UI (ADR-0003, ADR-0025) — Cilium network-flow visibility / service map
+# Hubble UI (ADR-0206, ADR-0501) — Cilium network-flow visibility / service map
 # (service in kube-system, cross-namespace ref like Argo). Grafana owns detail
 # (RED/SLO/logs/traces/profiling); Hubble UI owns the interactive map + drop
-# investigation. Known trade-off (ADR-0025): it collapses workloads sharing
+# investigation. Known trade-off (ADR-0501): it collapses workloads sharing
 # `app.kubernetes.io/name` (all Temporal roles → "temporal").
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -38,7 +38,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Grafana (ADR-0011) — served at root (serve_from_sub_path dropped, see chart).
+# Grafana (ADR-0500) — served at root (serve_from_sub_path dropped, see chart).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -59,7 +59,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Lowdefy internal-admin console (ADR-0012). Oathkeeper injects X-User-Email,
+# Lowdefy internal-admin console (ADR-0401). Oathkeeper injects X-User-Email,
 # which Lowdefy keys off (see access-rules ops-lowdefy rule).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -81,7 +81,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Argo CD (ADR-0004). server.insecure is on, so TLS terminates at Traefik and
+# Argo CD (ADR-0201). server.insecure is on, so TLS terminates at Traefik and
 # argocd-server serves http on :80. Argo is installed into its own `argocd`
 # namespace (not `platform`), so the service ref is cross-namespace — the same
 # pattern as Hubble UI in kube-system. This needs Traefik allowCrossNamespace, on
@@ -107,7 +107,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Temporal Web UI (ADR-0006) — temporalio/ui at root on :8080.
+# Temporal Web UI (ADR-0302) — temporalio/ui at root on :8080.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -128,7 +128,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# MinIO console (ADR-0011, ADR-0016) — non-prod only, console at root on :9001.
+# MinIO console (ADR-0500, ADR-0205) — non-prod only, console at root on :9001.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -149,7 +149,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Headlamp — k8s debug UI (ADR-0024, ADR-0017). Core: the backend Service exists
+# Headlamp — k8s debug UI (ADR-0501, ADR-0306). Core: the backend Service exists
 # in every env; if a project sets headlamp.enabled=false the route resolves to no
 # endpoints.
 apiVersion: traefik.io/v1alpha1
@@ -172,7 +172,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# pgweb — read-only DB inspector (ADR-0012, ADR-0017). Core: the backend Service
+# pgweb — read-only DB inspector (ADR-0401, ADR-0306). Core: the backend Service
 # exists in every env; setting pgweb.enabled=false leaves the route with no endpoints.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute

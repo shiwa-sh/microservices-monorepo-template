@@ -3,19 +3,19 @@ image:
   repository: ghcr.io/tabmadi/microservices-monorepo-template/orgs-server
   tag: "0000000000000000000000000000000000000000"
 worker:
-  enabled: true            # RegisterUser dual-write (ADR-0006/0010)
+  enabled: true            # RegisterUser dual-write (ADR-0302/0010)
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/orgs-worker
     tag: "0000000000000000000000000000000000000000"
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.example.com, resources: [orgs] }
-# Kratos calls /identity-created east-west on the server port (ADR-0010); the
+# Kratos calls /identity-created east-west on the server port (ADR-0304); the
 # edge (allowFromGateway) only covers Traefik → /api/orgs, so allow Kratos too.
-# The Lowdefy admin console (apps/admin) also calls orgs server-side (ADR-0012).
+# The Lowdefy admin console (apps/admin) also calls orgs server-side (ADR-0401).
 networkPolicy: { allowFrom: [kratos, lowdefy] }
 secrets: { envFrom: [orgs-db-creds, openfga-creds] }
 env:
-  # Write authz (ADR-0010): the worker grants org admin via the shared OpenFGA
+  # Write authz (ADR-0304): the worker grants org admin via the shared OpenFGA
   # Granter. Blank preshared key falls back to openfga-creds.preshared_key (envFrom).
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

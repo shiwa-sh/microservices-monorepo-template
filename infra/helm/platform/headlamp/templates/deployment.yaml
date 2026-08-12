@@ -1,5 +1,5 @@
 {{- if .Values.headlamp.enabled }}
-# Read-only ClusterRole binding (ADR-0024): the Headlamp pod's ServiceAccount is
+# Read-only ClusterRole binding (ADR-0501): the Headlamp pod's ServiceAccount is
 # bound to the built-in `view` role, so the UI can list/get/watch and tail logs
 # but never mutate reconciled state — desired state changes go through Git/ArgoCD.
 apiVersion: v1
@@ -45,7 +45,7 @@ spec:
           # -unsafe-use-service-account-token authenticates to the API as the pod's
           # own `view`-bound ServiceAccount instead of prompting each user for a
           # bearer token — the ops edge already authenticates operators via the
-          # oathkeeper coarse gate (ADR-0017), so a second Headlamp login is
+          # oathkeeper coarse gate (ADR-0306), so a second Headlamp login is
           # redundant. Read-only either way; the flag is the intended mode for
           # Headlamp behind an external auth proxy.
           args: ["-in-cluster", "-unsafe-use-service-account-token"]

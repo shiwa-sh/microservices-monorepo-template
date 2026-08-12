@@ -11,7 +11,7 @@ metadata:
 spec:
   instances: {{ .Values.cluster.instances }}
   imageName: {{ .Values.cluster.imageName }}
-  # ADR-0020. Postgres is the one component where the memory REQUEST matters as
+  # ADR-0204. Postgres is the one component where the memory REQUEST matters as
   # much as the limit: CNPG derives nothing from it, but the scheduler uses it to
   # decide whether the node can host the instance at all, and a database that gets
   # evicted takes every service with it. platform-critical priority for the same

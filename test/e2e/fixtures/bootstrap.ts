@@ -1,4 +1,4 @@
-// Committed test-identity bootstrap (ADR-0018 §Test data). Idempotently provisions
+// Committed test-identity bootstrap (ADR-0601 §Test data). Idempotently provisions
 // the deterministic identities into Kratos via the admin API and grants the
 // operator group membership in OpenFGA — the same way in CI and locally, with no
 // hand-seeded state and no SMTP dependency.
@@ -49,7 +49,7 @@ async function createIdentity(id: TestIdentity): Promise<string> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       schema_id: SCHEMA_ID,
-      // The `operator` trait is the coarse ops-gate claim (ADR-0017) and is ALWAYS
+      // The `operator` trait is the coarse ops-gate claim (ADR-0306) and is ALWAYS
       // enforced — OpenFGA group:operator membership only feeds the optional fine
       // gate. Set it here too, or the operator fails the gate despite the grant
       // below (same coupling as scripts/ops-grant.sh).

@@ -17,7 +17,7 @@ app.kubernetes.io/name: {{ include "service.name" . }}
 {{- end -}}
 
 {{/*
-Image reference (ADR-0002, ADR-0013). Pin by digest when set (prod — the strongest
+Image reference (ADR-0101, ADR-0103). Pin by digest when set (prod — the strongest
 immutable identity, `repo@sha256:…`), else by SHA tag (dev/staging). Moving tags
 are rejected by lint-floating-tags.
 */}}
@@ -26,7 +26,7 @@ are rejected by lint-floating-tags.
 {{- if .Values.image.digest -}}
 {{ $r }}@{{ .Values.image.digest }}
 {{- else -}}
-{{ $r }}:{{ required ".Values.image.tag or .Values.image.digest is required (concrete git SHA / digest — ADR-0002, ADR-0013)" .Values.image.tag }}
+{{ $r }}:{{ required ".Values.image.tag or .Values.image.digest is required (concrete git SHA / digest — ADR-0101, ADR-0103)" .Values.image.tag }}
 {{- end -}}
 {{- end -}}
 
@@ -40,7 +40,7 @@ are rejected by lint-floating-tags.
 {{- end -}}
 
 {{/*
-Traefik match rule (ADR-0017). Flat-API mode when ingress.resources is set: the
+Traefik match rule (ADR-0306). Flat-API mode when ingress.resources is set: the
 edge matches /api/<resource> for each resource the service owns, hiding the
 service topology behind a flat namespace. Otherwise ingress.pathPrefix is a
 literal prefix (the frontend catch-all "/").

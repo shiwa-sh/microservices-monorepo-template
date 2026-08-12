@@ -1,11 +1,11 @@
-# Local full-tier values for the payment service (ADR-0016). See orders.yaml for
+# Local full-tier values for the payment service (ADR-0205). See orders.yaml for
 # the secret-naming note (payment-db = local SopsSecret resource). Locally there is
 # no separate payment-temporal-creds secret (Temporal runs without per-service
 # creds), so only payment-db is mounted — matching the old skaffold module.
 name: payment
 image:
   repository: k3d-registry.localhost:5000/payment-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0002)
+  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:
   enabled: true
@@ -16,12 +16,12 @@ server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [charges] }
 otel:    { deployEnv: local }
 # The Lowdefy admin console (apps/admin) calls payment server-side, east-west on
-# the server port, bypassing the /api edge (ADR-0012). `orders` covers the checkout
-# saga: the orders worker's ChargeActivity dials payment east-west (ADR-0006).
+# the server port, bypassing the /api edge (ADR-0401). `orders` covers the checkout
+# saga: the orders worker's ChargeActivity dials payment east-west (ADR-0302).
 networkPolicy: { allowFrom: [lowdefy, orders] }
 secrets: { envFrom: [payment-db, openfga-creds] }
 env:
-  # Write authz (ADR-0010): the server gates the operator-only refund via the shared
+  # Write authz (ADR-0304): the server gates the operator-only refund via the shared
   # Checker. Blank preshared key falls back to openfga-creds.preshared_key (envFrom),
   # as catalog and the authz service do.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"

@@ -1,4 +1,4 @@
-// Kratos self-service login flow (ADR-0010, ADR-0014). Public route under
+// Kratos self-service login flow (ADR-0304, ADR-0400). Public route under
 // (landing); the shared KratosFlow component renders the flow.
 import Link from "next/link";
 import { KratosFlow } from "@/components/auth/KratosFlow";

@@ -1,4 +1,4 @@
-// Package authz is the shared OpenFGA client wrapper (ADR-0010). Services never
+// Package authz is the shared OpenFGA client wrapper (ADR-0304). Services never
 // import openfga/go-sdk directly; they call Checker.Allowed(...). A depguard rule
 // (.golangci.yml) enforces this — the SDK is confined to this package.
 package authz
@@ -39,7 +39,7 @@ type fga struct {
 // New dials the cluster OpenFGA and returns a value satisfying both Checker and Granter.
 //
 // OPENFGA_API_URL and the preshared key (OPENFGA_PRESHARED_KEY, or the SOPS
-// secret's native key `preshared_key` — ADR-0005) drive the connection. The
+// secret's native key `preshared_key` — ADR-0202) drive the connection. The
 // store ID is taken from OPENFGA_STORE_ID if set, else discovered by name on
 // first use — so New() never blocks on OpenFGA being reachable at startup.
 func New() (Checker, error) {
@@ -57,7 +57,7 @@ func dial() (*fga, error) {
 		apiURL = "http://openfga.platform.svc.cluster.local:8080"
 	}
 	// Fall back to the SOPS secret's native key name (openfga-creds.preshared_key,
-	// ADR-0005) so a consumer can mount that Secret with envFrom unmodified.
+	// ADR-0202) so a consumer can mount that Secret with envFrom unmodified.
 	key := os.Getenv("OPENFGA_PRESHARED_KEY")
 	if key == "" {
 		key = os.Getenv("preshared_key")

@@ -263,7 +263,7 @@
         "tags": [
           "orders"
         ],
-        "description": "Starts the Checkout Temporal saga (ADR-0006).",
+        "description": "Starts the Checkout Temporal saga (ADR-0302).",
         "requestBody": {
           "required": true,
           "description": "The checkout to start.",
@@ -331,7 +331,7 @@
     "/orders/{id}/cancel": {
       "post": {
         "operationId": "cancelOrder",
-        "description": "Cancel an order. Starts the CancelOrder workflow (ADR-0006).",
+        "description": "Cancel an order. Starts the CancelOrder workflow (ADR-0302).",
         "tags": [
           "orders"
         ],
@@ -593,7 +593,7 @@
         "tags": [
           "charges"
         ],
-        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0006).\n",
+        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0302).\n",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -671,7 +671,7 @@
     "/charges/{id}/refund": {
       "post": {
         "operationId": "refundCharge",
-        "description": "Refund a settled charge. Starts the Refund workflow (ADR-0006).",
+        "description": "Refund a settled charge. Starts the Refund workflow (ADR-0302).",
         "tags": [
           "charges"
         ],

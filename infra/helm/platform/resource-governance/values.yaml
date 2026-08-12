@@ -1,5 +1,5 @@
-# ADR-0020 guardrails. Every number here has a measured basis, taken on
-# 2026-07-26 from cluster:full under the ADR-0027 load suite (browse @160 VUs,
+# ADR-0204 guardrails. Every number here has a measured basis, taken on
+# 2026-07-26 from cluster:full under the ADR-0601 load suite (browse @160 VUs,
 # checkout @40 VUs). Re-derive with `mise run perf:stress` + the `load-test`
 # Grafana dashboard's cost table rather than by taste.
 
@@ -126,7 +126,7 @@ resourceQuotas:
     requestsMemory: 4Gi
     limitsMemory: 8Gi
   # kube-system has NO quota, and this is a deliberate, documented gap rather than
-  # an oversight (ADR-0020 §Consequences). A ResourceQuota rejects pod CREATION
+  # an oversight (ADR-0204 §Consequences). A ResourceQuota rejects pod CREATION
   # once the cap is reached. In kube-system the pods being rejected would be the
   # CNI DaemonSet, CoreDNS and the ingress controller — and the recourse for a
   # rejected system pod is a working cluster, which is precisely what you no longer
@@ -148,7 +148,7 @@ podDisruptionBudgets:
     minAvailable: 1
     selector: { cnpg.io/poolerName: postgres-pgbouncer-rw }
     rationale: >-
-      The connection pooler fronts every service's database access (ADR-0007).
+      The connection pooler fronts every service's database access (ADR-0300).
       Runs 2 replicas locally, so a drain may take one at a time but never both.
 
   # ── Declared, disabled: single-replica on the local tier ──
@@ -189,7 +189,7 @@ podDisruptionBudgets:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: openfga }
-    rationale: Every authz-relevant read blocks on it (ADR-0010).
+    rationale: Every authz-relevant read blocks on it (ADR-0304).
   ory-oathkeeper:
     enabled: false
     minAvailable: 1

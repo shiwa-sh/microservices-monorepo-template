@@ -1,6 +1,6 @@
 apiVersion: v2
 name: cilium
-description: CNI + network policy + Hubble observability (ADR-0003).
+description: CNI + network policy + Hubble observability (ADR-0206).
 type: application
 version: 0.1.0
 appVersion: "1.19.5"

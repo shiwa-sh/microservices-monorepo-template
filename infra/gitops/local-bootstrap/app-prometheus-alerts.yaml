@@ -1,4 +1,4 @@
-# Local Prometheus alerts Application (ADR-0011, ADR-0016). Local counterpart to
+# Local Prometheus alerts Application (ADR-0500, ADR-0205). Local counterpart to
 # bootstrap/app-prometheus-alerts.yaml: a Kustomize app that generates the
 # `prometheus-alerts` ConfigMap from infra/observability/alerts/*.yaml for the
 # observability chart to mount into Prometheus (rule_files). Makes alerts-as-code

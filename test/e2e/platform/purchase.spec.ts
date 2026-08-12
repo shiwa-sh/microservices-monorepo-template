@@ -1,11 +1,11 @@
-// The full purchase scenario, end to end through the real UIs (ADR-0018) — the
+// The full purchase scenario, end to end through the real UIs (ADR-0601) — the
 // gauge no single-service test covers: two humans, two apps, the checkout saga and
 // the observability plane, all exercised in one path.
 //
 //   1. an OPERATOR adds a product in the Lowdefy admin console (lowdefy.ops);
 //   2. a fresh SHOPPER self-service registers on the storefront and logs in;
 //   3. the shopper checks out that product on /panel/checkout — POST /orders starts
-//      the Checkout saga (catalog lookup → payment charge → confirm, ADR-0006) and
+//      the Checkout saga (catalog lookup → payment charge → confirm, ADR-0302) and
 //      the page polls the order to a terminal status;
 //   4. the checkout is observable: the order's trace stitched across orders, catalog
 //      and payment (Tempo), proving the request was tracked end to end.

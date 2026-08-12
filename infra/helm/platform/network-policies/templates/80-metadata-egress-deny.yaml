@@ -1,4 +1,4 @@
-## Explicit deny of the cloud metadata endpoint (ADR-0003). Default-deny egress
+## Explicit deny of the cloud metadata endpoint (ADR-0206). Default-deny egress
 ## already blocks unrequested internet egress, but a deny policy takes precedence
 ## over any allow, so even a future broad `world` egress grant cannot become an
 ## SSRF path to instance credentials (the Capital One shape). Clusterwide so it

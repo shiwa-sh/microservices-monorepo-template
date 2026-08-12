@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info: { title: payment, version: 0.1.0, description: Payment charge and settlement service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
 # scaffolds pages for. Charges are workflow-created and immutable, so the surface
 # is list/detail (read) plus the `refund` action below — no edit/delete.
 tags: [{ name: charges, x-admin: crud }]
@@ -9,7 +9,7 @@ paths:
   /charges:
     get:
       operationId: listCharges
-      # Listing every charge is a back-office view, kept out of public docs (ADR-0008).
+      # Listing every charge is a back-office view, kept out of public docs (ADR-0303).
       x-audience: internal
       description: List all charges.
       tags: [charges]
@@ -21,7 +21,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Charge" }
-                # Served verbatim by the API mock (ADR-0029); the statuses vary so the
+                # Served verbatim by the API mock (ADR-0600); the statuses vary so the
                 # UI has to render every one of them.
                 example:
                   - { id: 7d1e4a95-3c82-4f17-9b06-0f27f7f0f001, order_id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, amount_cents: 259800, status: settled }
@@ -33,7 +33,7 @@ paths:
       tags: [charges]
       description: |
         Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
-        Returns a workflow handle (ADR-0006).
+        Returns a workflow handle (ADR-0302).
       parameters:
         - { name: Idempotency-Key, in: header, required: true, description: Client-generated key that makes the charge request idempotent., schema: { type: string } }
       requestBody:
@@ -61,13 +61,13 @@ paths:
   /charges/{id}/refund:
     post:
       operationId: refundCharge
-      # Operator action (ADR-0012): the future admin-gen emits this as an action
+      # Operator action (ADR-0401): the future admin-gen emits this as an action
       # button/form, not a CRUD page (`x-admin: action`). Edge-reachable first-party
-      # but kept out of the public docs (`internal`, ADR-0008 audience ladder) —
+      # but kept out of the public docs (`internal`, ADR-0303 audience ladder) —
       # refunding is an operator action, not a public self-serve op.
       x-admin: action
       x-audience: internal
-      description: Refund a settled charge. Starts the Refund workflow (ADR-0006).
+      description: Refund a settled charge. Starts the Refund workflow (ADR-0302).
       tags: [charges]
       parameters: [{ name: id, in: path, required: true, description: Id of the charge to refund., schema: { type: string, format: uuid } }]
       requestBody:
@@ -107,7 +107,7 @@ components:
         status: { type: string, enum: [running, completed, failed, cancelled] }
         result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
       # See orders: `running` is what the real 202 returns, and the mock's poll never
-      # progresses past it (ADR-0029).
+      # progresses past it (ADR-0600).
       example: { id: charge-7d1e4a95-3c82-4f17-9b06-0f27f7f0f001, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002, status: running, result_url: /api/charges/7d1e4a95-3c82-4f17-9b06-0f27f7f0f001 }
     ChargeInput:
       type: object

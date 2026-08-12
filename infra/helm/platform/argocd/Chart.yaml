@@ -1,6 +1,6 @@
 apiVersion: v2
 name: argocd
-description: ArgoCD with App-of-Apps bootstrap (ADR-0004).
+description: ArgoCD with App-of-Apps bootstrap (ADR-0201).
 type: application
 version: 0.1.0
 appVersion: "3.4.4"

@@ -14,7 +14,7 @@ temporal:
     additionalEnv:
       - name: TEMPORAL_VERSION_CHECK_DISABLED
         value: "true"
-    # ADR-0020, sized from measurement (2026-07-26, ADR-0027 checkout load @40 VUs).
+    # ADR-0204, sized from measurement (2026-07-26, ADR-0601 checkout load @40 VUs).
     # Baseline for every role; the per-role blocks below override where measurement
     # says the roles differ, which they do by an order of magnitude.
     #
@@ -28,7 +28,7 @@ temporal:
       limits:   { memory: "512Mi" }
     frontend:
       # Measured: 101Mi, 375m CPU peak. Every workflow start and query enters here,
-      # so the CPU is bursty and deliberately unlimited (ADR-0020).
+      # so the CPU is bursty and deliberately unlimited (ADR-0204).
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
@@ -38,7 +38,7 @@ temporal:
       # workflow mutable state and shard ownership, so every workflow transition is
       # its work.
       #
-      # This is the single strongest argument for ADR-0020's no-CPU-limits rule: a
+      # This is the single strongest argument for ADR-0204's no-CPU-limits rule: a
       # naive 500m limit here (the value our service chart used to carry) would
       # throttle it to a quarter of its measured need and surface as checkout
       # settle-time collapsing, with no OOM and no error to point at. Verify with

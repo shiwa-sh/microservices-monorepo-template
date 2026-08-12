@@ -1,4 +1,4 @@
-// Command lint-api-audience is the audience↔exposure gate (ADR-0008). The audience
+// Command lint-api-audience is the audience↔exposure gate (ADR-0303). The audience
 // ladder — cluster → internal → public — is a per-operation label (resolved from the
 // operation's own x-audience, else the service default info.x-audience, else the
 // fail-closed `cluster`). A service is edge-exposed iff it has at least one operation
@@ -9,7 +9,7 @@
 //
 // Edge exposure is read from the canonical dev gitops values (ingress.resources is
 // identical across envs). A control-plane/decision service with no spec (e.g. authz,
-// ADR-0008) has no audience and is exempt: it simply has no openapi.yaml to glob.
+// ADR-0303) has no audience and is exempt: it simply has no openapi.yaml to glob.
 package main
 
 import (
@@ -53,7 +53,7 @@ func main() {
 		problems = append(problems, check(svc, auds, exposed)...)
 	}
 	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ API audience does not match edge exposure (ADR-0008):")
+		_, _ = fmt.Fprintln(os.Stderr, "✗ API audience does not match edge exposure (ADR-0303):")
 		for _, p := range problems {
 			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
 		}

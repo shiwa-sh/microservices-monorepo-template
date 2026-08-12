@@ -1,4 +1,4 @@
-// MinIO console operator dashboard (ADR-0011, ADR-0016) — non-prod object store,
+// MinIO console operator dashboard (ADR-0500, ADR-0205) — non-prod object store,
 // gated at minio.ops.<host> (dashboard:minio#view) and rendering behind a real
 // AAL2 operator session. Like Grafana, the console keeps its own login behind the
 // Kratos gate, so the gauge asserts its shell paints, not a post-login view.

@@ -1,4 +1,4 @@
-// Kratos self-service verification flow (ADR-0010, ADR-0014). Public route under
+// Kratos self-service verification flow (ADR-0304, ADR-0400). Public route under
 // (landing); confirms ownership of the email via a code (delivery needs a wired
 // SMTP sink). The shared KratosFlow component renders the flow.
 import Link from "next/link";

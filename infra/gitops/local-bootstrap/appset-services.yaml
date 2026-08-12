@@ -1,4 +1,4 @@
-# Local Services ApplicationSet (ADR-0004, ADR-0016). Identical to
+# Local Services ApplicationSet (ADR-0201, ADR-0205). Identical to
 # bootstrap/appset-services.yaml except the list generator carries a single
 # { env: local } element and the git-files generator reads the local service
 # values (infra/gitops/services/local/values/*.yaml). One Application per service,
@@ -59,7 +59,7 @@ spec:
         syncOptions: [CreateNamespace=true, ServerSideApply=true]
         # Retry on failure — automated+selfHeal won't re-run a sync that errored
         # on the same commit; without this a transient repo-server/network blip
-        # parks the generated app until a manual sync. Caps at 2m (ADR-0004).
+        # parks the generated app until a manual sync. Caps at 2m (ADR-0201).
         retry:
           limit: 20
           backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

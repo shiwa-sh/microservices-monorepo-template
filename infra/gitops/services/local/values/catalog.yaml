@@ -1,24 +1,24 @@
-# Local full-tier values for the catalog service (ADR-0016). See orders.yaml for
+# Local full-tier values for the catalog service (ADR-0205). See orders.yaml for
 # the secret-naming note (catalog-db = local SopsSecret resource).
 name: catalog
 image:
   repository: k3d-registry.localhost:5000/catalog-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0002)
+  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:  { enabled: false }
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [products] }
 # The Lowdefy admin console (apps/admin) calls catalog server-side, east-west on
-# the server port, bypassing the /api edge (ADR-0012). allowFromGateway only
+# the server port, bypassing the /api edge (ADR-0401). allowFromGateway only
 # covers Traefik → /api/products, so the console must be allowed explicitly.
 # `orders` covers the checkout saga: the orders worker's LookupProductActivity
-# dials catalog east-west (ADR-0006), so it must be admitted here too (both the
+# dials catalog east-west (ADR-0302), so it must be admitted here too (both the
 # orders server and worker pods share the app.kubernetes.io/name=orders label).
 networkPolicy: { allowFrom: [lowdefy, orders] }
 otel:    { deployEnv: local }
 secrets: { envFrom: [catalog-db, openfga-creds] }
 env:
-  # Write authz (ADR-0010): dial OpenFGA via the shared Checker. Blank preshared key
+  # Write authz (ADR-0304): dial OpenFGA via the shared Checker. Blank preshared key
   # falls back to openfga-creds.preshared_key (envFrom), as the authz service does.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

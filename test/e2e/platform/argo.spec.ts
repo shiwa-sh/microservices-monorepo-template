@@ -1,4 +1,4 @@
-// Argo CD operator dashboard (ADR-0004) — the GitOps control plane, gated at
+// Argo CD operator dashboard (ADR-0201) — the GitOps control plane, gated at
 // argocd.ops.<host> (dashboard:argocd#view) and rendering behind a real AAL2 operator
 // session. argocd-server runs with server.insecure (TLS terminates at Traefik);
 // its own UI keeps a login behind the Kratos gate, so the gauge asserts the SPA

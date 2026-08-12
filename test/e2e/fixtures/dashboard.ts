@@ -1,4 +1,4 @@
-// Shared "Gated" stage helpers (ADR-0017 edge authz). Each ops dashboard is
+// Shared "Gated" stage helpers (ADR-0306 edge authz). Each ops dashboard is
 // checked with request contexts (no browser): unauthenticated is denied, a bare
 // AAL1 product session is forbidden, and only the AAL2 operator holding the
 // per-tool grant passes Oathkeeper. Accept:*/* takes Oathkeeper's json error

@@ -10,7 +10,7 @@ minio:
   persistence:
     enabled: true
     size: 5Gi
-  # ADR-0020. Measured 2026-07-26: 262Mi working set, 15m CPU. The memory limit was
+  # ADR-0204. Measured 2026-07-26: 262Mi working set, 15m CPU. The memory limit was
   # MISSING here (a request without a limit is half the rule), which left the object
   # store free to grow into the node until the kernel picked a victim.
   resources:

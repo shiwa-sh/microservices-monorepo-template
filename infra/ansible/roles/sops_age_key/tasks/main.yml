@@ -1,5 +1,5 @@
 # Materialize the per-cluster age key as a Kubernetes Secret in the sops
-# namespace (ADR-0005). The private key is held in Ansible Vault.
+# namespace (ADR-0202). The private key is held in Ansible Vault.
 - name: Write age key to disk
   copy:
     dest: /etc/sops/age/keys.txt

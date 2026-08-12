@@ -6,7 +6,7 @@
 ## five service charts is how one of them ends up stale.
 ##
 ## No TLS block: this is an in-cluster address, and pod-to-pod traffic is already
-## encrypted by Cilium's WireGuard transparent encryption (ADR-0003). A deployed
+## encrypted by Cilium's WireGuard transparent encryption (ADR-0206). A deployed
 ## env pointing at Temporal Cloud instead would add `tls.serverName` plus one of
 ## `apiKeySecretRef` / `mutualTLSSecretRef` here — the CRD enforces that those two
 ## are mutually exclusive.

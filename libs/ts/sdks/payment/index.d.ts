@@ -16,7 +16,7 @@ export interface paths {
         put?: never;
         /**
          * @description Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
-         *     Returns a workflow handle (ADR-0006).
+         *     Returns a workflow handle (ADR-0302).
          */
         post: operations["createCharge"];
         delete?: never;
@@ -51,7 +51,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Refund a settled charge. Starts the Refund workflow (ADR-0006). */
+        /** @description Refund a settled charge. Starts the Refund workflow (ADR-0302). */
         post: operations["refundCharge"];
         delete?: never;
         options?: never;

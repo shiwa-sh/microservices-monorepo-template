@@ -1,6 +1,6 @@
 apiVersion: v2
 name: ory
-description: Ory Kratos (identity) + Oathkeeper (edge) + Hydra (OAuth2/OIDC), Postgres-backed (ADR-0009, ADR-0010).
+description: Ory Kratos (identity) + Oathkeeper (edge) + Hydra (OAuth2/OIDC), Postgres-backed (ADR-0305, ADR-0304).
 type: application
 version: 0.1.0
 appVersion: "26.2.0"
@@ -9,13 +9,13 @@ dependencies:
   - name: kratos
     version: "0.62.1"
     repository: https://k8s.ory.sh/helm/charts
-  # Edge identity/access proxy (ADR-0009). Always on: Kratos + Oathkeeper + OpenFGA
+  # Edge identity/access proxy (ADR-0305). Always on: Kratos + Oathkeeper + OpenFGA
   # is the internal-only default stack.
   - name: oathkeeper
     version: "0.62.1"
     repository: https://k8s.ory.sh/helm/charts
     condition: oathkeeper.enabled
-  # Hydra is a public-API add-on (ADR-0009); deployed only when hydra_thirdparty
+  # Hydra is a public-API add-on (ADR-0305); deployed only when hydra_thirdparty
   # is on. Off by default for internal-only projects.
   - name: hydra
     version: "0.62.1"

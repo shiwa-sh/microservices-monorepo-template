@@ -32,7 +32,7 @@ spec:
         # Service port 80 that fronts it — the edge connects to targetPort http=3000.
         - ports: [{ port: "3000", protocol: TCP }]
 ---
-## Headlamp — k8s debug UI (ADR-0024), reached only through the edge (4466).
+## Headlamp — k8s debug UI (ADR-0501), reached only through the edge (4466).
 ## A no-op selector when the chart is disabled (no headlamp pods exist).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -49,7 +49,7 @@ spec:
         # Enforced on the pod's real containerPort 4466, not the Service port 80.
         - ports: [{ port: "4466", protocol: TCP }]
 ---
-## pgweb — DB inspector (ADR-0012), reached only through the edge (8081).
+## pgweb — DB inspector (ADR-0401), reached only through the edge (8081).
 ## A no-op selector when the chart is disabled (no pgweb pods exist).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

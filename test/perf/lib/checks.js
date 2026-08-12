@@ -1,4 +1,4 @@
-// Shared response assertions for k6 scenarios (ADR-0027).
+// Shared response assertions for k6 scenarios (ADR-0601).
 //
 // A k6 `check` records a pass/fail rate but — unlike a test assertion — does NOT
 // fail the run on its own. That is deliberate here: under load some failures are

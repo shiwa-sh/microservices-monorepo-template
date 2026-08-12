@@ -1,8 +1,8 @@
 {{- if .Values.networkPolicy.enabled }}
-# Default-deny NetworkPolicy (ADR-0003, ADR-0010). Selecting the service's pods
+# Default-deny NetworkPolicy (ADR-0206, ADR-0304). Selecting the service's pods
 # with both policyTypes makes everything not explicitly allowed below denied.
 # Internal header-trust rests on this: only declared callers can reach a service
-# and spoof identity headers (ADR-0009). Each service declares its allowed
+# and spoof identity headers (ADR-0305). Each service declares its allowed
 # callers via .Values.networkPolicy.allowFrom.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -22,7 +22,7 @@ spec:
         - { port: {{ .Values.server.port }}, protocol: TCP }
     {{- end }}
     {{- with .Values.networkPolicy.allowFrom }}
-    # Service-to-service callers this service accepts (ADR-0006 internal calls
+    # Service-to-service callers this service accepts (ADR-0302 internal calls
     # bypass the edge and forward identity headers; reachability is gated here).
     - from:
         {{- range . }}

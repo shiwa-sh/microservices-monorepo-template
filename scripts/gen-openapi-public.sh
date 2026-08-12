@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Emit the developer-portal spec projections the Scalar-rendered portals consume
-# (ADR-0008, ADR-0009, ADR-0014). Each projection is ONE merged OpenAPI document,
-# not a file per service: the flat /api/<resource> namespace (ADR-0017) hides
+# (ADR-0303, ADR-0305, ADR-0400). Each projection is ONE merged OpenAPI document,
+# not a file per service: the flat /api/<resource> namespace (ADR-0306) hides
 # service topology, so the portal is a single unified reference grouped by resource
 # tag — no per-service document switcher.
 #
-# The audience ladder (ADR-0008) is a single per-operation label — cluster →
+# The audience ladder (ADR-0303) is a single per-operation label — cluster →
 # internal → public — resolved from the operation's own `x-audience`, else the
 # service default (`info.x-audience`), else the fail-closed `cluster`. Projections
 # are a threshold on that ladder:

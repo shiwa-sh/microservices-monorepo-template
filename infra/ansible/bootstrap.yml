@@ -1,4 +1,4 @@
-# Cluster bootstrap playbook (ADR-0003). Day-one path: run against a committed
+# Cluster bootstrap playbook (ADR-0200). Day-one path: run against a committed
 # inventory of pre-provided hosts — no Terraform in the default bootstrap.
 #   ansible-playbook -i inventory/<env> bootstrap.yml
 #

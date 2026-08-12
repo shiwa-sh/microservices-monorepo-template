@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Add ONE opt-in local dependency component on top of `cluster:base` (ADR-0016,
-# ADR-0030). Backs the `dep:*` mise tasks, which services declare for themselves:
+# Add ONE opt-in local dependency component on top of `cluster:base` (ADR-0205,
+# ADR-0600). Backs the `dep:*` mise tasks, which services declare for themselves:
 #
 #   # services/orders/.mise.toml
 #   [tasks.server]
@@ -17,7 +17,7 @@
 # `mise run server` re-pays a full apply + rollout wait for every dependency, and
 # the model ends up slower than the one it replaced.
 #
-# That guard is the one piece of Garden this repo does not get for free (ADR-0030:
+# That guard is the one piece of Garden this repo does not get for free (ADR-0600:
 # Garden does status checks natively). Hand-rolling it per component would mean one
 # missing check silently costing the inner loop its speed, so it lives here, once,
 # and every component inherits it.

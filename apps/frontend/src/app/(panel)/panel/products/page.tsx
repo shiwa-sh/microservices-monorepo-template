@@ -1,4 +1,4 @@
-// Server component fetches via the server-only fetcher (ADR-0014). Direct
+// Server component fetches via the server-only fetcher (ADR-0400). Direct
 // fetch() to service URLs is lint-forbidden; this path goes through the
 // generated catalog SDK once `mise run gen:openapi` has produced it.
 //

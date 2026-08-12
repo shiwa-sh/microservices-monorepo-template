@@ -1,4 +1,4 @@
-// Headlamp k8s debug UI operator dashboard (ADR-0024) — opt-in, gated at
+// Headlamp k8s debug UI operator dashboard (ADR-0501) — opt-in, gated at
 // headlamp.ops.<host> (dashboard:headlamp#view) and the SPA renders behind a real AAL2
 // operator session. Read-only via the built-in `view` ClusterRole; the gauge
 // asserts the shell paints, not any post-connect view.

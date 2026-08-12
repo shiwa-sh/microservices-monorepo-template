@@ -1,7 +1,7 @@
 apiVersion: v2
 name: resource-governance
 description: |
-  The ADR-0020 guardrails: PriorityClass tiers, per-namespace LimitRange and
+  The ADR-0204 guardrails: PriorityClass tiers, per-namespace LimitRange and
   ResourceQuota, and PodDisruptionBudgets for the stateful/multi-replica Core.
 
   Why these live in one chart in the BASE tier, next to network-policies: every

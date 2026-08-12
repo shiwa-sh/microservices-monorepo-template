@@ -22,7 +22,7 @@ spec:
             - { port: "7235", protocol: TCP }
             - { port: "7239", protocol: TCP }
     # otel-cluster scrapes each server role's Prometheus endpoint (metrics port
-    # 9090) and re-exports over OTLP (ADR-0011: Prometheus itself scrapes
+    # 9090) and re-exports over OTLP (ADR-0500: Prometheus itself scrapes
     # nothing) — the temporal component metrics on the dashboards.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
@@ -79,7 +79,7 @@ spec:
 ## that pod's ingress policy — which admits only its server and admin ports — and
 ## 100% of the cluster's POLICY_DENIED drops were temporal → payment-worker:6933,
 ## firing PolicyDropsDetected indefinitely. The versioned worker deployments
-## (ADR-0006) make this likelier, not rarer: every build ID mints a Deployment and
+## (ADR-0302) make this likelier, not rarer: every build ID mints a Deployment and
 ## retires another, so pod IPs churn constantly.
 ##
 ## Any pod can inherit such an IP, so the selector is every endpoint in the
@@ -111,7 +111,7 @@ spec:
 ## like temporal being denied to Postgres. The policy rule can say "6933-6939
 ## only"; the alert cannot. The allow is the more precise instrument, and keeping
 ## PolicyDropsDetected meaningful is the point — it is the tripwire for silent
-## netpol regressions (ADR-0011), and an alert that is always firing is one that
+## netpol regressions (ADR-0500), and an alert that is always firing is one that
 ## has already been turned off.
 ##
 ## Membership ports only. Ringpop's healer dials the MEMBERSHIP port; RPC (72xx)

@@ -1,4 +1,4 @@
-# k3s-bundled Traefik tuning for local `cluster:full` (ADR-0009). The bundled
+# k3s-bundled Traefik tuning for local `cluster:full` (ADR-0305). The bundled
 # Traefik disables cross-namespace IngressRoute references by default; platform
 # routes need them to target the Hubble UI service in kube-system and
 # Argo CD in `argocd` (infra/gateway/ingressroutes.yaml). Prod runs its own Traefik (the ansible

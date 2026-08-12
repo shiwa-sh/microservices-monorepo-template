@@ -15,7 +15,7 @@ var _ Handler = UnimplementedHandler{}
 
 // CancelOrder implements cancelOrder operation.
 //
-// Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+// Cancel an order. Starts the CancelOrder workflow (ADR-0302).
 //
 // POST /orders/{id}/cancel
 func (UnimplementedHandler) CancelOrder(ctx context.Context, params CancelOrderParams) (r *WorkflowHandle, _ error) {
@@ -24,7 +24,7 @@ func (UnimplementedHandler) CancelOrder(ctx context.Context, params CancelOrderP
 
 // Checkout implements checkout operation.
 //
-// Starts the Checkout Temporal saga (ADR-0006).
+// Starts the Checkout Temporal saga (ADR-0302).
 //
 // POST /orders
 func (UnimplementedHandler) Checkout(ctx context.Context, req *CheckoutInput) (r *WorkflowHandle, _ error) {

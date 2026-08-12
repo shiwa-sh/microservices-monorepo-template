@@ -1,5 +1,5 @@
 {{/*
-PriorityClass tiers (ADR-0020): platform-critical > product > batch.
+PriorityClass tiers (ADR-0204): platform-critical > product > batch.
 
 These are what make "CPU requests, no CPU limits" safe. Without CPU limits a
 workload may burst into spare capacity — which is the point, since temporal-history

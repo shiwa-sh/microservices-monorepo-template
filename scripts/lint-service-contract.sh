@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The service contract gate (ADR-0016). Every service under services/ must provide
+# The service contract gate (ADR-0205). Every service under services/ must provide
 # the same set of artifacts, because the platform DISCOVERS services through those
 # artifacts rather than through a registry:
 #
@@ -14,7 +14,7 @@
 #
 # The contract is therefore mechanical, and so is this check. Whatever it cannot
 # check (that the declarations are TRUE — that a service listing dep:temporal
-# really uses Temporal) is documented in ADR-0016 as a reviewer's job.
+# really uses Temporal) is documented in ADR-0205 as a reviewer's job.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -49,7 +49,7 @@ for dir in services/*/; do
     }
   done
 
-  # ── Standard task names (ADR-0002) ──────────────────────────────────────────
+  # ── Standard task names (ADR-0101) ──────────────────────────────────────────
   for t in server test lint build; do
     grep -q "^\[tasks\.${t}\]" "${dir}.mise.toml" 2>/dev/null || {
       warn "${svc}: .mise.toml declares no [tasks.${t}]"

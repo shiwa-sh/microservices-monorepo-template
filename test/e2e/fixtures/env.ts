@@ -1,4 +1,4 @@
-// Shared e2e environment constants (ADR-0017 topology). Host-agnostic: override
+// Shared e2e environment constants (ADR-0306 topology). Host-agnostic: override
 // E2E_HOST to point the suite at a deployed env; defaults to the local edge.
 import path from "node:path";
 
@@ -6,7 +6,7 @@ import path from "node:path";
 export const HOST = process.env.E2E_HOST ?? "dev.localtest.me:8443";
 export const BASE_URL = `https://${HOST}`;
 
-// Operator dashboards each live on their own origin `{tool}.ops.<host>` (ADR-0017).
+// Operator dashboards each live on their own origin `{tool}.ops.<host>` (ADR-0306).
 export const opsURL = (tool: string): string => `https://${tool}.ops.${HOST}`;
 
 // Kratos self-service login UI (rendered by apps/frontend KratosFlow).

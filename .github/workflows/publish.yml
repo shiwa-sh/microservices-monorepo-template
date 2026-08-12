@@ -1,4 +1,4 @@
-# Build + push container images on every merge to master (ADR-0002, ADR-0004).
+# Build + push container images on every merge to master (ADR-0101, ADR-0201).
 # Images are tagged <service>:<git-sha>. Promotion to env values files happens
 # in promote-on-merge.yml (dev/staging) and promote-on-release.yml (prod).
 name: publish
@@ -51,7 +51,7 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
-          # Bake the build identity (ADR-0013): the commit SHA the pod will
+          # Bake the build identity (ADR-0103): the commit SHA the pod will
           # self-report via /version and the X-App-Version header. BUILD_VERSION
           # stays "dev" for master builds; prod's CalVer is stamped on release.
           build-args: |
@@ -70,7 +70,7 @@ jobs:
   # differs per app (the frontend builds from the repo root, scoped by its
   # Dockerfile.dockerignore; the admin from apps/admin, since the root
   # .dockerignore excludes apps/), so it is resolved per app below. The build SHA
-  # is baked as SERVICE_VERSION (ADR-0013).
+  # is baked as SERVICE_VERSION (ADR-0103).
   apps:
     needs: affected
     if: ${{ needs.affected.outputs.apps != '[]' }}

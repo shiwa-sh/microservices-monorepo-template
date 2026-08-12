@@ -1,4 +1,4 @@
-# The k6 island (ADR-0027). Same containment idiom as test/e2e/.mise.toml (Node) and
+# The k6 island (ADR-0601). Same containment idiom as test/e2e/.mise.toml (Node) and
 # infra/ansible/.mise.toml (Ansible): the tool is pinned NEXT TO the only code
 # that uses it, not in the root [tools], so a developer running `lint`, `test` or
 # `cluster:full` never installs a load generator they are not using.
@@ -40,7 +40,7 @@ bash run.sh checkout load
 
 [tasks.stress]
 # Ramp past the knee. Thresholds are EXPECTED to break; the finding is the step
-# at which they broke. Run before a sizing or HPA decision (ADR-0020).
+# at which they broke. Run before a sizing or HPA decision (ADR-0204).
 description = "Ramp to saturation — find the knee. Thresholds are expected to fail."
 run = """
 bash run.sh browse stress

@@ -36,7 +36,7 @@ func (c *codeRecorder) Unwrap() http.ResponseWriter {
 // handleCreateChargeRequest handles createCharge operation.
 //
 // Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-// (ADR-0006).
+// (ADR-0302).
 //
 // POST /charges
 func (s *Server) handleCreateChargeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -494,7 +494,7 @@ func (s *Server) handleListChargesRequest(args [0]string, argsEscaped bool, w ht
 
 // handleRefundChargeRequest handles refundCharge operation.
 //
-// Refund a settled charge. Starts the Refund workflow (ADR-0006).
+// Refund a settled charge. Starts the Refund workflow (ADR-0302).
 //
 // POST /charges/{id}/refund
 func (s *Server) handleRefundChargeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

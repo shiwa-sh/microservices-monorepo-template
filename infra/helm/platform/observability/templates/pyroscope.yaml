@@ -1,4 +1,4 @@
-# Pyroscope (ADR-0025 POC — continuous profiling). Single-binary monolith
+# Pyroscope (ADR-0501 POC — continuous profiling). Single-binary monolith
 # (-target=all), filesystem storage on an emptyDir (POC; a real deployment uses the
 # off-cluster bucket like Loki/Tempo). Profiles are PUSHED here by the Alloy agent
 # (templates/alloy.yaml); Grafana queries it as the Pyroscope datasource. Ingress is

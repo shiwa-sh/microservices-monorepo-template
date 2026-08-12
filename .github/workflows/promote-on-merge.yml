@@ -1,5 +1,5 @@
 # Auto-bump dev + staging values files to the latest image SHA on master merges
-# (ADR-0004). Opens (and auto-merges) a PR per affected service.
+# (ADR-0201). Opens (and auto-merges) a PR per affected service.
 name: promote-on-merge
 
 on:
@@ -28,10 +28,10 @@ jobs:
       - name: Bump dev + staging values
         run: |
           SHA="${{ github.event.workflow_run.head_sha }}"
-          # Most services and apps (the frontend is an app, ADR-0014) share the
+          # Most services and apps (the frontend is an app, ADR-0400) share the
           # infra/gitops/services/<env>/values/<name>.yaml layout, bumped by SHA tag
           # in dev/staging (prod pins by digest — promote-on-release). The admin
-          # console is the exception: it is a platform chart (lowdefy, ADR-0012), so
+          # console is the exception: it is a platform chart (lowdefy, ADR-0401), so
           # its image lives at .lowdefy.image.tag in the platform overlay.
           jq -r '.services[], .apps[]' /tmp/affected.json | while read -r name; do
             for env in dev staging; do

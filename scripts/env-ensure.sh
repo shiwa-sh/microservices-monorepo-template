@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Guard the inner loop's one silent failure (ADR-0016). Run from a service
+# Guard the inner loop's one silent failure (ADR-0205). Run from a service
 # directory, as a dependency of that service's `server`/`worker`/`migrate` tasks.
 #
 # mise TOLERATES a missing `_.file = ".env"` — it does not warn, it just resolves

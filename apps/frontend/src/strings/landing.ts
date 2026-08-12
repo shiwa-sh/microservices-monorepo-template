@@ -1,4 +1,4 @@
-// User-facing strings for the (landing) route group (ADR-0014). One file per
+// User-facing strings for the (landing) route group (ADR-0400). One file per
 // route group; migration to next-intl is mechanical when a non-English locale
 // lands on the roadmap.
 export const landing = {
@@ -40,7 +40,7 @@ export const landing = {
   },
   settings: {
     // The settings flow also carries TOTP/WebAuthn enrolment for operator MFA
-    // (AAL2, ADR-0010) — the QR code, secret and security-key buttons render here.
+    // (AAL2, ADR-0304) — the QR code, secret and security-key buttons render here.
     title: "Account settings & security",
     starting: "Starting Kratos settings flow…",
     submit: "Save",

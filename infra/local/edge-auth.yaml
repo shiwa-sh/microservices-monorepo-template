@@ -1,4 +1,4 @@
-# Local-only edge wiring for the Kratos login flow (ADR-0009/0010/0014). Unlike
+# Local-only edge wiring for the Kratos login flow (ADR-0305/0010/0014). Unlike
 # prod, the frontend is NOT deployed in-cluster locally — it runs on the host via
 # `next dev`. Serving it (and the Kratos public API) from the same origin as the
 # edge, https://dev.localtest.me:8443, is what keeps the ory_kratos_session cookie

@@ -1,4 +1,4 @@
-// Package apierr defines the platform-wide HTTP error format (ADR-0008).
+// Package apierr defines the platform-wide HTTP error format (ADR-0303).
 // Every service returns this shape on 4xx and 5xx responses. The same shape is
 // declared as the Error response in each service's OpenAPI spec; this Go type
 // implements it.

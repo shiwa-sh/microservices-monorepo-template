@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install Cilium as the CNI on the local cluster (ADR-0003). A CNI must exist
+# Install Cilium as the CNI on the local cluster (ADR-0206). A CNI must exist
 # before any pod (including ArgoCD) can schedule, so this runs imperatively for
 # both local tiers and is excluded from the local platform ApplicationSet. k3d
 # keeps kube-proxy, so kubeProxyReplacement is off; one operator replica (the
@@ -28,7 +28,7 @@ fi
 echo "→ installing Cilium (apiserver 127.0.0.1:6443)"
 helm dependency update infra/helm/platform/cilium >/dev/null
 
-# Local runs the chart as-is, including WireGuard transparent encryption (ADR-0003)
+# Local runs the chart as-is, including WireGuard transparent encryption (ADR-0206)
 # for east-west PII posture — same datapath as prod, so no local/prod parity gap.
 h upgrade --install cilium infra/helm/platform/cilium -n kube-system \
   --set cilium.kubeProxyReplacement=false \

@@ -1,4 +1,4 @@
-// Server-side logger (ADR-0011, ADR-0014). Structured JSON to stdout via pino,
+// Server-side logger (ADR-0500, ADR-0400). Structured JSON to stdout via pino,
 // enriched with the active span's trace_id when available.
 import "server-only";
 
@@ -10,7 +10,7 @@ export const log = pino({
     service: "frontend",
     version: process.env.SERVICE_VERSION ?? "dev",
   },
-  // Render JSON; no pretty-printing in prod. stdout-first per ADR-0011.
+  // Render JSON; no pretty-printing in prod. stdout-first per ADR-0500.
   formatters: {
     level: (label) => ({ level: label }),
   },

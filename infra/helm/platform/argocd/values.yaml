@@ -8,7 +8,7 @@ argo-cd:
       kustomize.buildOptions: "--enable-helm"
       timeout.reconciliation: "60s"
       # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator
-      # holding dashboard:argocd#view, ADR-0017). Argo trusts it and serves
+      # holding dashboard:argocd#view, ADR-0306). Argo trusts it and serves
       # anonymously instead of running a second, redundant login — the same stance
       # Grafana takes (infra/helm/platform/observability/values.yaml). Only AAL2
       # operators ever reach this origin; the anonymous role is set by rbac
@@ -17,7 +17,7 @@ argo-cd:
       # ArgoCD's built-in health for ApplicationSet only reflects successful
       # templating ("all Applications generated"), not whether the Applications
       # it spawned actually synced and became healthy. That default makes
-      # sync-wave gating on an ApplicationSet a no-op — the ADR-0004 root
+      # sync-wave gating on an ApplicationSet a no-op — the ADR-0201 root
       # app-of-apps (root(-local)) relies on the platform ApplicationSets
       # (platform-base wave 0, platform-data wave 2, platform-core wave 3) truly
       # blocking each other and the gateway/services waves until every platform
@@ -45,7 +45,7 @@ argo-cd:
       # unknown CRD Healthy the instant its manifest applies — so the data-tier
       # ApplicationSet (postgres) would gate-close before the database is actually
       # accepting connections, and the core tier (ory/temporal/openfga/pgweb,
-      # ADR-0004 wave 3) would start against a not-yet-ready Postgres. Report
+      # ADR-0201 wave 3) would start against a not-yet-ready Postgres. Report
       # Healthy only when the operator says the cluster is up with all instances
       # ready.
       resource.customizations.health.postgresql.cnpg.io_Cluster: |
@@ -74,7 +74,7 @@ argo-cd:
       policy.default: role:admin
   server:
     service: { type: ClusterIP }
-  redis-ha: { enabled: false }         # 3-node embedded etcd; HA Redis is overkill (ADR-0003)
+  redis-ha: { enabled: false }         # 3-node embedded etcd; HA Redis is overkill (ADR-0200)
   redis:
     # Chart defaults to the ecr-public.aws.com vanity host, which only publishes
     # AAAA records; pin the canonical public.ecr.aws mirror (identical image,

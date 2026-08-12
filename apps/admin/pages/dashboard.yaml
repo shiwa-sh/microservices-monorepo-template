@@ -14,7 +14,7 @@ blocks:
         button, and rows you click to open a dedicated **edit** page (save or delete).
 
         The pages under each service are generated from the service OpenAPI specs by
-        `tools/admin-gen` (ADR-0012). This landing page is hand-written — the kind of
+        `tools/admin-gen` (ADR-0401). This landing page is hand-written — the kind of
         cross-service view the generator does not produce.
 
         **Resources**

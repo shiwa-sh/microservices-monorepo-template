@@ -1,4 +1,4 @@
-# SOPS recipient rules (ADR-0005).
+# SOPS recipient rules (ADR-0202).
 # `name`s are placeholders — replace with real age public keys before use.
 # Engineer keys are added per-PR via `mise run secrets:age` onboarding.
 
@@ -12,7 +12,7 @@ keys:
   - &cluster_prod    age1example0cluster0prod0000000000000000000000000000000000000000
 
   # `local` is the one exception to "private half lives only in that cluster"
-  # (ADR-0016): there is no bootstrap step to materialise it, so the private
+  # (ADR-0205): there is no bootstrap step to materialise it, so the private
   # key is committed at infra/gitops/platform/local/age.key. Throwaway values
   # only — never reuse this key pair for a real environment.
   - &cluster_local   age1aapmzzzcs8qm2n9exkel8vtknqsmy9t3k9g99wpypfez8av4uaps0f9gpp

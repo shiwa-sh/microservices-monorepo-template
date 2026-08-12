@@ -107,7 +107,7 @@ spec:
 ## Pyroscope — profile pushes from the Alloy agent, queries from Grafana (4040).
 ## The scrape path (Alloy → service admin ports) needs no rule here: services grant
 ## platform-namespace ingress to their admin port, and the baseline policy grants
-## intra-namespace egress (ADR-0025 POC).
+## intra-namespace egress (ADR-0501 POC).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -123,7 +123,7 @@ spec:
       toPorts:
         - ports: [{ port: "4040", protocol: TCP }]
 ---
-## Alloy — the pprof scraper (ADR-0025). Its egress to live pods is already
+## Alloy — the pprof scraper (ADR-0501). Its egress to live pods is already
 ## covered by the baseline's intra-namespace rule; this adds the same reachability
 ## by CIDR so a target that was deleted between two service-discovery refreshes
 ## does not read as `world` and get denied.

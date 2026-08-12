@@ -2,7 +2,7 @@
 # platform ApplicationSet's single per-env values overlay without its `image` key
 # colliding with the openfga chart, which also reads a top-level `.Values.image`.
 lowdefy:
-  # ADR-0020. Measured 2026-07-26: 263Mi working set, 165m CPU. Explicit rather than
+  # ADR-0204. Measured 2026-07-26: 263Mi working set, 165m CPU. Explicit rather than
   # left to the namespace LimitRange default, whose 64Mi request is 4x too small
   # here — a Node.js server that requests 64Mi and uses 263Mi is exactly how a node
   # gets overcommitted and then starts evicting things that did declare honestly.
@@ -20,5 +20,5 @@ lowdefy:
 
   env:
     LOWDEFY_BUILD_OUT_DIR: /app/build
-    # The gateway forwards an authenticated identity header (ADR-0012).
+    # The gateway forwards an authenticated identity header (ADR-0401).
     LOWDEFY_REQ_HEADER_USER: x-user-email

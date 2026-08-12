@@ -1,4 +1,4 @@
-# Local values for the frontend (ADR-0016, ADR-0030).
+# Local values for the frontend (ADR-0205, ADR-0600).
 #
 # This file is what makes `mise run cluster:add -- frontend` possible at all — the
 # frontend was previously the ONLY service with no local values, so service-deploy.sh

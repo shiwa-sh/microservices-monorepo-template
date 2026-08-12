@@ -7,22 +7,22 @@ cilium:
   ipam:
     mode: kubernetes
 
-  # WireGuard transparent encryption for all east-west pod traffic (ADR-0003).
+  # WireGuard transparent encryption for all east-west pod traffic (ADR-0206).
   # A config flag, not a sidecar: multi-tenant PII and audit posture do not ship
   # plaintext east-west. Node-to-node only; host-level traffic is out of scope.
   encryption:
     enabled: true
     type: wireguard
 
-  # Hubble gives per-flow network visibility without a sidecar (ADR-0003). It is
-  # the audit surface for internal header-trust (ADR-0009) and the source for the
+  # Hubble gives per-flow network visibility without a sidecar (ADR-0206). It is
+  # the audit surface for internal header-trust (ADR-0305) and the source for the
   # network-flow metrics scraped into Grafana. The flow engine (agent) + relay
   # (aggregation API, used by the `hubble` CLI) stay ON.
   #
-  # The standalone hubble-UI is ON (ADR-0025): it owns the interactive service
+  # The standalone hubble-UI is ON (ADR-0501): it owns the interactive service
   # map + live drop investigation, exposed auth-gated at hubble.ops.<host>
   # (infra/gateway). Grafana owns everything else (RED/SLO/logs/traces/profiling).
-  # Known, accepted trade-offs (ADR-0025): upstream is in maintenance mode (last
+  # Known, accepted trade-offs (ADR-0501): upstream is in maintenance mode (last
   # release v0.13.5, Apr 2024) and it collapses workloads sharing
   # `app.kubernetes.io/name` into one card (all Temporal roles → "temporal").
   # A full eBPF APM suite (Coroot) was evaluated for this slot and rejected —
@@ -41,7 +41,7 @@ cilium:
       # baseUrl at `/`.
       baseUrl: /
     # Flow metrics on the agent at :9965, scraped by the node-local OTel collector
-    # and surfaced in Grafana (ADR-0011, ADR-0025).
+    # and surfaced in Grafana (ADR-0500, ADR-0501).
     #
     # `drop` — Cilium policy verdicts. Hubble UI shows live drops interactively;
     # this metric exists for what the UI can't do — history and alerting
@@ -51,7 +51,7 @@ cilium:
     # broke every checkout.
     #
     # `flow` (every processed connection, the eBPF connection graph) stays OFF —
-    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0025): with
+    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0501): with
     # workload context the client side of most intra-cluster connections resolves to
     # an empty label, so the map collapses into a single unnamed hub with no usable
     # service-to-service edges (measured — 82/391 series with an empty source, zero

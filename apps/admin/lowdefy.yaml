@@ -1,4 +1,4 @@
-# Lowdefy admin (ADR-0012). Pure YAML. Day one, every page under custom/ is
+# Lowdefy admin (ADR-0401). Pure YAML. Day one, every page under custom/ is
 # hand- or LLM-written; the OpenAPI-driven generator (tools/admin-gen, emitting
 # _generated/) is added only when the page count justifies it.
 name: platform-admin
@@ -21,22 +21,22 @@ plugins:
 
 config:
   homePageId: dashboard
-  # Served at the root of its own ops origin lowdefy.ops.<host> (ADR-0017), not
+  # Served at the root of its own ops origin lowdefy.ops.<host> (ADR-0306), not
   # under a product path. basePath is omitted: Lowdefy requires it to start with
   # "/" while Next.js rejects exactly "/", so the only root-valid setting is unset.
   # No Lowdefy auth/session store — access is gated upstream at the ops edge
-  # (Oathkeeper: AAL2 operator holding dashboard:lowdefy#view, ADR-0012/0017).
+  # (Oathkeeper: AAL2 operator holding dashboard:lowdefy#view, ADR-0401/0017).
   # Pages are public to Lowdefy; only authorized operators ever reach this origin.
 
 # One REST connection per service, id == service name so the generated pages
-# (tools/admin-gen, ADR-0012) resolve their connectionId directly. Pages call the
-# service in-cluster, bypassing the /api edge; auth is enforced upstream (ADR-0012).
+# (tools/admin-gen, ADR-0401) resolve their connectionId directly. Pages call the
+# service in-cluster, bypassing the /api edge; auth is enforced upstream (ADR-0401).
 #
 # Identity for writes: a service's write handlers gate on an operator identity
-# (authmw X-User-Id → OpenFGA group:operator, ADR-0009/0010). Lowdefy has no
+# (authmw X-User-Id → OpenFGA group:operator, ADR-0305/0010). Lowdefy has no
 # server operator to relay the operator's inbound X-User-Id, so the console asserts
 # a fixed service-account identity `user:admin-console`, which the OpenFGA seed
-# grants group:operator#member (infra/helm/platform/openfga). This is the ADR-0009
+# grants group:operator#member (infra/helm/platform/openfga). This is the ADR-0305
 # header-trust model: only the console can reach these server ports (NetworkPolicy
 # allowFrom: [lowdefy]), so only it can assert this header. Reads ignore identity.
 connections:
@@ -68,7 +68,7 @@ connections:
 
 # The nav is generated: _generated/menu.yaml is one `default` menu grouping every
 # resource and action page by service, rendered in the PageSiderMenu left sider
-# across the whole console (tools/admin-gen, ADR-0012).
+# across the whole console (tools/admin-gen, ADR-0401).
 menus:
   _ref: _generated/menu.yaml
 

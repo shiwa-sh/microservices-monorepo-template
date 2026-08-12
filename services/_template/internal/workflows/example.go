@@ -1,6 +1,6 @@
 //go:build _template
 
-// One workflow per file, named after the business process (ADR-0006).
+// One workflow per file, named after the business process (ADR-0302).
 package workflows
 
 import (

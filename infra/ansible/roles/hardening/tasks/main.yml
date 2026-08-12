@@ -1,4 +1,4 @@
-# Minimal host hardening (ADR-0003).
+# Minimal host hardening (ADR-0200).
 - name: Disable root SSH login
   lineinfile:
     path: /etc/ssh/sshd_config

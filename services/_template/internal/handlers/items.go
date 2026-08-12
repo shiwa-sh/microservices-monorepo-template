@@ -1,7 +1,7 @@
 //go:build _template
 
 // Handlers implement the ogen-generated server Handler interface from
-// libs/go/sdks/<svc> (ADR-0008). Copy this file when scaffolding a new service;
+// libs/go/sdks/<svc> (ADR-0303). Copy this file when scaffolding a new service;
 // new-service.sh strips the build tag and rewrites _template → <svc>.
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.

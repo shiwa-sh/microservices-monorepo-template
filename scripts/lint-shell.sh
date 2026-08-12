@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shell lint gate (ADR-0002). All glue in this repo is bash, so scripts get the
+# Shell lint gate (ADR-0101). All glue in this repo is bash, so scripts get the
 # same static analysis Go/TS do: shellcheck over every tracked *.sh. `-x` follows
 # the `source lib/log.sh` includes so the shared vocabulary helpers resolve. This
 # is a lint only — formatting lives in `format:shell` (shfmt).

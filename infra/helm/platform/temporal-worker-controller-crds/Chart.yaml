@@ -1,7 +1,7 @@
 apiVersion: v2
 name: temporal-worker-controller-crds
 description: |
-  CRDs for the Temporal Worker Controller (ADR-0006): WorkerDeployment,
+  CRDs for the Temporal Worker Controller (ADR-0302): WorkerDeployment,
   Connection, WorkerResourceTemplate.
 
   Split from the controller chart on purpose, which is also how upstream ships

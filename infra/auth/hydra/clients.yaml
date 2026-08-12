@@ -1,4 +1,4 @@
-# OAuth2 client registrations (ADR-0010). Applied via `hydra create client`
+# OAuth2 client registrations (ADR-0304). Applied via `hydra create client`
 # in a Helm post-sync hook. One client per internal service (s2s) + one per
 # third-party developer as they arrive.
 clients:

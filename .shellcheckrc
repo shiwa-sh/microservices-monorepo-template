@@ -1,4 +1,4 @@
-# shellcheck config (ADR-0002). Scripts source the shared logging vocabulary via
+# shellcheck config (ADR-0101). Scripts source the shared logging vocabulary via
 # a runtime-computed path — `source "$(dirname "$0")/lib/log.sh"` — which
 # shellcheck cannot resolve statically. SCRIPTDIR + external-sources lets it find
 # includes relative to each script; SC1091 (the "not following" info) is silenced

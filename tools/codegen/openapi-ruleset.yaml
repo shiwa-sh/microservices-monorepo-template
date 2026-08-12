@@ -1,4 +1,4 @@
-# OpenAPI 3.1 lint ruleset for all services (ADR-0008). Spectral-format ruleset,
+# OpenAPI 3.1 lint ruleset for all services (ADR-0303). Spectral-format ruleset,
 # run by vacuum (`mise run lint:openapi`). `spectral:oas` is the built-in core ruleset.
 extends:
   - "spectral:oas"
@@ -42,7 +42,7 @@ rules:
       functionOptions:
         type: snake
 
-  # Response examples are load-bearing, not documentation garnish (ADR-0029): the
+  # Response examples are load-bearing, not documentation garnish (ADR-0600): the
   # API mock serves them verbatim to the UI development loop, and the Scalar
   # developer portal renders the same values — one investment, two consumers. Without
   # one, a mocked response is schema-generated: an unconstrained array legitimately
@@ -70,7 +70,7 @@ rules:
       field: tags
       function: truthy
 
-  # admin-gen markers (ADR-0012). The generator reads two `x-admin` markers: `crud`
+  # admin-gen markers (ADR-0401). The generator reads two `x-admin` markers: `crud`
   # on a tag (the resource group) and `action` on an operation. A value in the wrong
   # place — `crud` on an operation, or `action`/typo on a tag — is silently ignored
   # (no admin page), so pin each to its valid value.

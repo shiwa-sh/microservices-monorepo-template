@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Template service
   version: 0.1.0
-  # Audience ladder (ADR-0008): cluster → internal → public, a widening boundary
+  # Audience ladder (ADR-0303): cluster → internal → public, a widening boundary
   # (service-to-service → first-party edge → third-party edge). Fail-closed default
   # is `cluster` (east-west, no edge route). Raise it — here on `info` for the whole
   # service, or per-operation — to `internal` (first-party edge) or `public`
@@ -12,7 +12,7 @@ info:
     Skeleton OpenAPI spec. Copy this file when scaffolding a new service
     (see scripts/new-service.sh) and replace `_template` with the new name.
 servers:
-  # Flat resource namespace (ADR-0017): the server prefix is the shared /api, and
+  # Flat resource namespace (ADR-0306): the server prefix is the shared /api, and
   # paths are globally-unique resource nouns — replace /items with this service's
   # own resource(s). No two services may own the same top-level resource (CI-linted).
   - url: /api
@@ -32,7 +32,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Item" }
-                # Every 2xx response schema carries an `example` (CI-linted, ADR-0029):
+                # Every 2xx response schema carries an `example` (CI-linted, ADR-0600):
                 # it is what the API mock serves the UI and what the developer portal
                 # renders. A list needs its own — the item schema's example says
                 # nothing about how many rows come back.

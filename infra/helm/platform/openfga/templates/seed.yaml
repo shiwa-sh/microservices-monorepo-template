@@ -20,7 +20,7 @@ data:
   model.json: |
 {{ .Values.seed.model | indent 4 }}
 ---
-# Seed Job (ADR-0007, ADR-0017). Runs after OpenFGA is Ready (sync-wave 2, after
+# Seed Job (ADR-0300, ADR-0306). Runs after OpenFGA is Ready (sync-wave 2, after
 # the Deployment's default wave 0). One shell container drives the HTTP API with
 # curl + jq: ensure the `platform` store (list → find-by-name → else create),
 # write the model, then apply the ops grants. Idempotent — store find-or-create,

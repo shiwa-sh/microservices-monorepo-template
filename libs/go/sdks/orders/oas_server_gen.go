@@ -10,13 +10,13 @@ import (
 type Handler interface {
 	// CancelOrder implements cancelOrder operation.
 	//
-	// Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+	// Cancel an order. Starts the CancelOrder workflow (ADR-0302).
 	//
 	// POST /orders/{id}/cancel
 	CancelOrder(ctx context.Context, params CancelOrderParams) (*WorkflowHandle, error)
 	// Checkout implements checkout operation.
 	//
-	// Starts the Checkout Temporal saga (ADR-0006).
+	// Starts the Checkout Temporal saga (ADR-0302).
 	//
 	// POST /orders
 	Checkout(ctx context.Context, req *CheckoutInput) (*WorkflowHandle, error)

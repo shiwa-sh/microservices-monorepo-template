@@ -1,4 +1,4 @@
-# Local Gateway Application (ADR-0009). Same env-agnostic edge config (Traefik
+# Local Gateway Application (ADR-0305). Same env-agnostic edge config (Traefik
 # middlewares + cross-cutting IngressRoutes from infra/gateway) the prod
 # app-gateway.yaml applies, synced locally by the local root-app. The host-specific
 # local edge glue (infra/local/traefik-config.yaml, edge-auth.yaml, and the
@@ -31,7 +31,7 @@ spec:
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
     # Retry on failure — automated+selfHeal won't re-run a sync that errored on
     # the same commit, so a transient blip would otherwise leave the edge
-    # unrouted until a manual sync. Backoff caps at 2m (ADR-0004).
+    # unrouted until a manual sync. Backoff caps at 2m (ADR-0201).
     retry:
       limit: 20
       backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

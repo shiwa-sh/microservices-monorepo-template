@@ -1,4 +1,4 @@
-// pgweb DB inspector operator dashboard (ADR-0012) — opt-in, gated at pgweb.ops.<host>
+// pgweb DB inspector operator dashboard (ADR-0401) — opt-in, gated at pgweb.ops.<host>
 // (dashboard:pgweb#view) and the SPA renders behind a real AAL2 operator session.
 // Runs with pgweb's --readonly flag against the in-cluster CNPG dev role.
 import { expect, test } from "@playwright/test";

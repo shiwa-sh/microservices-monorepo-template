@@ -1,4 +1,4 @@
-# Per-Dockerfile ignore (ADR-0014). BuildKit uses <Dockerfile>.dockerignore in
+# Per-Dockerfile ignore (ADR-0400). BuildKit uses <Dockerfile>.dockerignore in
 # preference to the repo-root .dockerignore — which is tuned for the Go service
 # images and excludes apps/, libs/ts, and package.json, all of which the frontend
 # build needs. Here we exclude only VCS/dep/build-output dirs and the unrelated

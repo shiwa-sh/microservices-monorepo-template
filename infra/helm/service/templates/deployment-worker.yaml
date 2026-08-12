@@ -34,7 +34,7 @@ spec:
     temporalNamespace: {{ .Values.temporal.namespace | quote }}
   # How new versions take traffic. AllAtOnce promotes the new version to Current
   # as soon as its pods are ready — the right default here because the platform's
-  # Workflows are short (ADR-0006 wall-clock rule), so a bad version is caught in
+  # Workflows are short (ADR-0302 wall-clock rule), so a bad version is caught in
   # minutes and rolled back by promoting the previous Build ID, and a Progressive
   # ramp mostly adds latency to every deploy. Services with long or high-value
   # Workflows should override to Progressive with steps + a gate workflow.
@@ -63,7 +63,7 @@ spec:
         component: worker
     spec:
       serviceAccountName: {{ include "service.fullname" . }}
-      # ADR-0020 eviction order. Declared explicitly (not inherited) because the
+      # ADR-0204 eviction order. Declared explicitly (not inherited) because the
       # PriorityClass globalDefault is platform-critical — product workloads must sit
       # BELOW the platform they depend on, so this is the one place that opts down.
       priorityClassName: {{ .Values.priorityClassName }}
@@ -102,7 +102,7 @@ spec:
             - secretRef: { name: {{ . }} }
             {{- end }}
           # Workers take no inbound traffic, so readiness would gate nothing — only
-          # liveness (shallow: process alive) is meaningful here (ADR-0011).
+          # liveness (shallow: process alive) is meaningful here (ADR-0500).
           livenessProbe: { httpGet: { path: /livez, port: admin }, periodSeconds: 30 }
           resources: {{- toYaml .Values.worker.resources | nindent 12 }}
 {{- end }}

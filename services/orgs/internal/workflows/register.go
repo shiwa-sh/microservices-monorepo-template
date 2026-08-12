@@ -1,4 +1,4 @@
-// Package workflows holds the orgs Temporal workflows (ADR-0006). The orgs
+// Package workflows holds the orgs Temporal workflows (ADR-0302). The orgs
 // service owns the post-registration "create personal org" process even though
 // the OpenFGA write targets the authz store — process-owner rule.
 package workflows
@@ -17,7 +17,7 @@ type RegisterInput struct {
 	IdentityID string
 }
 
-// RegisterUser runs the dual-write (ADR-0010) for a new identity: create the
+// RegisterUser runs the dual-write (ADR-0304) for a new identity: create the
 // personal org + admin membership in the orgs DB, then write the matching
 // OpenFGA owner tuple. Both are activities so the pair cannot half-apply — a
 // failed OpenFGA write is retried, and an exhausted workflow surfaces rather

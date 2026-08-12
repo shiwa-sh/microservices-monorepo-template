@@ -1,12 +1,12 @@
 # Default values for a backend service. Every per-env values file overrides on top.
-# See ADR-0002 (layout), ADR-0004 (chart shape), ADR-0006 (Temporal worker),
-# ADR-0007 (migrations), ADR-0010 (auth), ADR-0011 (observability).
+# See ADR-0101 (layout), ADR-0201 (chart shape), ADR-0302 (Temporal worker),
+# ADR-0300 (migrations), ADR-0304 (auth), ADR-0500 (observability).
 
 # Required: the service slug (used for resource names and label values).
 name: ""
 
 # Server image (cmd/server). Pin by a concrete git SHA tag (dev/staging) or, in
-# prod, by digest (ADR-0002, ADR-0013). Moving tags are lint-forbidden.
+# prod, by digest (ADR-0101, ADR-0103). Moving tags are lint-forbidden.
 image:
   repository: ""        # e.g. ghcr.io/tabmadi/microservices-monorepo-template/catalog-server
   tag: ""               # e.g. 4f9dbcb12 (git SHA); dev/staging
@@ -21,7 +21,7 @@ worker:
     tag: ""             # SAME sha as the server image (dev/staging)
     digest: ""          # SAME digest as the server image (prod)
   replicas: 1
-  # ADR-0020, sized from measurement (2026-07-26, ADR-0027 load suite).
+  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite).
   #
   # The cpu LIMIT that used to be here (500m) is deliberately GONE. Measured peaks:
   # catalog-server 118m, orders-worker 174m, payment-worker 122m — but those were at
@@ -36,7 +36,7 @@ worker:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }
 
-  # Graceful drain on rollout (ADR-0006). On SIGTERM the worker stops polling and
+  # Graceful drain on rollout (ADR-0302). On SIGTERM the worker stops polling and
   # waits up to stopTimeoutSeconds for its in-flight Activities to finish; the SDK
   # default is 0s, i.e. abandon them and let every one time out and retry.
   #
@@ -48,7 +48,7 @@ worker:
   stopTimeoutSeconds: 25
   terminationGraceBufferSeconds: 10
 
-  # Worker Deployment Versioning (ADR-0006). Pins each Workflow Execution to the
+  # Worker Deployment Versioning (ADR-0302). Pins each Workflow Execution to the
   # Deployment Version that started it, so a deploy cannot break work already in
   # flight and workflow.GetVersion patching is not needed.
   #
@@ -79,15 +79,15 @@ worker:
 server:
   replicas: 2
   port: 8080
-  adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0011). Set to null for
+  adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0500). Set to null for
                         # a workload with no second port (the frontend).
-  # The Go service contract (ADR-0011): deep readiness on the admin port, shallow
+  # The Go service contract (ADR-0500): deep readiness on the admin port, shallow
   # liveness. Override only for a workload that genuinely cannot serve these — see
   # the note in templates/deployment-server.yaml.
   probes:
     readiness: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
     liveness:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
-  # ADR-0020, sized from measurement (2026-07-26, ADR-0027 load suite).
+  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite).
   #
   # The cpu LIMIT that used to be here (500m) is deliberately GONE. Measured peaks:
   # catalog-server 118m, orders-worker 174m, payment-worker 122m — but those were at
@@ -102,7 +102,7 @@ server:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }
 
-# Database migrations (ADR-0007) run as a dbmate initContainer on the server pod,
+# Database migrations (ADR-0300) run as a dbmate initContainer on the server pod,
 # from the service image itself (it bakes the static dbmate binary + /db/migrations).
 migrations:
   enabled: true
@@ -115,7 +115,7 @@ temporal:
   connectionRef: "platform-temporal"
   namespace: "default"
 
-# Standard observability env (ADR-0011). The shared library reads these.
+# Standard observability env (ADR-0500). The shared library reads these.
 otel:
   endpoint: "http://otel-collector.platform.svc.cluster.local:4317"
   sampling: "parentbased_traceidratio=0.1"
@@ -124,24 +124,24 @@ otel:
   # Per-env GitOps values may override (e.g. "staging"); local flips it to "local".
   deployEnv: "prod"
 
-# Ingress through Traefik (ADR-0003, ADR-0017). The API is a flat resource
+# Ingress through Traefik (ADR-0305, ADR-0306). The API is a flat resource
 # namespace: `resources` lists the resource segments this service owns at the
 # edge; each becomes a `/api/<resource>` route and the shared `/api` prefix is
 # stripped, so the service serves them at root and its identity stays out of the
-# URL. Exactly one service may own a given resource (CI-linted, ADR-0008).
+# URL. Exactly one service may own a given resource (CI-linted, ADR-0303).
 ingress:
   enabled: true
   host: ""              # set per env, e.g. dev.example.com
   resources: []         # e.g. [products] for catalog, [orders], [orgs], [charges]
   pathPrefix: ""        # literal-prefix fallback for non-API surfaces (frontend "/")
 
-# References to SOPS-decrypted Kubernetes Secrets (ADR-0005).
+# References to SOPS-decrypted Kubernetes Secrets (ADR-0202).
 # The sops-operator materialises these from infra/gitops/<env>/secrets/<svc>.enc.yaml.
 secrets:
   envFrom: []           # list of Secret names mounted via envFrom
   files: []             # list of {name, mountPath, items} mounted as volumes
 
-# Eviction order (ADR-0020). `product` sits below `platform-critical`, so under node
+# Eviction order (ADR-0204). `product` sits below `platform-critical`, so under node
 # pressure a product service is shed before the Postgres/Temporal/edge it needs —
 # which is the only ordering that can actually recover. Batch Jobs go below this.
 priorityClassName: product
@@ -160,7 +160,7 @@ containerSecurityContext:
   capabilities:
     drop: ["ALL"]
 
-# NetworkPolicy is default-deny by default (ADR-0003). Service-specific
+# NetworkPolicy is default-deny by default (ADR-0206). Service-specific
 # allowances go here.
 networkPolicy:
   enabled: true

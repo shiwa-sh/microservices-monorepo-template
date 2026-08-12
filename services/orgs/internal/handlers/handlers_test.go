@@ -12,7 +12,7 @@ import (
 )
 
 // fakeChecker stands in for the OpenFGA Checker so the operator gate can be
-// exercised without a cluster (ADR-0010).
+// exercised without a cluster (ADR-0304).
 type fakeChecker struct {
 	allowed bool
 	err     error
@@ -22,7 +22,7 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 	return f.allowed, f.err
 }
 
-// UpdateOrg and DeleteOrg are operator-gated (ADR-0010): the gate rejects before
+// UpdateOrg and DeleteOrg are operator-gated (ADR-0304): the gate rejects before
 // any DB access, so a nil store is fine for these cases.
 func TestOrgWriteAuthz(t *testing.T) {
 	t.Parallel()
@@ -64,7 +64,7 @@ func TestOrgWriteAuthz(t *testing.T) {
 	}
 }
 
-// UpdateOrg rejects an empty name (ADR-0006) — but only after the operator gate,
+// UpdateOrg rejects an empty name (ADR-0302) — but only after the operator gate,
 // so this exercises the validation path with an authenticated operator and a
 // nil store.
 func TestUpdateOrgValidation(t *testing.T) {

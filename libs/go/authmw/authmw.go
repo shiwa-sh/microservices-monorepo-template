@@ -1,5 +1,5 @@
 // Package authmw reads the trusted identity headers injected by the edge
-// (Oathkeeper — ADR-0009, ADR-0010): X-User-Id, X-Org-Id, X-Roles. Token
+// (Oathkeeper — ADR-0305, ADR-0304): X-User-Id, X-Org-Id, X-Roles. Token
 // validation happens once at the edge; services never parse a JWT. authmw turns
 // those headers into a typed Principal on the request context. Service-to-service
 // calls forward the same headers, so handlers read identity one way regardless
@@ -44,7 +44,7 @@ func (p *Principal) HasRole(role string) bool {
 }
 
 // Subject renders the principal as an OpenFGA user string ("user:<id>") for the
-// authz Checker (ADR-0010).
+// authz Checker (ADR-0304).
 func (p *Principal) Subject() string {
 	if !p.Authenticated() {
 		return ""

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop the local k3d cluster (ADR-0003) — WITHOUT destroying it. `k3d cluster stop`
+# Stop the local k3d cluster (ADR-0200) — WITHOUT destroying it. `k3d cluster stop`
 # halts the node container but keeps it, so the node's containerd image cache and
 # volumes survive; the next `cluster:base`/`cluster:full` resumes it with no cold
 # image re-pulls — which matters a lot behind a slow/restricted egress proxy. To

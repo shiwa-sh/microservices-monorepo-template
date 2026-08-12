@@ -1,4 +1,4 @@
-// Command lint-resource-governance is the ADR-0020 gate: it renders every chart and
+// Command lint-resource-governance is the ADR-0204 gate: it renders every chart and
 // checks the declared resources against the guardrails in
 // infra/helm/platform/resource-governance BEFORE they reach a cluster.
 //
@@ -18,7 +18,7 @@
 //     no limit above a max. This is the cluster-breaking class.
 //  2. COVERAGE — every container ends up with CPU+memory requests and a memory
 //     limit, whether declared or defaulted by the namespace's LimitRange.
-//  3. CPU LIMITS — ADR-0020 sets CPU limits only where throttling is desired, so any
+//  3. CPU LIMITS — ADR-0204 sets CPU limits only where throttling is desired, so any
 //     new one must be added to the allow-list here with a reason.
 //  4. QUOTA HEADROOM — the summed requests/limits per namespace fit inside that
 //     namespace's ResourceQuota, with utilisation printed so tightening the cap is an
@@ -55,7 +55,7 @@ var chartExtraArgs = map[string][]string{
 	"openfga": {setFlag, "image.repository=r", setFlag, "image.tag=v"},
 }
 
-// CPU limits ADR-0020 tolerates, each with the reason it survives. A container not
+// CPU limits ADR-0204 tolerates, each with the reason it survives. A container not
 // listed here may not carry one.
 var cpuLimitAllowList = map[string]string{
 	// Inherited from the subchart; a parent values.yaml cannot delete a subchart key
@@ -513,7 +513,7 @@ func checkCoverage(all []entry, gov governance) int {
 		} {
 			covered := c.declared != "" || (defaulted && c.fallback != "")
 			if !covered {
-				outf("✗ %s has no %s and namespace %s supplies no default (ADR-0020)", e.label, c.what, e.ns)
+				outf("✗ %s has no %s and namespace %s supplies no default (ADR-0204)", e.label, c.what, e.ns)
 				fail++
 			}
 		}
@@ -521,7 +521,7 @@ func checkCoverage(all []entry, gov governance) int {
 	return fail
 }
 
-// checkCPULimits enforces ADR-0020's opt-in-only CPU limit policy.
+// checkCPULimits enforces ADR-0204's opt-in-only CPU limit policy.
 func checkCPULimits(all []entry) int {
 	fail := 0
 	for _, e := range all {
@@ -534,7 +534,7 @@ func checkCPULimits(all []entry) int {
 			continue
 		}
 		hint := "add it to cpuLimitAllowList in tools/lint-resource-governance with a reason, or remove it"
-		outf("✗ %s sets a cpu limit (%s); ADR-0020 sets these only where throttling is desired", e.label, limit)
+		outf("✗ %s sets a cpu limit (%s); ADR-0204 sets these only where throttling is desired", e.label, limit)
 		outf("  %s", hint)
 		fail++
 	}
@@ -624,7 +624,7 @@ func main() {
 	}
 	gov := loadGovernance(root)
 
-	outf("→ rendering charts and checking ADR-0020 guardrails")
+	outf("→ rendering charts and checking ADR-0204 guardrails")
 	ctx := context.Background()
 	all := append(collectPlatformCharts(ctx, root), collectServices(ctx, root)...)
 

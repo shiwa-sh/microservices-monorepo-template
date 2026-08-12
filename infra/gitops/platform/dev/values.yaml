@@ -1,4 +1,4 @@
-# Per-env platform overrides (ADR-0004).
+# Per-env platform overrides (ADR-0201).
 # Top-level `cluster:` — the postgres chart's own values schema has no
 # `postgres:` namespace wrapper (unlike the dependency subcharts below).
 cluster:
@@ -9,7 +9,7 @@ cluster:
     s3: { endpointURL: "http://minio.platform.svc.cluster.local:9000", destinationPath: "s3://platform-backups/postgres" }
 
 # Non-prod object storage is in-cluster MinIO, not an off-cluster bucket
-# (ADR-0016). Override each backend's S3 endpoint; prod keeps the chart
+# (ADR-0205). Override each backend's S3 endpoint; prod keeps the chart
 # defaults (the off-cluster bucket) and disables this chart entirely.
 loki:
   loki:
@@ -26,7 +26,7 @@ tempo:
           endpoint: minio.platform.svc.cluster.local:9000
           insecure: true
 
-# Lowdefy admin console (ADR-0012): the one repo-built platform image. Pulled from
+# Lowdefy admin console (ADR-0401): the one repo-built platform image. Pulled from
 # ghcr and promoted by git SHA on merge (promote-on-merge), exactly like the Go
 # services and the frontend. Local uses the k3d registry (platform/local/values.yaml).
 lowdefy:

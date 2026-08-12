@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated orgs.Handler interface (ADR-0008).
+// Package handlers implement the ogen-generated orgs.Handler interface (ADR-0303).
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.
 package handlers
@@ -56,7 +56,7 @@ func (h *Handlers) GetOrg(ctx context.Context, params orgs.GetOrgParams) (*orgs.
 	return &orgs.Org{ID: row.ID.Bytes, Name: row.Name}, nil
 }
 
-// OnIdentityCreated is the Kratos post-registration webhook (ADR-0010/0006). It
+// OnIdentityCreated is the Kratos post-registration webhook (ADR-0304/0006). It
 // starts the RegisterUser workflow rather than writing directly: creating the
 // personal org spans the orgs DB and the OpenFGA owner tuple (an authz-relevant
 // mutation), so it must run as a Temporal dual-write, never a bare DB write. The
@@ -140,7 +140,7 @@ func (h *Handlers) NewError(_ context.Context, err error) *orgs.ErrorStatusCode 
 	return &orgs.ErrorStatusCode{StatusCode: 500, Response: orgs.Problem{Code: "internal", Message: err.Error()}}
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0010): the
+// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
 // caller must be an authenticated operator. Reads (List/Get) and the
 // registration webhook stay open; only the operator-facing org mutations are
 // gated, matching catalog's operator-write policy.

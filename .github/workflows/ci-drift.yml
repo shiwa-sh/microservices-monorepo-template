@@ -1,4 +1,4 @@
-# Drift check (ADR-0002, ADR-0008): regenerate AND reformat everything, then fail if
+# Drift check (ADR-0101, ADR-0303): regenerate AND reformat everything, then fail if
 # anything changed. The check is `mise run ci:gen`; why formatting is part of it,
 # and not of `lint`, is documented at that task in .mise.toml.
 name: ci-drift

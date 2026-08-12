@@ -11,7 +11,7 @@ type Handler interface {
 	// CreateCharge implements createCharge operation.
 	//
 	// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-	// (ADR-0006).
+	// (ADR-0302).
 	//
 	// POST /charges
 	CreateCharge(ctx context.Context, req *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error)
@@ -29,7 +29,7 @@ type Handler interface {
 	ListCharges(ctx context.Context) ([]Charge, error)
 	// RefundCharge implements refundCharge operation.
 	//
-	// Refund a settled charge. Starts the Refund workflow (ADR-0006).
+	// Refund a settled charge. Starts the Refund workflow (ADR-0302).
 	//
 	// POST /charges/{id}/refund
 	RefundCharge(ctx context.Context, req *RefundInput, params RefundChargeParams) (*WorkflowHandle, error)

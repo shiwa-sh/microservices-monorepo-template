@@ -10,13 +10,13 @@ worker:
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.example.com, resources: [orders] }
 # The Lowdefy admin console (apps/admin) calls orders server-side, east-west on
-# the server port, bypassing the /api edge (ADR-0012).
+# the server port, bypassing the /api edge (ADR-0401).
 networkPolicy: { allowFrom: [lowdefy] }
 secrets: { envFrom: [orders-db-creds, openfga-creds] }
 env:
   CATALOG_URL: http://catalog-server.platform.svc.cluster.local
   PAYMENT_URL: http://payment-server.platform.svc.cluster.local
-  # Write authz (ADR-0010): the server gates the operator-only cancel via the shared
+  # Write authz (ADR-0304): the server gates the operator-only cancel via the shared
   # Checker. Blank preshared key falls back to openfga-creds.preshared_key (envFrom),
   # as catalog and the authz service do.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"

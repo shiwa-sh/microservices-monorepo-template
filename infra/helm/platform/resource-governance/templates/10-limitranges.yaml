@@ -1,8 +1,8 @@
 {{/*
-LimitRange per namespace (ADR-0020) — the safety net that makes "every container
+LimitRange per namespace (ADR-0204) — the safety net that makes "every container
 declares resources" true without forking every third-party chart.
 
-Measured basis (2026-07-26, cluster:full + the ADR-0027 load suite): 41 of 58
+Measured basis (2026-07-26, cluster:full + the ADR-0601 load suite): 41 of 58
 containers declared NOTHING. Almost all of them are vendored charts we do not own
 — Cilium, ArgoCD, cert-manager, Traefik, hubble, sops-operator, local-path. Adding
 requests to each would mean carrying a values override per chart forever. A
@@ -38,7 +38,7 @@ metadata:
 spec:
   limits:
     - type: Container
-      # Memory limit only, no cpu limit — ADR-0020's decision, applied to the
+      # Memory limit only, no cpu limit — ADR-0204's decision, applied to the
       # default too so an undeclared container behaves like a declared one.
       default:
         memory: {{ $cfg.defaultMemoryLimit }}

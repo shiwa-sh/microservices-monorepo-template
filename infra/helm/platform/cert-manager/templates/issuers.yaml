@@ -1,5 +1,5 @@
 {{- if .Values.selfSigned.enabled }}
-# Local / non-public TLS (ADR-0016): cert-manager IS the mechanism in every env;
+# Local / non-public TLS (ADR-0205): cert-manager IS the mechanism in every env;
 # only the issuer differs. Locally a local ROOT CA mints the wildcard secrets the
 # edge consumes (wildcard-tls, wildcard-ops-tls) in the platform namespace, where
 # the IngressRoutes resolve them. This replaces the imperative openssl block the
@@ -11,7 +11,7 @@
 # anything dialling the edge in-cluster had to disable verification outright
 # (NODE_TLS_REJECT_UNAUTHORIZED=0). That is survivable for a host `next dev` and
 # unacceptable in a container image — and it blocked the frontend from ever running
-# as its production image locally (ADR-0016, ADR-0030).
+# as its production image locally (ADR-0205, ADR-0600).
 #
 # So: a self-signed issuer mints a CA certificate (isCA: true), that CA becomes a
 # ClusterIssuer, and the wildcards are issued from it. `local-ca-tls` then holds a
@@ -112,7 +112,7 @@ spec:
   dnsNames:
     - "*.{{ .Values.envHost }}"
 ---
-# Ops-tier wildcard (ADR-0017). The product wildcard `*.<host>` covers only one
+# Ops-tier wildcard (ADR-0306). The product wildcard `*.<host>` covers only one
 # label, so the two-labels-deep ops tools (`{tool}.ops.<host>`) need their own
 # `*.ops.<host>` cert. Routes in infra/gateway reference secret wildcard-ops-tls.
 apiVersion: cert-manager.io/v1

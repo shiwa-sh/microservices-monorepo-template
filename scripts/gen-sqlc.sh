@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate sqlc Go code for every service that has a sqlc.yaml (ADR-0007).
+# Regenerate sqlc Go code for every service that has a sqlc.yaml (ADR-0300).
 set -euo pipefail
 
 shopt -s nullglob

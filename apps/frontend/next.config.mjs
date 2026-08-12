@@ -1,19 +1,19 @@
-// Next.js config (ADR-0014). Standalone output is required for the Bun-only
+// Next.js config (ADR-0400). Standalone output is required for the Bun-only
 // Dockerfile. All first-party code lives inside the app, so no transpilePackages.
 
-// Server Actions CSRF allowlist (ADR-0009, ADR-0014), derived from the one edge
+// Server Actions CSRF allowlist (ADR-0305, ADR-0400), derived from the one edge
 // origin the BROWSER uses (EDGE_PUBLIC_ORIGIN) — deliberately not the internal
 // origin a pod dials, which differs by port in-cluster and would allowlist the
 // wrong host. See src/lib/server-fetch/server.ts for the split. Next compares the list against `new URL(origin).host`, which
 // INCLUDES the port — hence `.host`, not the bare hostname: a `dev.localtest.me`
 // entry can never match an `https://dev.localtest.me:8443` origin.
 //
-// This list is only consulted when Origin ≠ (X-Forwarded-)Host. ADR-0017 puts `/`
+// This list is only consulted when Origin ≠ (X-Forwarded-)Host. ADR-0306 puts `/`
 // and `/api` on the same origin, so that is already the common case and this is
 // defence in depth. Note it is BUILD-time: `output: "standalone"` freezes this
 // config into server.js, so a deployed image only carries an entry if the build
 // passed EDGE_PUBLIC_ORIGIN — which pins that image to one env host and breaks the
-// build-once/promote-by-digest flow in ADR-0013. Leave it unset in CI builds.
+// build-once/promote-by-digest flow in ADR-0103. Leave it unset in CI builds.
 const edgeOrigin = process.env.EDGE_PUBLIC_ORIGIN;
 const allowedOrigins = edgeOrigin ? [new URL(edgeOrigin).host] : [];
 
@@ -36,7 +36,7 @@ const nextConfig = {
     NEXT_PUBLIC_SERVICE_VERSION: process.env.SERVICE_VERSION ?? "dev",
     NEXT_PUBLIC_DEPLOY_ENV: process.env.DEPLOY_ENV ?? "dev",
   },
-  // Stamp the shipped build's identity on every response (ADR-0013), so "did prod
+  // Stamp the shipped build's identity on every response (ADR-0103), so "did prod
   // actually update?" is answerable from response headers / devtools, and a stale
   // browser bundle is caught by comparing this against the backend's X-App-Version.
   headers() {

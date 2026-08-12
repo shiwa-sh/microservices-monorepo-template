@@ -7,7 +7,7 @@
 #     `--set-file`; ArgoCD valueFiles + fileParameters). This guard fails CI if any
 #     of it is re-inlined back into the chart values, which is how the copies
 #     silently diverged before.
-#  2. The frontend carries no development-only auth CODE (ADR-0029). Local work
+#  2. The frontend carries no development-only auth CODE (ADR-0600). Local work
 #     against mocked data still logs in for real via the `edge` profile, so a
 #     session bypass, a synthetic session object, or a NODE_ENV branch in the app's
 #     auth path has no reason to exist — and principle 9 predicts what happens to
@@ -42,7 +42,7 @@ for f in \
   fi
 done
 
-# --- 2. No development-only auth code in the frontend (ADR-0029) -------------
+# --- 2. No development-only auth code in the frontend (ADR-0600) -------------
 # Scope is the app's authn gate and its auth library — the two places a bypass is
 # actually reachable from. Comments are dropped so this file's own prose, and the
 # ADR pointers in the app, do not trip it.
@@ -54,7 +54,7 @@ BYPASS='DEV_AUTH|AUTH_BYPASS|BYPASS_AUTH|dev-?auth|auth-?bypass|fake[-_ ]?sessio
 for p in "${AUTH_PATHS[@]}"; do
   [ -e "$p" ] || continue
   if hits=$(grep -rniE "$BYPASS" "$p" | grep -vE '^[^:]+:[0-9]+:\s*(//|\*|/\*)'); then
-    echo "✗ development-only auth code in $p — the frontend has ONE auth path and it is the production one (ADR-0029):" >&2
+    echo "✗ development-only auth code in $p — the frontend has ONE auth path and it is the production one (ADR-0600):" >&2
     echo "$hits" >&2
     echo "  To develop against mocked data while logged in, use: mise run cluster:base" >&2
     fail=1

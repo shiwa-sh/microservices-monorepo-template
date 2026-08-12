@@ -1,4 +1,4 @@
-# Consumed by sqruff (ADR-0007), which reads sqlfluff's config format for compatibility.
+# Consumed by sqruff (ADR-0300), which reads sqlfluff's config format for compatibility.
 [sqlfluff]
 dialect = postgres
 templater = raw

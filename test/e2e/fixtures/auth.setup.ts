@@ -1,4 +1,4 @@
-// The Playwright `setup` project (ADR-0018): provision the committed identities,
+// The Playwright `setup` project (ADR-0601): provision the committed identities,
 // then log each one in through the real UI and save its session as storage state
 // for the suites to reuse. Runs before `platform` (see playwright.config.ts).
 import fs from "node:fs";

@@ -1,4 +1,4 @@
-# Install Cilium as the cluster CNI (ADR-0003). Runs on the first server node only,
+# Install Cilium as the cluster CNI (ADR-0206). Runs on the first server node only,
 # before ArgoCD is bootstrapped — pods cannot be scheduled without a CNI.
 # ArgoCD adopts the release on its first sync and manages upgrades from that point on.
 - name: Wait for k3s kubeconfig
@@ -26,7 +26,7 @@
       --set hubble.relay.enabled=true \
       --set hubble.ui.enabled=true \
       --wait --timeout=5m
-  # hubble.ui is ON (ADR-0025): it is the operator service-map surface, exposed
+  # hubble.ui is ON (ADR-0501): it is the operator service-map surface, exposed
   # auth-gated at hubble.ops.<host> via the gateway IngressRoute (infra/gateway).
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml

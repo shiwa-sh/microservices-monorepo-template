@@ -1,4 +1,4 @@
-# Grafana dashboards Application (ADR-0011). Makes dashboards-as-code actually flow
+# Grafana dashboards Application (ADR-0500). Makes dashboards-as-code actually flow
 # through GitOps: a Kustomize app that generates the `grafana-dashboards` ConfigMap
 # from infra/observability/dashboards/*.json, which the observability Helm chart
 # mounts (dashboardsConfigMaps.default). Previously the ConfigMap was materialised

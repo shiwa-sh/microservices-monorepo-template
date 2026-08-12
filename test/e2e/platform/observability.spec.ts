@@ -1,4 +1,4 @@
-// Observability gauge (ADR-0011), two layers:
+// Observability gauge (ADR-0500), two layers:
 //
 //  1. Datasource health — the three Grafana datasources resolve and answer. This is
 //     the wiring check behind the service-name fix: Grafana, the OTel collector and
@@ -48,7 +48,7 @@ test.describe("grafana datasources", () => {
   }
 });
 
-// Network-policy denials (ADR-0011, ADR-0025). Hubble UI shows live drops
+// Network-policy denials (ADR-0500, ADR-0501). Hubble UI shows live drops
 // interactively; the metric + dashboard cover what it can't — history and the
 // PolicyDropsDetected alert — and are worth their own guard given how often
 // silent netpol drops have broken this repo.
@@ -109,15 +109,15 @@ test.describe("network policy denials", () => {
   });
 });
 
-// Unified service observability (ADR-0025 POC). The service-detail page mixes six
+// Unified service observability (ADR-0501 POC). The service-detail page mixes six
 // signal groups on one screen (SLO/RED, CPU/Memory, Logs, Traces, Profiling). These
 // guards cover the prerequisites that helm-template/render checks cannot: the
 // dashboards are registered with Grafana, the Pyroscope datasource answers, the
 // alert rules are loaded into Prometheus, and each metric family a panel reads
 // actually exists in Prometheus. The RED check also pins us to the STABLE otelhttp histogram — the
-// hand-rolled, mis-bucketed httpmw metric was removed (ADR-0011), and le="0.5" being
+// hand-rolled, mis-bucketed httpmw metric was removed (ADR-0500), and le="0.5" being
 // a real 500ms bucket is what proves we are on the correct one.
-test.describe("service observability POC (ADR-0025)", () => {
+test.describe("service observability POC (ADR-0501)", () => {
   let ctx: APIRequestContext;
   let promUid: string;
 
@@ -187,7 +187,7 @@ test.describe("service observability POC (ADR-0025)", () => {
     expect(await promHasSeries('service_requests_total{service_name="temporal"}')).toBeTruthy();
   });
 
-  // Alerts-as-code (ADR-0011): the rule files under infra/observability/alerts/
+  // Alerts-as-code (ADR-0500): the rule files under infra/observability/alerts/
   // must actually be LOADED by Prometheus, not just committed. This catches every
   // link in the chain — the prometheus-alerts kustomize ConfigMap, its Argo app,
   // the chart's rule_files + volume mount, and rule-file syntax (Prometheus
@@ -209,7 +209,7 @@ test.describe("service observability POC (ADR-0025)", () => {
     );
   });
 
-  // Log coverage for PLATFORM workloads (ADR-0011's filelog path). Repo services
+  // Log coverage for PLATFORM workloads (ADR-0500's filelog path). Repo services
   // push logs over OTLP from the SDK, but postgres/temporal/lowdefy/… only write
   // stdout — those reach Loki solely through the collector's logsCollection
   // (filelog) preset. Until 2026-07-23 that receiver was missing and every
@@ -274,7 +274,7 @@ test.describe("end-to-end signal correlation", () => {
     const orders = `http://127.0.0.1:${ORDERS_PORT}`;
 
     // Operator-authored product (X-User-Id admin-console holds group:operator, the
-    // same subject the admin console writes as — ADR-0012).
+    // same subject the admin console writes as — ADR-0401).
     const productRes = await fetch(`${catalog}/products`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-user-id": "admin-console" },
@@ -329,7 +329,7 @@ test.describe("end-to-end signal correlation", () => {
     // names to the classic underscore form (UnderscoreEscapingWithSuffixes), so the
     // stored series are orders_checkouts_started_total and — for RED — the stable
     // otelhttp histogram's http_server_request_duration_seconds_count (httpmw's
-    // hand-rolled http.server.requests counter was removed, ADR-0011).
+    // hand-rolled http.server.requests counter was removed, ADR-0500).
     await expect
       .poll(async () => await promSeriesCount("orders_checkouts_started_total"), { timeout: 60_000 })
       .toBeGreaterThan(0);

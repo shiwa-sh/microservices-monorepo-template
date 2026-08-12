@@ -1,5 +1,5 @@
 // Observability query helpers for the end-to-end signal-correlation gauge
-// (ADR-0011). The three backends are cluster-internal (only Grafana is edge-
+// (ADR-0500). The three backends are cluster-internal (only Grafana is edge-
 // exposed), so the suite reaches Tempo/Loki/Prometheus through short-lived
 // port-forwards (fixtures/kube.ts) and queries their native HTTP APIs directly.
 //

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The counterpart to cluster:add (ADR-0030):
+# The counterpart to cluster:add (ADR-0600):
 #
 #   mise run cluster:remove -- orders   # a service, or its native edge glue
 #   mise run cluster:remove -- ory      # a platform chart

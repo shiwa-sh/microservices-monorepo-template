@@ -2,9 +2,9 @@ apiVersion: v2
 name: observability
 description: |
   Grafana + Loki/Tempo (monolithic single-binary mode) + Prometheus (Core metrics,
-  local TSDB, OTLP ingest) + a single-tier OTel Collector DaemonSet (ADR-0011).
+  local TSDB, OTLP ingest) + a single-tier OTel Collector DaemonSet (ADR-0500).
   Self-hosted via official charts; log/trace long-term storage is the external S3
-  bucket from ADR-0003. Mimir (metrics Scale swap), Pyroscope (profile storage), and
+  bucket from ADR-0207. Mimir (metrics Scale swap), Pyroscope (profile storage), and
   the OTel Collector gateway tier are per-project add-ons (`profiling` / tail-sampling
   flags / Scale seam), not in the default release.
 type: application

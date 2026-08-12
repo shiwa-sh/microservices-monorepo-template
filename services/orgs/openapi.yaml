@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info: { title: orgs, version: 0.1.0, description: Organization and membership service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
 # scaffolds list/detail/create/edit pages for, from the operations present below.
 tags: [{ name: orgs, x-admin: crud }, { name: cluster }]
 paths:
   /orgs:
     get:
       operationId: listOrgs
-      # Listing every org is a back-office view, kept out of public docs (ADR-0008).
+      # Listing every org is a back-office view, kept out of public docs (ADR-0303).
       x-audience: internal
       description: List all organizations.
       tags: [orgs]
@@ -20,7 +20,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Org" }
-                # Served verbatim by the API mock (ADR-0029).
+                # Served verbatim by the API mock (ADR-0600).
                 example:
                   - { id: 4a8b2d63-9e15-4c70-8d21-0f27f7f0a001, name: Northwind Trading }
                   - { id: 4a8b2d63-9e15-4c70-8d21-0f27f7f0a002, name: Contoso Rail }
@@ -71,7 +71,7 @@ paths:
     post:
       operationId: onIdentityCreated
       # East-west webhook (Kratos → orgs, in-cluster): bypasses the edge, gated by
-      # NetworkPolicy. `x-audience: cluster` keeps it off both docs portals (ADR-0008).
+      # NetworkPolicy. `x-audience: cluster` keeps it off both docs portals (ADR-0303).
       x-audience: cluster
       tags: [cluster]
       description: Kratos post-registration webhook. Creates a personal org for the new identity.

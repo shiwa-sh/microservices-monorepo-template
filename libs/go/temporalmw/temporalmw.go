@@ -1,5 +1,5 @@
 // Package temporalmw is the platform-default Temporal client/worker wiring
-// (ADR-0006). Every server and worker calls NewClient / NewWorker; tracing,
+// (ADR-0302). Every server and worker calls NewClient / NewWorker; tracing,
 // data converters, and identity all come pre-configured.
 package temporalmw
 
@@ -75,7 +75,7 @@ func NewClient(serviceName string) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Auto-register the /readyz check for this dependency (ADR-0011).
+	// Auto-register the /readyz check for this dependency (ADR-0500).
 	observability.RegisterReadinessCheck(
 		"temporal",
 		func(ctx context.Context) error {
@@ -133,7 +133,7 @@ func stopTimeout() time.Duration {
 	return d
 }
 
-// deploymentOptions builds the Worker Deployment Versioning config (ADR-0006)
+// deploymentOptions builds the Worker Deployment Versioning config (ADR-0302)
 // from the environment the chart injects. Versioning is ON whenever BOTH
 // $TEMPORAL_DEPLOYMENT_NAME and $TEMPORAL_WORKER_BUILD_ID are set; with either
 // missing the worker polls unversioned, which is what local `go run` and the
@@ -143,7 +143,7 @@ func stopTimeout() time.Duration {
 // Deployment Version that began it, so a deploy cannot break a Workflow that is
 // already in flight and no workflow.GetVersion patching is required. Workflows
 // that must instead follow the newest code opt out individually by returning
-// AutoUpgrade — and those, per ADR-0006, owe a versioning plan and replay tests.
+// AutoUpgrade — and those, per ADR-0302, owe a versioning plan and replay tests.
 func deploymentOptions() worker.DeploymentOptions {
 	name, buildID := os.Getenv("TEMPORAL_DEPLOYMENT_NAME"), os.Getenv("TEMPORAL_WORKER_BUILD_ID")
 	if name == "" || buildID == "" {

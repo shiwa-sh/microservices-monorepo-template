@@ -1,4 +1,4 @@
-# node_exporter scraped by the OTel Collector (ADR-0011).
+# node_exporter scraped by the OTel Collector (ADR-0500).
 - name: Install prometheus-node-exporter
   apt: { name: prometheus-node-exporter, state: present }
 - name: Enable

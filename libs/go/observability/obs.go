@@ -1,5 +1,5 @@
 // Package observability is the single entry point for logs, metrics, traces,
-// and continuous profiles (ADR-0011). Service code calls obs.Init in main and
+// and continuous profiles (ADR-0500). Service code calls obs.Init in main and
 // gets every signal wired through the OTel Collector.
 package observability
 
@@ -44,7 +44,7 @@ type Config struct {
 // Init wires up tracing, metrics, logs, pprof, and slog. The returned shutdown
 // function must be called from main to flush all signals.
 //
-//nolint:funlen // ADR-0011: the single documented wiring point; kept linear on purpose.
+//nolint:funlen // ADR-0500: the single documented wiring point; kept linear on purpose.
 func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) {
 	if cfg.ServiceName == "" {
 		return nil, errors.New("observability.Init: ServiceName is required")
@@ -82,7 +82,7 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	}
 
 	// service.version (release) + service.build.sha (precise, always-unique) come
-	// from the baked-in build identity (ADR-0013), so every trace/log/metric
+	// from the baked-in build identity (ADR-0103), so every trace/log/metric
 	// self-reports which binary emitted it — answering "what's actually running"
 	// in Grafana without a bespoke endpoint.
 	res, err := resource.New(
@@ -236,7 +236,7 @@ func serveAdmin(addr string) {
 			w.WriteHeader(http.StatusOK)
 		},
 	)
-	// Build identity of the running binary (ADR-0013): scriptable/curl-able per pod,
+	// Build identity of the running binary (ADR-0103): scriptable/curl-able per pod,
 	// so "is this pod the version I released?" is answerable directly, not inferred.
 	mux.HandleFunc(
 		"/version",

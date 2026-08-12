@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated orders.Handler interface (ADR-0008).
+// Package handlers implement the ogen-generated orders.Handler interface (ADR-0303).
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.
 package handlers
@@ -179,7 +179,7 @@ func (h *Handlers) NewError(_ context.Context, err error) *orders.ErrorStatusCod
 	return &orders.ErrorStatusCode{StatusCode: 500, Response: orders.Problem{Code: "internal", Message: err.Error()}}
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0010): the
+// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
 // caller must be an authenticated operator. Reads (List/Get) and starting a
 // checkout stay open; only the destructive cancel is gated, matching catalog's
 // operator-write policy.

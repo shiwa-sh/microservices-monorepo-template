@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host-only edge glue: routes the product apex (https://dev.localtest.me:8443) to a
-# natively-run frontend (`next dev` on :3000) and the Kratos public API (ADR-0009/
+# natively-run frontend (`next dev` on :3000) and the Kratos public API (ADR-0305/
 # 0010/0014). Deliberately NOT GitOps-managed — prod deploys the frontend in-cluster,
 # and infra/gateway is what ArgoCD syncs. This is per-machine state that must be
 # re-applied on every cluster START, not just at cluster:full time, for two reasons:
@@ -14,7 +14,7 @@
 # cluster-base.sh — hence the hidden `cluster:edge-glue` task:
 # you never need to invoke it by hand except to self-heal a 404/502 at `/`.
 #
-# NOT to be confused with cluster-base.sh, which is the whole local floor (ADR-0016):
+# NOT to be confused with cluster-base.sh, which is the whole local floor (ADR-0205):
 # a whole tier. This is the per-machine seam underneath it.
 set -euo pipefail
 

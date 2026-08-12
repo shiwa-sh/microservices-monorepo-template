@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info: { title: orders, version: 0.1.0, description: Order checkout and saga orchestration service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
 # scaffolds pages for. Orders are saga-created and immutable, so the surface is
 # list/detail (read) plus the `cancel` action below — no edit/delete.
 tags: [{ name: orders, x-admin: crud }]
@@ -9,7 +9,7 @@ paths:
   /orders:
     get:
       operationId: listOrders
-      # Listing every order is a back-office view, kept out of public docs (ADR-0008).
+      # Listing every order is a back-office view, kept out of public docs (ADR-0303).
       x-audience: internal
       description: List all orders.
       tags: [orders]
@@ -21,7 +21,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Order" }
-                # Served verbatim by the API mock (ADR-0029). The statuses vary on
+                # Served verbatim by the API mock (ADR-0600). The statuses vary on
                 # purpose: a list example with one status is how a UI ships with an
                 # unstyled badge for every other one.
                 example:
@@ -32,7 +32,7 @@ paths:
     post:
       operationId: checkout
       tags: [orders]
-      description: Starts the Checkout Temporal saga (ADR-0006).
+      description: Starts the Checkout Temporal saga (ADR-0302).
       requestBody:
         required: true
         description: The checkout to start.
@@ -58,11 +58,11 @@ paths:
   /orders/{id}/cancel:
     post:
       operationId: cancelOrder
-      # Operator action (ADR-0012): admin-gen emits an action button, not CRUD.
-      # Edge-reachable first-party, out of public docs (ADR-0008 audience ladder).
+      # Operator action (ADR-0401): admin-gen emits an action button, not CRUD.
+      # Edge-reachable first-party, out of public docs (ADR-0303 audience ladder).
       x-admin: action
       x-audience: internal
-      description: Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+      description: Cancel an order. Starts the CancelOrder workflow (ADR-0302).
       tags: [orders]
       parameters: [{ name: id, in: path, required: true, description: Id of the order to cancel., schema: { type: string, format: uuid } }]
       responses:
@@ -98,7 +98,7 @@ components:
         status: { type: string, enum: [running, completed, failed, cancelled] }
         result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
       # `running` is the honest example: it is what the real 202 returns. Against the
-      # API mock the poll never progresses (ADR-0029) — workflow progression is
+      # API mock the poll never progresses (ADR-0600) — workflow progression is
       # exercised against real services, so build the pending state and stop there.
       example: { id: checkout-2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e001, status: running, result_url: /api/orders/2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001 }
     CheckoutInput:

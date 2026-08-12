@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Full local platform via ArgoCD (ADR-0004, ADR-0016) — backs `mise run cluster:full`.
+# Full local platform via ArgoCD (ADR-0201, ADR-0205) — backs `mise run cluster:full`.
 # The heavy lifting
 # (CRD→operator→instance ordering, secret materialisation, sync waves) is ArgoCD's
 # job, the same tool prod runs; this script only does what Argo cannot bootstrap:
@@ -22,7 +22,7 @@ cd "$ROOT"
 k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 # argocd CLI in core mode: talks straight to the Application CRDs (no `argocd
-# login` / argocd-server, ADR-0004). Core mode derives the install namespace from
+# login` / argocd-server, ADR-0201). Core mode derives the install namespace from
 # the kube-context, so it runs against a throwaway kubeconfig pinned to `argocd`
 # (set up in step 5) rather than mutating the user's real context.
 ac() { KUBECONFIG="$AC_KUBECONFIG" argocd --core "$@"; }
@@ -49,7 +49,7 @@ k -n argocd rollout status deploy/argocd-repo-server --timeout=300s
 k -n argocd rollout status deploy/argocd-applicationset-controller --timeout=300s
 
 # 3. SOPS decryption key (the bootstrap root of trust): the committed throwaway
-#    local age key, planted as the Secret the sops-operator mounts (ADR-0005).
+#    local age key, planted as the Secret the sops-operator mounts (ADR-0202).
 echo "→ planting sops-age-key (local throwaway key)"
 k create namespace "$NS" --dry-run=client -o yaml | k apply -f -
 k -n "$NS" create secret generic sops-age-key \
@@ -61,13 +61,13 @@ k -n "$NS" create secret generic sops-age-key \
 #     the local root-app syncs infra/gitops/local-bootstrap/app-grafana-dashboards.yaml,
 #     a Kustomize app that generates it from infra/observability/dashboards/*.json at
 #     sync-wave 2 — before the core tier (wave 3) starts Grafana, which mounts it
-#     (ADR-0011). A PR that adds or edits a dashboard now reaches the cluster on the
+#     (ADR-0500). A PR that adds or edits a dashboard now reaches the cluster on the
 #     next Argo pass, instead of needing an imperative `kubectl create configmap`.
 
 # 3c. Build + push repo images to the local registry — the local stand-in for CI.
 #     Argo then deploys services + lowdefy from the registry exactly as prod pulls
 #     from ghcr; the only difference is the registry host in the values overlay
-#     (ADR-0016). Must run before step 4 so images exist before Argo creates pods.
+#     (ADR-0205). Must run before step 4 so images exist before Argo creates pods.
 #     Build args mirror scripts/service-deploy.sh.
 REG="k3d-registry.localhost:5000"
 # Push over the loopback host, not REG. Docker picks HTTP-vs-HTTPS by resolving the
@@ -100,7 +100,7 @@ build_push() { # <image-name> <dockerfile> <context> [extra docker build args…
   return 1
 }
 echo "→ building + pushing repo images to ${REG}"
-# Build identity baked into each image (ADR-0013): the working-tree SHA (+ -dirty),
+# Build identity baked into each image (ADR-0103): the working-tree SHA (+ -dirty),
 # so /version and the X-App-Version header report exactly what this run deployed.
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"
@@ -175,7 +175,7 @@ cat <<EOF
 
 ✓ cluster:full up (ArgoCD-driven from master).
   Product (Traefik):  https://${DOMAIN}:8443/api/<resource>/   (flat namespace, self-signed TLS)
-  Ops tier (ADR-0017; coarse gate = operator claim + AAL2, no OpenFGA call):
+  Ops tier (ADR-0306; coarse gate = operator claim + AAL2, no OpenFGA call):
     Grafana:          https://grafana.ops.${DOMAIN}:8443/
     Hubble UI (map):  https://hubble.ops.${DOMAIN}:8443/
     Temporal UI:      https://temporal.ops.${DOMAIN}:8443/

@@ -10,7 +10,7 @@ COPY libs/go ./libs/go
 ARG APP_CMD=server
 ARG SERVICE=orders
 COPY services/${SERVICE} ./services/${SERVICE}
-# Build identity baked into the binary (ADR-0013) so the running pod self-reports
+# Build identity baked into the binary (ADR-0103) so the running pod self-reports
 # its git SHA / release; passed by the build scripts + CI, VCS-stamp fallback when absent.
 ARG GIT_SHA=""
 ARG BUILD_VERSION=dev
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/go/pkg/mod --mount=type=cache,target=/root/.
         -X github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo.BuiltAt=${BUILD_TIME}" \
       -o /out/app ./services/${SERVICE}/cmd/${APP_CMD}
 RUN mkdir -p /out/migrations && cp -r services/${SERVICE}/migrations/* /out/migrations/ 2>/dev/null || true
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:f7f8f729987ad0fdf6b05eeeae94b26e6a0f613bdf46feea7fc40f7bd72953e6
 COPY --from=build /out/app /app
 COPY --from=build /out/migrations /db/migrations
 # dbmate (static binary) co-located with the baked migrations so the chart's

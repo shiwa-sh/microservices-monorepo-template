@@ -1,4 +1,4 @@
-# Temporal Worker Controller (ADR-0006) — the operator that makes Pinned
+# Temporal Worker Controller (ADR-0302) — the operator that makes Pinned
 # versioning actually hold.
 #
 # WHY AN OPERATOR AND NOT A TEMPLATE. Keeping a drained version's pods alive is
@@ -23,7 +23,7 @@ temporal-worker-controller:
   # operator's default). Deployed envs override in their per-env values.
   replicas: 1
 
-  # ADR-0020. Measured: 66Mi working set, 6m CPU.
+  # ADR-0204. Measured: 66Mi working set, 6m CPU.
   #
   # THE ONE CPU LIMIT LEFT IN THIS PLATFORM, and it is inherited rather than chosen.
   # The subchart's own default carries `limits.cpu: 500m`, and a parent chart cannot
@@ -34,7 +34,7 @@ temporal-worker-controller:
   # generic template for a single subchart is worse than the limit).
   #
   # Accepted because it cannot bite: 500m is ~80x the measured 6m peak of a
-  # leader-elected reconciler that does nothing between rollouts. ADR-0020 records it
+  # leader-elected reconciler that does nothing between rollouts. ADR-0204 records it
   # as a known exception rather than claiming the rule is universal.
   resources:
     requests: { cpu: "10m", memory: "96Mi" }
@@ -59,7 +59,7 @@ temporal-worker-controller:
 
   metrics:
     # No bearer-token auth proxy in front of /metrics. The platform's scrape path
-    # is the node-local OTel collector (ADR-0011), which does not present a
+    # is the node-local OTel collector (ADR-0500), which does not present a
     # token, and egress here is already constrained by NetworkPolicy.
     disableAuth: true
 
@@ -71,7 +71,7 @@ temporal-worker-controller:
 # Temporal endpoint the generated workers dial, rendered as the `Connection` CR
 # every service's WorkerDeployment references by name. Plaintext in-cluster: the
 # frontend is reached over the pod network, which Cilium already encrypts with
-# WireGuard (ADR-0003), so there is no second TLS layer to configure here.
+# WireGuard (ADR-0206), so there is no second TLS layer to configure here.
 connection:
   name: platform-temporal
   hostPort: "temporal-frontend.platform.svc.cluster.local:7233"

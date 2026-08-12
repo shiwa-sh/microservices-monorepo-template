@@ -1,4 +1,4 @@
-# Direct OpenFGA deployment (ADR-0010): a plain Deployment + Service, with an
+# Direct OpenFGA deployment (ADR-0304): a plain Deployment + Service, with an
 # `openfga migrate` initContainer that runs before serve. No operator/CRD — the
 # rare phased datastore migration is handled manually per OpenFGA release notes.
 image:
@@ -15,7 +15,7 @@ existingSecret: openfga-creds
 migrate:
   enabled: true              # run `openfga migrate` as an initContainer
 
-# Model + ops-policy seed (ADR-0007, ADR-0017). After OpenFGA is Ready, the seed
+# Model + ops-policy seed (ADR-0300, ADR-0306). After OpenFGA is Ready, the seed
 # Job ensures the `platform` store exists (idempotent: list → find-by-name → else
 # create), writes the model, and applies the static group→dashboard grants and the
 # service-operator memberships. Same Job in every env; safe to re-run on every sync
@@ -25,14 +25,14 @@ seed:
   # curl + jq for the HTTP-API seed (no fga CLI at runtime — its image is
   # distroless and can't script a find-or-create flow).
   image: alpine/k8s:1.31.1
-  # Each ops dashboard (ADR-0017) granted to group:operator members. These are the
+  # Each ops dashboard (ADR-0306) granted to group:operator members. These are the
   # ops-tool names Oathkeeper checks (dashboard:<tool>#view, see
   # infra/auth/oathkeeper/access-rules.json) and they match the ops hostnames
-  # one-for-one: ADR-0017 names every origin after its tool, so `grafana.ops.<host>`
+  # one-for-one: ADR-0306 names every origin after its tool, so `grafana.ops.<host>`
   # is gated by `dashboard:grafana`. One vocabulary, no translation table.
   dashboards: [lowdefy, hubble, grafana, argocd, temporal, minio, headlamp, pgweb]
   # Service-account identities granted group:operator#member. The Lowdefy admin
-  # console (ADR-0012) calls services east-west asserting X-User-Id: admin-console;
+  # console (ADR-0401) calls services east-west asserting X-User-Id: admin-console;
   # this grant lets that identity pass the services' operator write-gate.
   serviceOperators: [admin-console]
   # Canonical authorization model, injected by the platform ApplicationSet

@@ -1,4 +1,4 @@
-// The registration → personal-org flow (ADR-0010, ADR-0006). Kratos owns identities;
+// The registration → personal-org flow (ADR-0304, ADR-0302). Kratos owns identities;
 // `orgs` owns tenancy, and the two are joined by exactly one wire: the blocking
 // `after` web_hook on the self-service registration flow
 // (infra/auth/kratos/values.yaml) → POST /identity-created → the RegisterUser
@@ -24,7 +24,7 @@ const EMAIL = `signup-${Date.now()}@e2e.localtest.me`;
 
 // The personal org is named generically ("Personal workspace"), NOT by the email:
 // an org is a tenant whose name is shown to every member the user later invites, so
-// an email there would leak PII (activities.CreatePersonalOrgActivity, ADR-0023).
+// an email there would leak PII (activities.CreatePersonalOrgActivity, ADR-0301).
 // The registrant's assertable link to their org is therefore the OpenFGA admin
 // tuple (org:<id>#admin@user:<id>), which is also dual-write leg 2 — the exact seam
 // this test guards. Local forward port 18080 (not 8080: k3d maps host 8080 to the
@@ -142,7 +142,7 @@ test.describe("self-service registration", () => {
       fgaPf.stop();
     }
 
-    // Acceptance gauge (ADR-0018): the new org renders in the admin console, addressed
+    // Acceptance gauge (ADR-0601): the new org renders in the admin console, addressed
     // by id (its name is the generic PERSONAL_ORG_NAME, shared across registrants).
     // Clean it up through the console: not just tidiness — the changelist grid
     // paginates at 20 rows client-side (orgs.yaml), so a leftover row per run would
@@ -156,12 +156,12 @@ test.describe("self-service registration", () => {
 });
 
 // The password policy is enforced by Kratos config that is INJECTED into the chart
-// (`infra/auth/kratos/values.yaml` → Helm `--set-file`, ADR-0010). If that injection
+// (`infra/auth/kratos/values.yaml` → Helm `--set-file`, ADR-0304). If that injection
 // ever breaks, Kratos falls back to its own defaults and the platform silently
 // accepts weaker passwords than the ADR claims — a config-delivery failure with no
 // unit-test equivalent, which is why this is an e2e.
 //
-// This used to assert the HaveIBeenPwned breach check instead. ADR-0010 turned that
+// This used to assert the HaveIBeenPwned breach check instead. ADR-0304 turned that
 // check off by default (it needs world egress, and Kratos' `ignore_network_errors`
 // makes an unreachable HIBP accept the password silently), so the assertion moved to
 // the rule that is always on. If you re-enable the breach check for an environment,

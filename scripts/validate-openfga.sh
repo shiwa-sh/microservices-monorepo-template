@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OpenFGA model + assertion validation (ADR-0010). model.fga is the one source of
+# OpenFGA model + assertion validation (ADR-0304). model.fga is the one source of
 # truth; model.json is a generated artifact the seed Job posts to the API. This
 # runs the store tests (fga.yaml) against the model AND asserts model.json is in
 # sync with model.fga, so a hand-edited DSL can never drift from the deployed JSON.

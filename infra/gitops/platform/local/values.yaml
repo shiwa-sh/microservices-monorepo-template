@@ -1,5 +1,5 @@
 # Local overrides for `cluster:full`, consumed the same way the ArgoCD
-# ApplicationSet consumes dev/staging/prod values (ADR-0016): local diverges from
+# ApplicationSet consumes dev/staging/prod values (ADR-0205): local diverges from
 # prod only through this overlay, layered over each platform chart's own values.
 # Locally the local platform ApplicationSet (infra/gitops/local-bootstrap) syncs
 # these from master; ordering/readiness is Argo's job (sync-waves).
@@ -15,7 +15,7 @@ cilium:
 
 # --- TLS (cert-manager): self-signed wildcard for *.dev.localtest.me + ops, in
 # the platform namespace where the edge IngressRoutes resolve the secrets. Same
-# cert-manager mechanism as deployed envs; only the issuer differs (ADR-0016).
+# cert-manager mechanism as deployed envs; only the issuer differs (ADR-0205).
 envHost: dev.localtest.me
 selfSigned:
   enabled: true
@@ -80,7 +80,7 @@ kratos:
     # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets`
     # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
     # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never
-    # inline here (ADR-0005, Phase 5).
+    # inline here (ADR-0202, Phase 5).
     # Run Kratos migrations automatically for local (initContainer before serve).
     automigration:
       enabled: true
@@ -130,7 +130,7 @@ opentelemetry-collector:
         sampling_percentage: 100
 
 # Grafana: a known local admin password (prod supplies one via Secret).
-# Served at the root of its ops origin (ADR-0017); root_url carries the local
+# Served at the root of its ops origin (ADR-0306); root_url carries the local
 # edge's :8443 port so post-login redirects land back on the same origin.
 grafana:
   adminPassword: "admin"
@@ -138,7 +138,7 @@ grafana:
     server:
       root_url: "https://grafana.ops.dev.localtest.me:8443/"
 
-# --- Lowdefy admin console (ADR-0012) -------------------------------------
+# --- Lowdefy admin console (ADR-0401) -------------------------------------
 # Repo-built image: pulled from the local registry (the CI stand-in) at the
 # stable `local` tag; Always so a cluster:full re-run picks up a rebuild.
 # Namespaced under `lowdefy:` to avoid colliding with the openfga chart's
@@ -151,7 +151,7 @@ lowdefy:
     pullPolicy: Always
 
 # --- Core ops tools: local wiring -----------------------------------------
-# Headlamp (ADR-0024) at headlamp.ops and pgweb (ADR-0012) at pgweb.ops are Core, on in
+# Headlamp (ADR-0501) at headlamp.ops and pgweb (ADR-0401) at pgweb.ops are Core, on in
 # every env from their chart defaults. Only pgweb's local DSN is overlay-specific:
 # it points read-only at the in-cluster CNPG dev role (same dev:dev creds Kratos
 # uses locally). Headlamp needs no local override.

@@ -1,4 +1,4 @@
-# Tag-driven prod promotion (ADR-0004, ADR-0013). Triggered by a repo-wide CalVer
+# Tag-driven prod promotion (ADR-0201, ADR-0103). Triggered by a repo-wide CalVer
 # release tag (vYYYY.0M.MICRO) cut by `mise run release`. A release pins EVERY
 # prod service/app to the release commit — by digest, the strongest immutable
 # identity — labels the images with the CalVer, opens the prod-bump PR, and (once
@@ -47,7 +47,7 @@ jobs:
           # A repo-wide release pins every prod values file to THIS commit, by
           # digest (`repo@sha256:…`) — an image digest cannot be re-pushed, so a
           # pod cannot silently run different code under the same reference
-          # (ADR-0013). The CalVer is added as a human-facing label on the image.
+          # (ADR-0103). The CalVer is added as a human-facing label on the image.
           # image.repository is read straight from each values file, so this works
           # for both `-server`/`-worker` services and apps (frontend has no suffix).
           shopt -s nullglob
@@ -64,7 +64,7 @@ jobs:
             pin "$path" ".worker.image"
           done
           # The admin console is the one repo-built platform image (lowdefy chart,
-          # ADR-0012); pin it by digest the same way, at its platform overlay path.
+          # ADR-0401); pin it by digest the same way, at its platform overlay path.
           pin "infra/gitops/platform/prod/values.yaml" ".lowdefy.image"
 
       - uses: peter-evans/create-pull-request@v7
@@ -75,7 +75,7 @@ jobs:
           delete-branch: true
           labels: auto-merge
 
-      # Rollout gate (ADR-0004, ADR-0013): "Argo Healthy" already means the new
+      # Rollout gate (ADR-0201, ADR-0103): "Argo Healthy" already means the new
       # ReplicaSet is available, but a release must not report success until prod
       # has actually converged on the release commit. Runs post-merge against the
       # prod cluster; scaffolded here (template CI has no prod kubeconfig, like any

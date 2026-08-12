@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a service NATIVELY behind the real edge (ADR-0016, ADR-0030) — the other half
+# Run a service NATIVELY behind the real edge (ADR-0205, ADR-0600) — the other half
 # of `cluster:add`, and the reason the identity stack is in the local floor.
 #
 #   mise run service:dev -- orders
@@ -74,7 +74,7 @@ done
 
 # Mirrors infra/helm/service/templates/ingressroute.yaml exactly — same match
 # (service.ingressMatch), same middleware chain, same order. Flat-API routing
-# (ADR-0017) means /api is stripped, so the native process mounts its resources at
+# (ADR-0306) means /api is stripped, so the native process mounts its resources at
 # root just as the deployed pod does.
 k apply -f - <<EOF
 apiVersion: traefik.io/v1alpha1
@@ -100,7 +100,7 @@ spec:
     - kind: Rule
       match: Host(\`${DOMAIN}\`) && (${match})
       middlewares:
-        # Anti-spoofing (ADR-0009): strip client-supplied identity headers BEFORE
+        # Anti-spoofing (ADR-0305): strip client-supplied identity headers BEFORE
         # forwardAuth, so nothing can inject X-User-* on an anonymous /api route.
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth

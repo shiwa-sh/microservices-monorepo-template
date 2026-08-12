@@ -1,7 +1,7 @@
-# Observability backend (ADR-0011): Grafana + Loki/Tempo (monolithic single-binary
+# Observability backend (ADR-0500): Grafana + Loki/Tempo (monolithic single-binary
 # mode) + Prometheus (Core metrics, local TSDB) + a single OTel Collector DaemonSet.
-# Log/trace durability is the off-cluster bucket (ADR-0003); access keys come from
-# the SOPS-decrypted `observability-bucket` Secret (ADR-0005). Sizing here is the
+# Log/trace durability is the off-cluster bucket (ADR-0207); access keys come from
+# the SOPS-decrypted `observability-bucket` Secret (ADR-0202). Sizing here is the
 # dev/staging default (single replica); prod bumps Loki/Tempo to 2 replicas in
 # gitops/platform/prod/values.yaml. The metrics Scale swap is Mimir
 # (docs/operational-surface.md).
@@ -33,7 +33,7 @@ opentelemetry-collector:
   # tag is pinned to the chart's appVersion (0.154.0) to keep config schema + binary
   # aligned — see the chart dependency version in Chart.yaml.
   image: { repository: otel/opentelemetry-collector-contrib, tag: "0.154.0" }
-  # logsCollection is the ADR-0011 filelog path: the agent tails /var/log/pods
+  # logsCollection is the ADR-0500 filelog path: the agent tails /var/log/pods
   # via the chart's filelog receiver (container parser, collector's own logs
   # excluded) so PLATFORM workloads that only write stdout — postgres, temporal,
   # grafana, lowdefy, … — land in Loki too. Repo services push logs over OTLP
@@ -64,17 +64,17 @@ opentelemetry-collector:
   # In daemonset mode the chart omits the Service unless explicitly enabled.
   service: { enabled: true }
   # Expose the Faro receiver port on that Service so Traefik can route to it
-  # (infra/gateway/frontend-observability.yaml, ADR-0014).
+  # (infra/gateway/frontend-observability.yaml, ADR-0400).
   ports:
     faro: { enabled: true, containerPort: 8027, servicePort: 8027, protocol: TCP }
   config:
     receivers:
       otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
-      # Browser RUM from the frontend's Grafana Faro agent (ADR-0014). Emits
+      # Browser RUM from the frontend's Grafana Faro agent (ADR-0400). Emits
       # web traces and RUM logs/events; fed into the traces + logs pipelines
       # below so browser signals land in the same Tempo/Loki as services.
       faro: { endpoint: 0.0.0.0:8027 }
-      # Hubble flow metrics off the cilium-agent (ADR-0011) — the ONE scrape in this
+      # Hubble flow metrics off the cilium-agent (ADR-0500) — the ONE scrape in this
       # repo. Prometheus itself ships `scrape_configs: []` with no ServiceAccount and
       # no RBAC, because the invariant is "everything reaches Prometheus as an OTLP
       # push from this collector". Teaching Prometheus kubernetes_sd would mean
@@ -93,7 +93,7 @@ opentelemetry-collector:
               static_configs:
                 - targets: ["${env:K8S_NODE_IP}:9965"]
       # Per-pod/container/node CPU & memory from the local kubelet's Summary API
-      # (ADR-0025 POC — the resource panels on the service-detail dashboard). Same
+      # (ADR-0501 POC — the resource panels on the service-detail dashboard). Same
       # node-local pattern as the hubble scrape: this DaemonSet pod reads ONLY its
       # own node's kubelet via the chart-injected K8S_NODE_IP, authenticating with
       # the pod ServiceAccount token (clusterRole.rules below grant nodes/stats).
@@ -130,7 +130,7 @@ opentelemetry-collector:
         limit_percentage: 80
         spike_limit_percentage: 25
       batch: {}
-      # Head sampling at the agent (ADR-0011). Error traces are kept at 100% by
+      # Head sampling at the agent (ADR-0500). Error traces are kept at 100% by
       # the services' parentbased SDK sampler (OTEL_TRACES_SAMPLER_ARG); this
       # caps healthy-trace volume. Tail sampling needs the gateway tier and is a
       # per-project flag — not deployed here.
@@ -154,11 +154,11 @@ grafana:
   fullnameOverride: grafana
   adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
   # Measured 2026-07-26: 157Mi working set, 138m CPU (rendering the dashboards is
-  # the CPU cost, and it is bursty per page load — hence no cpu limit, ADR-0020).
+  # the CPU cost, and it is bursty per page load — hence no cpu limit, ADR-0204).
   resources:
     requests: { cpu: "100m", memory: "192Mi" }
     limits:   { memory: "512Mi" }
-  # Served at the ROOT of its own ops origin grafana.ops.<host> (ADR-0017), not
+  # Served at the ROOT of its own ops origin grafana.ops.<host> (ADR-0306), not
   # under a /grafana path — so serve_from_sub_path is off. Each env overrides
   # root_url with its external origin (the local overlay sets the :8443 edge).
   grafana.ini:
@@ -166,7 +166,7 @@ grafana:
       serve_from_sub_path: false
       root_url: "%(protocol)s://%(domain)s/"
     # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding
-    # dashboard:grafana#view, ADR-0017). Grafana trusts it and serves anonymously
+    # dashboard:grafana#view, ADR-0306). Grafana trusts it and serves anonymously
     # instead of running a second, redundant login that would redirect to /login and
     # never render. Only AAL2 operators ever reach this origin.
     auth:
@@ -177,7 +177,7 @@ grafana:
     # Skip the "Welcome to Grafana" home page and land operators on a real
     # dashboard. dashboardsConfigMaps.default (grafana-dashboards) mounts at
     # /var/lib/grafana/dashboards/default, so overview.json is served there.
-    # Overview is the L1 landing page (ADR-0026): firing alerts, cluster-wide
+    # Overview is the L1 landing page (ADR-0501): firing alerts, cluster-wide
     # golden signals, per-service SLO status, and platform-dependency one-liners —
     # every panel either turns red or links down to Applications / Service detail /
     # Platform components / policy-denials.
@@ -211,7 +211,7 @@ grafana:
         - { name: Prometheus, uid: prometheus, type: prometheus, url: http://prometheus.platform.svc.cluster.local:9090 }
         - { name: Loki,       uid: loki,       type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
         - { name: Tempo,      uid: tempo,      type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
-        # Pyroscope (ADR-0025 POC — continuous profiling). Backs the flame-graph
+        # Pyroscope (ADR-0501 POC — continuous profiling). Backs the flame-graph
         # panel on the service-detail dashboard; profiles are pushed here by the
         # Alloy agent (templates/alloy.yaml).
         - { name: Pyroscope, uid: pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
@@ -231,13 +231,13 @@ grafana:
           folder: ""
           type: file
           disableDeletion: false
-          editable: false      # dashboards are git artifacts (ADR-0011): PRs, not UI edits
+          editable: false      # dashboards are git artifacts (ADR-0500): PRs, not UI edits
           options:
             path: /var/lib/grafana/dashboards/default
   dashboardsConfigMaps:
     default: grafana-dashboards     # populated from infra/observability/dashboards/
 
-# Loki — single-binary monolithic (-target=all), bucket-backed (ADR-0011).
+# Loki — single-binary monolithic (-target=all), bucket-backed (ADR-0500).
 loki:
   # Pin the service name to `loki` (not the release-prefixed `observability-loki`)
   # so the OTel exporter and Grafana datasource below — and prod — reach it at
@@ -245,7 +245,7 @@ loki:
   fullnameOverride: loki
   deploymentMode: SingleBinary
   loki:
-    # Single-tenant (ADR-0011): no X-Scope-OrgID required. Without this the chart
+    # Single-tenant (ADR-0500): no X-Scope-OrgID required. Without this the chart
     # defaults to multi-tenant and every header-less query (incl. Grafana's
     # datasource health check) 401s with "no org id".
     auth_enabled: false
@@ -273,7 +273,7 @@ loki:
     replicas: 1
     extraEnvFrom:
       - secretRef: { name: observability-bucket }
-    # Measured 2026-07-26 under the ADR-0027 load suite: 453Mi working set, 63m CPU.
+    # Measured 2026-07-26 under the ADR-0601 load suite: 453Mi working set, 63m CPU.
     # Explicit rather than left to the namespace LimitRange default (512Mi), which it
     # sits at 88% of — one busier day and the default would OOM-kill log ingest.
     resources:
@@ -311,7 +311,7 @@ tempo:
   tempo:
     # THE HEAVIEST POD IN THE CLUSTER, and the reason this chart cannot rely on the
     # namespace LimitRange default. Measured 2026-07-26: 1858Mi working set during
-    # the ADR-0027 load suite, against ~400Mi at rest — trace ingest from ~17k
+    # the ADR-0601 load suite, against ~400Mi at rest — trace ingest from ~17k
     # requests. The 512Mi default would have OOM-killed it repeatedly, silently
     # losing traces during exactly the runs you are trying to observe.
     #
@@ -324,7 +324,7 @@ tempo:
       limits:   { memory: "3Gi" }
     reportingEnabled: false
     # Metrics-generator stays OFF (chart default). Its service_graphs processor was
-    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0025):
+    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0501):
     # pairing is traffic-dependent (only CLIENT/SERVER span pairs processed in one
     # instance produce edges) and it yields ~1 edge here. The service map is Hubble
     # UI's job. Enabling it would also need Prometheus's
@@ -353,14 +353,14 @@ prometheus:
   httpPort: 9090
   # Local-TSDB retention. A project needing long retention takes the Mimir swap.
   retention: 15d
-  # Measured 2026-07-26 under the ADR-0027 load suite: 230Mi working set, 37m CPU.
-  # No cpu limit (ADR-0020) — a TSDB compaction is exactly the bursty, latency-
+  # Measured 2026-07-26 under the ADR-0601 load suite: 230Mi working set, 37m CPU.
+  # No cpu limit (ADR-0204) — a TSDB compaction is exactly the bursty, latency-
   # sensitive work CFS throttling ruins.
   resources:
     requests: { cpu: "100m", memory: "384Mi" }
     limits:   { memory: "1Gi" }
 
-# Pyroscope (ADR-0025 POC — continuous profiling, the fourth signal). Rendered by
+# Pyroscope (ADR-0501 POC — continuous profiling, the fourth signal). Rendered by
 # templates/pyroscope.yaml as a single-binary monolith (-target=all) with
 # filesystem storage on an emptyDir — the POC minimum. A real deployment points its
 # storage at the off-cluster bucket like Loki/Tempo and raises retention. Profiles
@@ -373,9 +373,9 @@ pyroscope:
     requests: { cpu: "100m", memory: "384Mi" }
     limits:   { memory: "1Gi" }
 
-# Grafana Alloy (ADR-0025 POC) — the pprof-scraping agent the withdrawn profiling
+# Grafana Alloy (ADR-0501 POC) — the pprof-scraping agent the withdrawn profiling
 # flag always implied. Rendered by templates/alloy.yaml. It discovers platform pods,
-# keeps those exposing the `admin` port (the pprof endpoint obs.Init serves, ADR-0011),
+# keeps those exposing the `admin` port (the pprof endpoint obs.Init serves, ADR-0500),
 # scrapes CPU/heap/goroutine profiles, and pushes them to Pyroscope. No service change
 # and no new ingress rule: services already allow platform-namespace ingress to the
 # admin port, and the baseline NetworkPolicy already allows intra-namespace egress.
@@ -383,7 +383,7 @@ alloy:
   image: grafana/alloy:v1.11.0
   # Measured: 258Mi working set — DOUBLE the old 128Mi request, which is the
   # classic under-request that lets the scheduler overcommit a node and then evict
-  # the agent. Request raised to match reality; cpu limit dropped (ADR-0020).
+  # the agent. Request raised to match reality; cpu limit dropped (ADR-0204).
   resources:
     requests: { cpu: "100m", memory: "320Mi" }
     limits:   { memory: "768Mi" }

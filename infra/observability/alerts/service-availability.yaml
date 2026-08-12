@@ -1,4 +1,4 @@
-# Service-availability alert (ADR-0011). Native Prometheus rule-file format —
+# Service-availability alert (ADR-0500). Native Prometheus rule-file format —
 # this directory is mounted into Prometheus (rule_files, observability chart) via
 # the `prometheus-alerts` ConfigMap the prometheus-alerts ArgoCD Application
 # generates (infra/gitops/{bootstrap,local-bootstrap}/app-prometheus-alerts.yaml).
