@@ -308,7 +308,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -444,11 +444,58 @@ depends = ["format", "lint", "test"]
 [tasks."ci:affected"]
 run = "go run ./tools/affected"
 
+[tasks."lint:thin-workflows"]
+# ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task.
+# A `run:` step carrying pipeline logic cannot be reproduced locally and does not
+# survive the move to another forge, which is the whole point of the rule.
+run = "go run ./tools/lint-thin-workflows"
+
+[tasks."lint:commits"]
+# Conventional Commits over the pull request's commit RANGE (ADR-0103). Not in
+# `lint`: the lefthook commit-msg hook already gates each message as it is written,
+# and a whole-range check on every local `mise run check` would fail a branch whose
+# WIP commits are not yet rewritten. BASE_REF picks the base; it defaults to master.
+run = "bash scripts/lint-commits.sh"
+
 [tasks."ci:lint"]
-depends = ["lint"]
+depends = ["lint", "lint:commits"]
 
 [tasks."ci:test"]
 depends = ["test"]
+
+[tasks."ci:affected-matrix"]
+# The affected manifest split into the two arrays publish.yml's matrices need,
+# as forge step-output assignments (ADR-0102). The workflow step only redirects.
+run = "bash scripts/ci-affected-matrix.sh"
+
+[tasks."ci:nightly-gate"]
+# Whether tonight's cluster:full suite should run, as a forge step-output
+# assignment (ADR-0102, ADR-0601). Reads EVENT.
+run = "bash scripts/ci-nightly-gate.sh"
+
+[tasks."ci:build-context"]
+# An app's Docker build context, as a forge step-output assignment (ADR-0102).
+#   mise run ci:build-context -- admin
+run = "bash scripts/ci-build-context.sh"
+
+[tasks."ci:release-info"]
+# A CalVer release tag resolved to version + commit, as forge step-output
+# assignments (ADR-0102, ADR-0103). Reads GITHUB_REF.
+run = "bash scripts/ci-release-info.sh"
+
+# ── Promotion (ADR-0201) ──────────────────────────────────────────────────────
+[tasks."promote:dev-staging"]
+# Bump dev + staging values for every affected component to $SHA. Prod is not
+# touched here: it pins by digest on a release tag.
+run = "bash scripts/promote-dev-staging.sh"
+
+[tasks."promote:prod"]
+# Pin every prod values file to $SHA by digest and label the images $VER.
+run = "bash scripts/promote-prod.sh"
+
+[tasks."promote:verify"]
+# Gate a release on prod converging on $SHA. Needs ARGOCD_SERVER/ARGOCD_AUTH_TOKEN.
+run = "bash scripts/promote-verify.sh"
 
 [tasks."ci:build"]
 depends = ["build"]
@@ -467,7 +514,10 @@ depends = ["build"]
 run = """
 mise run gen
 mise run format
-git diff --exit-code
+git diff --exit-code || {
+  echo "::error::Generated or formatted artifacts are out of date. Run 'mise run ci:gen' and commit the result."
+  exit 1
+}
 """
 
 # ── Deploy to cluster (working-tree overrides) ────────────────────────────────

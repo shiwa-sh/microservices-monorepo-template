@@ -36,7 +36,7 @@ rules:
     description: schema property names must be snake_case
     given: "$"
     resolved: true
-    severity: warn
+    severity: error
     then:
       function: oasCamelCaseProperties
       functionOptions:
@@ -60,6 +60,13 @@ rules:
     then:
       field: example
       function: truthy
+
+  # An example that no longer validates against its own schema is worse than no
+  # example: the mock serves it verbatim (ADR-0600), so the UI development loop is
+  # fed a shape the real API cannot return, and the portal documents that shape as
+  # if it were true. Mechanically detectable, so it is not left to review.
+  oas3-valid-schema-example: error
+  oas3-example-external-check: error
 
   # Every path must have a tag for grouping
   must-have-tag:

@@ -32,39 +32,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/setup
 
       - id: check
         env:
           EVENT: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-
-          # Anything but the cron is someone explicitly asking for this suite.
-          if [ "$EVENT" != schedule ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # 26h, not 24: GitHub queues cron runs on a shared pool and starts them
-          # late by a variable amount (this repo has seen 03:00 fire at 05:52 and
-          # 06:09). A 24h window would silently drop commits into the gap between a
-          # late run and the next one.
-          if [ -n "$(git log --since='26 hours ago' --oneline)" ]; then
-            echo "→ new commits since the last nightly; running the suite." >> "$GITHUB_STEP_SUMMARY"
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Monthly floor. Code standing still does not mean the world does: base
-          # images, Helm charts, and registry contents move underneath an unchanged
-          # commit, and the 1st-of-the-month run is what catches that on a dormant
-          # repo. Day-of-month rather than a weekday so it stays one run per month
-          # regardless of how the calendar falls.
-          if [ "$(date -u +%d)" = 01 ]; then
-            echo "→ no new commits, but it is the 1st; running the monthly floor." >> "$GITHUB_STEP_SUMMARY"
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "✓ no commits in the last 26h — skipping tonight's bring-up." >> "$GITHUB_STEP_SUMMARY"
-          echo "run=false" >> "$GITHUB_OUTPUT"
+        run: mise run ci:nightly-gate >> "$GITHUB_OUTPUT"

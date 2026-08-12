@@ -21,30 +21,10 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: ./.github/actions/setup
 
-      - name: Compute affected
-        id: affected
-        run: mise run ci:affected > /tmp/affected.json && cat /tmp/affected.json
-
       - name: Bump dev + staging values
-        run: |
-          SHA="${{ github.event.workflow_run.head_sha }}"
-          # Most services and apps (the frontend is an app, ADR-0400) share the
-          # infra/gitops/services/<env>/values/<name>.yaml layout, bumped by SHA tag
-          # in dev/staging (prod pins by digest — promote-on-release). The admin
-          # console is the exception: it is a platform chart (lowdefy, ADR-0401), so
-          # its image lives at .lowdefy.image.tag in the platform overlay.
-          jq -r '.services[], .apps[]' /tmp/affected.json | while read -r name; do
-            for env in dev staging; do
-              if [[ "$name" == admin ]]; then
-                yq -i ".lowdefy.image.tag = \"${SHA}\"" "infra/gitops/platform/${env}/values.yaml"
-                continue
-              fi
-              path="infra/gitops/services/${env}/values/${name}.yaml"
-              if [[ -f "$path" ]]; then
-                sed -i -E "s|(tag:[[:space:]]*).*|\1${SHA}|" "$path"
-              fi
-            done
-          done
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: mise run promote:dev-staging
 
       - name: Open auto-merge PR
         uses: peter-evans/create-pull-request@v7

@@ -31,41 +31,13 @@ jobs:
 
       - name: Resolve release
         id: rel
-        run: |
-          ver="${GITHUB_REF#refs/tags/}"            # vYYYY.0M.MICRO
-          sha="$(git rev-parse "${GITHUB_REF}^{}")" # commit the tag points to
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+        run: mise run ci:release-info >> "$GITHUB_OUTPUT"
 
       - name: Pin prod to digests + label images with the CalVer
         env:
-          REPO: ghcr.io/${{ github.repository }}
           SHA: ${{ steps.rel.outputs.sha }}
           VER: ${{ steps.rel.outputs.version }}
-        run: |
-          set -euo pipefail
-          # A repo-wide release pins every prod values file to THIS commit, by
-          # digest (`repo@sha256:…`) — an image digest cannot be re-pushed, so a
-          # pod cannot silently run different code under the same reference
-          # (ADR-0103). The CalVer is added as a human-facing label on the image.
-          # image.repository is read straight from each values file, so this works
-          # for both `-server`/`-worker` services and apps (frontend has no suffix).
-          shopt -s nullglob
-          pin() {  # <values-file> <yaml-path-to-image-block>
-            local path="$1" block="$2" repo digest
-            repo="$(yq "${block}.repository // \"\"" "$path")"
-            [ -n "$repo" ] || return 0
-            digest="$(docker buildx imagetools inspect "${repo}:${SHA}" --format '{{.Manifest.Digest}}')"
-            yq -i "${block}.digest = \"${digest}\" | ${block}.tag = \"${SHA}\"" "$path"
-            docker buildx imagetools create -t "${repo}:${VER}" "${repo}:${SHA}"  # CalVer label
-          }
-          for path in infra/gitops/services/prod/values/*.yaml; do
-            pin "$path" ".image"
-            pin "$path" ".worker.image"
-          done
-          # The admin console is the one repo-built platform image (lowdefy chart,
-          # ADR-0401); pin it by digest the same way, at its platform overlay path.
-          pin "infra/gitops/platform/prod/values.yaml" ".lowdefy.image"
+        run: mise run promote:prod
 
       - uses: peter-evans/create-pull-request@v7
         with:
@@ -77,16 +49,12 @@ jobs:
 
       # Rollout gate (ADR-0201, ADR-0103): "Argo Healthy" already means the new
       # ReplicaSet is available, but a release must not report success until prod
-      # has actually converged on the release commit. Runs post-merge against the
-      # prod cluster; scaffolded here (template CI has no prod kubeconfig, like any
-      # cluster-touching step) — wire ARGOCD_SERVER/ARGOCD_AUTH_TOKEN to enable:
-      #   argocd app wait -l env=prod --revision "${SHA}" --sync --health --timeout 600
+      # has actually converged on the release commit. The task explains what it
+      # needs to be armed and says so loudly when it is not.
       - name: Verify prod rollout
         env:
           SHA: ${{ steps.rel.outputs.sha }}
-        run: |
-          echo "Would wait for prod to converge on ${SHA}:"
-          echo "  argocd app wait -l env=prod --revision \"${SHA}\" --sync --health --timeout 600"
+        run: mise run promote:verify
 
       - uses: softprops/action-gh-release@v2
         with:

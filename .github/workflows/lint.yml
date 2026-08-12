@@ -22,10 +22,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup
 
-      - name: Validate commits (cocogitto)
-        if: github.event_name == 'pull_request'
-        run: cog check --ignore-merge-commits "origin/${{ github.base_ref }}..HEAD"
-
       # No affected-scoping here, deliberately. Every linter behind `ci:lint` is a
       # whole-repo analyser over a single Go module (`golangci-lint run ./...`,
       # `biome ci .`, the repo-wide scripts/*.sh gates) — there is no per-service
@@ -33,4 +29,8 @@ jobs:
       # `ci:affected` scopes what gets BUILT and PROMOTED (publish.yml,
       # promote-on-merge.yml), not what gets analysed.
       - name: Run linters
+        # BASE_REF is what `lint:commits` measures the commit range against. On a
+        # push it is empty and the task falls back to master.
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: mise run ci:lint

@@ -26,11 +26,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       # The check itself lives in `ci:gen` (.mise.toml) so this job and the lefthook
-      # gen-drift hook cannot drift apart from each other. This step only translates
-      # its exit code into a GitHub annotation.
+      # gen-drift hook cannot drift apart from each other — including the annotation
+      # it emits on failure.
       - name: Regenerate, reformat, fail on drift
-        run: |
-          if ! mise run ci:gen; then
-            echo "::error::Generated or formatted artifacts are out of date. Run 'mise run ci:gen' and commit the result."
-            exit 1
-          fi
+        run: mise run ci:gen

@@ -19,4 +19,9 @@ if [[ ${#specs[@]} -eq 0 ]]; then
 fi
 
 step "linting ${#specs[@]} OpenAPI spec(s) with vacuum"
-exec vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error "${specs[@]}"
+vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error "${specs[@]}"
+
+# Resource-prefix ownership is the one rule vacuum cannot express: it is a property
+# of the SET of specs, and vacuum lints one document at a time (ADR-0303).
+step "checking resource-prefix ownership across the /api namespace"
+go run ./tools/lint-api-prefixes

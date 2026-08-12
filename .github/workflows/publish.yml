@@ -23,10 +23,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: ./.github/actions/setup
       - id: affected
-        run: |
-          manifest=$(mise run ci:affected)
-          echo "services=$(echo "$manifest" | jq -c '.services')" >> "$GITHUB_OUTPUT"
-          echo "apps=$(echo "$manifest" | jq -c '.apps')" >> "$GITHUB_OUTPUT"
+        run: mise run ci:affected-matrix >> "$GITHUB_OUTPUT"
 
   images:
     needs: affected
@@ -88,11 +85,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: ctx
-        run: |
-          case "${{ matrix.app }}" in
-            admin) echo "context=apps/admin" >> "$GITHUB_OUTPUT" ;;
-            *)     echo "context=." >> "$GITHUB_OUTPUT" ;;
-          esac
+        run: mise run ci:build-context -- "${{ matrix.app }}" >> "$GITHUB_OUTPUT"
       - name: Build & push ${{ matrix.app }}
         uses: docker/build-push-action@v6
         with:
