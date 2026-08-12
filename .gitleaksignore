@@ -1,0 +1,17 @@
+# Findings in git history that are known, judged, and left in place (ADR-0202).
+#
+# An entry here suppresses one finding at one commit, by fingerprint. It is not a
+# path allowlist: a new secret in the same file still fails. Adding a line without
+# the reason and the rotation decision beside it defeats the point of the scan.
+#
+# The remediation for a committed secret is ROTATION, not deletion — reverting the
+# file leaves the value in the history that every clone already has. So each entry
+# below records what happened to the credential, never merely that it is old.
+
+# TYK_GW_SECRET in a docker-compose.yml, June 2024.
+# Rotation is moot: Tyk was the API gateway before Traefik and Oathkeeper, and both
+# the component and the file are gone from the tree. There is no gateway holding
+# this value and no environment it opens. Left in history rather than rewritten —
+# purging it would rewrite every commit since, which is a far larger action than the
+# risk warrants for a credential to a system that no longer exists.
+ca6a733b078df5ce789d30cd82f703f95918ab69:docker-compose.yml:generic-api-key:21

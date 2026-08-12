@@ -8,8 +8,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 144 |
-| Review-enforced | 302 |
+| Machine-enforced | 145 |
+| Review-enforced | 301 |
 | **Total** | **446** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
@@ -271,7 +271,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| Plaintext secret values do not appear in any committed file. | review |
+| Plaintext secret values do not appear in any committed file. | `lint:secrets` in CI |
 | All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`. | review |
 | Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. | review |
 | Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to. | review |

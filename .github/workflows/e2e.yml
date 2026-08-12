@@ -66,6 +66,14 @@ jobs:
         run: mise run e2e:install
       - name: Run full e2e + visual suite
         run: mise run e2e
+
+      # Web vitals and bundle budgets (ADR-0400). It lives here rather than on every
+      # PR because it measures the rendered page, and the frontend's server
+      # components fetch through the edge at render time — so there is no page to
+      # measure without cluster:full. Moving it per-PR waits on the API mock
+      # (ADR-0600), which gives a build an origin to render against.
+      - name: Web vitals + bundle budgets
+        run: mise run lighthouse
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

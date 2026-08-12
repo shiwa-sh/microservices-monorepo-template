@@ -35,6 +35,19 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 | A provider secret manager, synced in | none in-cluster beyond a controller | through the provider | n/a | Fails driver 1 outright: the secret path leaves infrastructure we control, and the provider becomes a bootstrap dependency |
 | Uncommitted `kubectl create secret` — the honest baseline | none | n/a — nothing is committed | n/a — the values are not in git | An environment stops being reproducible from the repo, and each value survives only in the shell history of whoever created it |
 
+### Detecting a plaintext secret
+
+Storing secrets correctly and noticing when one was not are different questions, and the second one needs its own answer: a rule enforced by review alone is a rule with no gate.
+
+| Option | Runtime | What it costs to run in CI | Verdict |
+| --- | --- | --- | --- |
+| **gitleaks** | a single Go binary | nothing beyond the binary — it reads the tree and the history offline | **Chosen.** It is the only option here that adds no runtime and makes no network call, which is what lets it run in a pre-commit hook as well as in CI *(documented)* |
+| trufflehog | a single Go binary | outbound calls to the providers whose credentials it finds | Its distinguishing feature is **verification** — asking the provider whether a found credential is live. That is worth real money on a large estate and it puts CI on the network path to every third party a false positive names |
+| detect-secrets | Python | a Python toolchain in every clone and every runner | Fails [ADR-0000](0000-platform-foundations.md) principle 6. Its baseline-file workflow also makes an unreviewed finding indistinguishable from a reviewed one |
+| Review alone — the honest baseline | none | none | The position this repository held. It is the one defect class that survives its own fix: reverting the file leaves the value in history, so the remediation is rotation |
+
+**Scanning the history is a separate scope from scanning the tree**, because they answer different questions. The working-tree scan asks whether the change about to be made is clean, which is what a pre-commit hook wants. The history scan asks whether something already committed has never been rotated, which is a CI question and is answered once per branch rather than once per commit.
+
 ## Decision
 
 ### SOPS with age recipients
@@ -109,7 +122,7 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 
 ## Rules
 
-- Plaintext secret values do not appear in any committed file.
+- Plaintext secret values do not appear in any committed file. `(CI: lint:secrets)`
 - All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`.
 - Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key.
 - Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to.

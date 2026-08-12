@@ -1,0 +1,68 @@
+# Plaintext-secret scanning (ADR-0202). The Rule is that plaintext secret values do
+# not appear in any committed file; this is what checks it.
+#
+# The default rule set is extended rather than replaced: gitleaks ships provider
+# patterns for the credential formats that actually leak, and hand-maintaining that
+# list is the work the tool exists to avoid.
+
+title = "platform secret scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Encrypted-by-design and generated content. Every entry here is a path whose
+high-entropy strings are the correct state of the file, not a finding — an
+allowlist entry for anything else would be suppressing the defect this scans for.
+"""
+
+paths = [
+  # SOPS output. The whole point is that these values are ciphertext, and the age
+  # recipients and MAC in the sops block are public by construction.
+  '''.*\.enc\.ya?ml$''',
+  '''^\.sops\.yaml$''',
+
+  # Lockfiles: integrity hashes, not credentials.
+  '''^bun\.lock$''',
+  '''.*/package-lock\.json$''',
+  '''^go\.sum$''',
+
+  # Generated trees are rewritten by `mise run gen`; a secret cannot originate here.
+  '''^libs/(go|ts)/sdks/.*''',
+  '''^apps/admin/_generated/.*''',
+
+  # Committed public halves. A public key in a repository is the intended state.
+  '''.*\.pub$''',
+
+  # Untracked build output and dependencies. "Committed file" is what the Rule
+  # says, and scanning the rest costs 1.6 GB of read for findings in files git
+  # does not track.
+  '''.*node_modules/.*''',
+  '''.*\.next/.*''',
+  '''^test-results/.*''',
+  '''^\.rumdl_cache/.*''',
+  '''^\.idea/.*''',
+
+  # DELIBERATELY COMMITTED, AND IT CONTRADICTS THE RULE AS WRITTEN.
+  # infra/gitops/platform/local/age.key holds a real AGE-SECRET-KEY. The file's own
+  # header and .sops.yaml both record the reasoning: there is no bootstrap step to
+  # materialise a local cluster key, and it decrypts nothing but throwaway local
+  # values. But ADR-0202 states "Plaintext secret values do not appear in any
+  # committed file" with no local exemption, and docs/guide/secrets-runbook.md says
+  # the private age key never enters Git — which is not true of this one.
+  # This entry keeps the gate honest about what it permits. Resolving it is an ADR
+  # decision: carry the exemption in ADR-0202, or stop committing the key.
+  '''^infra/gitops/platform/local/age\.key$''',
+]
+
+regexes = [
+  # The all-zero image tag placeholder the promotion workflow rewrites.
+  '''0{40}''',
+]
+
+[[rules]]
+id = "age-secret-key"
+description = "age private key (must never be committed — ADR-0202)"
+regex = '''AGE-SECRET-KEY-1[0-9A-Z]{58}'''
+keywords = ["age-secret-key"]

@@ -38,6 +38,11 @@ pre-commit:
       # Audience↔exposure gate (lint:api-audience) — derives from the specs + routes.
       glob: "services/**/openapi.yaml"
       run: go run ./tools/lint-api-audience
+    secrets:
+      # Plaintext-secret scan over the staged tree (ADR-0202). The working-tree scope
+      # is the one a hook wants: is the change about to be made clean? CI runs the
+      # history scope, which asks a different question.
+      run: bash scripts/lint-secrets.sh
     floating-tags:
       run: bash scripts/lint-floating-tags.sh
     gen-drift:

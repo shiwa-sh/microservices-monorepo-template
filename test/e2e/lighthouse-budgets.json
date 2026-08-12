@@ -1,0 +1,26 @@
+[
+  {
+    "path": "/*",
+    "resourceSizes": [
+      { "resourceType": "script", "budget": 180 },
+      { "resourceType": "stylesheet", "budget": 60 },
+      { "resourceType": "font", "budget": 120 },
+      { "resourceType": "total", "budget": 500 }
+    ],
+    "resourceCounts": [{ "resourceType": "third-party", "budget": 0 }]
+  },
+  {
+    "path": "/panel*",
+    "resourceSizes": [
+      { "resourceType": "script", "budget": 260 },
+      { "resourceType": "total", "budget": 650 }
+    ]
+  },
+  {
+    "path": "/devportal*",
+    "resourceSizes": [
+      { "resourceType": "script", "budget": 900 },
+      { "resourceType": "total", "budget": 1400 }
+    ]
+  }
+]

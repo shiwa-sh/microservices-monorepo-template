@@ -44,7 +44,7 @@ The security controls every project built from this template inherits, each one 
 
 | Control | Enforced by |
 | --- | --- |
-| Plaintext secret values do not appear in any committed file. | review |
+| Plaintext secret values do not appear in any committed file. | `lint:secrets` in CI |
 | All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`. | review |
 | Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. | review |
 | Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to. | review |

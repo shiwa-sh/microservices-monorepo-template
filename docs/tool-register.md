@@ -86,7 +86,8 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | mise | task runner and tool pinning | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | Make, Task, `just`, asdf, Nix |
 | golangci-lint | Go linting | [0101](adr/0101-monorepo.md) | GPL-3.0 | maintainer-led | `go vet` alone, revive, staticcheck standalone |
 | Biome | TypeScript lint and format | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | ESLint + Prettier, oxlint, dprint |
-| rumdl | Markdown lint and format | [0001](adr/0001-documentation-and-output-conventions.md) | MIT | maintainer-led | markdownlint, Vale, Prettier for Markdown |
+| rumdl | Markdown lint and format | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | markdownlint, Vale, Prettier for Markdown |
+| gitleaks | plaintext-secret scanning | [0202](adr/0202-secrets.md) | MIT | gitleaks organisation, maintainer-led | trufflehog, detect-secrets, review alone |
 | shellcheck + shfmt | shell lint and format | [0101](adr/0101-monorepo.md) | GPL-3.0 and BSD-3-Clause | maintainer-led | no shell lint, shellharden |
 | lefthook | git hooks | [0101](adr/0101-monorepo.md) | MIT | Evil Martians | husky, pre-commit, a committed `.githooks` directory |
 | cocogitto | Conventional Commits and CalVer | [0103](adr/0103-release-and-versioning.md) | MIT | maintainer-led | commitlint, semantic-release, release-please, git-cliff |

@@ -42,3 +42,14 @@ run = "npm run test"
 # Label-gated per-PR subset: one product golden path + a key dashboard render.
 env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
 run = "npm run test:smoke"
+
+[tasks.lighthouse]
+# Web vitals + bundle budgets against the running edge (ADR-0400). Same NO_PROXY
+# reasoning as the suites above: the edge is hit directly, never through a proxy.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm run lighthouse"
+
+[tasks."test:a11y"]
+# The axe scan alone, for iterating on an accessibility fix without the full suite.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm run test:a11y"
