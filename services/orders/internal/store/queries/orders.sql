@@ -9,8 +9,8 @@ from orders
 order by created_at desc limit 100;
 
 -- name: CreateOrder :one
-insert into orders (product_id, quantity, total_cents, status)
-values ($1, $2, $3, 'pending')
+insert into orders (id, product_id, quantity, total_cents, status)
+values ($1, $2, $3, $4, 'pending')
 returning id, product_id, quantity, total_cents, status;
 
 -- name: GetOrder :one

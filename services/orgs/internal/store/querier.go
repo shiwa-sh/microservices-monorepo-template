@@ -12,7 +12,7 @@ import (
 
 type Querier interface {
 	AddMember(ctx context.Context, arg AddMemberParams) error
-	CreateOrg(ctx context.Context, name string) (CreateOrgRow, error)
+	CreateOrg(ctx context.Context, arg CreateOrgParams) (CreateOrgRow, error)
 	DeleteOrg(ctx context.Context, id pgtype.UUID) error
 	GetOrg(ctx context.Context, id pgtype.UUID) (GetOrgRow, error)
 	ListOrgs(ctx context.Context) ([]ListOrgsRow, error)

@@ -63,6 +63,18 @@ func orderID(u pgtype.UUID) payment.OrderId {
 	return payment.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
 }
 
+// mintChargeID is where an identifier enters the system (ADR-0003). The service
+// holds it before the insert rather than reading it back from a column default, so
+// a write that never lands still has an identifier to log and to name in the
+// failure.
+func mintChargeID() (pgtype.UUID, error) {
+	v, err := id.New("charge")
+	if err != nil {
+		return pgtype.UUID{}, apierr.Internal(err.Error())
+	}
+	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
+}
+
 func storedChargeID(v payment.ChargeId) (pgtype.UUID, error) {
 	parsed, err := id.Parse("charge", string(v))
 	if err != nil {
@@ -104,20 +116,9 @@ func (h *Handlers) CreateCharge(
 		return nil, apierr.Internal(err.Error())
 	}
 
-	order, err := storedOrderID(req.OrderID)
+	created, err := h.insertCharge(ctx, req.OrderID, int32(req.AmountCents), params.IdempotencyKey)
 	if err != nil {
 		return nil, err
-	}
-	created, err := h.q.CreateCharge(
-		ctx,
-		store.CreateChargeParams{
-			OrderID:        order,
-			AmountCents:    int32(req.AmountCents),
-			IdempotencyKey: params.IdempotencyKey,
-		},
-	)
-	if err != nil {
-		return nil, apierr.Internal(err.Error())
 	}
 	cid := string(chargeID(created.ID))
 
@@ -252,6 +253,38 @@ func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatus
 		problem.Errors = append(problem.Errors, payment.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
 	}
 	return &payment.ErrorStatusCode{StatusCode: e.Status, Response: problem}
+}
+
+// insertCharge puts the row on the two identifiers it needs: the order's, decoded
+// from the wire, and its own, minted here (ADR-0003). The amount arrives already
+// narrowed, so the range check stays with the request it validates.
+func (h *Handlers) insertCharge(
+	ctx context.Context,
+	order payment.OrderId,
+	amountCents int32,
+	idempotencyKey string,
+) (store.CreateChargeRow, error) {
+	orderKey, err := storedOrderID(order)
+	if err != nil {
+		return store.CreateChargeRow{}, err
+	}
+	key, err := mintChargeID()
+	if err != nil {
+		return store.CreateChargeRow{}, err
+	}
+	created, err := h.q.CreateCharge(
+		ctx,
+		store.CreateChargeParams{
+			ID:             key,
+			OrderID:        orderKey,
+			AmountCents:    amountCents,
+			IdempotencyKey: idempotencyKey,
+		},
+	)
+	if err != nil {
+		return store.CreateChargeRow{}, apierr.Internal(err.Error())
+	}
+	return created, nil
 }
 
 // requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the

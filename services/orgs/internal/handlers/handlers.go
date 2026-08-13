@@ -48,6 +48,17 @@ func orgID(u pgtype.UUID) orgs.OrgId {
 	return orgs.OrgId(id.MustFrom("org", uuid.UUID(u.Bytes)).String())
 }
 
+// mintID is where an identifier enters the system (ADR-0003). The service holds it
+// before the insert rather than reading it back from a column default, so a write
+// that never lands still has an identifier to log and to name in the failure.
+func mintID() (pgtype.UUID, error) {
+	v, err := id.New("org")
+	if err != nil {
+		return pgtype.UUID{}, apierr.Internal(err.Error())
+	}
+	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
+}
+
 func storedID(v orgs.OrgId) (pgtype.UUID, error) {
 	parsed, err := id.Parse("org", string(v))
 	if err != nil {
@@ -60,7 +71,11 @@ func (h *Handlers) CreateOrg(ctx context.Context, req *orgs.OrgInput) (*orgs.Org
 	if req.Name == "" {
 		return nil, apierr.BadRequest("name required")
 	}
-	row, err := h.q.CreateOrg(ctx, req.Name)
+	key, err := mintID()
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.CreateOrg(ctx, store.CreateOrgParams{ID: key, Name: req.Name})
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}

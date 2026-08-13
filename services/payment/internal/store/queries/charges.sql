@@ -1,6 +1,6 @@
 -- name: CreateCharge :one
-insert into charges (order_id, amount_cents, status, idempotency_key)
-values ($1, $2, 'pending', $3)
+insert into charges (id, order_id, amount_cents, status, idempotency_key)
+values ($1, $2, $3, 'pending', $4)
 returning id, order_id, amount_cents, status;
 
 -- name: ListCharges :many

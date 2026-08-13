@@ -28,16 +28,21 @@ func (q *Queries) AddMember(ctx context.Context, arg AddMemberParams) error {
 }
 
 const createOrg = `-- name: CreateOrg :one
-insert into orgs (name) values ($1) returning id, name
+insert into orgs (id, name) values ($1, $2) returning id, name
 `
+
+type CreateOrgParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
 
 type CreateOrgRow struct {
 	ID   pgtype.UUID `json:"id"`
 	Name string      `json:"name"`
 }
 
-func (q *Queries) CreateOrg(ctx context.Context, name string) (CreateOrgRow, error) {
-	row := q.db.QueryRow(ctx, createOrg, name)
+func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (CreateOrgRow, error) {
+	row := q.db.QueryRow(ctx, createOrg, arg.ID, arg.Name)
 	var i CreateOrgRow
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err

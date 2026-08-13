@@ -12,12 +12,13 @@ import (
 )
 
 const createCharge = `-- name: CreateCharge :one
-insert into charges (order_id, amount_cents, status, idempotency_key)
-values ($1, $2, 'pending', $3)
+insert into charges (id, order_id, amount_cents, status, idempotency_key)
+values ($1, $2, $3, 'pending', $4)
 returning id, order_id, amount_cents, status
 `
 
 type CreateChargeParams struct {
+	ID             pgtype.UUID `json:"id"`
 	OrderID        pgtype.UUID `json:"order_id"`
 	AmountCents    int32       `json:"amount_cents"`
 	IdempotencyKey string      `json:"idempotency_key"`
@@ -31,7 +32,12 @@ type CreateChargeRow struct {
 }
 
 func (q *Queries) CreateCharge(ctx context.Context, arg CreateChargeParams) (CreateChargeRow, error) {
-	row := q.db.QueryRow(ctx, createCharge, arg.OrderID, arg.AmountCents, arg.IdempotencyKey)
+	row := q.db.QueryRow(ctx, createCharge,
+		arg.ID,
+		arg.OrderID,
+		arg.AmountCents,
+		arg.IdempotencyKey,
+	)
 	var i CreateChargeRow
 	err := row.Scan(
 		&i.ID,

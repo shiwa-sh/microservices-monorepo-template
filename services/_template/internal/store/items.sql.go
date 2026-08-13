@@ -7,14 +7,21 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createItem = `-- name: CreateItem :one
-insert into items (name) values ($1) returning id, name, created_at
+insert into items (id, name) values ($1, $2) returning id, name, created_at
 `
 
-func (q *Queries) CreateItem(ctx context.Context, name string) (Item, error) {
-	row := q.db.QueryRow(ctx, createItem, name)
+type CreateItemParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, createItem, arg.ID, arg.Name)
 	var i Item
 	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
 	return i, err

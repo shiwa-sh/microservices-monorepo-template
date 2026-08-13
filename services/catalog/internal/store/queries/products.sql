@@ -15,7 +15,7 @@ from products
 where id = $1;
 
 -- name: CreateProduct :one
-insert into products (name, price_cents) values ($1, $2) returning id, name, price_cents;
+insert into products (id, name, price_cents) values ($1, $2, $3) returning id, name, price_cents;
 
 -- name: UpdateProduct :one
 update products set name = $2, price_cents = $3

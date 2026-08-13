@@ -51,6 +51,17 @@ func productID(u pgtype.UUID) catalog.ProductId {
 	return catalog.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
 }
 
+// mintID is where an identifier enters the system (ADR-0003). The service holds it
+// before the insert rather than reading it back from a column default, so a write
+// that never lands still has an identifier to log and to name in the failure.
+func mintID() (pgtype.UUID, error) {
+	v, err := id.New("product")
+	if err != nil {
+		return pgtype.UUID{}, apierr.Internal(err.Error())
+	}
+	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
+}
+
 func storedID(v catalog.ProductId) (pgtype.UUID, error) {
 	parsed, err := id.Parse("product", string(v))
 	if err != nil {
@@ -97,7 +108,14 @@ func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput)
 	if req.Name == "" || req.PriceCents < 0 || req.PriceCents > math.MaxInt32 {
 		return nil, apierr.BadRequest("name and price_cents required")
 	}
-	row, err := h.q.CreateProduct(ctx, store.CreateProductParams{Name: req.Name, PriceCents: int32(req.PriceCents)})
+	key, err := mintID()
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.CreateProduct(
+		ctx,
+		store.CreateProductParams{ID: key, Name: req.Name, PriceCents: int32(req.PriceCents)},
+	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}

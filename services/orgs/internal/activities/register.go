@@ -7,9 +7,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/store"
 )
 
@@ -40,8 +42,23 @@ func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID s
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	// The identifier is minted here rather than by a column default (ADR-0003), and
+	// here rather than in the workflow: `id.New` reads the clock and the entropy
+	// pool, which a workflow function may not do. An activity retry therefore mints a
+	// fresh one, the same as the default it replaces.
+	key, err := id.New("org")
+	if err != nil {
+		return "", fmt.Errorf("create personal org: mint id: %w", err)
+	}
+
 	qtx := a.q.WithTx(tx)
-	org, err := qtx.CreateOrg(ctx, personalOrgName)
+	org, err := qtx.CreateOrg(
+		ctx,
+		store.CreateOrgParams{
+			ID:   pgtype.UUID{Bytes: key.UUID(), Valid: true},
+			Name: personalOrgName,
+		},
+	)
 	if err != nil {
 		return "", fmt.Errorf("create personal org: insert org: %w", err)
 	}

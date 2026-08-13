@@ -12,12 +12,13 @@ import (
 )
 
 const createProduct = `-- name: CreateProduct :one
-insert into products (name, price_cents) values ($1, $2) returning id, name, price_cents
+insert into products (id, name, price_cents) values ($1, $2, $3) returning id, name, price_cents
 `
 
 type CreateProductParams struct {
-	Name       string `json:"name"`
-	PriceCents int32  `json:"price_cents"`
+	ID         pgtype.UUID `json:"id"`
+	Name       string      `json:"name"`
+	PriceCents int32       `json:"price_cents"`
 }
 
 type CreateProductRow struct {
@@ -27,7 +28,7 @@ type CreateProductRow struct {
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (CreateProductRow, error) {
-	row := q.db.QueryRow(ctx, createProduct, arg.Name, arg.PriceCents)
+	row := q.db.QueryRow(ctx, createProduct, arg.ID, arg.Name, arg.PriceCents)
 	var i CreateProductRow
 	err := row.Scan(&i.ID, &i.Name, &i.PriceCents)
 	return i, err

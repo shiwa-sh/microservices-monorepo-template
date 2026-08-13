@@ -6,7 +6,7 @@ from orgs
 order by created_at desc limit 100;
 
 -- name: CreateOrg :one
-insert into orgs (name) values ($1) returning id, name;
+insert into orgs (id, name) values ($1, $2) returning id, name;
 
 -- name: GetOrg :one
 select

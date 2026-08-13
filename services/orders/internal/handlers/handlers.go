@@ -64,6 +64,18 @@ func productID(u pgtype.UUID) orders.ProductId {
 	return orders.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
 }
 
+// mintOrderID is where an identifier enters the system (ADR-0003). The service
+// holds it before the insert rather than reading it back from a column default, so
+// a write that never lands still has an identifier to log and to name in the
+// failure.
+func mintOrderID() (pgtype.UUID, error) {
+	v, err := id.New("order")
+	if err != nil {
+		return pgtype.UUID{}, apierr.Internal(err.Error())
+	}
+	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
+}
+
 func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
 	parsed, err := id.Parse("order", string(v))
 	if err != nil {
@@ -91,9 +103,14 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	if err != nil {
 		return nil, err
 	}
+	key, err := mintOrderID()
+	if err != nil {
+		return nil, err
+	}
 	row, err := h.q.CreateOrder(
 		ctx,
 		store.CreateOrderParams{
+			ID:         key,
 			ProductID:  product,
 			Quantity:   int32(req.Quantity),
 			TotalCents: 0,

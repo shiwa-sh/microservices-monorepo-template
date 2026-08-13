@@ -9,7 +9,7 @@ import (
 )
 
 type Querier interface {
-	CreateItem(ctx context.Context, name string) (Item, error)
+	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	ListItems(ctx context.Context) ([]Item, error)
 }
 
