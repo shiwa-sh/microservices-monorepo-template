@@ -96,7 +96,17 @@ NODE_VERSION = "22"
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 [tasks.setup]
+depends = ["setup:node"]
 run = "lefthook install"
+
+[tasks."setup:node"]
+# The workspace's node_modules. `.mise.toml` pins bun; it does not pin what bun
+# fetches, and nothing installs it implicitly — so a gate that reads a package's
+# own files (lint:contrast reads Tailwind's theme.css) has to depend on this or it
+# passes on a developer machine, where node_modules is already there, and fails on
+# a cold runner. --frozen-lockfile so a bun.lock that has drifted from
+# package.json fails here rather than silently re-resolving to something else.
+run = "bun install --frozen-lockfile"
 
 # ── Local cluster & inner loop ────────────────────────────────────────────────
 [tasks."cluster:ensure"]
@@ -501,6 +511,9 @@ run = "bash scripts/lint-secrets.sh"
 run = "go run ./tools/lint-tool-register"
 
 [tasks."lint:contrast"]
+# Reads Tailwind's own theme.css for the ramps the project aliases but does not
+# declare, so node_modules is an input to this gate, not an ambient convenience.
+depends = ["setup:node"]
 # Colour contrast against the design-token file rather than per component
 # (ADR-0400): a token change moves every surface at once, so the token file is
 # where a regression is introduced. axe scans the rendered pages in e2e and catches
