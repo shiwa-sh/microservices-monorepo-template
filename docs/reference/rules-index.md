@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 146 |
-| Review-enforced | 300 |
-| **Total** | **446** |
+| Review-enforced | 306 |
+| **Total** | **452** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -317,6 +317,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay. | review |
+| Every tier runs the distribution and datastore [ADR-0200](../adr/0200-cluster-topology.md) decides. From the full local platform upward the machine config is the same too, and a tier differs from a deployed environment only in lifecycle and in how its nodes are provisioned. The inner loop differs in node count alone ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
 | Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier. | review |
 | The Kubernetes API, service chart, service images, and env contract are identical in every tier. | review |
 | Object storage is one implementation in every environment ([ADR-0207](../adr/0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves. | review |
@@ -648,6 +649,11 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles. | review |
+| The inner loop runs on kind and the full tier runs on Talos in Docker, as two clusters with two contexts. Neither tier's bring-up alters the other. | review |
+| The full tier's nodes take the same machine config a deployed environment's nodes take, so it runs etcd, no kube-proxy, Cilium as an inline manifest, and the committed Traefik chart ([ADR-0200](../adr/0200-cluster-topology.md), [ADR-0206](../adr/0206-cluster-networking.md)). It carries no distribution divergence, and a divergence introduced there is a defect. | review |
+| The inner loop's divergence from a deployed environment is node count alone. Its cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
+| Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy: in the machine config for the full tier, imperatively for the inner loop. No Cilium value differs by tier. | review |
+| Images reach the full tier through a local registry, so Argo CD pulls a tag as it does in a deployed environment. Node-resident images are the inner loop's path only. | review |
 | What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint:service-contract` in CI |
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. | `lint:ports` in CI |

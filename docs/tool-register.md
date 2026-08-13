@@ -82,7 +82,8 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | k6 | load testing | [0601](adr/0601-testing-strategy.md) | AGPL-3.0 | Grafana Labs | Gatling, Locust, JMeter, Vegeta |
 | Testcontainers | integration test fixtures | [0601](adr/0601-testing-strategy.md) | MIT | AtomicJar / Docker | a shared test database, `cluster:base`, in-memory fakes |
 | Lighthouse CI | frontend performance budget | [0400](adr/0400-frontend.md) | Apache-2.0 | Google | WebPageTest, Calibre, bundle-size checks alone |
-| k3d | local cluster | [0600](adr/0600-local-development-loop.md) | MIT | Rancher / SUSE | kind, minikube, Docker Compose, a remote dev cluster |
+| kind | inner-loop local cluster | [0600](adr/0600-local-development-loop.md) | Apache-2.0 | Kubernetes SIGs | Talos in Docker, k3d, minikube, Docker Desktop and Orbstack Kubernetes, Docker Compose, a remote dev cluster |
+| talosctl | full-tier local cluster, provisioned from the machine config [ADR-0200](adr/0200-cluster-topology.md) decides | [0600](adr/0600-local-development-loop.md) | MPL-2.0 | Sidero Labs, single-vendor | k3d, kind, minikube, Docker Desktop and Orbstack Kubernetes for the full tier |
 | mise | task runner and tool pinning | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | Make, Task, `just`, asdf, Nix |
 | golangci-lint | Go linting | [0101](adr/0101-monorepo.md) | GPL-3.0 | maintainer-led | `go vet` alone, revive, staticcheck standalone |
 | Biome | TypeScript lint and format | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | ESLint + Prettier, oxlint, dprint |

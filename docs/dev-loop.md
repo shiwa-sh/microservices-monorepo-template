@@ -4,17 +4,19 @@ How to run and debug services on your machine. The model is [ADR-0600](adr/0600-
 
 ## Pick a mode first
 
-Three, and the cost between them is RAM and start-up time rather than fidelity of the edge — every mode runs the real Traefik, Kratos, and Oathkeeper.
+Three. Every mode runs the real Cilium, Traefik, Kratos, and Oathkeeper on upstream Kubernetes over etcd, so the edge, the network policy, and the datapath are the same in all of them. What the top two modes trade away is a single node and the machine config: `cluster:full` boots the one a deployed environment boots.
 
 | You are | Run | Costs | Cannot tell you |
 | --- | --- | --- | --- |
-| Changing one service's code | `mise run cluster:base`, then `mise run server` in the service | the floor, and seconds to restart the binary | how the service behaves under the charts CI builds |
+| Changing one service's code | `mise run cluster:base`, then `mise run server` in the service | the floor, and seconds to restart the binary | how the service behaves under the charts CI builds, and anything needing more than one node — etcd has a single member here ([ADR-0600](adr/0600-local-development-loop.md)) |
 | Building UI | `mise run cluster:base`, then `mise run dev:frontend` | the floor plus the mock | anything stateful — see *What this tier cannot tell you* |
-| Verifying the whole system, or running e2e | `mise run cluster:full` | around 16 GB of RAM, and minutes | nothing. It is the deployed shape at one replica |
+| Verifying the whole system, or running e2e | `mise run cluster:full` | around 16 GB of RAM, and minutes | nothing above the host kernel. It is the deployed distribution and the deployed shape, at one replica |
 
 Start at the top and move down only when the row you are on cannot answer the question. **Every mode logs in for real**: there is no bypass, no fake session, and no environment branch in the session path in any of them.
 
-`mise run cluster:base` brings up the local **floor** — Traefik, cert-manager, Postgres, Kratos, Oathkeeper — and everything above it is opt-in, declared by the service that needs it. The inner loop is **native execution**: you run the service you are changing directly on the host, with no image build, no in-cluster redeploy, and no file watch on the hot path.
+The two tiers are **two clusters**, each with its own `kubectl` context, so bringing one up leaves the other alone and `cluster:full` never costs you the inner loop you had running.
+
+`mise run cluster:base` brings up the local **floor** — Cilium, Traefik, cert-manager, Postgres, Kratos, Oathkeeper — and everything above it is opt-in, declared by the service that needs it. The inner loop is **native execution**: you run the service you are changing directly on the host, with no image build, no in-cluster redeploy, and no file watch on the hot path.
 
 **There is no cluster step to remember.** A service's own tasks declare what they need and mise resolves the graph, bringing up the floor plus exactly those components and skipping whatever is already Ready.
 
@@ -138,9 +140,9 @@ Plan for around 16 GB of free RAM.
 
 Because it syncs committed `master`, uncommitted **infra** needs a push — see [cluster/gitops-local](guide/gitops-local.md). For uncommitted **service** code use `cluster:add`.
 
-**The local registry is the CI stand-in.** Production GitOps works because CI builds each image, pushes it, and Argo pulls it. Locally there is no CI, so `cluster:full` pushes to a cluster-managed registry at a stable tag and the local overlay points at it — Argo then deploys exactly as production does, the only difference being the registry host.
+**The local registry is the CI stand-in.** Production GitOps works because CI builds each image, pushes it, and Argo pulls it. Locally there is no CI, so `cluster:full` pushes to a local registry at a stable tag and the local overlay points at it — Argo then deploys exactly as production does, the only difference being the registry host. A registry is the only way an image reaches this tier: its nodes hold no image the cluster did not pull, which is also true of a deployed node.
 
-One-time host setup: add `127.0.0.1 k3d-registry.localhost` to `/etc/hosts`, so the host `docker push` resolves to IPv4. A bare `*.localhost` resolves to IPv6 on some systems, which the registry does not listen on. This is machine setup, never in the repo — the same rule as [http-proxy](guide/http-proxy.md).
+One-time host setup: add `127.0.0.1 registry.localhost` to `/etc/hosts`, so the host `docker push` resolves to IPv4. A bare `*.localhost` resolves to IPv6 on some systems, which the registry does not listen on. This is machine setup, never in the repo — the same rule as [http-proxy](guide/http-proxy.md).
 
 What may differ from production, and what may not, is [ADR-0205](adr/0205-environment-parity.md).
 

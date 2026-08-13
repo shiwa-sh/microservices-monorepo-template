@@ -79,7 +79,7 @@ To hunt for the actual ceiling, raise `PERF_VUS` well past the profile default u
 
 ## Local numbers are not capacity numbers
 
-The generator runs on the same host as the k3d node and competes with it for CPU, and one k3d node is not a production topology. **Saturation shapes transfer; absolute ceilings do not.** Treat a local run as a relative regression signal against the previous baseline. For absolute figures, take the `k6-operator` Scale swap and generate load inside the cluster.
+The generator runs on the same host as the cluster node and competes with it for CPU, and a laptop node count is not a production topology. **Saturation shapes transfer; absolute ceilings do not.** Treat a local run as a relative regression signal against the previous baseline. For absolute figures, take the `k6-operator` Scale swap and generate load inside the cluster.
 
 ## Record a baseline
 

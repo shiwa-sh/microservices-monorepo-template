@@ -15,7 +15,7 @@ So the everyday full tier already exercises ArgoCD; there is nothing to opt into
 The fast path. Build your working-tree service into the cluster and let it override the Argo-synced (CI-image) copy:
 
 ```sh
-mise run service:deploy -- catalog     # build → k3d image import → helm upgrade (Argo auto-sync paused)
+mise run service:deploy -- catalog     # build → push to the local registry → helm upgrade (Argo auto-sync paused)
 ```
 
 ### Platform chart / values → `platform:deploy`

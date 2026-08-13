@@ -41,7 +41,7 @@ A divergence that cannot be expressed as a value — a different chart, or a han
 
 | Concern | May differ | Must not differ |
 | --- | --- | --- |
-| Kubernetes distribution | ephemeral locally, persistent when deployed | the charts and manifests applied |
+| Kubernetes distribution | ephemeral locally, persistent when deployed; node count in the inner loop, and how that node is configured rather than what it runs ([ADR-0600](0600-local-development-loop.md)) | the charts and manifests applied, the distribution and its datastore in every tier, and the machine config from the full tier upward |
 | Scale | replicas, storage size, anti-affinity, HPA | which components the full tier runs |
 | Data-tier implementation | inner-loop stand-ins against the real charts | the wire contract, and the Postgres major version |
 | Object storage placement | in-cluster in non-prod, outside the cluster in prod | the implementation, and the S3 API contract |
@@ -53,15 +53,16 @@ The **must not differ** column is [12-Factor X](https://12factor.net/dev-prod-pa
 
 ### Distribution lifecycle
 
-The local distribution and the deployed one run identical charts, so the choice is lifecycle, not architecture.
+| Tier | Distribution | Lifecycle |
+| --- | --- | --- |
+| local inner loop | upstream Kubernetes on etcd, on one node ([ADR-0600](0600-local-development-loop.md)) | per-engineer, recreated freely |
+| local full platform | as [ADR-0200](0200-cluster-topology.md) decides, from the same machine config, provisioned in containers | per-engineer, recreated freely |
+| CI e2e and label-gated PR preview | as the local full platform | ephemeral, created and destroyed per run |
+| dev, staging, prod | as [ADR-0200](0200-cluster-topology.md) decides, provisioned on hosts | persistent |
 
-| Tier | Lifecycle |
-| --- | --- |
-| local, both loops | per-engineer, recreated freely |
-| CI e2e and label-gated PR preview | ephemeral, created and destroyed per run |
-| dev, staging, prod | persistent ([ADR-0200](0200-cluster-topology.md)) |
+**Distribution parity is a floor, and the floor is the full tier.** From it upward the machine config is fixed and the choice is lifecycle, not architecture. The inner loop sits one step below: it runs the same Kubernetes on the same datastore with the same datapath, and differs only in node count and in reaching that state by configuration rather than by machine config. Its sanctioned divergence is spent on the stand-ins behind a wire contract, not on the cluster underneath them.
 
-The full-platform local tier and the CI preview tier are the **same configuration**, so investment in one is investment in the other. Deployed environments stay persistent: they survive reboots and hold real storage and backups.
+The full-platform local tier and the CI preview tier are the **same configuration**, so investment in one is investment in the other, and neither is a second chance to catch what the other misses. Deployed environments stay persistent: they survive reboots and hold real storage and backups.
 
 ### The ephemeral PR environment
 
@@ -100,7 +101,8 @@ Expressed as values, that delta is the S3 endpoint and whether the in-cluster ch
 
 ### Negative / Risks
 
-- **The inner loop's stand-ins are a sanctioned parity gap.** Bounded to implementation behind an unchanged wire contract, and never extended to the full tier.
+- **The inner loop's stand-ins are a sanctioned parity gap.** Bounded to implementation behind an unchanged wire contract, enumerated rather than argued, and never extended to the full tier.
+- **The full tier is the last tier before a deployed environment.** CI and the preview share its configuration, so a divergence carried there is examined nowhere. That is the reason distribution parity starts at the full tier rather than one tier higher.
 - **A single local node is not a production topology.** Saturation shapes transfer; absolute ceilings do not ([ADR-0601](0601-testing-strategy.md)).
 - **Non-prod backups are not recovery guarantees.** Stated here so the in-cluster convenience is never mistaken for one.
 - **Local secrets are committed.** Safe only while the local age key decrypts nothing real; a real credential in a local secret file is a leak, not a shortcut.
@@ -108,6 +110,7 @@ Expressed as values, that delta is the S3 endpoint and whether the in-cluster ch
 ## Rules
 
 - Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay.
+- Every tier runs the distribution and datastore [ADR-0200](0200-cluster-topology.md) decides. From the full local platform upward the machine config is the same too, and a tier differs from a deployed environment only in lifecycle and in how its nodes are provisioned. The inner loop differs in node count alone ([ADR-0600](0600-local-development-loop.md)).
 - Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier.
 - The Kubernetes API, service chart, service images, and env contract are identical in every tier.
 - Object storage is one implementation in every environment ([ADR-0207](0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves.

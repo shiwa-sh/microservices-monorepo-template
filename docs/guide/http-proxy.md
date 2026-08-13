@@ -41,20 +41,22 @@ Keep the package and image registries **out** of `noProxy` so they route through
 
 ## Step 3 — Export the proxy before the first cluster bring-up
 
-Export it in the shell you run `cluster:full` from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`. At create time the cluster task injects it onto the node, rewriting a loopback proxy to the node's host alias for you.
+Export it in the shell you bring a cluster up from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`. At create time the cluster task injects it onto the node, rewriting a loopback proxy to the node's host alias for you.
 
 ```sh
 export HTTPS_PROXY=http://127.0.0.1:8118
-mise run cluster:full
+mise run cluster:base
 ```
+
+Everything below reads the inner loop's node ([ADR-0600](../adr/0600-local-development-loop.md)). The full tier is provisioned from a machine config, which carries its own proxy and registry-mirror settings, so its node name and its recovery path differ.
 
 Verify the node received it — a loopback proxy should now read the host alias:
 
 ```sh
-docker exec k3d-platform-server-0 env | grep -i proxy
+docker exec platform-control-plane env | grep -i proxy
 ```
 
-The proxy is wired only at **create** time, so export it **before the first** bring-up. To rewire an existing cluster, recreate it with `mise run cluster:delete && mise run cluster:full`. If a node restart drops the host alias, re-add `<gateway-ip> host.k3d.internal` to the node's `/etc/hosts`.
+The proxy is wired only at **create** time, so export it **before the first** bring-up. To rewire an existing cluster, recreate it with `mise run cluster:delete && mise run cluster:base`. If a node restart drops the host alias, re-add `<gateway-ip>` under the host alias in the node's `/etc/hosts`.
 
 ## Stalled image pulls
 
@@ -69,4 +71,4 @@ Docker resumes and retries reliably where containerd does not, which is why the 
 
 ## Restricted registries
 
-On a network whose registry blocks **digest** pulls, so that only tags resolve, pre-pull the platform images by tag and `k3d image import` them. The upstream charts pin images by digest ([ADR-0104](../adr/0104-supply-chain-security.md)), which is what fails.
+On a network whose registry blocks **digest** pulls, so that only tags resolve, pre-pull the platform images by tag and `kind load docker-image` them. The upstream charts pin images by digest ([ADR-0104](../adr/0104-supply-chain-security.md)), which is what fails.

@@ -23,7 +23,7 @@ The starting skeleton for every backend service. **Do not edit this directory to
 
 `scripts/new-service.sh` copies the skeleton; these are the things it cannot decide for you. The full rationale is the service contract in [ADR-0205](../../docs/adr/0205-environment-parity.md); `mise run lint:service-contract` fails on anything missed here.
 
-1. **Register a local port** in `scripts/lib/ports.sh`, and set the same `PORT` in your `.mise.toml` (the skeleton ships `80XX` so it fails loudly until you do). Ports must be unique; `:8080` is reserved for the k3d edge mapping.
+1. **Register a local port** in `scripts/lib/ports.sh`, and set the same `PORT` in your `.mise.toml` (the skeleton ships `80XX` so it fails loudly until you do). Ports must be unique; `:8080` is reserved for the local edge mapping.
 2. **Trim `dep:*`** to what the service actually reads — drop `dep:temporal` with no worker, `dep:postgres` with no database.
 3. **Add `svc:*`** for every other service you call over HTTP. Miss one and the service starts cleanly, then fails on the first call that leaves it.
 4. **Write `.env.example`** covering every variable you read. It is what seeds a fresh clone's `.env`, so an unlisted variable becomes a silent default.
