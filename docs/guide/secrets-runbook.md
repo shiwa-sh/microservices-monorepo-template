@@ -4,7 +4,8 @@ How-to for managing secrets. The decision (SOPS + age, sops-operator, secrets in
 
 ## Model
 
-- Secrets are committed **encrypted** with SOPS + age; the private age key never enters Git. The in-cluster sops-operator decrypts them into Kubernetes Secrets ([ADR-0202](../adr/0202-secrets.md)).
+- Secrets are committed **encrypted** with SOPS + age; a deployed environment's private age key never enters Git. The in-cluster sops-operator decrypts them into Kubernetes Secrets ([ADR-0202](../adr/0202-secrets.md)).
+- The local tier's private key is the exemption and is committed, because no bootstrap step materialises one for a throwaway cluster. It decrypts local values only ([ADR-0205](../adr/0205-environment-parity.md)).
 - No secret is ever committed in plaintext, and no secret is set by clicking in a UI ([ADR-0000](../adr/0000-platform-foundations.md) principle 3).
 
 ## Generate / rotate the age key

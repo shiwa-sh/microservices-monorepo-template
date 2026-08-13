@@ -16,7 +16,7 @@ Leaving is a rewrite or a multi-month migration. The owning ADR carries a full c
 | --- | --- | --- | --- | --- | --- | --- |
 | Go | backend language | [0100](adr/0100-language-and-runtime.md) | BSD-3-Clause | Google | Kotlin on the JVM | Rust, C#/.NET, Kotlin, Java, TypeScript on the backend |
 | TypeScript | frontend language | [0100](adr/0100-language-and-runtime.md) | Apache-2.0 | Microsoft | none — the browser sets it | JavaScript, ReScript, Elm |
-| Bun | frontend runtime and package manager | [0100](adr/0100-language-and-runtime.md) | MIT | Oven, single-vendor | Node.js | Node.js, Deno, pnpm on Node |
+| Bun | frontend runtime and package manager | [0100](adr/0100-language-and-runtime.md) | MIT, and the binary statically links JavaScriptCore under the LGPL | Oven, single-vendor | Node.js | Node.js, Deno, pnpm on Node |
 | Next.js | frontend framework | [0400](adr/0400-frontend.md) | MIT | Vercel, single-vendor | TanStack Start | TanStack Start, React Router v7, Astro, SvelteKit, Nuxt |
 | Untitled UI React + Tailwind | design system | [0400](adr/0400-frontend.md) | MIT for the React library; the Figma kit and PRO tiers are commercial | Untitled UI, single-vendor | shadcn/ui | shadcn/ui, Mantine, Park UI, Material UI, headless-only |
 | PostgreSQL | relational store | [0300](adr/0300-data.md) | PostgreSQL Licence | PostgreSQL Global Development Group | none — no option survived the constraints | MySQL, MariaDB, CockroachDB, YugabyteDB, SQLite |
@@ -43,11 +43,11 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | Tool | Concern | Owning ADR | Licence | Governance | Recorded against |
 | --- | --- | --- | --- | --- | --- |
 | Helm | manifest templating | [0201](adr/0201-gitops.md) | Apache-2.0 | CNCF, graduated | Kustomize overlays, Helm + post-render, jsonnet, plain YAML |
-| Kyverno | admission policy | [0104](adr/0104-supply-chain-security.md), [0203](adr/0203-policy-enforcement.md) | Apache-2.0 | CNCF | Gatekeeper/OPA, Validating Admission Policy, the CI lint layer alone |
+| Kyverno | admission policy | [0104](adr/0104-supply-chain-security.md), [0203](adr/0203-policy-enforcement.md) | Apache-2.0 | CNCF, graduated | Gatekeeper/OPA, Validating Admission Policy, the CI lint layer alone |
 | cert-manager | TLS certificate lifecycle | [0305](adr/0305-edge-auth-and-traffic-policy.md) | Apache-2.0 | CNCF, graduated | certbot in a CronJob, a private CA, manual issuance |
 | SOPS | secret encryption | [0202](adr/0202-secrets.md) | MPL-2.0 | CNCF | Sealed Secrets, External Secrets Operator, Vault, git-crypt |
 | age | encryption backend for SOPS | [0202](adr/0202-secrets.md) | BSD-3-Clause | maintainer-led | GPG, cloud KMS, Vault transit |
-| sops-secrets-operator | in-cluster decryption | [0202](adr/0202-secrets.md) | Apache-2.0 | maintainer-led | an init container, a CI-side decrypt, External Secrets Operator |
+| sops-secrets-operator | in-cluster decryption | [0202](adr/0202-secrets.md) | MPL-2.0 | maintainer-led | an init container, a CI-side decrypt, External Secrets Operator |
 | Terraform | infrastructure provisioning | [0200](adr/0200-cluster-topology.md) | BUSL-1.1 | HashiCorp / IBM, single-vendor | OpenTofu, Pulumi, Crossplane, provider CLIs |
 | zot | image registry | [0105](adr/0105-image-registry.md) | Apache-2.0 | CNCF | CNCF Distribution, Harbor, Quay, a provider registry |
 | cosign | artefact signing | [0104](adr/0104-supply-chain-security.md) | Apache-2.0 | OpenSSF / Sigstore | notation/Notary v2, GPG, keyless via public Fulcio |
@@ -86,7 +86,7 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | talosctl | full-tier local cluster, provisioned from the machine config [ADR-0200](adr/0200-cluster-topology.md) decides | [0600](adr/0600-local-development-loop.md) | MPL-2.0 | Sidero Labs, single-vendor | k3d, kind, minikube, Docker Desktop and Orbstack Kubernetes for the full tier |
 | mise | task runner and tool pinning | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | Make, Task, `just`, asdf, Nix |
 | golangci-lint | Go linting | [0101](adr/0101-monorepo.md) | GPL-3.0 | maintainer-led | `go vet` alone, revive, staticcheck standalone |
-| Biome | TypeScript lint and format | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | ESLint + Prettier, oxlint, dprint |
+| Biome | TypeScript lint and format | [0101](adr/0101-monorepo.md) | MIT OR Apache-2.0 | maintainer-led | ESLint + Prettier, oxlint, dprint |
 | rumdl | Markdown lint and format | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | markdownlint, Vale, Prettier for Markdown |
 | gitleaks | plaintext-secret scanning | [0202](adr/0202-secrets.md) | MIT | gitleaks organisation, maintainer-led | trufflehog, detect-secrets, review alone |
 | shellcheck + shfmt | shell lint and format | [0101](adr/0101-monorepo.md) | GPL-3.0 and BSD-3-Clause | maintainer-led | no shell lint, shellharden |
@@ -100,7 +100,7 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | GlitchTip | error tracking, Scale tier | [0503](adr/0503-error-tracking.md) | MIT | maintainer-led | Sentry self-hosted, Bugsink, fingerprints in Loki |
 | Longhorn | replicated block storage, Scale tier | [0207](adr/0207-cluster-storage.md) | Apache-2.0 | CNCF | OpenEBS, Rook-Ceph, provider block storage |
 | Dependency-Track | continuous SBOM triage, Scale tier | [0104](adr/0104-supply-chain-security.md) | Apache-2.0 | OWASP | Grype on a schedule, a registry's own scanner, Trivy alone |
-| k6-operator | distributed load generation, Scale tier | [0601](adr/0601-testing-strategy.md) | AGPL-3.0 | Grafana Labs | k6 on a larger machine, a hosted load service |
+| k6-operator | distributed load generation, Scale tier | [0601](adr/0601-testing-strategy.md) | Apache-2.0 | Grafana Labs | k6 on a larger machine, a hosted load service |
 
 ## Tier 3 — libraries
 

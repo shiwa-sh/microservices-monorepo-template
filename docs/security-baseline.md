@@ -44,10 +44,10 @@ The security controls every project built from this template inherits, each one 
 
 | Control | Enforced by |
 | --- | --- |
-| Plaintext secret values do not appear in any committed file. | `lint:secrets` in CI |
+| Plaintext secret values do not appear in any committed file. The one exemption is the local tier's age private key at `infra/gitops/platform/local/age.key`, which decrypts throwaway local values only ([ADR-0205](adr/0205-environment-parity.md)). | `lint:secrets` in CI |
 | All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`. | review |
-| Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. | review |
-| Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to. | review |
+| Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. Local files are encrypted to the committed local key alone. | review |
+| Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside. | review |
 | Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime. | review |
 | Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read. | review |
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |

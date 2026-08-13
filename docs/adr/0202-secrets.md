@@ -62,10 +62,12 @@ Every encrypted file has exactly three, declared in `.sops.yaml` at the repo roo
 | Class | Naming | Private key lives | Purpose |
 | --- | --- | --- | --- |
 | **Per-engineer** | the engineer's `{handle}` ([ADR-0003](0003-naming-and-identifiers.md)), e.g. `eng_alice`, so every key traces to a person | `~/.config/sops/age/keys.txt` on that laptop, never leaving it | Day-to-day access. Scoped by project and handle, not by environment |
-| **Per-cluster** | `{project}-{env}` | only in that cluster, as a Secret in the `sops` namespace, materialised at bootstrap | In-cluster decryption |
+| **Per-cluster** | `{project}-{env}` | only in that cluster, as a Secret in the `sops` namespace, materialised at bootstrap — except the local tier's, which is committed | In-cluster decryption |
 | **Ops-recovery** | one key | offline, on the hardware tokens of more than one senior engineer | Recovering a lost cluster key without re-encrypting every secret. Disaster recovery only |
 
 `.sops.yaml` declares creation rules per path: files under `infra/gitops/platform/<env>/secrets/` are encrypted to that environment's cluster key plus engineers plus ops-recovery, and files outside an env path to engineers plus ops-recovery only.
+
+**The local tier is the exemption, and it is bounded by that same file.** No bootstrap step materialises a key for a cluster whose lifetime is a `mise` task, so the local private key is committed at `infra/gitops/platform/local/age.key` and its creation rule names that key as the sole recipient. What makes it safe is not the key's secrecy but what it opens: throwaway values in a cluster holding no real data ([ADR-0205](0205-environment-parity.md)). A real credential encrypted to it is a leak, not a shortcut. The preview tier borrows the same path for the same reason.
 
 Those per-env files reach the cluster through the `secrets` ApplicationSet at sync-wave 1 — after the base-tier operator, before the data tier that consumes the Secrets ([ADR-0201](0201-gitops.md)).
 
@@ -130,10 +132,10 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 
 ## Rules
 
-- Plaintext secret values do not appear in any committed file. `(CI: lint:secrets)`
+- Plaintext secret values do not appear in any committed file. The one exemption is the local tier's age private key at `infra/gitops/platform/local/age.key`, which decrypts throwaway local values only ([ADR-0205](0205-environment-parity.md)). `(CI: lint:secrets)`
 - All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`.
-- Every encrypted file has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key.
-- Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to.
+- Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. Local files are encrypted to the committed local key alone.
+- Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside.
 - Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime.
 - Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read.
 - Rotation on offboarding is mandatory regardless of the circumstances of departure.

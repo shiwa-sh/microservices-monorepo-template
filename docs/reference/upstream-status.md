@@ -19,6 +19,7 @@ Walking a row is three steps: read the upstream source, set the *Verified* date 
 | Calico's open distribution | FQDN egress policy and per-flow logs remain in the paid tier | 2026-08-11 | [ADR-0206](../adr/0206-cluster-networking.md) — both capabilities are load-bearing, which is what makes Calico the runner-up rather than the choice |
 | Untitled UI React | the React library is MIT; the Figma kit and the PRO component tiers are commercial | 2026-08-11 | [ADR-0400](../adr/0400-frontend.md) — only the MIT part is vendored |
 | Distroless base images | non-current tags stop receiving updates | 2026-08-11 | [ADR-0101](../adr/0101-monorepo.md) — a base image left on an old tag is a security decision made by not deciding |
+| The tool register's licence and governing-body columns | read from each project's own `LICENSE` file and, for the CNCF rows, from the [landscape data](https://github.com/cncf/landscape) | 2026-08-13 | [ADR-0002](../adr/0002-tool-adoption.md) — the columns are evidence about exit cost, and a cell nobody read is not evidence |
 
 ## What belongs here
 

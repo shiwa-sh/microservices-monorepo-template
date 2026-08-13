@@ -44,15 +44,11 @@ paths = [
   '''^\.rumdl_cache/.*''',
   '''^\.idea/.*''',
 
-  # DELIBERATELY COMMITTED, AND IT CONTRADICTS THE RULE AS WRITTEN.
-  # infra/gitops/platform/local/age.key holds a real AGE-SECRET-KEY. The file's own
-  # header and .sops.yaml both record the reasoning: there is no bootstrap step to
-  # materialise a local cluster key, and it decrypts nothing but throwaway local
-  # values. But ADR-0202 states "Plaintext secret values do not appear in any
-  # committed file" with no local exemption, and docs/guide/secrets-runbook.md says
-  # the private age key never enters Git — which is not true of this one.
-  # This entry keeps the gate honest about what it permits. Resolving it is an ADR
-  # decision: carry the exemption in ADR-0202, or stop committing the key.
+  # The local tier's age private key, committed under the exemption ADR-0202 names:
+  # no bootstrap step materialises a key for a cluster whose lifetime is a mise task,
+  # and it decrypts throwaway local values only. .sops.yaml confines it to a single
+  # creation rule, which is what bounds the exemption. Widening this pattern, or
+  # encrypting a real credential to that key, is the failure it guards against.
   '''^infra/gitops/platform/local/age\.key$''',
 ]
 
