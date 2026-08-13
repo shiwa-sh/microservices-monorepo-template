@@ -37,8 +37,8 @@ paths:
                 # renders. A list needs its own — the item schema's example says
                 # nothing about how many rows come back.
                 example:
-                  - { id: 0f27f7f0-1111-4000-8000-000000000001, name: First item }
-                  - { id: 0f27f7f0-1111-4000-8000-000000000002, name: Second item }
+                  - { id: item_01kztpb93repgs8w9k8cj837vr, name: First item }
+                  - { id: item_01kztpfex0ew4atkhwb6zev40b, name: Second item }
         "default":
           $ref: "#/components/responses/Error"
     post:
@@ -135,51 +135,27 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-    # IEEE-754 double by every TypeScript client, and a double cannot represent a
-    # decimal amount exactly. A `type: number` monetary field is a contract defect.
-    Money:
-      type: object
-      description: |
-        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-        double in the TypeScript client, and a double cannot hold a decimal amount
-        exactly. Currency travels with the amount, because an amount without one is
-        not a quantity of anything.
-      required: [amount, currency]
-      properties:
-        amount:
-          type: string
-          description: Decimal amount, sign-prefixed when negative. No thousands separators.
-          pattern: '^-?[0-9]+(\.[0-9]+)?$'
-          example: "1299.00"
-        currency:
-          type: string
-          description: ISO 4217 alphabetic code, uppercase.
-          pattern: "^[A-Z]{3}$"
-          example: EUR
-      example:
-        amount: "1299.00"
-        currency: EUR
-    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-    # is rejected rather than converted, so one wire format survives round-tripping.
-    Timestamp:
-      type: string
-      format: date-time
-      description: |
-        RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
-      example: "2026-08-12T09:30:00Z"
     # <<< shared-components
+    # A wire identifier (ADR-0003): the singular collection noun, an underscore, and
+    # the UUIDv7 in 26 characters of Crockford base32. The stored column stays a bare
+    # `uuid` — rename this schema and its prefix along with the resource.
+    ItemId:
+      type: string
+      description: |
+        An item identifier: `item_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^item_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: item_01kztpb93repgs8w9k8cj837vr
     Item:
       type: object
       description: A template item.
       required: [id, name]
       properties:
-        id:   { type: string, format: uuid }
+        id:   { $ref: "#/components/schemas/ItemId" }
         name: { type: string, minLength: 1 }
       # On the schema, so every response referencing it inherits one example.
-      example: { id: 0f27f7f0-1111-4000-8000-000000000001, name: First item }
+      example: { id: item_01kztpb93repgs8w9k8cj837vr, name: First item }
     ItemInput:
       type: object
       description: Request body to create an item.

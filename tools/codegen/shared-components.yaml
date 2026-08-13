@@ -1,10 +1,17 @@
 # Canonical OpenAPI components shared by every service spec (ADR-0303).
 #
-# THIS FILE IS THE SOURCE. Each spec carries a copy of these components in its own
-# `components:` block, and `lint:openapi` fails when a copy diverges. The
+# THIS FILE IS THE SOURCE. Each spec carries a copy of the components it uses in
+# its own `components:` block, and `lint:openapi` fails when a copy diverges. The
 # duplication is deliberate — a spec stays self-contained so ogen and vacuum each
 # read one file with no cross-file $refs — and it is not trusted, which is what the
-# divergence check is for. "Identical across specs" is a fact here, not a habit.
+# divergence check is for. "Identical wherever it appears" is a fact here, not a
+# habit.
+#
+# A spec receives what it references, transitively: every operation's `default`
+# reaches `Error`, which reaches `Problem`. A shape nothing points at stays here
+# and is copied nowhere, so `Money` and `Timestamp` are decided and waiting rather
+# than sitting unused in six documents. A field that references one pulls it in on
+# the next generate.
 #
 # To change a shared shape: edit this file, run `mise run gen:shared-components`,
 # and commit the specs it rewrites alongside it.

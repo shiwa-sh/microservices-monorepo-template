@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -17,12 +16,12 @@ func (s *ErrorStatusCode) Error() string {
 // Request body to start a checkout.
 // Ref: #/components/schemas/CheckoutInput
 type CheckoutInput struct {
-	ProductID uuid.UUID `json:"product_id"`
+	ProductID ProductId `json:"product_id"`
 	Quantity  int       `json:"quantity"`
 }
 
 // GetProductID returns the value of ProductID.
-func (s *CheckoutInput) GetProductID() uuid.UUID {
+func (s *CheckoutInput) GetProductID() ProductId {
 	return s.ProductID
 }
 
@@ -32,7 +31,7 @@ func (s *CheckoutInput) GetQuantity() int {
 }
 
 // SetProductID sets the value of ProductID.
-func (s *CheckoutInput) SetProductID(val uuid.UUID) {
+func (s *CheckoutInput) SetProductID(val ProductId) {
 	s.ProductID = val
 }
 
@@ -162,20 +161,20 @@ func (o OptURI) Or(d url.URL) url.URL {
 // A customer order.
 // Ref: #/components/schemas/Order
 type Order struct {
-	ID         uuid.UUID   `json:"id"`
-	ProductID  uuid.UUID   `json:"product_id"`
+	ID         OrderId     `json:"id"`
+	ProductID  ProductId   `json:"product_id"`
 	Quantity   int         `json:"quantity"`
 	TotalCents int         `json:"total_cents"`
 	Status     OrderStatus `json:"status"`
 }
 
 // GetID returns the value of ID.
-func (s *Order) GetID() uuid.UUID {
+func (s *Order) GetID() OrderId {
 	return s.ID
 }
 
 // GetProductID returns the value of ProductID.
-func (s *Order) GetProductID() uuid.UUID {
+func (s *Order) GetProductID() ProductId {
 	return s.ProductID
 }
 
@@ -195,12 +194,12 @@ func (s *Order) GetStatus() OrderStatus {
 }
 
 // SetID sets the value of ID.
-func (s *Order) SetID(val uuid.UUID) {
+func (s *Order) SetID(val OrderId) {
 	s.ID = val
 }
 
 // SetProductID sets the value of ProductID.
-func (s *Order) SetProductID(val uuid.UUID) {
+func (s *Order) SetProductID(val ProductId) {
 	s.ProductID = val
 }
 
@@ -218,6 +217,8 @@ func (s *Order) SetTotalCents(val int) {
 func (s *Order) SetStatus(val OrderStatus) {
 	s.Status = val
 }
+
+type OrderId string
 
 type OrderStatus string
 
@@ -381,6 +382,8 @@ func (s *ProblemErrorsItem) SetPointer(val string) {
 func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
 }
+
+type ProductId string
 
 // Handle to an async Temporal workflow run.
 // Ref: #/components/schemas/WorkflowHandle

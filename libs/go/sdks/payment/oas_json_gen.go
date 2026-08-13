@@ -23,11 +23,11 @@ func (s *Charge) Encode(e *jx.Encoder) {
 func (s *Charge) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
-		json.EncodeUUID(e, s.ID)
+		s.ID.Encode(e)
 	}
 	{
 		e.FieldStart("order_id")
-		json.EncodeUUID(e, s.OrderID)
+		s.OrderID.Encode(e)
 	}
 	{
 		e.FieldStart("amount_cents")
@@ -58,9 +58,7 @@ func (s *Charge) Decode(d *jx.Decoder) error {
 		case "id":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := json.DecodeUUID(d)
-				s.ID = v
-				if err != nil {
+				if err := s.ID.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -70,9 +68,7 @@ func (s *Charge) Decode(d *jx.Decoder) error {
 		case "order_id":
 			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				v, err := json.DecodeUUID(d)
-				s.OrderID = v
-				if err != nil {
+				if err := s.OrderID.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -157,6 +153,46 @@ func (s *Charge) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes ChargeId as json.
+func (s ChargeId) Encode(e *jx.Encoder) {
+	unwrapped := string(s)
+
+	e.Str(unwrapped)
+}
+
+// Decode decodes ChargeId from json.
+func (s *ChargeId) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ChargeId to nil")
+	}
+	var unwrapped string
+	if err := func() error {
+		v, err := d.Str()
+		unwrapped = string(v)
+		if err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = ChargeId(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ChargeId) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ChargeId) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *ChargeInput) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -168,7 +204,7 @@ func (s *ChargeInput) Encode(e *jx.Encoder) {
 func (s *ChargeInput) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("order_id")
-		json.EncodeUUID(e, s.OrderID)
+		s.OrderID.Encode(e)
 	}
 	{
 		e.FieldStart("amount_cents")
@@ -193,9 +229,7 @@ func (s *ChargeInput) Decode(d *jx.Decoder) error {
 		case "order_id":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := json.DecodeUUID(d)
-				s.OrderID = v
-				if err != nil {
+				if err := s.OrderID.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -380,6 +414,46 @@ func (s OptURI) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptURI) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes OrderId as json.
+func (s OrderId) Encode(e *jx.Encoder) {
+	unwrapped := string(s)
+
+	e.Str(unwrapped)
+}
+
+// Decode decodes OrderId from json.
+func (s *OrderId) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OrderId to nil")
+	}
+	var unwrapped string
+	if err := func() error {
+		v, err := d.Str()
+		unwrapped = string(v)
+		if err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = OrderId(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OrderId) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OrderId) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

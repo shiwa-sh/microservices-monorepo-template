@@ -25,9 +25,9 @@ paths:
                 # purpose: a list example with one status is how a UI ships with an
                 # unstyled badge for every other one.
                 example:
-                  - { id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, product_id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001, quantity: 2, total_cents: 259800, status: confirmed }
-                  - { id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d002, product_id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c002, quantity: 1, total_cents: 89900, status: pending }
-                  - { id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d003, product_id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c003, quantity: 4, total_cents: 59600, status: cancelled }
+                  - { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total_cents: 259800, status: confirmed }
+                  - { id: order_01kztnpc5gfx2a9kkhxe1h4ar3, product_id: product_01kztn1f78evjtsk2gbgjk5hs3, quantity: 1, total_cents: 89900, status: pending }
+                  - { id: order_01kztnthyrfsj8a9pjx1md2pqs, product_id: product_01kztn5n0gfphac1fsep3b64nj, quantity: 4, total_cents: 59600, status: cancelled }
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: checkout
@@ -51,7 +51,7 @@ paths:
       operationId: getOrder
       description: Fetch an order by id.
       tags: [orders]
-      parameters: [{ name: id, in: path, required: true, description: Order id., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Order id., schema: { $ref: "#/components/schemas/OrderId" } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
         default: { $ref: "#/components/responses/Error" }
@@ -64,7 +64,7 @@ paths:
       x-audience: internal
       description: Cancel an order. Starts the CancelOrder workflow (ADR-0302).
       tags: [orders]
-      parameters: [{ name: id, in: path, required: true, description: Id of the order to cancel., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Id of the order to cancel., schema: { $ref: "#/components/schemas/OrderId" } }]
       responses:
         "202":
           description: Cancellation accepted
@@ -147,42 +147,26 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-    # IEEE-754 double by every TypeScript client, and a double cannot represent a
-    # decimal amount exactly. A `type: number` monetary field is a contract defect.
-    Money:
-      type: object
-      description: |
-        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-        double in the TypeScript client, and a double cannot hold a decimal amount
-        exactly. Currency travels with the amount, because an amount without one is
-        not a quantity of anything.
-      required: [amount, currency]
-      properties:
-        amount:
-          type: string
-          description: Decimal amount, sign-prefixed when negative. No thousands separators.
-          pattern: '^-?[0-9]+(\.[0-9]+)?$'
-          example: "1299.00"
-        currency:
-          type: string
-          description: ISO 4217 alphabetic code, uppercase.
-          pattern: "^[A-Z]{3}$"
-          example: EUR
-      example:
-        amount: "1299.00"
-        currency: EUR
-    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-    # is rejected rather than converted, so one wire format survives round-tripping.
-    Timestamp:
-      type: string
-      format: date-time
-      description: |
-        RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
-      example: "2026-08-12T09:30:00Z"
     # <<< shared-components
+    # Wire identifiers (ADR-0003). The stored columns stay bare `uuid`; this form
+    # exists so a value in a log line, a ticket, or a URL says what it is.
+    OrderId:
+      type: string
+      description: |
+        An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: order_01kztnj6c8e0jt7vzw0cn1wxvd
+    # Minted by catalog and carried here, so the prefix names the owning service's
+    # resource rather than this one's.
+    ProductId:
+      type: string
+      description: |
+        A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+        base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: product_01kztmx9e0fq1r13w5d1aerqw6
     WorkflowHandle:
       type: object
       description: Handle to an async Temporal workflow run.
@@ -195,22 +179,22 @@ components:
       # `running` is the honest example: it is what the real 202 returns. Against the
       # API mock the poll never progresses (ADR-0600) — workflow progression is
       # exercised against real services, so build the pending state and stop there.
-      example: { id: checkout-2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e001, status: running, result_url: /api/orders/2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001 }
+      example: { id: checkout-order_01kztnj6c8e0jt7vzw0cn1wxvd, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e001, status: running, result_url: /api/orders/order_01kztnj6c8e0jt7vzw0cn1wxvd }
     CheckoutInput:
       type: object
       description: Request body to start a checkout.
       required: [product_id, quantity]
       properties:
-        product_id: { type: string, format: uuid }
+        product_id: { $ref: "#/components/schemas/ProductId" }
         quantity:   { type: integer, minimum: 1 }
     Order:
       type: object
       description: A customer order.
       required: [id, product_id, quantity, total_cents, status]
       properties:
-        id:          { type: string, format: uuid }
-        product_id:  { type: string, format: uuid }
+        id:          { $ref: "#/components/schemas/OrderId" }
+        product_id:  { $ref: "#/components/schemas/ProductId" }
         quantity:    { type: integer }
         total_cents: { type: integer }
         status:      { type: string, enum: [pending, confirmed, failed, cancelled] }
-      example: { id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, product_id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001, quantity: 2, total_cents: 259800, status: confirmed }
+      example: { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total_cents: 259800, status: confirmed }

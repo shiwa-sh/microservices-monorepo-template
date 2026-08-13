@@ -134,35 +134,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /**
-         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-         *     double in the TypeScript client, and a double cannot hold a decimal amount
-         *     exactly. Currency travels with the amount, because an amount without one is
-         *     not a quantity of anything.
-         * @example {
-         *       "amount": "1299.00",
-         *       "currency": "EUR"
-         *     }
-         */
-        Money: {
-            /**
-             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
-             * @example 1299.00
-             */
-            amount: string;
-            /**
-             * @description ISO 4217 alphabetic code, uppercase.
-             * @example EUR
-             */
-            currency: string;
-        };
-        /**
-         * Format: date-time
-         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-         * @example 2026-08-12T09:30:00Z
-         */
-        Timestamp: string;
         /** @description The remote_json payload Oathkeeper POSTs per ops-dashboard request. */
         AuthorizeRequest: {
             /** @description Kratos identity id; empty for anonymous. */

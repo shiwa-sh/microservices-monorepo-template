@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 	orgs "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orgs"
 	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/store"
 	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/workflows"
@@ -34,6 +36,26 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orgs.Handler = (*Handlers)(nil)
 
+// orgID and storedID are the transport boundary (ADR-0003): the column holds a bare
+// uuid and the wire carries `org_` and the base32 form. Nothing between the two
+// surfaces sees the other's shape.
+//
+// The prefix is a literal, so encoding cannot fail on real input. Decoding cannot
+// either — every identifier reaching a handler has already matched the OrgId pattern
+// in the generated validator — and it still reports rather than panics, because the
+// validator and this call are two places one spec edit can separate.
+func orgID(u pgtype.UUID) orgs.OrgId {
+	return orgs.OrgId(id.MustFrom("org", uuid.UUID(u.Bytes)).String())
+}
+
+func storedID(v orgs.OrgId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("org", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed org id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
 func (h *Handlers) CreateOrg(ctx context.Context, req *orgs.OrgInput) (*orgs.Org, error) {
 	if req.Name == "" {
 		return nil, apierr.BadRequest("name required")
@@ -42,18 +64,22 @@ func (h *Handlers) CreateOrg(ctx context.Context, req *orgs.OrgInput) (*orgs.Org
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &orgs.Org{ID: row.ID.Bytes, Name: row.Name}, nil
+	return &orgs.Org{ID: orgID(row.ID), Name: row.Name}, nil
 }
 
 func (h *Handlers) GetOrg(ctx context.Context, params orgs.GetOrgParams) (*orgs.Org, error) {
-	row, err := h.q.GetOrg(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetOrg(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("org")
 	}
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &orgs.Org{ID: row.ID.Bytes, Name: row.Name}, nil
+	return &orgs.Org{ID: orgID(row.ID), Name: row.Name}, nil
 }
 
 // OnIdentityCreated is the Kratos post-registration webhook (ADR-0304/0006). It
@@ -90,7 +116,7 @@ func (h *Handlers) ListOrgs(ctx context.Context) ([]orgs.Org, error) {
 	}
 	out := make([]orgs.Org, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, orgs.Org{ID: r.ID.Bytes, Name: r.Name})
+		out = append(out, orgs.Org{ID: orgID(r.ID), Name: r.Name})
 	}
 	return out, nil
 }
@@ -103,10 +129,14 @@ func (h *Handlers) UpdateOrg(ctx context.Context, req *orgs.OrgInput, params org
 	if req.Name == "" {
 		return nil, apierr.BadRequest("name required")
 	}
+	key, err := storedID(params.ID)
+	if err != nil {
+		return nil, err
+	}
 	row, err := h.q.UpdateOrg(
 		ctx,
 		store.UpdateOrgParams{
-			ID:   pgtype.UUID{Bytes: params.ID, Valid: true},
+			ID:   key,
 			Name: req.Name,
 		},
 	)
@@ -116,7 +146,7 @@ func (h *Handlers) UpdateOrg(ctx context.Context, req *orgs.OrgInput, params org
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &orgs.Org{ID: row.ID.Bytes, Name: row.Name}, nil
+	return &orgs.Org{ID: orgID(row.ID), Name: row.Name}, nil
 }
 
 func (h *Handlers) DeleteOrg(ctx context.Context, params orgs.DeleteOrgParams) error {
@@ -124,7 +154,11 @@ func (h *Handlers) DeleteOrg(ctx context.Context, params orgs.DeleteOrgParams) e
 	if err != nil {
 		return err
 	}
-	err = h.q.DeleteOrg(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedID(params.ID)
+	if err != nil {
+		return err
+	}
+	err = h.q.DeleteOrg(ctx, key)
 	if err != nil {
 		return apierr.Internal(err.Error())
 	}

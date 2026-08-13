@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -18,7 +17,7 @@ import (
 // DeleteProductParams is parameters of deleteProduct operation.
 type DeleteProductParams struct {
 	// Id of the product to delete.
-	ID uuid.UUID
+	ID ProductId
 }
 
 func unpackDeleteProductParams(packed middleware.Parameters) (params DeleteProductParams) {
@@ -27,7 +26,7 @@ func unpackDeleteProductParams(packed middleware.Parameters) (params DeleteProdu
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(ProductId)
 	}
 	return params
 }
@@ -52,17 +51,32 @@ func decodeDeleteProductParams(args [1]string, argsEscaped bool, r *http.Request
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = ProductId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -84,7 +98,7 @@ func decodeDeleteProductParams(args [1]string, argsEscaped bool, r *http.Request
 // GetProductParams is parameters of getProduct operation.
 type GetProductParams struct {
 	// Product id.
-	ID uuid.UUID
+	ID ProductId
 }
 
 func unpackGetProductParams(packed middleware.Parameters) (params GetProductParams) {
@@ -93,7 +107,7 @@ func unpackGetProductParams(packed middleware.Parameters) (params GetProductPara
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(ProductId)
 	}
 	return params
 }
@@ -118,17 +132,32 @@ func decodeGetProductParams(args [1]string, argsEscaped bool, r *http.Request) (
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = ProductId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -150,7 +179,7 @@ func decodeGetProductParams(args [1]string, argsEscaped bool, r *http.Request) (
 // UpdateProductParams is parameters of updateProduct operation.
 type UpdateProductParams struct {
 	// Id of the product to update.
-	ID uuid.UUID
+	ID ProductId
 }
 
 func unpackUpdateProductParams(packed middleware.Parameters) (params UpdateProductParams) {
@@ -159,7 +188,7 @@ func unpackUpdateProductParams(packed middleware.Parameters) (params UpdateProdu
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(ProductId)
 	}
 	return params
 }
@@ -184,17 +213,32 @@ func decodeUpdateProductParams(args [1]string, argsEscaped bool, r *http.Request
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = ProductId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err

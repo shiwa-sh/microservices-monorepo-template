@@ -20,6 +20,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	orders "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orders"
 	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/store"
@@ -46,6 +47,39 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orders.Handler = (*Handlers)(nil)
 
+// These four are the transport boundary (ADR-0003): the columns hold bare uuids and
+// the wire carries `order_`/`product_` and the base32 form. A product id is minted
+// by catalog and only carried here, so it is encoded under catalog's prefix.
+//
+// The prefixes are literals, so encoding cannot fail on real input. Decoding cannot
+// either — every identifier reaching a handler has already matched the OrderId or
+// ProductId pattern in the generated validator — and it still reports rather than
+// panics, because the validator and these calls are two places one spec edit can
+// separate.
+func orderID(u pgtype.UUID) orders.OrderId {
+	return orders.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
+}
+
+func productID(u pgtype.UUID) orders.ProductId {
+	return orders.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
+}
+
+func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("order", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed order id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
+func storedProductID(v orders.ProductId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("product", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed product id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
 func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*orders.WorkflowHandle, error) {
 	ctx, span := observability.StartSpan(ctx, "orders.Checkout")
 	defer span.End()
@@ -53,10 +87,14 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	if req.Quantity <= 0 || req.Quantity > math.MaxInt32 {
 		return nil, apierr.BadRequest("product_id and quantity required")
 	}
+	product, err := storedProductID(req.ProductID)
+	if err != nil {
+		return nil, err
+	}
 	row, err := h.q.CreateOrder(
 		ctx,
 		store.CreateOrderParams{
-			ProductID:  pgtype.UUID{Bytes: req.ProductID, Valid: true},
+			ProductID:  product,
 			Quantity:   int32(req.Quantity),
 			TotalCents: 0,
 		},
@@ -64,21 +102,22 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	id := uuid.UUID(row.ID.Bytes).String()
+	oid := string(orderID(row.ID))
 	// Tag the root span with the order id so a specific checkout is addressable in
 	// Tempo (TraceQL `{ .order.id = "<id>" }`) — the anchor the e2e uses to pull the
-	// exact end-to-end trace and assert it stitched across catalog + payment.
-	span.SetAttributes(attribute.String("order.id", id))
+	// exact end-to-end trace and assert it stitched across catalog + payment. The
+	// wire form is what a reader has in hand, so it is what the attribute carries.
+	span.SetAttributes(attribute.String("order.id", oid))
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
 		client.StartWorkflowOptions{
-			ID:        "checkout-" + id,
+			ID:        "checkout-" + oid,
 			TaskQueue: serviceName + "-queue",
 		},
 		workflows.Checkout,
 		workflows.CheckoutInput{
-			OrderID:   id,
-			ProductID: uuid.UUID(row.ProductID.Bytes).String(),
+			OrderID:   oid,
+			ProductID: string(productID(row.ProductID)),
 			Quantity:  row.Quantity,
 		},
 	)
@@ -87,15 +126,19 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	}
 	h.checkoutsStarted.Add(ctx, 1)
 	return &orders.WorkflowHandle{
-		ID:        "checkout-" + id,
-		RunID:     id,
+		ID:        "checkout-" + oid,
+		RunID:     oid,
 		Status:    orders.WorkflowHandleStatusRunning,
-		ResultURL: orders.NewOptURI(url.URL{Path: "/api/orders/" + id}),
+		ResultURL: orders.NewOptURI(url.URL{Path: "/api/orders/" + oid}),
 	}, nil
 }
 
 func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (*orders.Order, error) {
-	row, err := h.q.GetOrder(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedOrderID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetOrder(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("order")
 	}
@@ -103,8 +146,8 @@ func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (
 		return nil, apierr.Internal(err.Error())
 	}
 	return &orders.Order{
-		ID:         row.ID.Bytes,
-		ProductID:  row.ProductID.Bytes,
+		ID:         orderID(row.ID),
+		ProductID:  productID(row.ProductID),
 		Quantity:   int(row.Quantity),
 		TotalCents: int(row.TotalCents),
 		Status:     orders.OrderStatus(row.Status),
@@ -119,8 +162,8 @@ func (h *Handlers) ListOrders(ctx context.Context) ([]orders.Order, error) {
 	out := make([]orders.Order, 0, len(rows))
 	for _, r := range rows {
 		o := orders.Order{
-			ID:         r.ID.Bytes,
-			ProductID:  r.ProductID.Bytes,
+			ID:         orderID(r.ID),
+			ProductID:  productID(r.ProductID),
 			Quantity:   int(r.Quantity),
 			TotalCents: int(r.TotalCents),
 			Status:     orders.OrderStatus(r.Status),
@@ -138,7 +181,11 @@ func (h *Handlers) CancelOrder(ctx context.Context, params orders.CancelOrderPar
 	if err != nil {
 		return nil, err
 	}
-	row, err := h.q.GetOrder(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedOrderID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetOrder(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("order")
 	}
@@ -149,24 +196,24 @@ func (h *Handlers) CancelOrder(ctx context.Context, params orders.CancelOrderPar
 		return nil, apierr.Conflict("order is not cancellable")
 	}
 
-	id := params.ID.String()
+	oid := string(params.ID)
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
 		client.StartWorkflowOptions{
-			ID:        "cancel-order-" + id,
+			ID:        "cancel-order-" + oid,
 			TaskQueue: serviceName + "-queue",
 		},
 		workflows.CancelOrder,
-		workflows.CancelInput{OrderID: id},
+		workflows.CancelInput{OrderID: oid},
 	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	return &orders.WorkflowHandle{
-		ID:        "cancel-order-" + id,
-		RunID:     id,
+		ID:        "cancel-order-" + oid,
+		RunID:     oid,
 		Status:    orders.WorkflowHandleStatusRunning,
-		ResultURL: orders.NewOptURI(url.URL{Path: "/api/orders/" + id}),
+		ResultURL: orders.NewOptURI(url.URL{Path: "/api/orders/" + oid}),
 	}, nil
 }
 

@@ -43,17 +43,17 @@
                   },
                   "example": [
                     {
-                      "id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001",
+                      "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
                       "name": "Aeron chair",
                       "price_cents": 129900
                     },
                     {
-                      "id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c002",
+                      "id": "product_01kztn1f78evjtsk2gbgjk5hs3",
                       "name": "Standing desk",
                       "price_cents": 89900
                     },
                     {
-                      "id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c003",
+                      "id": "product_01kztn5n0gfphac1fsep3b64nj",
                       "name": "Monitor arm",
                       "price_cents": 14900
                     }
@@ -82,8 +82,7 @@
             "required": true,
             "description": "Product id.",
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/ProductId"
             }
           }
         ],
@@ -153,8 +152,7 @@
             "required": true,
             "description": "Order id.",
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/OrderId"
             }
           }
         ],
@@ -224,8 +222,7 @@
             "required": true,
             "description": "Organization id.",
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/OrgId"
             }
           }
         ],
@@ -306,7 +303,7 @@
             "required": true,
             "description": "Charge id.",
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/ChargeId"
             }
           }
         ],
@@ -411,6 +408,12 @@
           "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
         }
       },
+      "ProductId": {
+        "type": "string",
+        "description": "A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "product_01kztmx9e0fq1r13w5d1aerqw6"
+      },
       "Product": {
         "type": "object",
         "description": "A catalog product.",
@@ -421,8 +424,7 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ProductId"
           },
           "name": {
             "type": "string"
@@ -433,10 +435,16 @@
           }
         },
         "example": {
-          "id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001",
+          "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
           "name": "Aeron chair",
           "price_cents": 129900
         }
+      },
+      "OrderId": {
+        "type": "string",
+        "description": "An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "order_01kztnj6c8e0jt7vzw0cn1wxvd"
       },
       "WorkflowHandle": {
         "type": "object",
@@ -469,10 +477,10 @@
           }
         },
         "example": {
-          "id": "charge-7d1e4a95-3c82-4f17-9b06-0f27f7f0f001",
+          "id": "charge-charge_01kztnyqr0f13shqqnx8028xx5",
           "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e002",
           "status": "running",
-          "result_url": "/api/charges/7d1e4a95-3c82-4f17-9b06-0f27f7f0f001"
+          "result_url": "/api/charges/charge_01kztnyqr0f13shqqnx8028xx5"
         }
       },
       "CheckoutInput": {
@@ -484,8 +492,7 @@
         ],
         "properties": {
           "product_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ProductId"
           },
           "quantity": {
             "type": "integer",
@@ -505,12 +512,10 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrderId"
           },
           "product_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ProductId"
           },
           "quantity": {
             "type": "integer"
@@ -529,12 +534,18 @@
           }
         },
         "example": {
-          "id": "2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001",
-          "product_id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001",
+          "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
+          "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
           "quantity": 2,
           "total_cents": 259800,
           "status": "confirmed"
         }
+      },
+      "OrgId": {
+        "type": "string",
+        "description": "An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford\nbase32. The leading character is capped at 7 — 26 characters hold 130 bits and\na UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "org_01kztn9tsrea7b1597q3yjdeav"
       },
       "Org": {
         "type": "object",
@@ -545,15 +556,14 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrgId"
           },
           "name": {
             "type": "string"
           }
         },
         "example": {
-          "id": "4a8b2d63-9e15-4c70-8d21-0f27f7f0a001",
+          "id": "org_01kztn9tsrea7b1597q3yjdeav",
           "name": "Northwind Trading"
         }
       },
@@ -570,6 +580,12 @@
           }
         }
       },
+      "ChargeId": {
+        "type": "string",
+        "description": "A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford\nbase32. The leading character is capped at 7 — 26 characters hold 130 bits and\na UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "charge_01kztnyqr0f13shqqnx8028xx5"
+      },
       "ChargeInput": {
         "type": "object",
         "description": "Request body to create a charge.",
@@ -579,8 +595,7 @@
         ],
         "properties": {
           "order_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrderId"
           },
           "amount_cents": {
             "type": "integer",
@@ -599,12 +614,10 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ChargeId"
           },
           "order_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrderId"
           },
           "amount_cents": {
             "type": "integer"
@@ -620,8 +633,8 @@
           }
         },
         "example": {
-          "id": "7d1e4a95-3c82-4f17-9b06-0f27f7f0f001",
-          "order_id": "2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001",
+          "id": "charge_01kztnyqr0f13shqqnx8028xx5",
+          "order_id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
           "amount_cents": 259800,
           "status": "settled"
         }

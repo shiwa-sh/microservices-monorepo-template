@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -74,7 +73,7 @@ func decodeCreateChargeParams(args [0]string, argsEscaped bool, r *http.Request)
 // GetChargeParams is parameters of getCharge operation.
 type GetChargeParams struct {
 	// Charge id.
-	ID string
+	ID ChargeId
 }
 
 func unpackGetChargeParams(packed middleware.Parameters) (params GetChargeParams) {
@@ -83,7 +82,7 @@ func unpackGetChargeParams(packed middleware.Parameters) (params GetChargeParams
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(string)
+		params.ID = packed[key].(ChargeId)
 	}
 	return params
 }
@@ -108,17 +107,32 @@ func decodeGetChargeParams(args [1]string, argsEscaped bool, r *http.Request) (p
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
+				params.ID = ChargeId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -140,7 +154,7 @@ func decodeGetChargeParams(args [1]string, argsEscaped bool, r *http.Request) (p
 // RefundChargeParams is parameters of refundCharge operation.
 type RefundChargeParams struct {
 	// Id of the charge to refund.
-	ID uuid.UUID
+	ID ChargeId
 }
 
 func unpackRefundChargeParams(packed middleware.Parameters) (params RefundChargeParams) {
@@ -149,7 +163,7 @@ func unpackRefundChargeParams(packed middleware.Parameters) (params RefundCharge
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(ChargeId)
 	}
 	return params
 }
@@ -174,17 +188,32 @@ func decodeRefundChargeParams(args [1]string, argsEscaped bool, r *http.Request)
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = ChargeId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err

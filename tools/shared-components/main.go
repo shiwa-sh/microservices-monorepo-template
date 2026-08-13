@@ -1,5 +1,5 @@
-// Command shared-components keeps the canonical OpenAPI components identical
-// across every service spec (ADR-0303).
+// Command shared-components gives every service spec the canonical definition of
+// each shared component that spec uses (ADR-0303).
 //
 //	shared-components          rewrite each spec's shared region from the source
 //	shared-components -check   fail if any spec's region has drifted
@@ -7,8 +7,15 @@
 // Why the components are COPIED into each spec rather than $ref'd across files:
 // a spec stays self-contained, so ogen and vacuum each read one document with no
 // external resolution. The cost is duplication, and this tool is the reason the
-// duplication is safe — "identical across specs" is a fact the check establishes
-// rather than a habit reviewers maintain.
+// duplication is safe — "identical wherever it appears" is a fact the check
+// establishes rather than a habit reviewers maintain.
+//
+// A spec carries only what it references, transitively: `Error` reaches `Problem`,
+// and a spec with no monetary field does not carry `Money`. Copying the whole
+// catalogue into every spec instead would put a schema nothing points at into five
+// documents, which is what vacuum's oas3-unused-component reports — and a rule
+// switched off to accommodate generated noise stops catching the orphan it exists
+// to catch. A field added to a spec pulls its component in on the next generate.
 //
 // The region is delimited by sentinel comments inside `components.schemas` and
 // `components.responses`. Splicing text between sentinels, rather than re-emitting
@@ -22,6 +29,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -34,14 +42,19 @@ const (
 	endMark  = "# <<< shared-components"
 )
 
-// section is one spliced region: a key under `components` and the names it owns.
+// refPattern matches a local component reference. Local is the whole story here:
+// a spec has no external refs, which is the property the copying buys.
+var refPattern = regexp.MustCompile(`#/components/(schemas|responses)/([A-Za-z0-9_.-]+)`)
+
+// section is one spliced region: a key under `components` and the source mapping
+// holding every component that region can carry.
 type section struct {
-	key   string   // "schemas" or "responses"
-	names []string // in the order they are written
+	key  string // "schemas" or "responses"
+	node *yaml.Node
 }
 
-// loadSource reads the canonical fragment and renders each section's YAML.
-func loadSource() ([]section, map[string]string) {
+// loadSource reads the canonical fragment.
+func loadSource() []section {
 	source, err := os.ReadFile(sourceFile)
 	if err != nil {
 		failf("read %s: %v", sourceFile, err)
@@ -54,22 +67,83 @@ func loadSource() ([]section, map[string]string) {
 	if err != nil {
 		failf("parse %s: %v", sourceFile, err)
 	}
-	sections := []section{
-		{"schemas", mapKeys(&shared.Schemas)},
-		{"responses", mapKeys(&shared.Responses)},
+	return []section{
+		{"schemas", &shared.Schemas},
+		{"responses", &shared.Responses},
 	}
-	blocks := map[string]string{
-		"schemas":   renderMap(&shared.Schemas),
-		"responses": renderMap(&shared.Responses),
+}
+
+// blocksFor renders the region each section contributes to one spec: the shared
+// components that spec reaches, in source order.
+func blocksFor(sections []section, spec string) map[string]string {
+	keep := reachable(sections, spec)
+	blocks := make(map[string]string, len(sections))
+	for _, sec := range sections {
+		blocks[sec.key] = renderMap(filterMap(sec.node, sec.key, keep))
 	}
-	return sections, blocks
+	return blocks
+}
+
+// reachable is the set of shared components a spec points at, closed over the
+// references the shared components make among themselves. The seed deliberately
+// ignores the spliced regions: a component is carried because the SPEC needs it,
+// never because last generate happened to put it there.
+func reachable(sections []section, spec string) map[string]bool {
+	byName := make(map[string]*yaml.Node)
+	for _, sec := range sections {
+		for name, node := range mapEntries(sec.node) {
+			byName[sec.key+"/"+name] = node
+		}
+	}
+
+	pending := refsIn(stripRegions(readSpec(spec)))
+	seen := make(map[string]bool, len(pending))
+	for len(pending) > 0 {
+		ref := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		node, shared := byName[ref]
+		if seen[ref] || !shared {
+			continue
+		}
+		seen[ref] = true
+		pending = append(pending, refsIn(renderNode(node))...)
+	}
+	return seen
+}
+
+// refsIn collects the component references in a chunk of YAML text.
+func refsIn(doc string) []string {
+	matches := refPattern.FindAllStringSubmatch(doc, -1)
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		out = append(out, m[1]+"/"+m[2])
+	}
+	return out
+}
+
+// stripRegions removes the spliced regions, leaving the spec's own content.
+func stripRegions(doc string) string {
+	var out []string
+	inRegion := false
+	for line := range strings.SplitSeq(doc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "# >>> shared-components:"):
+			inRegion = true
+		case inRegion && trimmed == endMark:
+			inRegion = false
+		case !inRegion:
+			out = append(out, line)
+		}
+	}
+	return strings.Join(out, "\n")
 }
 
 func main() {
 	check := flag.Bool("check", false, "fail on drift instead of rewriting")
 	flag.Parse()
 
-	sections, blocks := loadSource()
+	sections := loadSource()
 
 	specs, err := filepath.Glob(filepath.Join("services", "*", "openapi.yaml"))
 	if err != nil {
@@ -81,7 +155,7 @@ func main() {
 
 	var drifted, written []string
 	for _, spec := range specs {
-		changed, err := apply(spec, sections, blocks, *check)
+		changed, err := apply(spec, sections, blocksFor(sections, spec), *check)
 		if err != nil {
 			failf("%s: %v", spec, err)
 		}
@@ -104,7 +178,7 @@ func main() {
 		_, _ = fmt.Fprintln(os.Stderr, "\n  Run `mise run gen:shared-components` and commit the result.")
 		os.Exit(1)
 	case *check:
-		_, _ = fmt.Fprintf(os.Stdout, "✓ %d specs carry identical shared components\n", len(specs))
+		_, _ = fmt.Fprintf(os.Stdout, "✓ %d specs carry the canonical form of every shared component they use\n", len(specs))
 	default:
 		_, _ = fmt.Fprintf(os.Stdout, "✓ shared components written to %d spec(s)\n", len(written))
 	}
@@ -112,18 +186,16 @@ func main() {
 
 // apply splices every section into one spec. It reports whether the file changed.
 func apply(spec string, sections []section, blocks map[string]string, dryRun bool) (bool, error) {
-	original, err := os.ReadFile(spec)
-	if err != nil {
-		return false, fmt.Errorf("read: %w", err)
-	}
-	updated := string(original)
+	original := readSpec(spec)
+	updated := original
+	var err error
 	for _, sec := range sections {
 		updated, err = splice(updated, sec.key, blocks[sec.key])
 		if err != nil {
 			return false, fmt.Errorf("%s: %w", sec.key, err)
 		}
 	}
-	if updated == string(original) {
+	if updated == original {
 		return false, nil
 	}
 	if dryRun {
@@ -137,9 +209,7 @@ func apply(spec string, sections []section, blocks map[string]string, dryRun boo
 	}
 	// 0o600 matches the other generators here (tools/adr-rules, tools/admin-gen);
 	// git carries the tracked mode, so the bits set on write do not survive a clone.
-	// gosec cannot see that specPath rebuilds the target from a validated service
-	// name, so the only writable path is services/<name>/openapi.yaml.
-	err = os.WriteFile(target, []byte(updated), 0o600) //nolint:gosec // path validated by specPath
+	err = os.WriteFile(target, []byte(updated), 0o600)
 	if err != nil {
 		return false, fmt.Errorf("write: %w", err)
 	}
@@ -204,9 +274,13 @@ func splice(doc, key, block string) (string, error) {
 
 // renderMap emits a mapping node's entries as YAML, without the wrapping key.
 func renderMap(n *yaml.Node) string {
-	if n.Kind != yaml.MappingNode {
+	if n == nil || n.Kind != yaml.MappingNode || len(n.Content) == 0 {
 		return ""
 	}
+	return renderNode(n)
+}
+
+func renderNode(n *yaml.Node) string {
 	var b strings.Builder
 	enc := yaml.NewEncoder(&b)
 	enc.SetIndent(2)
@@ -218,15 +292,40 @@ func renderMap(n *yaml.Node) string {
 	return b.String()
 }
 
-func mapKeys(n *yaml.Node) []string {
-	var out []string
+// filterMap copies a mapping node down to the kept entries, in source order. The
+// key node carries the leading comment, so a kept component keeps its rationale.
+func filterMap(n *yaml.Node, key string, keep map[string]bool) *yaml.Node {
+	if n.Kind != yaml.MappingNode {
+		return nil
+	}
+	out := *n
+	out.Content = nil
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if keep[key+"/"+n.Content[i].Value] {
+			out.Content = append(out.Content, n.Content[i], n.Content[i+1])
+		}
+	}
+	return &out
+}
+
+// mapEntries yields a mapping node's entries by name.
+func mapEntries(n *yaml.Node) map[string]*yaml.Node {
+	out := make(map[string]*yaml.Node)
 	if n.Kind != yaml.MappingNode {
 		return out
 	}
 	for i := 0; i+1 < len(n.Content); i += 2 {
-		out = append(out, n.Content[i].Value)
+		out[n.Content[i].Value] = n.Content[i+1]
 	}
 	return out
+}
+
+func readSpec(spec string) string {
+	b, err := os.ReadFile(spec)
+	if err != nil {
+		failf("read %s: %v", spec, err)
+	}
+	return string(b)
 }
 
 func failf(format string, args ...any) {

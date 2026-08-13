@@ -22,8 +22,8 @@ paths:
                 items: { $ref: "#/components/schemas/Org" }
                 # Served verbatim by the API mock (ADR-0600).
                 example:
-                  - { id: 4a8b2d63-9e15-4c70-8d21-0f27f7f0a001, name: Northwind Trading }
-                  - { id: 4a8b2d63-9e15-4c70-8d21-0f27f7f0a002, name: Contoso Rail }
+                  - { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
+                  - { id: org_01kztne0k0e96sgmrw4bd27ydx, name: Contoso Rail }
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createOrg
@@ -41,7 +41,7 @@ paths:
       operationId: getOrg
       description: Fetch an organization by id.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, description: Organization id., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Organization id., schema: { $ref: "#/components/schemas/OrgId" } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
         default: { $ref: "#/components/responses/Error" }
@@ -50,7 +50,7 @@ paths:
       x-audience: internal
       description: Rename an organization.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, description: Id of the organization to update., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Id of the organization to update., schema: { $ref: "#/components/schemas/OrgId" } }]
       requestBody:
         required: true
         description: The new organization fields.
@@ -63,7 +63,7 @@ paths:
       x-audience: internal
       description: Delete an organization.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, description: Id of the organization to delete., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Id of the organization to delete., schema: { $ref: "#/components/schemas/OrgId" } }]
       responses:
         "204": { description: Deleted }
         default: { $ref: "#/components/responses/Error" }
@@ -164,50 +164,25 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-    # IEEE-754 double by every TypeScript client, and a double cannot represent a
-    # decimal amount exactly. A `type: number` monetary field is a contract defect.
-    Money:
-      type: object
-      description: |
-        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-        double in the TypeScript client, and a double cannot hold a decimal amount
-        exactly. Currency travels with the amount, because an amount without one is
-        not a quantity of anything.
-      required: [amount, currency]
-      properties:
-        amount:
-          type: string
-          description: Decimal amount, sign-prefixed when negative. No thousands separators.
-          pattern: '^-?[0-9]+(\.[0-9]+)?$'
-          example: "1299.00"
-        currency:
-          type: string
-          description: ISO 4217 alphabetic code, uppercase.
-          pattern: "^[A-Z]{3}$"
-          example: EUR
-      example:
-        amount: "1299.00"
-        currency: EUR
-    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-    # is rejected rather than converted, so one wire format survives round-tripping.
-    Timestamp:
-      type: string
-      format: date-time
-      description: |
-        RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
-      example: "2026-08-12T09:30:00Z"
     # <<< shared-components
+    # A wire identifier (ADR-0003). The stored column stays a bare `uuid`; this form
+    # exists so a value in a log line, a ticket, or a URL says what it is.
+    OrgId:
+      type: string
+      description: |
+        An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: org_01kztn9tsrea7b1597q3yjdeav
     Org:
       type: object
       description: An organization.
       required: [id, name]
       properties:
-        id:   { type: string, format: uuid }
+        id:   { $ref: "#/components/schemas/OrgId" }
         name: { type: string }
-      example: { id: 4a8b2d63-9e15-4c70-8d21-0f27f7f0a001, name: Northwind Trading }
+      example: { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
     OrgInput:
       type: object
       description: Request body to create an organization.

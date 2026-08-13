@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -17,19 +16,19 @@ func (s *ErrorStatusCode) Error() string {
 // A payment charge against an order.
 // Ref: #/components/schemas/Charge
 type Charge struct {
-	ID          uuid.UUID    `json:"id"`
-	OrderID     uuid.UUID    `json:"order_id"`
+	ID          ChargeId     `json:"id"`
+	OrderID     OrderId      `json:"order_id"`
 	AmountCents int          `json:"amount_cents"`
 	Status      ChargeStatus `json:"status"`
 }
 
 // GetID returns the value of ID.
-func (s *Charge) GetID() uuid.UUID {
+func (s *Charge) GetID() ChargeId {
 	return s.ID
 }
 
 // GetOrderID returns the value of OrderID.
-func (s *Charge) GetOrderID() uuid.UUID {
+func (s *Charge) GetOrderID() OrderId {
 	return s.OrderID
 }
 
@@ -44,12 +43,12 @@ func (s *Charge) GetStatus() ChargeStatus {
 }
 
 // SetID sets the value of ID.
-func (s *Charge) SetID(val uuid.UUID) {
+func (s *Charge) SetID(val ChargeId) {
 	s.ID = val
 }
 
 // SetOrderID sets the value of OrderID.
-func (s *Charge) SetOrderID(val uuid.UUID) {
+func (s *Charge) SetOrderID(val OrderId) {
 	s.OrderID = val
 }
 
@@ -63,15 +62,17 @@ func (s *Charge) SetStatus(val ChargeStatus) {
 	s.Status = val
 }
 
+type ChargeId string
+
 // Request body to create a charge.
 // Ref: #/components/schemas/ChargeInput
 type ChargeInput struct {
-	OrderID     uuid.UUID `json:"order_id"`
-	AmountCents int       `json:"amount_cents"`
+	OrderID     OrderId `json:"order_id"`
+	AmountCents int     `json:"amount_cents"`
 }
 
 // GetOrderID returns the value of OrderID.
-func (s *ChargeInput) GetOrderID() uuid.UUID {
+func (s *ChargeInput) GetOrderID() OrderId {
 	return s.OrderID
 }
 
@@ -81,7 +82,7 @@ func (s *ChargeInput) GetAmountCents() int {
 }
 
 // SetOrderID sets the value of OrderID.
-func (s *ChargeInput) SetOrderID(val uuid.UUID) {
+func (s *ChargeInput) SetOrderID(val OrderId) {
 	s.OrderID = val
 }
 
@@ -262,6 +263,8 @@ func (o OptURI) Or(d url.URL) url.URL {
 	}
 	return d
 }
+
+type OrderId string
 
 // RFC 9457 problem details. Served as `application/problem+json` by services and by the edge alike, so
 // a generated client has one error branch rather than two.

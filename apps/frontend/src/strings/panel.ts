@@ -3,7 +3,8 @@ export const panel = {
   products: { title: "Products" },
   checkout: {
     title: "Checkout",
-    productPlaceholder: "product UUID",
+    productPlaceholder: "product id (product_…)",
+    productIdInvalid: "not a product id",
     buy: "Buy",
     starting: "starting",
     error: "error",

@@ -210,6 +210,29 @@ func TestPrefixValidation(t *testing.T) {
 	}
 }
 
+// MustFrom is what every transport read path calls, so both its outcomes are
+// pinned: the value it returns must match From's, and a bad prefix must panic
+// rather than yield an identifier whose type nothing checked.
+func TestMustFrom(t *testing.T) {
+	t.Parallel()
+
+	u := uuid.MustParse("019ff54e-a5c0-7dc3-808f-856854ec5f86")
+	want, err := id.From("product", u)
+	if err != nil {
+		t.Fatalf("From: %v", err)
+	}
+	if got := id.MustFrom("product", u); got.String() != want.String() {
+		t.Errorf("MustFrom = %q, want %q", got, want)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Error("MustFrom with an invalid prefix did not panic")
+		}
+	}()
+	id.MustFrom("Product", u)
+}
+
 func TestZeroValue(t *testing.T) {
 	t.Parallel()
 

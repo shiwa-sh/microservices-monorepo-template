@@ -20,8 +20,14 @@ import { createBrowserClient } from "@/lib/server-fetch/client";
 import { pollWorkflow, type WorkflowHandle } from "@/lib/server-fetch/workflow-handle";
 import { panel } from "@/strings/panel";
 
+// Catalog's own ProductId pattern (ADR-0003). A wire identifier is prefixed and
+// opaque, never a bare UUID, so the field takes the form the API hands back — what a
+// user pastes is what they were shown. `@libs/id` parses one where a caller needs its
+// parts; a form only needs the shape the API will accept.
+const productIdPattern = /^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$/;
+
 const schema = z.object({
-  product_id: z.string().uuid(),
+  product_id: z.string().regex(productIdPattern, panel.checkout.productIdInvalid),
   quantity: z.number().int().positive(),
 });
 

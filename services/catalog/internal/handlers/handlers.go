@@ -8,6 +8,7 @@ import (
 	"errors"
 	"math"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,6 +17,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/catalog"
 	"github.com/tabmadi/microservices-monorepo-template/services/catalog/internal/store"
@@ -37,6 +39,26 @@ func New(db *pgxpool.Pool, checker authz.Checker) *Handlers {
 
 var _ catalog.Handler = (*Handlers)(nil)
 
+// productID and storedID are the transport boundary (ADR-0003): the column holds a
+// bare uuid and the wire carries `product_` and the base32 form. Nothing between
+// the two surfaces sees the other's shape.
+//
+// The prefix is a literal, so encoding cannot fail on real input. Decoding cannot
+// either — every identifier reaching a handler has already matched the ProductId
+// pattern in the generated validator — and it still reports rather than panics,
+// because the validator and this call are two places one spec edit can separate.
+func productID(u pgtype.UUID) catalog.ProductId {
+	return catalog.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
+}
+
+func storedID(v catalog.ProductId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("product", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed product id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
 func (h *Handlers) ListProducts(ctx context.Context) ([]catalog.Product, error) {
 	rows, err := h.q.ListProducts(ctx)
 	if err != nil {
@@ -44,20 +66,24 @@ func (h *Handlers) ListProducts(ctx context.Context) ([]catalog.Product, error) 
 	}
 	out := make([]catalog.Product, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, catalog.Product{ID: r.ID.Bytes, Name: r.Name, PriceCents: int(r.PriceCents)})
+		out = append(out, catalog.Product{ID: productID(r.ID), Name: r.Name, PriceCents: int(r.PriceCents)})
 	}
 	return out, nil
 }
 
 func (h *Handlers) GetProduct(ctx context.Context, params catalog.GetProductParams) (*catalog.Product, error) {
-	row, err := h.q.GetProduct(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetProduct(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("product")
 	}
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &catalog.Product{ID: row.ID.Bytes, Name: row.Name, PriceCents: int(row.PriceCents)}, nil
+	return &catalog.Product{ID: productID(row.ID), Name: row.Name, PriceCents: int(row.PriceCents)}, nil
 }
 
 func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput) (*catalog.Product, error) {
@@ -76,7 +102,7 @@ func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput)
 		return nil, apierr.Internal(err.Error())
 	}
 	h.productsCreated.Add(ctx, 1)
-	return &catalog.Product{ID: row.ID.Bytes, Name: row.Name, PriceCents: int(row.PriceCents)}, nil
+	return &catalog.Product{ID: productID(row.ID), Name: row.Name, PriceCents: int(row.PriceCents)}, nil
 }
 
 func (h *Handlers) UpdateProduct(
@@ -94,10 +120,14 @@ func (h *Handlers) UpdateProduct(
 	if req.Name == "" || req.PriceCents < 0 || req.PriceCents > math.MaxInt32 {
 		return nil, apierr.BadRequest("name and price_cents required")
 	}
+	key, err := storedID(params.ID)
+	if err != nil {
+		return nil, err
+	}
 	row, err := h.q.UpdateProduct(
 		ctx,
 		store.UpdateProductParams{
-			ID:         pgtype.UUID{Bytes: params.ID, Valid: true},
+			ID:         key,
 			Name:       req.Name,
 			PriceCents: int32(req.PriceCents),
 		},
@@ -108,7 +138,7 @@ func (h *Handlers) UpdateProduct(
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &catalog.Product{ID: row.ID.Bytes, Name: row.Name, PriceCents: int(row.PriceCents)}, nil
+	return &catalog.Product{ID: productID(row.ID), Name: row.Name, PriceCents: int(row.PriceCents)}, nil
 }
 
 func (h *Handlers) DeleteProduct(ctx context.Context, params catalog.DeleteProductParams) error {
@@ -119,7 +149,11 @@ func (h *Handlers) DeleteProduct(ctx context.Context, params catalog.DeleteProdu
 	if err != nil {
 		return err
 	}
-	err = h.q.DeleteProduct(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedID(params.ID)
+	if err != nil {
+		return err
+	}
+	err = h.q.DeleteProduct(ctx, key)
 	if err != nil {
 		return apierr.Internal(err.Error())
 	}

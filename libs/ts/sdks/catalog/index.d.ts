@@ -103,45 +103,22 @@ export interface components {
             }[];
         };
         /**
-         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-         *     double in the TypeScript client, and a double cannot hold a decimal amount
-         *     exactly. Currency travels with the amount, because an amount without one is
-         *     not a quantity of anything.
-         * @example {
-         *       "amount": "1299.00",
-         *       "currency": "EUR"
-         *     }
+         * @description A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example product_01kztmx9e0fq1r13w5d1aerqw6
          */
-        Money: {
-            /**
-             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
-             * @example 1299.00
-             */
-            amount: string;
-            /**
-             * @description ISO 4217 alphabetic code, uppercase.
-             * @example EUR
-             */
-            currency: string;
-        };
-        /**
-         * Format: date-time
-         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-         * @example 2026-08-12T09:30:00Z
-         */
-        Timestamp: string;
+        ProductId: string;
         /**
          * @description A catalog product.
          * @example {
-         *       "id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001",
+         *       "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
          *       "name": "Aeron chair",
          *       "price_cents": 129900
          *     }
          */
         Product: {
-            /** Format: uuid */
-            id: string;
+            id: components["schemas"]["ProductId"];
             name: string;
             price_cents: number;
         };
@@ -222,7 +199,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Product id. */
-                id: string;
+                id: components["schemas"]["ProductId"];
             };
             cookie?: never;
         };
@@ -246,7 +223,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the product to update. */
-                id: string;
+                id: components["schemas"]["ProductId"];
             };
             cookie?: never;
         };
@@ -275,7 +252,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the product to delete. */
-                id: string;
+                id: components["schemas"]["ProductId"];
             };
             cookie?: never;
         };

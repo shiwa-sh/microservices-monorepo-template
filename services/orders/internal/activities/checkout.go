@@ -12,9 +12,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 )
 
 type Activities struct {
@@ -67,7 +68,8 @@ func (a *Activities) LookupProductActivity(ctx context.Context, productID string
 }
 
 // ChargeActivity calls payment with an idempotency key derived from the order ID.
-// Returns the charge handle ID.
+// Returns the charge handle ID. The order id is already type-prefixed (ADR-0003),
+// so it names its own type in payment's dedup store without a second prefix.
 func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCents int32) (string, error) {
 	body, err := json.Marshal(map[string]any{"order_id": orderID, "amount_cents": totalCents})
 	if err != nil {
@@ -75,7 +77,7 @@ func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCe
 	}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, a.PaymentURL+"/charges", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Idempotency-Key", "order-"+orderID)
+	req.Header.Set("Idempotency-Key", orderID)
 	resp, err := a.HTTP.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("charge: call payment: %w", err)
@@ -94,13 +96,15 @@ func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCe
 	return out.ID, nil
 }
 
-// MarkOrderStatusActivity writes the terminal status of an order.
+// MarkOrderStatusActivity writes the terminal status of an order. The workflow
+// carries the wire form, and the column holds the bare uuid (ADR-0003), so this is
+// where the two meet.
 func (a *Activities) MarkOrderStatusActivity(ctx context.Context, orderID, status string) error {
-	id, err := uuid.Parse(orderID)
+	parsed, err := id.Parse("order", orderID)
 	if err != nil {
 		return fmt.Errorf("mark order status: parse order id: %w", err)
 	}
-	_, err = a.DB.Exec(ctx, `update orders set status = $2 where id = $1`, id, status)
+	_, err = a.DB.Exec(ctx, `update orders set status = $2 where id = $1`, parsed.UUID(), status)
 	if err != nil {
 		return fmt.Errorf("mark order status: update: %w", err)
 	}

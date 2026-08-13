@@ -84,44 +84,21 @@ export interface components {
             }[];
         };
         /**
-         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-         *     double in the TypeScript client, and a double cannot hold a decimal amount
-         *     exactly. Currency travels with the amount, because an amount without one is
-         *     not a quantity of anything.
-         * @example {
-         *       "amount": "1299.00",
-         *       "currency": "EUR"
-         *     }
+         * @description An item identifier: `item_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example item_01kztpb93repgs8w9k8cj837vr
          */
-        Money: {
-            /**
-             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
-             * @example 1299.00
-             */
-            amount: string;
-            /**
-             * @description ISO 4217 alphabetic code, uppercase.
-             * @example EUR
-             */
-            currency: string;
-        };
-        /**
-         * Format: date-time
-         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-         * @example 2026-08-12T09:30:00Z
-         */
-        Timestamp: string;
+        ItemId: string;
         /**
          * @description A template item.
          * @example {
-         *       "id": "0f27f7f0-1111-4000-8000-000000000001",
+         *       "id": "item_01kztpb93repgs8w9k8cj837vr",
          *       "name": "First item"
          *     }
          */
         Item: {
-            /** Format: uuid */
-            id: string;
+            id: components["schemas"]["ItemId"];
             name: string;
         };
         /** @description Request body to create an item. */

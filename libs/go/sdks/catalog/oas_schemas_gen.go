@@ -4,8 +4,6 @@ package catalog
 
 import (
 	"fmt"
-
-	"github.com/google/uuid"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -198,13 +196,13 @@ func (s *ProblemErrorsItem) SetMessage(val string) {
 // A catalog product.
 // Ref: #/components/schemas/Product
 type Product struct {
-	ID         uuid.UUID `json:"id"`
+	ID         ProductId `json:"id"`
 	Name       string    `json:"name"`
 	PriceCents int       `json:"price_cents"`
 }
 
 // GetID returns the value of ID.
-func (s *Product) GetID() uuid.UUID {
+func (s *Product) GetID() ProductId {
 	return s.ID
 }
 
@@ -219,7 +217,7 @@ func (s *Product) GetPriceCents() int {
 }
 
 // SetID sets the value of ID.
-func (s *Product) SetID(val uuid.UUID) {
+func (s *Product) SetID(val ProductId) {
 	s.ID = val
 }
 
@@ -232,6 +230,8 @@ func (s *Product) SetName(val string) {
 func (s *Product) SetPriceCents(val int) {
 	s.PriceCents = val
 }
+
+type ProductId string
 
 // Request body to create a product.
 // Ref: #/components/schemas/ProductInput

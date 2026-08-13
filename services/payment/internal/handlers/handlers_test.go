@@ -18,6 +18,10 @@ import (
 
 const statusSettled = "settled"
 
+// A well-formed wire identifier (ADR-0003), so the cases below exercise the
+// handler's logic rather than its identifier decoding — which has its own case.
+const testChargeID = payment.ChargeId("charge_01kztnyqr0f13shqqnx8028xx5")
+
 // fakeQ embeds store.Querier so only the methods a test exercises need stubbing;
 // any other call would nil-panic, which is the desired "unexpected query" signal.
 type fakeQ struct {
@@ -112,7 +116,7 @@ func TestRefundCharge(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{getErr: pgx.ErrNoRows}, tc: fakeTemporal{}, checker: okChecker()}
-			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{})
+			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{ID: testChargeID})
 			assertStatus(t, err, 404)
 		},
 	)
@@ -122,7 +126,7 @@ func TestRefundCharge(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: "pending"}}, tc: fakeTemporal{}, checker: okChecker()}
-			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{})
+			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{ID: testChargeID})
 			assertStatus(t, err, 409)
 		},
 	)
@@ -136,8 +140,20 @@ func TestRefundCharge(t *testing.T) {
 				tc:      fakeTemporal{err: errors.New("temporal down")},
 				checker: okChecker(),
 			}
-			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{})
+			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{ID: testChargeID})
 			assertStatus(t, err, 500)
+		},
+	)
+
+	// The generated validator rejects a malformed id before the handler sees it, so
+	// this reaches the handler only if a spec edit ever separates the two.
+	t.Run(
+		"a malformed charge id is a bad request",
+		func(t *testing.T) {
+			t.Parallel()
+			h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: statusSettled}}, tc: fakeTemporal{}, checker: okChecker()}
+			_, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{ID: "charge_not-base32"})
+			assertStatus(t, err, 400)
 		},
 	)
 
@@ -146,7 +162,7 @@ func TestRefundCharge(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: statusSettled}}, tc: fakeTemporal{}, checker: okChecker()}
-			handle, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{})
+			handle, err := h.RefundCharge(opCtx(), req, payment.RefundChargeParams{ID: testChargeID})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

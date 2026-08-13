@@ -19,6 +19,8 @@ import (
 
 var regexMap = map[string]ogenregex.Regexp{
 	"^[0-9a-f]{32}$": ogenregex.MustCompile("^[0-9a-f]{32}$"),
+	"^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$": ogenregex.MustCompile("^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"),
+	"^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$":  ogenregex.MustCompile("^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"),
 }
 var (
 	// Allocate option closure once.

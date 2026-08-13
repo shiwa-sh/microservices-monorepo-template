@@ -4,8 +4,6 @@ package template
 
 import (
 	"fmt"
-
-	"github.com/google/uuid"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -41,12 +39,12 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 // A template item.
 // Ref: #/components/schemas/Item
 type Item struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID   ItemId `json:"id"`
+	Name string `json:"name"`
 }
 
 // GetID returns the value of ID.
-func (s *Item) GetID() uuid.UUID {
+func (s *Item) GetID() ItemId {
 	return s.ID
 }
 
@@ -56,7 +54,7 @@ func (s *Item) GetName() string {
 }
 
 // SetID sets the value of ID.
-func (s *Item) SetID(val uuid.UUID) {
+func (s *Item) SetID(val ItemId) {
 	s.ID = val
 }
 
@@ -64,6 +62,8 @@ func (s *Item) SetID(val uuid.UUID) {
 func (s *Item) SetName(val string) {
 	s.Name = val
 }
+
+type ItemId string
 
 // Request body to create an item.
 // Ref: #/components/schemas/ItemInput

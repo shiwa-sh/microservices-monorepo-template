@@ -121,41 +121,25 @@ export interface components {
             }[];
         };
         /**
-         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-         *     double in the TypeScript client, and a double cannot hold a decimal amount
-         *     exactly. Currency travels with the amount, because an amount without one is
-         *     not a quantity of anything.
-         * @example {
-         *       "amount": "1299.00",
-         *       "currency": "EUR"
-         *     }
+         * @description A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example charge_01kztnyqr0f13shqqnx8028xx5
          */
-        Money: {
-            /**
-             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
-             * @example 1299.00
-             */
-            amount: string;
-            /**
-             * @description ISO 4217 alphabetic code, uppercase.
-             * @example EUR
-             */
-            currency: string;
-        };
+        ChargeId: string;
         /**
-         * Format: date-time
-         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-         * @example 2026-08-12T09:30:00Z
+         * @description An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example order_01kztnj6c8e0jt7vzw0cn1wxvd
          */
-        Timestamp: string;
+        OrderId: string;
         /**
          * @description Handle to an async Temporal workflow run.
          * @example {
-         *       "id": "charge-7d1e4a95-3c82-4f17-9b06-0f27f7f0f001",
+         *       "id": "charge-charge_01kztnyqr0f13shqqnx8028xx5",
          *       "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e002",
          *       "status": "running",
-         *       "result_url": "/api/charges/7d1e4a95-3c82-4f17-9b06-0f27f7f0f001"
+         *       "result_url": "/api/charges/charge_01kztnyqr0f13shqqnx8028xx5"
          *     }
          */
         WorkflowHandle: {
@@ -171,8 +155,7 @@ export interface components {
         };
         /** @description Request body to create a charge. */
         ChargeInput: {
-            /** Format: uuid */
-            order_id: string;
+            order_id: components["schemas"]["OrderId"];
             amount_cents: number;
         };
         /** @description Request body to refund a charge. */
@@ -182,17 +165,15 @@ export interface components {
         /**
          * @description A payment charge against an order.
          * @example {
-         *       "id": "7d1e4a95-3c82-4f17-9b06-0f27f7f0f001",
-         *       "order_id": "2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001",
+         *       "id": "charge_01kztnyqr0f13shqqnx8028xx5",
+         *       "order_id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
          *       "amount_cents": 259800,
          *       "status": "settled"
          *     }
          */
         Charge: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            order_id: string;
+            id: components["schemas"]["ChargeId"];
+            order_id: components["schemas"]["OrderId"];
             amount_cents: number;
             /** @enum {string} */
             status: "pending" | "settled" | "failed" | "refunded";
@@ -272,7 +253,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Charge id. */
-                id: string;
+                id: components["schemas"]["ChargeId"];
             };
             cookie?: never;
         };
@@ -296,7 +277,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the charge to refund. */
-                id: string;
+                id: components["schemas"]["ChargeId"];
             };
             cookie?: never;
         };

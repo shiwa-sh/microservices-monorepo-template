@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -18,7 +17,7 @@ import (
 // DeleteOrgParams is parameters of deleteOrg operation.
 type DeleteOrgParams struct {
 	// Id of the organization to delete.
-	ID uuid.UUID
+	ID OrgId
 }
 
 func unpackDeleteOrgParams(packed middleware.Parameters) (params DeleteOrgParams) {
@@ -27,7 +26,7 @@ func unpackDeleteOrgParams(packed middleware.Parameters) (params DeleteOrgParams
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrgId)
 	}
 	return params
 }
@@ -52,17 +51,32 @@ func decodeDeleteOrgParams(args [1]string, argsEscaped bool, r *http.Request) (p
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrgId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -84,7 +98,7 @@ func decodeDeleteOrgParams(args [1]string, argsEscaped bool, r *http.Request) (p
 // GetOrgParams is parameters of getOrg operation.
 type GetOrgParams struct {
 	// Organization id.
-	ID uuid.UUID
+	ID OrgId
 }
 
 func unpackGetOrgParams(packed middleware.Parameters) (params GetOrgParams) {
@@ -93,7 +107,7 @@ func unpackGetOrgParams(packed middleware.Parameters) (params GetOrgParams) {
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrgId)
 	}
 	return params
 }
@@ -118,17 +132,32 @@ func decodeGetOrgParams(args [1]string, argsEscaped bool, r *http.Request) (para
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrgId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -150,7 +179,7 @@ func decodeGetOrgParams(args [1]string, argsEscaped bool, r *http.Request) (para
 // UpdateOrgParams is parameters of updateOrg operation.
 type UpdateOrgParams struct {
 	// Id of the organization to update.
-	ID uuid.UUID
+	ID OrgId
 }
 
 func unpackUpdateOrgParams(packed middleware.Parameters) (params UpdateOrgParams) {
@@ -159,7 +188,7 @@ func unpackUpdateOrgParams(packed middleware.Parameters) (params UpdateOrgParams
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrgId)
 	}
 	return params
 }
@@ -184,17 +213,32 @@ func decodeUpdateOrgParams(args [1]string, argsEscaped bool, r *http.Request) (p
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrgId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err

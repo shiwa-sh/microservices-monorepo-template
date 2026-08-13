@@ -18,6 +18,10 @@ import (
 
 const statusPending = "pending"
 
+// A well-formed wire identifier (ADR-0003), so the cases below exercise the
+// handler's logic rather than its identifier decoding — which has its own case.
+const testOrderID = orders.OrderId("order_01kztnj6c8e0jt7vzw0cn1wxvd")
+
 // fakeQ embeds store.Querier so only the methods a test exercises need stubbing;
 // any other call would nil-panic, which is the desired "unexpected query" signal.
 type fakeQ struct {
@@ -110,7 +114,7 @@ func TestCancelOrder(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{getErr: pgx.ErrNoRows}, tc: fakeTemporal{}, checker: okChecker()}
-			_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{})
+			_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{ID: testOrderID})
 			assertStatus(t, err, 404)
 		},
 	)
@@ -121,7 +125,7 @@ func TestCancelOrder(t *testing.T) {
 			func(t *testing.T) {
 				t.Parallel()
 				h := &Handlers{q: fakeQ{order: store.GetOrderRow{Status: status}}, tc: fakeTemporal{}, checker: okChecker()}
-				_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{})
+				_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{ID: testOrderID})
 				assertStatus(t, err, 409)
 			},
 		)
@@ -136,8 +140,20 @@ func TestCancelOrder(t *testing.T) {
 				tc:      fakeTemporal{err: errors.New("temporal down")},
 				checker: okChecker(),
 			}
-			_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{})
+			_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{ID: testOrderID})
 			assertStatus(t, err, 500)
+		},
+	)
+
+	// The generated validator rejects a malformed id before the handler sees it, so
+	// this reaches the handler only if a spec edit ever separates the two.
+	t.Run(
+		"a malformed order id is a bad request",
+		func(t *testing.T) {
+			t.Parallel()
+			h := &Handlers{q: fakeQ{order: store.GetOrderRow{Status: statusPending}}, tc: fakeTemporal{}, checker: okChecker()}
+			_, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{ID: "order_not-base32"})
+			assertStatus(t, err, 400)
 		},
 	)
 
@@ -146,7 +162,7 @@ func TestCancelOrder(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{order: store.GetOrderRow{Status: statusPending}}, tc: fakeTemporal{}, checker: okChecker()}
-			handle, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{})
+			handle, err := h.CancelOrder(opCtx(), orders.CancelOrderParams{ID: testOrderID})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

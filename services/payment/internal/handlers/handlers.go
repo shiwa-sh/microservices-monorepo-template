@@ -19,6 +19,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
 	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/store"
@@ -45,6 +46,39 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ payment.Handler = (*Handlers)(nil)
 
+// These four are the transport boundary (ADR-0003): the columns hold bare uuids and
+// the wire carries `charge_`/`order_` and the base32 form. An order id is minted by
+// orders and only carried here, so it is encoded under that service's prefix.
+//
+// The prefixes are literals, so encoding cannot fail on real input. Decoding cannot
+// either — every identifier reaching a handler has already matched the ChargeId or
+// OrderId pattern in the generated validator — and it still reports rather than
+// panics, because the validator and these calls are two places one spec edit can
+// separate.
+func chargeID(u pgtype.UUID) payment.ChargeId {
+	return payment.ChargeId(id.MustFrom("charge", uuid.UUID(u.Bytes)).String())
+}
+
+func orderID(u pgtype.UUID) payment.OrderId {
+	return payment.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
+}
+
+func storedChargeID(v payment.ChargeId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("charge", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed charge id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
+func storedOrderID(v payment.OrderId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("order", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed order id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
 func (h *Handlers) CreateCharge(
 	ctx context.Context,
 	req *payment.ChargeInput,
@@ -63,17 +97,21 @@ func (h *Handlers) CreateCharge(
 	// Idempotency lookup before anything else (ADR-0302).
 	existing, err := h.q.GetByIdempotencyKey(ctx, params.IdempotencyKey)
 	if err == nil {
-		id := uuid.UUID(existing.ID.Bytes).String()
-		return handle("charge-"+id, id), nil
+		cid := string(chargeID(existing.ID))
+		return handle("charge-"+cid, cid), nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.Internal(err.Error())
 	}
 
+	order, err := storedOrderID(req.OrderID)
+	if err != nil {
+		return nil, err
+	}
 	created, err := h.q.CreateCharge(
 		ctx,
 		store.CreateChargeParams{
-			OrderID:        pgtype.UUID{Bytes: req.OrderID, Valid: true},
+			OrderID:        order,
 			AmountCents:    int32(req.AmountCents),
 			IdempotencyKey: params.IdempotencyKey,
 		},
@@ -81,18 +119,18 @@ func (h *Handlers) CreateCharge(
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	id := uuid.UUID(created.ID.Bytes).String()
+	cid := string(chargeID(created.ID))
 
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
 		client.StartWorkflowOptions{
-			ID:        "charge-" + id,
+			ID:        "charge-" + cid,
 			TaskQueue: serviceName + "-queue",
 		},
 		workflows.Charge,
 		workflows.ChargeInput{
-			ChargeID:    id,
-			OrderID:     uuid.UUID(created.OrderID.Bytes).String(),
+			ChargeID:    cid,
+			OrderID:     string(orderID(created.OrderID)),
 			AmountCents: created.AmountCents,
 		},
 	)
@@ -100,7 +138,7 @@ func (h *Handlers) CreateCharge(
 		return nil, apierr.Internal(err.Error())
 	}
 	h.chargesCreated.Add(ctx, 1)
-	return handle("charge-"+id, id), nil
+	return handle("charge-"+cid, cid), nil
 }
 
 func (h *Handlers) RefundCharge(
@@ -115,7 +153,11 @@ func (h *Handlers) RefundCharge(
 	if err != nil {
 		return nil, err
 	}
-	row, err := h.q.GetCharge(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedChargeID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetCharge(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("charge")
 	}
@@ -126,20 +168,20 @@ func (h *Handlers) RefundCharge(
 		return nil, apierr.Conflict("only settled charges can be refunded")
 	}
 
-	id := params.ID.String()
+	cid := string(params.ID)
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
 		client.StartWorkflowOptions{
-			ID:        "refund-" + id,
+			ID:        "refund-" + cid,
 			TaskQueue: serviceName + "-queue",
 		},
 		workflows.Refund,
-		workflows.RefundInput{ChargeID: id, Reason: req.Reason},
+		workflows.RefundInput{ChargeID: cid, Reason: req.Reason},
 	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return handle("refund-"+id, id), nil
+	return handle("refund-"+cid, cid), nil
 }
 
 func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
@@ -150,8 +192,8 @@ func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
 	out := make([]payment.Charge, 0, len(rows))
 	for _, r := range rows {
 		c := payment.Charge{
-			ID:          r.ID.Bytes,
-			OrderID:     r.OrderID.Bytes,
+			ID:          chargeID(r.ID),
+			OrderID:     orderID(r.OrderID),
 			AmountCents: int(r.AmountCents),
 			Status:      payment.ChargeStatus(r.Status),
 		}
@@ -161,11 +203,11 @@ func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
 }
 
 func (h *Handlers) GetCharge(ctx context.Context, params payment.GetChargeParams) (*payment.Charge, error) {
-	id, err := uuid.Parse(params.ID)
+	key, err := storedChargeID(params.ID)
 	if err != nil {
-		return nil, apierr.BadRequest("invalid id")
+		return nil, err
 	}
-	row, err := h.q.GetCharge(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	row, err := h.q.GetCharge(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("charge")
 	}
@@ -173,8 +215,8 @@ func (h *Handlers) GetCharge(ctx context.Context, params payment.GetChargeParams
 		return nil, apierr.Internal(err.Error())
 	}
 	return &payment.Charge{
-		ID:          row.ID.Bytes,
-		OrderID:     row.OrderID.Bytes,
+		ID:          chargeID(row.ID),
+		OrderID:     orderID(row.OrderID),
 		AmountCents: int(row.AmountCents),
 		Status:      payment.ChargeStatus(row.Status),
 	}, nil

@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -18,7 +17,7 @@ import (
 // CancelOrderParams is parameters of cancelOrder operation.
 type CancelOrderParams struct {
 	// Id of the order to cancel.
-	ID uuid.UUID
+	ID OrderId
 }
 
 func unpackCancelOrderParams(packed middleware.Parameters) (params CancelOrderParams) {
@@ -27,7 +26,7 @@ func unpackCancelOrderParams(packed middleware.Parameters) (params CancelOrderPa
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrderId)
 	}
 	return params
 }
@@ -52,17 +51,32 @@ func decodeCancelOrderParams(args [1]string, argsEscaped bool, r *http.Request) 
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrderId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -84,7 +98,7 @@ func decodeCancelOrderParams(args [1]string, argsEscaped bool, r *http.Request) 
 // GetOrderParams is parameters of getOrder operation.
 type GetOrderParams struct {
 	// Order id.
-	ID uuid.UUID
+	ID OrderId
 }
 
 func unpackGetOrderParams(packed middleware.Parameters) (params GetOrderParams) {
@@ -93,7 +107,7 @@ func unpackGetOrderParams(packed middleware.Parameters) (params GetOrderParams) 
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrderId)
 	}
 	return params
 }
@@ -118,17 +132,32 @@ func decodeGetOrderParams(args [1]string, argsEscaped bool, r *http.Request) (pa
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrderId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err

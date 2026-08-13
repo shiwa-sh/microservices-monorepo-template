@@ -22,9 +22,9 @@ paths:
                 # verbatim, and an unconstrained array schema generates an empty list —
                 # a UI built against that has no rows, no pagination, and no truncation.
                 example:
-                  - {id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001, name: Aeron chair, price_cents: 129900}
-                  - {id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c002, name: Standing desk, price_cents: 89900}
-                  - {id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c003, name: Monitor arm, price_cents: 14900}
+                  - {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price_cents: 129900}
+                  - {id: product_01kztn1f78evjtsk2gbgjk5hs3, name: Standing desk, price_cents: 89900}
+                  - {id: product_01kztn5n0gfphac1fsep3b64nj, name: Monitor arm, price_cents: 14900}
         default: {$ref: "#/components/responses/Error"}
     post:
       operationId: createProduct
@@ -46,7 +46,7 @@ paths:
       operationId: getProduct
       description: Fetch a product by id.
       tags: [products]
-      parameters: [{name: id, in: path, required: true, description: Product id., schema: {type: string, format: uuid}}]
+      parameters: [{name: id, in: path, required: true, description: Product id., schema: {$ref: "#/components/schemas/ProductId"}}]
       responses:
         "200": {description: The requested product, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
         default: {$ref: "#/components/responses/Error"}
@@ -56,7 +56,7 @@ paths:
       x-audience: internal
       description: Update a product.
       tags: [products]
-      parameters: [{name: id, in: path, required: true, description: Id of the product to update., schema: {type: string, format: uuid}}]
+      parameters: [{name: id, in: path, required: true, description: Id of the product to update., schema: {$ref: "#/components/schemas/ProductId"}}]
       requestBody:
         required: true
         description: The new product fields.
@@ -69,7 +69,7 @@ paths:
       x-audience: internal
       description: Delete a product.
       tags: [products]
-      parameters: [{name: id, in: path, required: true, description: Id of the product to delete., schema: {type: string, format: uuid}}]
+      parameters: [{name: id, in: path, required: true, description: Id of the product to delete., schema: {$ref: "#/components/schemas/ProductId"}}]
       responses:
         "204": {description: Deleted}
         default: {$ref: "#/components/responses/Error"}
@@ -148,54 +148,29 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-    # IEEE-754 double by every TypeScript client, and a double cannot represent a
-    # decimal amount exactly. A `type: number` monetary field is a contract defect.
-    Money:
-      type: object
-      description: |
-        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-        double in the TypeScript client, and a double cannot hold a decimal amount
-        exactly. Currency travels with the amount, because an amount without one is
-        not a quantity of anything.
-      required: [amount, currency]
-      properties:
-        amount:
-          type: string
-          description: Decimal amount, sign-prefixed when negative. No thousands separators.
-          pattern: '^-?[0-9]+(\.[0-9]+)?$'
-          example: "1299.00"
-        currency:
-          type: string
-          description: ISO 4217 alphabetic code, uppercase.
-          pattern: "^[A-Z]{3}$"
-          example: EUR
-      example:
-        amount: "1299.00"
-        currency: EUR
-    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-    # is rejected rather than converted, so one wire format survives round-tripping.
-    Timestamp:
-      type: string
-      format: date-time
-      description: |
-        RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
-      example: "2026-08-12T09:30:00Z"
     # <<< shared-components
+    # A wire identifier (ADR-0003). The stored column stays a bare `uuid`; this form
+    # exists so a value in a log line, a ticket, or a URL says what it is.
+    ProductId:
+      type: string
+      description: |
+        A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: product_01kztmx9e0fq1r13w5d1aerqw6
     Product:
       type: object
       description: A catalog product.
       required: [id, name, price_cents]
       properties:
-        id: {type: string, format: uuid}
+        id: {$ref: "#/components/schemas/ProductId"}
         name: {type: string}
         price_cents: {type: integer, minimum: 0}
       # One example on the schema serves every response that references it — the
       # detail page, the create/update echo, the developer portal, and the API mock
       # (ADR-0303, ADR-0600). It is code-reviewed data, not generated noise.
-      example: {id: 6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001, name: Aeron chair, price_cents: 129900}
+      example: {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price_cents: 129900}
     ProductInput:
       type: object
       description: Request body to create a product.

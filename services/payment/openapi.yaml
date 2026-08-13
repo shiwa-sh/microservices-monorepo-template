@@ -24,9 +24,9 @@ paths:
                 # Served verbatim by the API mock (ADR-0600); the statuses vary so the
                 # UI has to render every one of them.
                 example:
-                  - { id: 7d1e4a95-3c82-4f17-9b06-0f27f7f0f001, order_id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, amount_cents: 259800, status: settled }
-                  - { id: 7d1e4a95-3c82-4f17-9b06-0f27f7f0f002, order_id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d002, amount_cents: 89900, status: pending }
-                  - { id: 7d1e4a95-3c82-4f17-9b06-0f27f7f0f003, order_id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d003, amount_cents: 59600, status: refunded }
+                  - { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount_cents: 259800, status: settled }
+                  - { id: charge_01kztp2xh8e6nr9gh2xr7ryye5, order_id: order_01kztnpc5gfx2a9kkhxe1h4ar3, amount_cents: 89900, status: pending }
+                  - { id: charge_01kztp73agejgvn558snqmna6f, order_id: order_01kztnthyrfsj8a9pjx1md2pqs, amount_cents: 59600, status: refunded }
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createCharge
@@ -54,7 +54,7 @@ paths:
       operationId: getCharge
       description: Fetch a charge by id.
       tags: [charges]
-      parameters: [{ name: id, in: path, required: true, description: Charge id., schema: { type: string } }]
+      parameters: [{ name: id, in: path, required: true, description: Charge id., schema: { $ref: "#/components/schemas/ChargeId" } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Charge" } } } }
         default: { $ref: "#/components/responses/Error" }
@@ -69,7 +69,7 @@ paths:
       x-audience: internal
       description: Refund a settled charge. Starts the Refund workflow (ADR-0302).
       tags: [charges]
-      parameters: [{ name: id, in: path, required: true, description: Id of the charge to refund., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Id of the charge to refund., schema: { $ref: "#/components/schemas/ChargeId" } }]
       requestBody:
         required: true
         description: The refund request.
@@ -156,42 +156,26 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-    # IEEE-754 double by every TypeScript client, and a double cannot represent a
-    # decimal amount exactly. A `type: number` monetary field is a contract defect.
-    Money:
-      type: object
-      description: |
-        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-        double in the TypeScript client, and a double cannot hold a decimal amount
-        exactly. Currency travels with the amount, because an amount without one is
-        not a quantity of anything.
-      required: [amount, currency]
-      properties:
-        amount:
-          type: string
-          description: Decimal amount, sign-prefixed when negative. No thousands separators.
-          pattern: '^-?[0-9]+(\.[0-9]+)?$'
-          example: "1299.00"
-        currency:
-          type: string
-          description: ISO 4217 alphabetic code, uppercase.
-          pattern: "^[A-Z]{3}$"
-          example: EUR
-      example:
-        amount: "1299.00"
-        currency: EUR
-    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-    # is rejected rather than converted, so one wire format survives round-tripping.
-    Timestamp:
-      type: string
-      format: date-time
-      description: |
-        RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
-      example: "2026-08-12T09:30:00Z"
     # <<< shared-components
+    # Wire identifiers (ADR-0003). The stored columns stay bare `uuid`; this form
+    # exists so a value in a log line, a ticket, or a URL says what it is.
+    ChargeId:
+      type: string
+      description: |
+        A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: charge_01kztnyqr0f13shqqnx8028xx5
+    # Minted by orders and carried here, so the prefix names the owning service's
+    # resource rather than this one's.
+    OrderId:
+      type: string
+      description: |
+        An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
+        base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: order_01kztnj6c8e0jt7vzw0cn1wxvd
     WorkflowHandle:
       type: object
       description: Handle to an async Temporal workflow run.
@@ -203,13 +187,13 @@ components:
         result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
       # See orders: `running` is what the real 202 returns, and the mock's poll never
       # progresses past it (ADR-0600).
-      example: { id: charge-7d1e4a95-3c82-4f17-9b06-0f27f7f0f001, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002, status: running, result_url: /api/charges/7d1e4a95-3c82-4f17-9b06-0f27f7f0f001 }
+      example: { id: charge-charge_01kztnyqr0f13shqqnx8028xx5, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002, status: running, result_url: /api/charges/charge_01kztnyqr0f13shqqnx8028xx5 }
     ChargeInput:
       type: object
       description: Request body to create a charge.
       required: [order_id, amount_cents]
       properties:
-        order_id:     { type: string, format: uuid }
+        order_id:     { $ref: "#/components/schemas/OrderId" }
         amount_cents: { type: integer, minimum: 1 }
     RefundInput:
       type: object
@@ -222,8 +206,8 @@ components:
       description: A payment charge against an order.
       required: [id, order_id, amount_cents, status]
       properties:
-        id:           { type: string, format: uuid }
-        order_id:     { type: string, format: uuid }
+        id:           { $ref: "#/components/schemas/ChargeId" }
+        order_id:     { $ref: "#/components/schemas/OrderId" }
         amount_cents: { type: integer }
         status:       { type: string, enum: [pending, settled, failed, refunded] }
-      example: { id: 7d1e4a95-3c82-4f17-9b06-0f27f7f0f001, order_id: 2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001, amount_cents: 259800, status: settled }
+      example: { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount_cents: 259800, status: settled }

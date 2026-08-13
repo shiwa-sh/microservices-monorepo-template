@@ -121,6 +121,17 @@ func From(prefix string, u uuid.UUID) (ID, error) {
 	return ID{prefix: prefix, uuid: u}, nil
 }
 
+// MustFrom is From for a prefix that is a literal in the calling code, where the
+// only failure is a malformed constant — a programming error the first request
+// surfaces, not a condition a handler can act on.
+func MustFrom(prefix string, u uuid.UUID) ID {
+	v, err := From(prefix, u)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 // Parse decodes a wire-form identifier and checks it carries the expected prefix.
 // Passing the expected type is the point: it is what stops an order_ being accepted
 // where a product_ belongs, which a bare UUID cannot express.

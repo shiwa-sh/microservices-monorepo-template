@@ -118,41 +118,25 @@ export interface components {
             }[];
         };
         /**
-         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-         *     double in the TypeScript client, and a double cannot hold a decimal amount
-         *     exactly. Currency travels with the amount, because an amount without one is
-         *     not a quantity of anything.
-         * @example {
-         *       "amount": "1299.00",
-         *       "currency": "EUR"
-         *     }
+         * @description An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example order_01kztnj6c8e0jt7vzw0cn1wxvd
          */
-        Money: {
-            /**
-             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
-             * @example 1299.00
-             */
-            amount: string;
-            /**
-             * @description ISO 4217 alphabetic code, uppercase.
-             * @example EUR
-             */
-            currency: string;
-        };
+        OrderId: string;
         /**
-         * Format: date-time
-         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
-         * @example 2026-08-12T09:30:00Z
+         * @description A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example product_01kztmx9e0fq1r13w5d1aerqw6
          */
-        Timestamp: string;
+        ProductId: string;
         /**
          * @description Handle to an async Temporal workflow run.
          * @example {
-         *       "id": "checkout-2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001",
+         *       "id": "checkout-order_01kztnj6c8e0jt7vzw0cn1wxvd",
          *       "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e001",
          *       "status": "running",
-         *       "result_url": "/api/orders/2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001"
+         *       "result_url": "/api/orders/order_01kztnj6c8e0jt7vzw0cn1wxvd"
          *     }
          */
         WorkflowHandle: {
@@ -168,25 +152,22 @@ export interface components {
         };
         /** @description Request body to start a checkout. */
         CheckoutInput: {
-            /** Format: uuid */
-            product_id: string;
+            product_id: components["schemas"]["ProductId"];
             quantity: number;
         };
         /**
          * @description A customer order.
          * @example {
-         *       "id": "2c9f0b71-5d64-4a0e-9b83-0f27f7f0d001",
-         *       "product_id": "6f7a1c48-1a9d-4b1e-9a2c-0f27f7f0c001",
+         *       "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
+         *       "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
          *       "quantity": 2,
          *       "total_cents": 259800,
          *       "status": "confirmed"
          *     }
          */
         Order: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            product_id: string;
+            id: components["schemas"]["OrderId"];
+            product_id: components["schemas"]["ProductId"];
             quantity: number;
             total_cents: number;
             /** @enum {string} */
@@ -264,7 +245,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Order id. */
-                id: string;
+                id: components["schemas"]["OrderId"];
             };
             cookie?: never;
         };
@@ -288,7 +269,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the order to cancel. */
-                id: string;
+                id: components["schemas"]["OrderId"];
             };
             cookie?: never;
         };

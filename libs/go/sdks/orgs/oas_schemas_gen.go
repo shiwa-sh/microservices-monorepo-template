@@ -4,8 +4,6 @@ package orgs
 
 import (
 	"fmt"
-
-	"github.com/google/uuid"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -119,12 +117,12 @@ func (o OptString) Or(d string) string {
 // An organization.
 // Ref: #/components/schemas/Org
 type Org struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID   OrgId  `json:"id"`
+	Name string `json:"name"`
 }
 
 // GetID returns the value of ID.
-func (s *Org) GetID() uuid.UUID {
+func (s *Org) GetID() OrgId {
 	return s.ID
 }
 
@@ -134,7 +132,7 @@ func (s *Org) GetName() string {
 }
 
 // SetID sets the value of ID.
-func (s *Org) SetID(val uuid.UUID) {
+func (s *Org) SetID(val OrgId) {
 	s.ID = val
 }
 
@@ -142,6 +140,8 @@ func (s *Org) SetID(val uuid.UUID) {
 func (s *Org) SetName(val string) {
 	s.Name = val
 }
+
+type OrgId string
 
 // Request body to create an organization.
 // Ref: #/components/schemas/OrgInput
