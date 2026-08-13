@@ -26,7 +26,7 @@ cd "$ROOT"
 k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
 
 identities="$(bun --silent -e \
-  'console.log(JSON.stringify((await import("./e2e/fixtures/identities.ts")).IDENTITIES))')"
+  'console.log(JSON.stringify((await import("./test/e2e/fixtures/identities.ts")).IDENTITIES))')"
 
 step "seeding the committed test identities into Kratos"
 k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
@@ -58,6 +58,34 @@ for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
   created="$(curl -fsS -H 'Content-Type: application/json' -X POST "${admin}/admin/identities" -d "$body" |
     jq -r .id)"
   detail "created ${email} (${created})"
+done
+
+# The import path above is not a registration: Kratos runs no self-service flow for
+# it, so the `after` web_hook never fires and the RegisterUser workflow never runs
+# (ADR-0304). A seeded identity would therefore have no personal org, no org_id on
+# its Kratos metadata, and no X-Org-Id at the edge — which is not a cosmetic gap,
+# because an order belongs to the org its buyer acts through and cannot be placed
+# without one. Calling the webhook here is what makes a seeded identity reach the
+# same end state a registered one does.
+#
+# Idempotent twice over: the workflow id is derived from the identity, so Temporal
+# rejects a duplicate, and the activities are individually re-runnable.
+step "running the post-registration process for each identity"
+k port-forward svc/orgs-server 18093:80 >/dev/null 2>&1 &
+orgs_pf=$!
+trap 'kill "$pf" "$orgs_pf" 2>/dev/null || true' EXIT
+sleep 3
+
+for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
+  id="$(jq -c ".[$i]" <<<"$identities")"
+  email="$(jq -r .email <<<"$id")"
+  identity_id="$(curl -fsS \
+    "${admin}/admin/identities?credentials_identifier=$(jq -rn --arg e "$email" '$e|@uri')" |
+    jq -r --arg e "$email" 'map(select(.traits.email == $e)) | .[0].id // empty')"
+  [ -n "$identity_id" ] || continue
+  curl -fsS -H 'Content-Type: application/json' -X POST "http://localhost:18093/identity-created" \
+    -d "$(jq -n --arg id "$identity_id" --arg e "$email" '{identity_id: $id, email: $e}')" >/dev/null
+  detail "post-registration process enqueued for ${email}"
 done
 
 ok "test identities present (credentials: test/e2e/fixtures/identities.ts)"

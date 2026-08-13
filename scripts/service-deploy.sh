@@ -12,6 +12,8 @@
 #   argocd app set local-service-<svc> --sync-policy automated   (or just cluster:full)
 set -euo pipefail
 
+source "$(dirname "$0")/lib/argo.sh"
+
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -45,7 +47,10 @@ h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 # Read the declaration straight out of the service's own config rather than asking
 # mise to resolve it — `mise tasks deps` only resolves from inside the service
 # directory, and grepping the source of truth keeps this script explicit.
-deps="$(grep -o 'dep:[a-z-]*' "${SVC_DIR}/.mise.toml" | sort -u || true)"
+# Comment lines are excluded and the name must start with a letter: a prose
+# reference to `dep:*` in a comment otherwise matches with an EMPTY component name,
+# and dep-apply.sh then fails its usage guard on an argument nobody wrote.
+deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-z-]*' | sort -u || true)"
 # db-secrets is an in-cluster-only need: a natively-run service reads .env instead,
 # so it is not in the service's own task graph and is added on this path alone.
 for dep in $deps dep:db-secrets; do
@@ -62,7 +67,7 @@ done
 # DEPLOYING_SERVICES carries the visited set through the recursion. Service call
 # graphs are supposed to be acyclic, but nothing enforces that, and an accidental
 # cycle here would fork-bomb rather than fail — so it is cut off explicitly.
-svcs="$(grep -o 'svc:[a-z-]*' "${SVC_DIR}/.mise.toml" | sort -u || true)"
+svcs="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'svc:[a-z][a-z-]*' | sort -u || true)"
 export DEPLOYING_SERVICES="${DEPLOYING_SERVICES:-} ${SVC}"
 for s in $svcs; do
   name="${s#svc:}"
@@ -108,9 +113,10 @@ if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
 fi
 
 # Pause Argo auto-sync on this service if the full tier manages it.
-if k -n argocd get application.argoproj.io "local-service-${SVC}" >/dev/null 2>&1; then
-  echo "→ pausing ArgoCD auto-sync on local-service-${SVC}"
-  k -n argocd patch application.argoproj.io "local-service-${SVC}" --type merge \
+APP="$(argo_service_app "$SVC")"
+if [ -n "$APP" ]; then
+  echo "→ pausing ArgoCD auto-sync on ${APP}"
+  k -n argocd patch application.argoproj.io "$APP" --type merge \
     -p '{"spec":{"syncPolicy":{"automated":null}}}'
 fi
 

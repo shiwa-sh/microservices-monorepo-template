@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isId } from "@libs/id";
 // Cross-service mutation (ADR-0302, ADR-0400). The orders service returns
 // 202 + a workflow handle; we poll it with the shared helper instead of
 // hand-rolling fetch loops.
@@ -20,14 +21,12 @@ import { createBrowserClient } from "@/lib/server-fetch/client";
 import { pollWorkflow, type WorkflowHandle } from "@/lib/server-fetch/workflow-handle";
 import { panel } from "@/strings/panel";
 
-// Catalog's own ProductId pattern (ADR-0003). A wire identifier is prefixed and
-// opaque, never a bare UUID, so the field takes the form the API hands back — what a
-// user pastes is what they were shown. `@libs/id` parses one where a caller needs its
-// parts; a form only needs the shape the API will accept.
-const productIdPattern = /^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$/;
-
 const schema = z.object({
-  product_id: z.string().regex(productIdPattern, panel.checkout.productIdInvalid),
+  // A wire identifier, not a bare UUID (ADR-0003): the field takes the form the API
+  // hands back, so what a user pastes is what they were shown. `isId` is the shared
+  // codec both languages check against, so the accepted shape cannot drift from the
+  // one the services mint.
+  product_id: z.string().refine((v) => isId(v, "product"), panel.checkout.productIdInvalid),
   quantity: z.number().int().positive(),
 });
 

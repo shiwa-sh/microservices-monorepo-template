@@ -226,7 +226,7 @@ Three values are frequently confused with an entity ID. Each has one owner and o
 | Value | Form | Owner |
 | --- | --- | --- |
 | Correlation across services | the W3C [Trace Context](https://www.w3.org/TR/trace-context/) `traceparent`. No `X-Request-Id` is minted | [ADR-0500](0500-observability.md) |
-| Client-supplied retry deduplication | the `Idempotency-Key` request header carrying a client-generated random value, per [draft-ietf-httpapi-idempotency-key-header](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07) | [ADR-0303](0303-api-contracts-and-lifecycle.md) |
+| Client-supplied retry deduplication | the `Idempotency-Key` request header carrying a client-generated random value, per [draft-ietf-httpapi-idempotency-key-header](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07) | here |
 | Server-side execution deduplication | the Temporal Workflow ID, derived from the business key rather than from the `Idempotency-Key` | [ADR-0302](0302-temporal.md) |
 
 The last two are not alternatives. The header deduplicates a retried HTTP request at the edge of the service; the Workflow ID deduplicates the business operation however it was reached.

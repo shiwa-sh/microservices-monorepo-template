@@ -8,26 +8,34 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/store"
+	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/workflows"
 )
 
 type Activities struct {
 	DB         *pgxpool.Pool
+	Granter    authz.Granter
 	HTTP       *http.Client
 	CatalogURL string
 	PaymentURL string
 }
 
-func New(db *pgxpool.Pool) *Activities {
+func New(db *pgxpool.Pool, granter authz.Granter) *Activities {
 	return &Activities{
-		DB: db,
+		DB:      db,
+		Granter: granter,
 		// otelhttp transport injects the W3C traceparent on every outbound call, so
 		// the catalog/payment server spans stitch under this activity's span (which
 		// Temporal's tracing interceptor already links to the checkout workflow).
@@ -44,6 +52,62 @@ func env(k, def string) string {
 		return v
 	}
 	return def
+}
+
+// CreateOrderActivity is dual-write leg 1 (ADR-0304): the application-DB write.
+// The identifier is minted by the handler and passed in, so the insert is keyed on
+// a value that does not change between attempts — `on conflict (id) do nothing`
+// then makes a retry re-run rather than duplicate, and the empty result it returns
+// is the second attempt, not a failure.
+func (a *Activities) CreateOrderActivity(ctx context.Context, in workflows.CheckoutInput) error {
+	orderID, err := id.Parse("order", in.OrderID)
+	if err != nil {
+		return fmt.Errorf("create order: parse order id: %w", err)
+	}
+	productID, err := id.Parse("product", in.ProductID)
+	if err != nil {
+		return fmt.Errorf("create order: parse product id: %w", err)
+	}
+	orgID, err := id.Parse("org", in.OrgID)
+	if err != nil {
+		return fmt.Errorf("create order: parse org id: %w", err)
+	}
+
+	_, err = store.New(a.DB).CreateOrder(
+		ctx,
+		store.CreateOrderParams{
+			ID:         pgtype.UUID{Bytes: orderID.UUID(), Valid: true},
+			ProductID:  pgtype.UUID{Bytes: productID.UUID(), Valid: true},
+			Quantity:   in.Quantity,
+			TotalCents: 0,
+			OwnerID:    pgtype.Text{String: in.OwnerID, Valid: true},
+			OrgID:      pgtype.UUID{Bytes: orgID.UUID(), Valid: true},
+		},
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("create order: insert: %w", err)
+	}
+	return nil
+}
+
+// GrantOrderAccessActivity is dual-write leg 2 (ADR-0304): the OpenFGA write that
+// makes the row readable. Two tuples, because `order#read` is `owner or write from
+// org` — the buyer reads their own order, and the org's admins read every order
+// placed through it. Grant treats an already-present tuple as success, so a retry
+// of either write is safe.
+func (a *Activities) GrantOrderAccessActivity(ctx context.Context, orderID, ownerID, orgID string) error {
+	err := a.Granter.Grant(ctx, "user:"+ownerID, "owner", "order:"+orderID)
+	if err != nil {
+		return fmt.Errorf("grant order owner: %w", err)
+	}
+	err = a.Granter.Grant(ctx, "org:"+orgID, "org", "order:"+orderID)
+	if err != nil {
+		return fmt.Errorf("grant order org: %w", err)
+	}
+	return nil
 }
 
 // LookupProductActivity calls catalog. Returns the product's price in cents.

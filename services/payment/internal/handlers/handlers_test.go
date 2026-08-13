@@ -173,15 +173,85 @@ func TestRefundCharge(t *testing.T) {
 	)
 }
 
+// resourceChecker answers per resource, which is what the read gate needs: a buyer
+// holds `charge#read` on a charge against their own order and nothing on
+// `group:operator`, and an operator is the other way round. A single bool cannot
+// express either.
+type resourceChecker map[string]bool
+
+func (c resourceChecker) Allowed(_ context.Context, _, _, resource string) (bool, error) {
+	return c[resource], nil
+}
+
+// chargeObject is the OpenFGA object the read gate checks.
+var chargeObject = "charge:" + string(testChargeID)
+
+// A single charge read, exercised through every principal that can ask for it.
+func TestGetChargeAuthz(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		ctx     func() context.Context
+		checker authz.Checker
+		want    int
+	}{
+		{"holding the identifier is not enough", context.Background, resourceChecker{chargeObject: true}, 401},
+		{"another buyer is forbidden", opCtx, resourceChecker{}, 403},
+		{"the order's buyer reads its charge", opCtx, resourceChecker{chargeObject: true}, 0},
+		{"an operator reads any charge", opCtx, resourceChecker{"group:operator": true}, 0},
+	}
+	for _, tc := range tests {
+		t.Run(
+			tc.name,
+			func(t *testing.T) {
+				t.Parallel()
+				h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: statusSettled}}, checker: tc.checker}
+				_, err := h.GetCharge(tc.ctx(), payment.GetChargeParams{ID: testChargeID})
+				if tc.want == 0 {
+					if err != nil {
+						t.Fatalf("unexpected error: %v", err)
+					}
+					return
+				}
+				assertStatus(t, err, tc.want)
+			},
+		)
+	}
+}
+
 func TestListCharges(t *testing.T) {
 	t.Parallel()
+
+	// Listing every charge is the back-office view (ADR-0303's `x-audience:
+	// internal`), so it is operator-gated: an anonymous caller is refused before the
+	// store is reached.
+	t.Run(
+		"an anonymous caller is unauthorized",
+		func(t *testing.T) {
+			t.Parallel()
+			h := &Handlers{q: fakeQ{}, checker: okChecker()}
+			_, err := h.ListCharges(context.Background())
+			assertStatus(t, err, 401)
+		},
+	)
+
+	t.Run(
+		"a non-operator is forbidden",
+		func(t *testing.T) {
+			t.Parallel()
+			h := &Handlers{q: fakeQ{}, checker: fakeChecker{allowed: false}}
+			_, err := h.ListCharges(opCtx())
+			assertStatus(t, err, 403)
+		},
+	)
 
 	t.Run(
 		"a store error is internal",
 		func(t *testing.T) {
 			t.Parallel()
-			h := &Handlers{q: fakeQ{listErr: errors.New("db down")}}
-			_, err := h.ListCharges(context.Background())
+			h := &Handlers{q: fakeQ{listErr: errors.New("db down")}, checker: okChecker()}
+			_, err := h.ListCharges(opCtx())
 			assertStatus(t, err, 500)
 		},
 	)
@@ -192,8 +262,8 @@ func TestListCharges(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{list: []store.ListChargesRow{
 				{AmountCents: 999, Status: statusSettled},
-			}}}
-			got, err := h.ListCharges(context.Background())
+			}}, checker: okChecker()}
+			got, err := h.ListCharges(opCtx())
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

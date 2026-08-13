@@ -25,6 +25,10 @@ func registerEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnviron
 		func(context.Context, string, string) error { return nil },
 		activity.RegisterOptions{Name: "GrantOrgAdminActivity"},
 	)
+	env.RegisterActivityWithOptions(
+		func(context.Context, string, string) error { return nil },
+		activity.RegisterOptions{Name: "SetIdentityOrgActivity"},
+	)
 	return env
 }
 
@@ -40,6 +44,8 @@ func TestRegisterUserWorkflow(t *testing.T) {
 			env.OnActivity("CreatePersonalOrgActivity", mock.Anything, testID).
 				Return("org_1", nil).Once()
 			env.OnActivity("GrantOrgAdminActivity", mock.Anything, "org_1", testID).
+				Return(nil).Once()
+			env.OnActivity("SetIdentityOrgActivity", mock.Anything, testID, "org_1").
 				Return(nil).Once()
 
 			env.ExecuteWorkflow(RegisterUser, RegisterInput{IdentityID: testID})
@@ -64,6 +70,28 @@ func TestRegisterUserWorkflow(t *testing.T) {
 			require.True(t, env.IsWorkflowCompleted())
 			require.Error(t, env.GetWorkflowError())
 			env.AssertNotCalled(t, "GrantOrgAdminActivity", mock.Anything, mock.Anything, mock.Anything)
+		},
+	)
+
+	// The identity is where X-Org-Id comes from (ADR-0304), so an org the edge never
+	// learns about is the same as no org at all — the workflow has to fail on it.
+	t.Run(
+		"identity metadata failure fails the workflow",
+		func(t *testing.T) {
+			t.Parallel()
+			var ts testsuite.WorkflowTestSuite
+			env := registerEnv(&ts)
+			env.OnActivity("CreatePersonalOrgActivity", mock.Anything, mock.Anything).
+				Return("org_1", nil).Once()
+			env.OnActivity("GrantOrgAdminActivity", mock.Anything, "org_1", testID).
+				Return(nil).Once()
+			env.OnActivity("SetIdentityOrgActivity", mock.Anything, testID, "org_1").
+				Return(errors.New("kratos down"))
+
+			env.ExecuteWorkflow(RegisterUser, RegisterInput{IdentityID: testID})
+
+			require.True(t, env.IsWorkflowCompleted())
+			require.Error(t, env.GetWorkflowError())
 		},
 	)
 

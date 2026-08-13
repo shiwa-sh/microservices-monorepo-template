@@ -15,7 +15,7 @@
 // third-party surfaces behind an operator session, and AA is not claimed for them.
 import { expect, test } from "@playwright/test";
 import { expectNoA11yViolations, kitchenSinkSections } from "../fixtures/a11y";
-import { BASE_URL, USER_STATE } from "../fixtures/env";
+import { BASE_URL, REGISTER_URL, USER_STATE } from "../fixtures/env";
 
 // Scalar renders into its own container with its own theme; the route group AROUND
 // it is in scope, the console itself is not.
@@ -56,9 +56,9 @@ test.describe("accessibility @a11y", () => {
     });
 
     test("registration", async ({ page }) => {
-      await page.goto(`${BASE_URL}/auth/registration`);
+      await page.goto(REGISTER_URL);
       await expect(page.locator("form")).toBeVisible();
-      await expectNoA11yViolations(page, "(landing) /auth/registration");
+      await expectNoA11yViolations(page, "(landing) /auth/register");
     });
 
     test.describe("authenticated", () => {

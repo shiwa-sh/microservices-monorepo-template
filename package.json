@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "apps/frontend",
+    "libs/ts/id",
     "libs/ts/sdks/*"
   ],
   "devDependencies": {

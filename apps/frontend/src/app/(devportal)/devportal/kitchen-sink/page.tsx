@@ -57,7 +57,13 @@ export default function KitchenSink() {
         <Button color="secondary" iconTrailing={<ArrowRight className="size-5" />}>
           Continue
         </Button>
-        <Button isLoading>Saving</Button>
+        {/* A loading button hides its own text (the primitive makes everything but the
+            spinner invisible), which leaves it with no accessible name — a critical
+            axe violation the a11y suite gates on. `aria-label` is what keeps the
+            spinner-only visual and still announces the button. */}
+        <Button isLoading aria-label="Saving">
+          Saving
+        </Button>
         <Button isDisabled>Disabled</Button>
       </Section>
 

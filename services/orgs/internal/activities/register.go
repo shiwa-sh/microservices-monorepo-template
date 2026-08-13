@@ -5,8 +5,8 @@ package activities
 import (
 	"context"
 	"fmt"
+	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -16,13 +16,21 @@ import (
 )
 
 type Activities struct {
-	db      *pgxpool.Pool
-	q       *store.Queries
-	granter authz.Granter
+	db          *pgxpool.Pool
+	q           *store.Queries
+	granter     authz.Granter
+	HTTP        *http.Client
+	KratosAdmin string
 }
 
 func New(db *pgxpool.Pool, granter authz.Granter) *Activities {
-	return &Activities{db: db, q: store.New(db), granter: granter}
+	return &Activities{
+		db:          db,
+		q:           store.New(db),
+		granter:     granter,
+		HTTP:        http.DefaultClient,
+		KratosAdmin: kratosAdminURL(),
+	}
 }
 
 // personalOrgName is the default display name for the org auto-created at
@@ -34,7 +42,9 @@ const personalOrgName = "Personal workspace"
 
 // CreatePersonalOrgActivity is dual-write leg 1 (ADR-0304): the application-DB
 // write. Creates the identity's personal org (generic default name) and records
-// them as its admin member in one transaction. Returns the new org id.
+// them as its admin member in one transaction. Returns the new org id in the wire
+// form (ADR-0003) — it leaves this process, so it is prefixed everywhere it is
+// then used: the OpenFGA object, the identity metadata, and the workflow result.
 func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID string) (string, error) {
 	tx, err := a.db.Begin(ctx)
 	if err != nil {
@@ -70,7 +80,7 @@ func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID s
 	if err != nil {
 		return "", fmt.Errorf("create personal org: commit: %w", err)
 	}
-	return uuid.UUID(org.ID.Bytes).String(), nil
+	return key.String(), nil
 }
 
 // GrantOrgAdminActivity is dual-write leg 2 (ADR-0304): the OpenFGA write. Grants

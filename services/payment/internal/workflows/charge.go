@@ -11,6 +11,9 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// statusFailed is the terminal status of a charge the workflow could not complete.
+const statusFailed = "failed"
+
 type ChargeInput struct {
 	ChargeID    string
 	OrderID     string
@@ -30,10 +33,25 @@ func Charge(ctx workflow.Context, in ChargeInput) (ChargeResult, error) {
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	err := workflow.ExecuteActivity(ctx, "SettleActivity", in).Get(ctx, nil)
+	// The tuple that makes the charge readable comes first, before anything that can
+	// fail it: `charge#read` resolves through the order, so this is what lets the
+	// buyer see a charge that settled and a charge that did not.
+	//
+	// The row itself is inserted by the handler rather than by an activity here,
+	// unlike orders (ADR-0304 wants both writes in the workflow). Payment's
+	// deduplication key is a client-supplied header enforced by a unique constraint,
+	// so the insert has to happen synchronously for the handler to know which charge
+	// id it is answering with; orders keys its insert on an id it mints itself and
+	// therefore has no such constraint.
+	err := workflow.ExecuteActivity(ctx, "GrantChargeAccessActivity", in.ChargeID, in.OrderID).Get(ctx, nil)
 	if err != nil {
-		_ = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "failed").Get(ctx, nil)
-		return ChargeResult{Status: "failed"}, fmt.Errorf("charge: settle: %w", err)
+		return ChargeResult{Status: statusFailed}, fmt.Errorf("charge: grant charge access: %w", err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, "SettleActivity", in).Get(ctx, nil)
+	if err != nil {
+		_ = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, statusFailed).Get(ctx, nil)
+		return ChargeResult{Status: statusFailed}, fmt.Errorf("charge: settle: %w", err)
 	}
 	err = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "settled").Get(ctx, nil)
 	if err != nil {

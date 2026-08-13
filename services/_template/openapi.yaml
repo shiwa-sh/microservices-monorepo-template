@@ -37,8 +37,8 @@ paths:
                 # renders. A list needs its own — the item schema's example says
                 # nothing about how many rows come back.
                 example:
-                  - { id: item_01kztpb93repgs8w9k8cj837vr, name: First item }
-                  - { id: item_01kztpfex0ew4atkhwb6zev40b, name: Second item }
+                  - { id: item_01kztpb93repgs8w9k8cj837vr, name: First item, created_at: "2026-08-12T09:30:00Z" }
+                  - { id: item_01kztpfex0ew4atkhwb6zev40b, name: Second item, created_at: "2026-08-12T09:31:00Z" }
         "default":
           $ref: "#/components/responses/Error"
     post:
@@ -135,6 +135,16 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
+    # is rejected rather than converted, so one wire format survives round-tripping.
+    Timestamp:
+      type: string
+      format: date-time
+      description: |
+        RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
+        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
+      pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
+      example: "2026-08-12T09:30:00Z"
     # <<< shared-components
     # A wire identifier (ADR-0003): the singular collection noun, an underscore, and
     # the UUIDv7 in 26 characters of Crockford base32. The stored column stays a bare
@@ -150,12 +160,16 @@ components:
     Item:
       type: object
       description: A template item.
-      required: [id, name]
+      required: [id, name, created_at]
       properties:
         id:   { $ref: "#/components/schemas/ItemId" }
         name: { type: string, minLength: 1 }
+        # Every table carries created_at (ADR-0300), and a resource that exposes it
+        # uses the shared component rather than restating the format — one wire
+        # shape for every timestamp on the platform (ADR-0003).
+        created_at: { $ref: "#/components/schemas/Timestamp" }
       # On the schema, so every response referencing it inherits one example.
-      example: { id: item_01kztpb93repgs8w9k8cj837vr, name: First item }
+      example: { id: item_01kztpb93repgs8w9k8cj837vr, name: First item, created_at: "2026-08-12T09:30:00Z" }
     ItemInput:
       type: object
       description: Request body to create an item.

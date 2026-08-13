@@ -186,6 +186,12 @@ func (h *Handlers) RefundCharge(
 }
 
 func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
+	// Every charge, not the caller's — a back-office view (`x-audience: internal`),
+	// so it is operator-gated rather than scoped.
+	err := h.requireOperator(ctx, "listing every charge")
+	if err != nil {
+		return nil, err
+	}
 	rows, err := h.q.ListCharges(ctx)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
@@ -205,6 +211,10 @@ func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
 
 func (h *Handlers) GetCharge(ctx context.Context, params payment.GetChargeParams) (*payment.Charge, error) {
 	key, err := storedChargeID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	err = h.requireReader(ctx, "charge:"+string(params.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -285,6 +295,26 @@ func (h *Handlers) insertCharge(
 		return store.CreateChargeRow{}, apierr.Internal(err.Error())
 	}
 	return created, nil
+}
+
+// requireReader authorises a single-charge read (ADR-0003): an unguessable
+// identifier is not an access control, so holding one grants nothing. `charge#read`
+// in model.fga resolves through the charge's order, so the buyer and the owning
+// org's admins reach it; an operator reaches every charge through the same
+// back-office grant the list uses. Both are Checker calls.
+func (h *Handlers) requireReader(ctx context.Context, object string) error {
+	principal, _ := authmw.FromContext(ctx)
+	if !principal.Authenticated() {
+		return apierr.Unauthorized()
+	}
+	allowed, err := h.checker.Allowed(ctx, principal.Subject(), "read", object)
+	if err != nil {
+		return apierr.Internal(err.Error())
+	}
+	if allowed {
+		return nil
+	}
+	return h.requireOperator(ctx, "reading a charge against someone else's order")
 }
 
 // requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the

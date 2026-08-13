@@ -19,7 +19,8 @@ import (
 
 var regexMap = map[string]ogenregex.Regexp{
 	"^[0-9a-f]{32}$": ogenregex.MustCompile("^[0-9a-f]{32}$"),
-	"^item_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$": ogenregex.MustCompile("^item_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"),
+	"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$": ogenregex.MustCompile("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"),
+	"^item_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$":            ogenregex.MustCompile("^item_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"),
 }
 var (
 	// Allocate option closure once.

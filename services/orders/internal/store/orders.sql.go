@@ -12,8 +12,9 @@ import (
 )
 
 const createOrder = `-- name: CreateOrder :one
-insert into orders (id, product_id, quantity, total_cents, status)
-values ($1, $2, $3, $4, 'pending')
+insert into orders (id, product_id, quantity, total_cents, status, owner_id, org_id)
+values ($1, $2, $3, $4, 'pending', $5, $6)
+on conflict (id) do nothing
 returning id, product_id, quantity, total_cents, status
 `
 
@@ -22,6 +23,8 @@ type CreateOrderParams struct {
 	ProductID  pgtype.UUID `json:"product_id"`
 	Quantity   int32       `json:"quantity"`
 	TotalCents int32       `json:"total_cents"`
+	OwnerID    pgtype.Text `json:"owner_id"`
+	OrgID      pgtype.UUID `json:"org_id"`
 }
 
 type CreateOrderRow struct {
@@ -38,6 +41,8 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Creat
 		arg.ProductID,
 		arg.Quantity,
 		arg.TotalCents,
+		arg.OwnerID,
+		arg.OrgID,
 	)
 	var i CreateOrderRow
 	err := row.Scan(

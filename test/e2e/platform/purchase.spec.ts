@@ -135,7 +135,12 @@ test.describe("full purchase scenario", () => {
     // then assert its trace stitched across all three services in Tempo — the
     // request was tracked end to end. The deep log/metric correlation is asserted
     // deterministically in observability.spec.ts.
-    const ordersRes = await fetch(`http://127.0.0.1:${ORDERS_PORT}/orders`);
+    // Listing every order is operator-gated (ADR-0304), so this asserts the console's
+    // service identity the way the console itself does. Port-forwarded, so the edge
+    // never sees — and never strips — the header.
+    const ordersRes = await fetch(`http://127.0.0.1:${ORDERS_PORT}/orders`, {
+      headers: { "x-user-id": "admin-console" },
+    });
     const orders = (await ordersRes.json()) as Array<{ id: string; product_id: string; status: string }>;
     const mine = orders.filter((o) => o.product_id === productId);
     expect(mine.length, "checkout created an order for this product").toBeGreaterThan(0);

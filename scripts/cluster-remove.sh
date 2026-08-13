@@ -14,6 +14,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "$0")/lib/argo.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
@@ -69,7 +70,7 @@ fi
 
 # Hand it back to GitOps. Mirrors the pause in service-deploy.sh / platform-deploy.sh.
 if [ "$is_service" = true ]; then
-  APP="local-service-${NAME}"
+  APP="$(argo_service_app "$NAME")"
 else
   APP="local-platform-${NAME}"
 fi

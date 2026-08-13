@@ -30,6 +30,16 @@ type order
     define read: owner or write from org
     define write: owner or write from org
 
+# A charge is payment's record of an order being paid, and it is readable by
+# exactly whoever may read that order — the buyer and the owning org's admins.
+# Modelled as a relation to the order rather than a second copy of the order's
+# own relations, so a change to who may read an order cannot leave the charge
+# behind. The charges table already carries order_id, which is the tuple.
+type charge
+  relations
+    define order: [order]
+    define read: read from order
+
 # Ops-tier authorization (ADR-0306). A `group` models coarse cohorts; the
 # `operator` group (group:operator) gates the whole ops tier. Each operator
 # dashboard (Hubble UI, Grafana, Argo, Temporal, console, MinIO, OpenFGA) is a

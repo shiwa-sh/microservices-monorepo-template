@@ -16,8 +16,7 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
-      "@sdks/*": ["../../libs/ts/sdks/*"],
-      "@libs/id": ["../../libs/ts/id/index.ts"]
+      "@sdks/*": ["../../libs/ts/sdks/*"]
     }
   },
   "include": [

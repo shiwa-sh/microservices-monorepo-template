@@ -4,6 +4,7 @@ package template
 
 import (
 	"fmt"
+	"time"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -39,8 +40,9 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 // A template item.
 // Ref: #/components/schemas/Item
 type Item struct {
-	ID   ItemId `json:"id"`
-	Name string `json:"name"`
+	ID        ItemId    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt Timestamp `json:"created_at"`
 }
 
 // GetID returns the value of ID.
@@ -53,6 +55,11 @@ func (s *Item) GetName() string {
 	return s.Name
 }
 
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Item) GetCreatedAt() Timestamp {
+	return s.CreatedAt
+}
+
 // SetID sets the value of ID.
 func (s *Item) SetID(val ItemId) {
 	s.ID = val
@@ -61,6 +68,11 @@ func (s *Item) SetID(val ItemId) {
 // SetName sets the value of Name.
 func (s *Item) SetName(val string) {
 	s.Name = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Item) SetCreatedAt(val Timestamp) {
+	s.CreatedAt = val
 }
 
 type ItemId string
@@ -234,3 +246,5 @@ func (s *ProblemErrorsItem) SetPointer(val string) {
 func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
 }
+
+type Timestamp time.Time

@@ -58,6 +58,7 @@ func run() error {
 	acts := activities.New(db, granter)
 	w.RegisterActivity(acts.CreatePersonalOrgActivity)
 	w.RegisterActivity(acts.GrantOrgAdminActivity)
+	w.RegisterActivity(acts.SetIdentityOrgActivity)
 
 	interrupt := make(chan any, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()

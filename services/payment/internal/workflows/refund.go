@@ -29,7 +29,7 @@ func Refund(ctx workflow.Context, in RefundInput) (RefundResult, error) {
 
 	err := workflow.ExecuteActivity(ctx, "RefundActivity", in).Get(ctx, nil)
 	if err != nil {
-		return RefundResult{Status: "failed"}, fmt.Errorf("refund: psp: %w", err)
+		return RefundResult{Status: statusFailed}, fmt.Errorf("refund: psp: %w", err)
 	}
 	err = workflow.ExecuteActivity(ctx, "MarkChargeStatusActivity", in.ChargeID, "refunded").Get(ctx, nil)
 	if err != nil {

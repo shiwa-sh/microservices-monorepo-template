@@ -6,7 +6,9 @@
 # natively against these deps and does not apply migrations itself).
 set -euo pipefail
 
-kubectl -n platform port-forward svc/postgres 5432:5432 >/dev/null &
+# The CNPG cluster publishes role-suffixed services (postgres-rw is the primary);
+# there is no plain `postgres` service to forward to.
+kubectl -n platform port-forward svc/postgres-rw 5432:5432 >/dev/null &
 pf=$!
 trap 'kill "$pf" 2>/dev/null || true' EXIT
 sleep 2

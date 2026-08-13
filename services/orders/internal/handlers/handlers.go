@@ -47,14 +47,15 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orders.Handler = (*Handlers)(nil)
 
-// These four are the transport boundary (ADR-0003): the columns hold bare uuids and
-// the wire carries `order_`/`product_` and the base32 form. A product id is minted
-// by catalog and only carried here, so it is encoded under catalog's prefix.
+// These three are the transport boundary (ADR-0003): the columns hold bare uuids
+// and the wire carries `order_`/`product_` and the base32 form. A product id is
+// minted by catalog and only carried here, so it is encoded under catalog's prefix;
+// decoding one is the checkout saga's job, since that is where the insert happens.
 //
 // The prefixes are literals, so encoding cannot fail on real input. Decoding cannot
-// either — every identifier reaching a handler has already matched the OrderId or
-// ProductId pattern in the generated validator — and it still reports rather than
-// panics, because the validator and these calls are two places one spec edit can
+// either — every identifier reaching a handler has already matched the OrderId
+// pattern in the generated validator — and it still reports rather than panics,
+// because the validator and these calls are two places one spec edit can
 // separate.
 func orderID(u pgtype.UUID) orders.OrderId {
 	return orders.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
@@ -84,14 +85,6 @@ func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
 }
 
-func storedProductID(v orders.ProductId) (pgtype.UUID, error) {
-	parsed, err := id.Parse("product", string(v))
-	if err != nil {
-		return pgtype.UUID{}, apierr.BadRequest("malformed product id")
-	}
-	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
-}
-
 func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*orders.WorkflowHandle, error) {
 	ctx, span := observability.StartSpan(ctx, "orders.Checkout")
 	defer span.End()
@@ -99,27 +92,21 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	if req.Quantity <= 0 || req.Quantity > math.MaxInt32 {
 		return nil, apierr.BadRequest("product_id and quantity required")
 	}
-	product, err := storedProductID(req.ProductID)
-	if err != nil {
-		return nil, err
+	// An order belongs to a buyer and to the org they act through (ADR-0304), so
+	// checkout has no anonymous form: without both there is nobody to write the
+	// order's read tuples for, and the row would be readable by operators alone.
+	principal, _ := authmw.FromContext(ctx)
+	if !principal.Authenticated() {
+		return nil, apierr.Unauthorized()
+	}
+	if principal.OrgID == "" {
+		return nil, apierr.Forbidden("this identity carries no organization")
 	}
 	key, err := mintOrderID()
 	if err != nil {
 		return nil, err
 	}
-	row, err := h.q.CreateOrder(
-		ctx,
-		store.CreateOrderParams{
-			ID:         key,
-			ProductID:  product,
-			Quantity:   int32(req.Quantity),
-			TotalCents: 0,
-		},
-	)
-	if err != nil {
-		return nil, apierr.Internal(err.Error())
-	}
-	oid := string(orderID(row.ID))
+	oid := string(orderID(key))
 	// Tag the root span with the order id so a specific checkout is addressable in
 	// Tempo (TraceQL `{ .order.id = "<id>" }`) — the anchor the e2e uses to pull the
 	// exact end-to-end trace and assert it stitched across catalog + payment. The
@@ -134,8 +121,10 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 		workflows.Checkout,
 		workflows.CheckoutInput{
 			OrderID:   oid,
-			ProductID: string(productID(row.ProductID)),
-			Quantity:  row.Quantity,
+			ProductID: string(req.ProductID),
+			Quantity:  int32(req.Quantity),
+			OwnerID:   principal.UserID,
+			OrgID:     principal.OrgID,
 		},
 	)
 	if err != nil {
@@ -152,6 +141,10 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 
 func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (*orders.Order, error) {
 	key, err := storedOrderID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	err = h.requireReader(ctx, "order:"+string(params.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +165,12 @@ func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (
 }
 
 func (h *Handlers) ListOrders(ctx context.Context) ([]orders.Order, error) {
+	// Every order, not the caller's — a back-office view (`x-audience: internal`),
+	// so it is operator-gated rather than scoped.
+	err := h.requireOperator(ctx, "listing every order")
+	if err != nil {
+		return nil, err
+	}
 	rows, err := h.q.ListOrders(ctx)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
@@ -255,6 +254,26 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orders.ErrorStatusC
 		problem.Errors = append(problem.Errors, orders.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
 	}
 	return &orders.ErrorStatusCode{StatusCode: e.Status, Response: problem}
+}
+
+// requireReader authorises a single-order read (ADR-0003): an unguessable
+// identifier is not an access control, so holding one grants nothing. `order#read`
+// in model.fga resolves the buyer and the admins of the owning org; an operator
+// reaches every order through the same back-office grant the lists use. Both are
+// Checker calls — neither reads a role out of a header.
+func (h *Handlers) requireReader(ctx context.Context, object string) error {
+	principal, _ := authmw.FromContext(ctx)
+	if !principal.Authenticated() {
+		return apierr.Unauthorized()
+	}
+	allowed, err := h.checker.Allowed(ctx, principal.Subject(), "read", object)
+	if err != nil {
+		return apierr.Internal(err.Error())
+	}
+	if allowed {
+		return nil
+	}
+	return h.requireOperator(ctx, "reading an order placed by someone else")
 }
 
 // requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the

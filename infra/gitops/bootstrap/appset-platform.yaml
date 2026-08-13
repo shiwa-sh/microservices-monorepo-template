@@ -41,6 +41,16 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
   generators:
     - matrix:
         generators:
@@ -125,6 +135,16 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
   generators:
     - matrix:
         generators:
@@ -188,6 +208,16 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
   generators:
     - matrix:
         generators:

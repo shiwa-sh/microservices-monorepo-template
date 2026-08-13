@@ -15,4 +15,8 @@ type Order struct {
 	TotalCents int32              `json:"total_cents"`
 	Status     string             `json:"status"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	// pii:identifier
+	OwnerID pgtype.Text `json:"owner_id"`
+	// pii:none
+	OrgID pgtype.UUID `json:"org_id"`
 }

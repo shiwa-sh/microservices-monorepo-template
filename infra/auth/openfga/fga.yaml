@@ -17,6 +17,7 @@ tuples:
   - { user: user:alice, relation: owner,  object: order:o1 }
   - { user: org:acme,   relation: org,    object: order:o2 }
   - { user: user:bob,   relation: owner,  object: order:o2 }
+  - { user: order:o1,   relation: order,  object: charge:c1 }
   # Ops tier (ADR-0306): alice is an operator; the admin console is a direct
   # grant, every other dashboard is granted to the operator group.
   - { user: user:alice,            relation: member, object: group:operator }
@@ -43,6 +44,13 @@ tests:
       - user: user:alice
         object: order:o2
         assertions: { write: false }
+      # A charge inherits its order's readers: alice owns o1, bob does not.
+      - user: user:alice
+        object: charge:c1
+        assertions: { read: true }
+      - user: user:bob
+        object: charge:c1
+        assertions: { read: false }
       # alice is an operator → views admin + every group-granted dashboard.
       - user: user:alice
         object: group:operator

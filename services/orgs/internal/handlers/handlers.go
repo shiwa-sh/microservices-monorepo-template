@@ -68,6 +68,13 @@ func storedID(v orgs.OrgId) (pgtype.UUID, error) {
 }
 
 func (h *Handlers) CreateOrg(ctx context.Context, req *orgs.OrgInput) (*orgs.Org, error) {
+	// Operator-gated, like every other write here. An org created through this
+	// endpoint gets no admin tuple, so the only path that produces a usable org is
+	// still RegisterUser's personal org (ADR-0304) — see the plan's C13.
+	err := h.requireOperator(ctx, "creating orgs")
+	if err != nil {
+		return nil, err
+	}
 	if req.Name == "" {
 		return nil, apierr.BadRequest("name required")
 	}
@@ -84,6 +91,10 @@ func (h *Handlers) CreateOrg(ctx context.Context, req *orgs.OrgInput) (*orgs.Org
 
 func (h *Handlers) GetOrg(ctx context.Context, params orgs.GetOrgParams) (*orgs.Org, error) {
 	key, err := storedID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	err = h.requireReader(ctx, "org:"+string(params.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +136,12 @@ func (h *Handlers) OnIdentityCreated(ctx context.Context, req *orgs.OnIdentityCr
 }
 
 func (h *Handlers) ListOrgs(ctx context.Context) ([]orgs.Org, error) {
+	// Every org, not the caller's — a back-office view (`x-audience: internal`),
+	// so it is operator-gated rather than scoped.
+	err := h.requireOperator(ctx, "listing every org")
+	if err != nil {
+		return nil, err
+	}
 	rows, err := h.q.ListOrgs(ctx)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
@@ -201,6 +218,25 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orgs.ErrorStatusCod
 		problem.Errors = append(problem.Errors, orgs.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
 	}
 	return &orgs.ErrorStatusCode{StatusCode: e.Status, Response: problem}
+}
+
+// requireReader authorises a single-org read (ADR-0003): an unguessable identifier
+// is not an access control, so holding one grants nothing. `org#read` in model.fga
+// resolves the org's members and admins; an operator reaches every org through the
+// same back-office grant the list uses. Both are Checker calls.
+func (h *Handlers) requireReader(ctx context.Context, object string) error {
+	principal, _ := authmw.FromContext(ctx)
+	if !principal.Authenticated() {
+		return apierr.Unauthorized()
+	}
+	allowed, err := h.checker.Allowed(ctx, principal.Subject(), "read", object)
+	if err != nil {
+		return apierr.Internal(err.Error())
+	}
+	if allowed {
+		return nil
+	}
+	return h.requireOperator(ctx, "reading an org they are not a member of")
 }
 
 // requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the

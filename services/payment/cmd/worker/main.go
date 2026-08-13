@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
@@ -49,7 +50,13 @@ func run() error {
 	w.RegisterWorkflow(workflows.Charge)
 	w.RegisterWorkflow(workflows.Refund)
 
-	acts := activities.New(db)
+	granter, err := authz.NewGranter()
+	if err != nil {
+		return fmt.Errorf("openfga: %w", err)
+	}
+
+	acts := activities.New(db, granter)
+	w.RegisterActivity(acts.GrantChargeAccessActivity)
 	w.RegisterActivity(acts.SettleActivity)
 	w.RegisterActivity(acts.RefundActivity)
 	w.RegisterActivity(acts.MarkChargeStatusActivity)

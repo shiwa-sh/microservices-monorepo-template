@@ -252,12 +252,16 @@ type kratosAddress struct {
 
 // kratosIdentity is the subset of a Kratos admin identity this service reads and
 // writes. schema_id and state are carried through unmodified on update — Kratos PUT
-// replaces the whole record, so dropping them would reset the identity.
+// replaces the whole record, so dropping them would reset the identity. So is
+// metadata_public, which this service never edits and must not erase: the edge
+// builds X-Org-Id and X-Roles out of it (ADR-0304), so writing the record back
+// without it would silently unassign an operator's org on the next name change.
 type kratosIdentity struct {
-	ID       string `json:"id,omitempty"`
-	SchemaID string `json:"schema_id,omitempty"`
-	State    string `json:"state,omitempty"`
-	Traits   struct {
+	ID             string          `json:"id,omitempty"`
+	SchemaID       string          `json:"schema_id,omitempty"`
+	State          string          `json:"state,omitempty"`
+	MetadataPublic json.RawMessage `json:"metadata_public,omitempty"`
+	Traits         struct {
 		Email    string `json:"email"`
 		Name     string `json:"name,omitempty"`
 		Operator bool   `json:"operator"`

@@ -84,6 +84,13 @@ export interface components {
             }[];
         };
         /**
+         * Format: date-time
+         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
+         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
+         * @example 2026-08-12T09:30:00Z
+         */
+        Timestamp: string;
+        /**
          * @description An item identifier: `item_` and the UUIDv7 in 26 characters of Crockford
          *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
          *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
@@ -94,12 +101,14 @@ export interface components {
          * @description A template item.
          * @example {
          *       "id": "item_01kztpb93repgs8w9k8cj837vr",
-         *       "name": "First item"
+         *       "name": "First item",
+         *       "created_at": "2026-08-12T09:30:00Z"
          *     }
          */
         Item: {
             id: components["schemas"]["ItemId"];
             name: string;
+            created_at: components["schemas"]["Timestamp"];
         };
         /** @description Request body to create an item. */
         ItemInput: {

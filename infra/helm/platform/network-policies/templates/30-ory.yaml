@@ -2,7 +2,10 @@
 ## checks) and the edge gateway (login/registration flows); admin (4434) by the
 ## authz service, which provisions operator identities for the Lowdefy admin
 ## console (ADR-0401, services/authz operator handler). Cilium enforces on the pod
-## containerPort, not the Service port (ory-kratos-admin:80 → 4434).
+## containerPort, not the Service port (ory-kratos-admin:80 → 4434). The orgs
+## worker reaches admin too: it owns the post-registration process (ADR-0304) and
+## writes the new personal org back onto the identity, which is where the edge
+## builds X-Org-Id from.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -22,6 +25,17 @@ spec:
         - ports: [{ port: "4433", protocol: TCP }]
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: authz }
+      toPorts:
+        - ports: [{ port: "4434", protocol: TCP }]
+    # The orgs WORKER only — the server never calls Kratos. Without this the
+    # RegisterUser workflow's third activity times out against the admin API and
+    # retries until the workflow fails, leaving every new identity without the
+    # org_id the edge needs, and therefore unable to place an order at all.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: platform
+            app.kubernetes.io/name: orgs
+            component: worker
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
   # No egress rules: the baseline (00-baseline.yaml) already grants Kratos DNS,

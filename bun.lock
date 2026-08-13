@@ -15,6 +15,7 @@
         "@grafana/faro-web-sdk": "2.7.1",
         "@grafana/faro-web-tracing": "2.7.1",
         "@hookform/resolvers": "5.4.0",
+        "@libs/id": "workspace:*",
         "@openfeature/web-sdk": "1.9.0",
         "@scalar/api-reference-react": "0.9.54",
         "@tanstack/react-query": "5.101.0",
@@ -44,6 +45,10 @@
         "tailwindcss-react-aria-components": "2.2.0",
         "typescript": "6.0.3",
       },
+    },
+    "libs/ts/id": {
+      "name": "@libs/id",
+      "version": "0.0.0",
     },
   },
   "packages": {
@@ -194,6 +199,8 @@
     "@lezer/xml": ["@lezer/xml@1.0.6", "", { "dependencies": { "@lezer/common": "^1.2.0", "@lezer/highlight": "^1.0.0", "@lezer/lr": "^1.0.0" } }, "sha512-CdDwirL0OEaStFue/66ZmFSeppuL6Dwjlk8qk153mSQwiSH/Dlri4GNymrNWnUmPl2Um7QfV1FO9KFUyX3Twww=="],
 
     "@lezer/yaml": ["@lezer/yaml@1.0.4", "", { "dependencies": { "@lezer/common": "^1.2.0", "@lezer/highlight": "^1.0.0", "@lezer/lr": "^1.4.0" } }, "sha512-2lrrHqxalACEbxIbsjhqGpSW8kWpUKuY6RHgnSAFZa6qK62wvnPxA8hGOwOoDbwHcOFs5M4o27mjGu+P7TvBmw=="],
+
+    "@libs/id": ["@libs/id@workspace:libs/ts/id"],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.3", "", {}, "sha512-FY+MKLBoTsLNJF/eLWaOsXGdz6uh3Iu1axjPf6TUq92IYumcTcXWHoS747JARLkcdlJ/Waiaxc5wQfFO8jC6NA=="],
 

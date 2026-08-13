@@ -11,6 +11,10 @@ export const opsURL = (tool: string): string => `https://${tool}.ops.${HOST}`;
 
 // Kratos self-service login UI (rendered by apps/frontend KratosFlow).
 export const LOGIN_URL = `${BASE_URL}/auth/login`;
+// The app route is /auth/register; Kratos' FLOW is named "registration" and the two
+// are easy to confuse. A spec that navigates to /auth/registration gets a 404 and a
+// failure that reads as a missing form, so the path lives here once.
+export const REGISTER_URL = `${BASE_URL}/auth/register`;
 export const SETTINGS_URL = `${BASE_URL}/auth/settings`;
 
 // Saved storage states produced by the `setup` project and reused by the suites.

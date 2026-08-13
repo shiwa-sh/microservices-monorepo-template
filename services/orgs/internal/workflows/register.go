@@ -22,6 +22,11 @@ type RegisterInput struct {
 // OpenFGA owner tuple. Both are activities so the pair cannot half-apply — a
 // failed OpenFGA write is retried, and an exhausted workflow surfaces rather
 // than silently leaving the app DB and the authz store divergent.
+//
+// The third activity records the org on the Kratos identity, which is what makes
+// it visible to everything downstream: the edge builds X-Org-Id out of that field,
+// so without it the identity reaches every service belonging to no org, and an
+// order — which must belong to one — cannot be placed at all.
 func RegisterUser(ctx workflow.Context, in RegisterInput) error {
 	ctx = workflow.WithActivityOptions(
 		ctx,
@@ -39,6 +44,10 @@ func RegisterUser(ctx workflow.Context, in RegisterInput) error {
 	err = workflow.ExecuteActivity(ctx, "GrantOrgAdminActivity", orgID, in.IdentityID).Get(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("register user: grant org admin: %w", err)
+	}
+	err = workflow.ExecuteActivity(ctx, "SetIdentityOrgActivity", in.IdentityID, orgID).Get(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("register user: set identity org: %w", err)
 	}
 	return nil
 }

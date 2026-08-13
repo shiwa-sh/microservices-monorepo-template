@@ -1,5 +1,7 @@
 // Next.js config (ADR-0400). Standalone output is required for the Bun-only
-// Dockerfile. All first-party code lives inside the app, so no transpilePackages.
+// Dockerfile. One first-party package lives outside the app — `@libs/id`, the
+// identifier codec both languages share (ADR-0003) — and it ships as TypeScript
+// source with no build step, so Next has to transpile it like app code.
 
 // Server Actions CSRF allowlist (ADR-0305, ADR-0400), derived from the one edge
 // origin the BROWSER uses (EDGE_PUBLIC_ORIGIN) — deliberately not the internal
@@ -20,6 +22,8 @@ const allowedOrigins = edgeOrigin ? [new URL(edgeOrigin).host] : [];
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  // A workspace package of TypeScript source, not a built dependency.
+  transpilePackages: ["@libs/id"],
   reactStrictMode: true,
   typedRoutes: true,
   // `cluster:full` serves the host-run `next dev` through the edge at

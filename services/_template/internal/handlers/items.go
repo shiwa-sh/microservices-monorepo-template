@@ -54,7 +54,7 @@ func (h *Handlers) ListItems(ctx context.Context) ([]tmpl.Item, error) {
 	}
 	out := make([]tmpl.Item, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, tmpl.Item{ID: itemID(r.ID), Name: r.Name})
+		out = append(out, tmpl.Item{ID: itemID(r.ID), Name: r.Name, CreatedAt: tmpl.Timestamp(r.CreatedAt.Time)})
 	}
 	return out, nil
 }
@@ -71,7 +71,7 @@ func (h *Handlers) CreateItem(ctx context.Context, req *tmpl.ItemInput) (*tmpl.I
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &tmpl.Item{ID: itemID(row.ID), Name: row.Name}, nil
+	return &tmpl.Item{ID: itemID(row.ID), Name: row.Name, CreatedAt: tmpl.Timestamp(row.CreatedAt.Time)}, nil
 }
 
 // NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).

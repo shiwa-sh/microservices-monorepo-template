@@ -21,6 +21,14 @@ const (
 	HeaderRoles  = "X-Roles"
 )
 
+// anonymousSubject is what the edge's anonymous authenticator puts in X-User-Id
+// for a caller with no session (`subject: guest` in infra/auth/oathkeeper/
+// values.yaml). It arrives in the same header a real identity does, so a service
+// that only checks the header is non-empty treats every guest as a logged-in user
+// named `guest` — and would hand them anything ever granted to `user:guest`.
+// Changing the value there changes it here; the two are one decision.
+const anonymousSubject = "guest"
+
 type ctxKey int
 
 const principalKey ctxKey = 1
@@ -33,7 +41,9 @@ type Principal struct {
 }
 
 // Authenticated reports whether the edge resolved a real user (vs. anonymous).
-func (p *Principal) Authenticated() bool { return p != nil && p.UserID != "" }
+func (p *Principal) Authenticated() bool {
+	return p != nil && p.UserID != "" && p.UserID != anonymousSubject
+}
 
 // HasRole reports whether the principal carries role.
 func (p *Principal) HasRole(role string) bool {
@@ -44,7 +54,8 @@ func (p *Principal) HasRole(role string) bool {
 }
 
 // Subject renders the principal as an OpenFGA user string ("user:<id>") for the
-// authz Checker (ADR-0304).
+// authz Checker (ADR-0304). A guest has no subject, so a tuple can never be
+// written for one by accident.
 func (p *Principal) Subject() string {
 	if !p.Authenticated() {
 		return ""

@@ -268,6 +268,14 @@ test.describe("end-to-end signal correlation", () => {
     obs?.stop();
   });
 
+  // The buyer this scenario checks out as. A synthetic identity rather than a
+  // registered one: the suite reaches the service through a port-forward, so it
+  // supplies the identity headers the edge would have injected. The org id only has
+  // to be well-formed — OpenFGA records the tuple against whatever it is told, and
+  // the read this test makes resolves through the owner, not the org.
+  const BUYER_ID = "obs-e2e-buyer";
+  const BUYER_ORG_ID = "org_01kztn9tsrea7b1597q3yjdeav";
+
   test("a checkout emits a stitched trace, correlated logs and metrics @smoke", async () => {
     test.setTimeout(180_000);
     const catalog = `http://127.0.0.1:${CATALOG_PORT}`;
@@ -284,10 +292,20 @@ test.describe("end-to-end signal correlation", () => {
     const productId = ((await productRes.json()) as { id: string }).id;
 
     // Checkout with a known, sampled traceparent → the trace id is fixed.
+    //
+    // An order belongs to a buyer and to the org they act through (ADR-0304), so the
+    // two identity headers are what make it placeable at all. The edge normally
+    // injects them from the session; this suite calls the service through a
+    // port-forward, which is the only place they can be asserted directly.
     const { header, traceId } = newTraceparent();
     const orderRes = await fetch(`${orders}/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", traceparent: header },
+      headers: {
+        "content-type": "application/json",
+        traceparent: header,
+        "x-user-id": BUYER_ID,
+        "x-org-id": BUYER_ORG_ID,
+      },
       body: JSON.stringify({ product_id: productId, quantity: 2 }),
     });
     expect(orderRes.status, "checkout accepted (202)").toBe(202);
@@ -298,7 +316,11 @@ test.describe("end-to-end signal correlation", () => {
     await expect
       .poll(
         async () => {
-          const r = await fetch(`${orders}/orders/${orderId}`);
+          // The buyer reads their own order: `order#read` resolves through the owner
+          // tuple the checkout saga wrote for this identity.
+          const r = await fetch(`${orders}/orders/${orderId}`, {
+            headers: { "x-user-id": BUYER_ID },
+          });
           return ((await r.json()) as { status: string }).status;
         },
         { timeout: 90_000, intervals: [1000, 2000, 3000] },
