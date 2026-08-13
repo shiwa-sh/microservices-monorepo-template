@@ -133,6 +133,13 @@ Postgres as a row store is the floor, not a ceiling claim.
 | **Trigger** | p95 of the funnel query exceeding 2s against the declared rollup window, or the events table sustaining more than about 10M rows per month |
 | **Seam** | collection, the routing connector, and the panel are unchanged. Only the service's store and queries move — which is exactly what the collector split buys |
 
+Two stores were weighed beside it.
+
+| Option | Shape | Verdict |
+| --- | --- | --- |
+| TimescaleDB | a Postgres extension: hypertables, columnar compression, and continuous aggregates | One engine kept, and the two features worth adopting it for are under [the Timescale License](https://www.tigerdata.com/legal/licenses) rather than Apache-2.0. Self-hosting is permitted by it; the operator's images do not carry the extension ([ADR-0300](0300-data.md)), so the store gains an image to build |
+| DuckDB | an in-process analytical engine over one file | No server, so no writer beside the service that embeds it. Correct for a query someone runs, wrong for the store a panel reads |
+
 ## Consequences
 
 ### Positive

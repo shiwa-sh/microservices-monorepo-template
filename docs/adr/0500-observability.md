@@ -36,6 +36,19 @@ This ADR answers: which signals, which backend, how they are collected, and what
 | Elastic stack | index templates and dashboards exportable, and the working source of truth is the UI | three | its own | Heavier operationally than the whole Grafana stack, and its query language is the one that does not travel. Elasticsearch offers AGPL-3.0 again since 2024, so the licence is no longer the objection |
 | One vendor's managed platform | n/a | all | proprietary | Excluded by driver 4 |
 
+### Component substitutions inside the stack
+
+The row above chose a stack. Each member was also weighed against the strongest single-signal alternative, because a stack that is right in aggregate can still carry a component that is not.
+
+| Component | Alternative | Verdict |
+| --- | --- | --- |
+| Grafana | [Perses](https://www.cncf.io/projects/perses/) | Dashboards-as-code is the native model rather than a convention, which is the one place an option beats Grafana on driver 1. It substitutes the UI alone, and Hubble, CNPG, and k6 all publish Grafana dashboards, so adopting it splits the dashboard surface until its plugin ecosystem covers them. CNCF Sandbox |
+| Grafana | Kibana | The UI of the Elastic stack above, and it does not read the other three signals |
+| Prometheus | [InfluxDB 3 Core](https://www.influxdata.com/blog/influxdb3-open-source-public-alpha-jan-27/) | Its query range is capped at 432 Parquet files — about 72 hours — with the cap lifted in Enterprise. An SLO window is 30 days |
+| Tempo | Jaeger | Cassandra, Elasticsearch, or OpenSearch behind it, against Tempo's object store, which is the store this platform runs anyway ([ADR-0207](0207-cluster-storage.md)) |
+| Tempo | Zipkin | A JVM on the floor, which [ADR-0100](0100-language-and-runtime.md) bars, behind a second datastore |
+| Pyroscope | [Parca](https://github.com/parca-dev/parca) | Its own UI beside Grafana's. Opening a profile from the trace that led to it is what buys continuous profiling here, and that join is Grafana's |
+
 ### The collection tier
 
 | Option | Added workloads | Enrichment with pod metadata | Verdict |

@@ -46,6 +46,7 @@ The absolute footprint grows with the fleet and with log volume; the shape does 
 | **Playwright (TypeScript)** | native, out-of-process driver | built in ([`toHaveScreenshot`](https://playwright.dev/docs/test-snapshots)) | Node | **Chosen** — lowest-flake auto-waiting for heavy SPA dashboards, and it crosses the Kratos redirect and `*.ops.<host>` subdomains ([ADR-0306](0306-trust-tiers-and-urls.md)) natively *(documented)* |
 | WebdriverIO | BiDi | bolt-on service | Node | Higher baseline flakiness and bolt-on visual land exactly where sensitivity is highest. Its decisive edge, native mobile, is unused. Buys back no runtime purity |
 | Cypress | fights it — single browser context | good | Node | The auth-redirect and ops-subdomain topology is its weak spot |
+| Puppeteer | CDP, and Chromium-first | **none** | Node | The automation library much of this field is built on, without a runner, assertions, retries, or a baseline flow. Playwright is that library plus the parts a suite needs |
 | Rod / chromedp (pure Go) | workable | **none** — pixel diffing, baselines, and a review flow would be hand-rolled | Go | The only Node-free path, rejected on the two capabilities needed most. Raw-CDP auto-wait is weaker on heavy dashboards |
 | Stagehand, Midscene, Shortest | inherited | inherited | Node | Built on Playwright or CDP, or LLM-in-the-loop nondeterministic and cloud-tilted. They wrap an engine that must still be chosen |
 

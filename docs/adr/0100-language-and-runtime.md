@@ -35,6 +35,17 @@ This ADR picks the **primary backend language**, the **conditions under which a 
 
 **Runtime footprint no longer separates the compiled options.** [.NET Native AOT](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/) and GraalVM native images put C# and Java in the same order of magnitude as a Go binary at idle and at startup. A decision made on resident memory would once have been decisive and is not, so drivers 1 and 3 carry it instead.
 
+### The frontend language
+
+The browser runs JavaScript, so this question is what compiles to it.
+
+| Option | Type system | Ecosystem for the decided frontend | Verdict |
+| --- | --- | --- | --- |
+| **TypeScript** | structural, and erased at runtime | native — the framework and design system ([ADR-0400](0400-frontend.md)) and the generated client ([ADR-0303](0303-api-contracts-and-lifecycle.md)) each publish their own types | **Chosen.** It is the type layer this field publishes against, so no binding is written here |
+| JavaScript | none | native | The generated client's contract types become comments, which is the one thing generating a client is for |
+| ReScript | sound, and its own | a binding per library, written and maintained here | A stronger type system, paid for per dependency. Most of this frontend is other people's code |
+| Elm | sound, and its own | none — interop is through ports | A different runtime model, and its React interop story is the one [ADR-0400](0400-frontend.md)'s component library sits on |
+
 ## Decision
 
 | Concern | Decision |

@@ -44,7 +44,7 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | --- | --- | --- | --- | --- | --- |
 | Helm | manifest templating | [0201](adr/0201-gitops.md) | Apache-2.0 | CNCF, graduated | Kustomize overlays, Helm + post-render, jsonnet, plain YAML |
 | Kyverno | admission policy | [0104](adr/0104-supply-chain-security.md), [0203](adr/0203-policy-enforcement.md) | Apache-2.0 | CNCF | Gatekeeper/OPA, Validating Admission Policy, the CI lint layer alone |
-| cert-manager | TLS certificate lifecycle | [0200](adr/0200-cluster-topology.md) | Apache-2.0 | CNCF, graduated | certbot in a CronJob, a private CA, manual issuance |
+| cert-manager | TLS certificate lifecycle | [0305](adr/0305-edge-auth-and-traffic-policy.md) | Apache-2.0 | CNCF, graduated | certbot in a CronJob, a private CA, manual issuance |
 | SOPS | secret encryption | [0202](adr/0202-secrets.md) | MPL-2.0 | CNCF | Sealed Secrets, External Secrets Operator, Vault, git-crypt |
 | age | encryption backend for SOPS | [0202](adr/0202-secrets.md) | BSD-3-Clause | maintainer-led | GPG, cloud KMS, Vault transit |
 | sops-secrets-operator | in-cluster decryption | [0202](adr/0202-secrets.md) | Apache-2.0 | maintainer-led | an init container, a CI-side decrypt, External Secrets Operator |

@@ -348,7 +348,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -502,12 +502,6 @@ run = "bash scripts/lint-secrets.sh"
 # ADR-0002's four register Rules: every Tier 1/2 row names an owning ADR that
 # exists, that ADR carries the comparison its tier owes, a Tier 1 row names a
 # runner-up, and every alternative a row records is visible in that ADR.
-#
-# NOT in the `lint` umbrella yet: it reports 26 rows whose *Recorded against* cell
-# names an option the owning ADR never mentions. Each is a question only the author
-# can answer — did the evaluation happen and go unwritten, or did the register
-# over-claim? — and inventing the missing comparison would be worse than the gap.
-# Wire it into `lint` once that reconciliation lands.
 run = "go run ./tools/lint-tool-register"
 
 [tasks."lint:contrast"]

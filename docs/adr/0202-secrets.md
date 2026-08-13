@@ -29,6 +29,7 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 | --- | --- | --- | --- | --- |
 | **SOPS + age** | none — the operator is stateless | **yes**, with that engineer's own key | per-value: structure stays readable, values are encrypted blobs | **Chosen.** The only option that holds drivers 3 and 4 together *(reasoned)* |
 | SOPS + GPG | none | yes | per-value | Key-server and web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
+| SOPS + a cloud KMS key | none | through the provider, with provider credentials | per-value | The chosen file format with its root of trust outside infrastructure we control. Driver 1 rejects it for the reason the provider row below is rejected, and age needs no service at all |
 | sealed-secrets | a controller holding a key it generates, backs up, and rotates | **no — the encryption is one-way by design** | per-value: `encryptedData` is a per-key map. Ciphertext is non-deterministic, so re-sealing rewrites untouched values too | Fails driver 3. An engineer cannot read a committed secret or run against one, so local and cluster need different mechanisms |
 | Vault or OpenBao | **a service to run, unseal, back up, and upgrade** | through the service | n/a | Fails driver 4. Its real prize is dynamic short-lived credentials, which is a separate question from storing static config |
 | External Secrets Operator | a controller **plus a store to back it** | through that store | n/a | Driver 1 is satisfiable — OpenBao and Infisical self-host. It fails driver 4 harder than the row above: the same stateful store, and a sync controller on top |
@@ -73,6 +74,13 @@ Those per-env files reach the cluster through the `secrets` ApplicationSet at sy
 [**sops-secrets-operator**](https://github.com/isindir/sops-secrets-operator) watches `SopsSecret` custom resources holding SOPS-encrypted values and produces native Kubernetes `Secret` objects. Argo CD reconciles the encrypted file with the rest of the manifests, the operator decrypts and creates the `Secret`, and the pod consumes it through standard `envFrom` or `volumeMounts`.
 
 Service authors reference secrets by Kubernetes Secret name in Helm values, exactly as they would any other Secret. The encryption layer is invisible to the service.
+
+| Option | Where the age key lives | What decrypts | Verdict |
+| --- | --- | --- | --- |
+| **sops-secrets-operator** | one Secret, read by the operator | a controller, once per `SopsSecret` | **Chosen.** The pod consumes a native `Secret` and never learns that SOPS exists |
+| An init container per pod | mounted into every pod that reads a secret | the workload itself, before it starts | Spreads the key across every namespace and puts a decryption step in every service chart |
+| A CI-side decrypt | the pipeline | the pipeline, writing plaintext into the cluster | The cluster stops being reconcilable from the repository ([ADR-0201](0201-gitops.md)): Argo CD would sync manifests whose values arrived from somewhere else |
+| External Secrets Operator | in the external store | a controller, against that store | A controller plus a store to back it, rejected in *Considered options* above |
 
 ### Local decryption
 

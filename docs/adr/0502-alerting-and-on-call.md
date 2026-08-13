@@ -35,6 +35,7 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 | --- | --- | --- | --- | --- |
 | **Prometheus rules + Alertmanager** | native rule files, already shipped | Alertmanager's routing tree, as a committed config | one Go binary, no datastore | **Chosen.** It is the receiver the rule files were always written for *(reasoned)* |
 | Grafana unified alerting | rules become Grafana objects, provisionable as YAML | built into Grafana, already Core | none — Grafana is already running | Zero marginal weight and rejected on principle 5: alert state moves into Grafana's database, and evaluation splits between two engines while [ADR-0500](0500-observability.md)'s rule files still exist |
+| Alertmanager with [Karma](https://github.com/prymitive/karma) in front | native rule files | Alertmanager's, with Karma as the surface over it | one more always-on UI | Karma reads an Alertmanager rather than replacing one, so it adds to the chosen row instead of competing with it. The surface here is Grafana, which already runs |
 | Rule files with no receiver — the honest baseline | yes | none | none | An alert that evaluates and reaches nobody. Driver 1 rules it out |
 
 ### Escalation and paging

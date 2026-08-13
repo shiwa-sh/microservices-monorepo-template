@@ -58,6 +58,7 @@ Both candidate feeds fail structurally, so no Grafana service-map dashboard is b
 | Lens, or its OpenLens build | no — a desktop application | Per-workstation install and per-workstation credentials, so access is granted by distributing kubeconfigs rather than by an edge session |
 | Skooner | yes | A lighter in-cluster dashboard with a service-account token model rather than a forward-auth one, and a smaller maintainer base than the chosen option |
 | Kubernetes Dashboard | yes | Token-handling design and past-CVE history, unwanted on an ops origin |
+| `kubectl` alone — the honest baseline | no | Every question Headlamp answers is answerable with cluster credentials on a workstation, which is the distribution problem stated: a credential per workstation instead of one origin behind the edge ([ADR-0306](0306-trust-tiers-and-urls.md)) |
 
 ## Decision
 
