@@ -83,6 +83,15 @@
       ],
       "depNameTemplate": "template",
       "datasourceTemplate": "git-refs"
+    },
+    {
+      "description": "The mise version CI installs is pinned in the setup action, because the tool that reads every other pin is itself a dependency (ADR-0002, ADR-0106). No manager sees a composite-action input, so the marker comment above the value is what makes it visible. It stays out of the `mise tools` group: that group bumps the tools mise installs, and this bumps mise.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/actions/setup/action\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+version:\\s*(?<currentValue>\\S+)"
+      ],
+      "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ],
 

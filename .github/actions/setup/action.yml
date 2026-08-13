@@ -17,8 +17,14 @@ inputs:
 runs:
   using: composite
   steps:
+    # mise reads every other pin in the repo, so an unpinned reader makes those
+    # pins conditional on whatever release the action happened to fetch: a cold
+    # runner can go red on a commit that changed nothing. Renovate's custom
+    # manager in .github/renovate.json owns the bump, keyed on the marker comment.
     - uses: jdx/mise-action@v2
       with:
+        # renovate: datasource=github-releases depName=jdx/mise
+        version: 2026.8.5
         install: true
         cache: true
 
