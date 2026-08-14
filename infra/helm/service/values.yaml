@@ -153,6 +153,12 @@ podSecurityContext:
   runAsNonRoot: true
   runAsUser: 65532      # distroless static "nonroot"
   fsGroup: 65532
+  # The sixth requirement of the `restricted` Pod Security Standard, and the one
+  # this chart was missing: without it every pod here fails admission the moment a
+  # namespace is labelled `enforce: restricted` (ADR-0200). Set at pod level so it
+  # covers the migration initContainer too, which has no securityContext of its own.
+  seccompProfile:
+    type: RuntimeDefault
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
