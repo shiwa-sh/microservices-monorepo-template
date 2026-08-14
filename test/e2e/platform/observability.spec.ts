@@ -233,8 +233,8 @@ test.describe("service observability POC (ADR-0501)", () => {
   //
   // The collector agent itself is deliberately NOT in this list. Its filelog
   // receiver excludes its own pod
-  // (`/var/log/pods/platform_otel-collector*_*/opentelemetry-collector/*.log`,
-  // infra/helm/platform/observability) so that a log line about reading a log file
+  // (`/var/log/pods/otel-agent_otel-collector*_*/opentelemetry-collector/*.log`,
+  // infra/helm/platform/otel-agent) so that a log line about reading a log file
   // does not become a log file to read — the standard feedback-loop guard. Asserting
   // "otel-collector" here made this test permanently red: the label cannot exist by
   // construction, and Loki confirms it is absent over any window while every other

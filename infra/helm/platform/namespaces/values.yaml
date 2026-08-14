@@ -28,23 +28,27 @@ namespaces:
     # needs a values override or a rebuilt image before `restricted` can be
     # enforced here.
     #
-    # `baseline` is not available either, and for a sharper reason: the OTel
-    # collector runs as a node agent, which means hostPath (`/var/log/pods`, the
-    # container log tail) and hostPorts (the OTLP receivers every pod on the node
-    # sends to). `baseline` forbids both — measured, not predicted: with
-    # `enforce: baseline` the DaemonSet's every pod is rejected at creation and the
-    # cluster silently loses all node-level log collection.
-    #
-    # PSA's unit is the namespace, so one workload needing hostPath takes the whole
-    # namespace with it. ADR-0200's answer is that such a component runs in its own
-    # namespace; until the agent has one, this enforces nothing and warns and
-    # audits at `restricted`, which reports the exact gap for every workload on
-    # every apply.
+    # `baseline` is what the whole namespace satisfies today, and it is enforced.
+    # The one workload that could not was the node-level OTel collector — hostPath
+    # for the container log tail, hostPorts for the OTLP receivers — and it now runs
+    # in `otel-agent` below, which is what PSA's namespace granularity requires.
+    enforce: baseline
+    reason: >-
+      the upstream charts on this namespace do not set the securityContext fields
+      `restricted` requires; each needs a values override or a rebuilt image, and
+      until then `restricted` is warned and audited rather than enforced.
+  - name: otel-agent
+    # The node-level OTel collector, alone (ADR-0200, ADR-0500). It tails
+    # /var/log/pods through a hostPath and receives OTLP on the node's ports;
+    # `baseline` forbids both, and PSA's unit is the namespace — so one workload
+    # needing hostPath sets the floor for everything beside it. Nothing is beside
+    # it here, which is the point: the privilege is scoped to the one component
+    # that needs it instead of to every backend it exports to.
     enforce: privileged
     reason: >-
-      the node-level OTel collector needs hostPath and hostPorts, which `baseline`
-      forbids; PSA's unit is the namespace, so nothing above `privileged` can be
-      enforced until that agent moves to its own.
+      the node-level OTel collector tails /var/log/pods through a hostPath and binds
+      the node's OTLP ports, neither of which `baseline` permits. It runs alone so
+      the exception covers one workload.
   - name: kyverno
     # Admission control lives apart from what it admits (ADR-0104, ADR-0200):
     # Kyverno excludes its own namespace from every policy, because a webhook that

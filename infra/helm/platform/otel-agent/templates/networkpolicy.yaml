@@ -1,0 +1,87 @@
+{{- /*
+The agent namespace's whole policy (ADR-0206).
+
+It lives here rather than in the network-policies chart because that chart declares
+one namespace-wide default-deny and every allow inside `platform`; this is the other
+namespace, and a namespace with no policy at all is a namespace with no default-deny.
+Splitting the workload out therefore means splitting its policy out with it, or the
+split quietly removes the isolation it was supposed to tighten.
+
+Everything this agent reaches is now cross-namespace, which is the cost of the move
+and the reason each rule below names a port.
+*/}}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: otel-agent-baseline
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector: {}
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    # OTLP from every workload in the backend namespace: the services' SDK export
+    # (libs/go/observability) and anything else pushing telemetry.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }} }
+      toPorts:
+        - ports:
+            - { port: "4317", protocol: TCP }
+            - { port: "4318", protocol: TCP }
+    # Browser RUM: the edge forwards /api/rum to the faro receiver
+    # (infra/gateway/frontend-observability.yaml). Without this the frontend's
+    # telemetry is POLICY_DENIED at the collector and the RUM dashboards are empty.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "8027", protocol: TCP }]
+  egress:
+    # CoreDNS — the exporter endpoints below are service names.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - { port: "53", protocol: UDP }
+            - { port: "53", protocol: TCP }
+    # The three backends, each on the port its exporter uses. Before the split this
+    # was the baseline's blanket intra-namespace allow; naming the ports is what a
+    # cross-namespace rule costs, and it is also what it buys.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }}
+            app.kubernetes.io/name: loki
+      toPorts:
+        - ports: [{ port: "3100", protocol: TCP }]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }}
+            app.kubernetes.io/name: tempo
+      toPorts:
+        - ports: [{ port: "4318", protocol: TCP }]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }}
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]
+    # The API server, for the k8sattributes processor's pod watch and the
+    # kubeletstats receiver's PVC/PV resolution. `host` and `remote-node` alongside
+    # `kube-apiserver` for the reason the platform baseline records: on a node-hosted
+    # API server Cilium classifies the address as the host identity, which takes
+    # precedence, and a `kube-apiserver`-only rule drops every call.
+    - toEntities:
+        - kube-apiserver
+        - host
+        - remote-node
+    # The node itself: the kubelet Summary API (10250) and the cilium-agent's Hubble
+    # metrics (9965). Both are node-local by construction — this pod reads its OWN
+    # node through the chart-injected K8S_NODE_IP — and both are reached at a host
+    # address, which no endpoint selector can match.
+    - toEntities: [host, remote-node]
+      toPorts:
+        - ports:
+            - { port: "10250", protocol: TCP }
+            - { port: "9965", protocol: TCP }

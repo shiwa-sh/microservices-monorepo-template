@@ -233,6 +233,10 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/observability" }
+                  # The node-level collector, in a namespace of its own because it
+                  # is the one platform workload needing hostPath and hostPorts
+                  # (ADR-0200). Same tier as the backends it exports to.
+                - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }

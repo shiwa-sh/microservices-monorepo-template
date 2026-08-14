@@ -49,7 +49,9 @@ k6_args+=(--summary-export "results/${scenario}-${profile}.json")
 
 if [ "${PERF_OTLP:-1}" = "1" ]; then
   step "forwarding otel-collector :${OTLP_PORT} → svc/otel-collector:4317"
-  kubectl --context "k3d-${CLUSTER}" -n platform port-forward svc/otel-collector "${OTLP_PORT}:4317" >/dev/null 2>&1 &
+  # `otel-agent`, not `platform`: the collector runs in a namespace of its own
+  # (ADR-0200 — hostPath and hostPorts).
+  kubectl --context "k3d-${CLUSTER}" -n otel-agent port-forward svc/otel-collector "${OTLP_PORT}:4317" >/dev/null 2>&1 &
   pf=$!
   trap 'kill "$pf" 2>/dev/null || true' EXIT
   # Wait for the forward rather than sleeping a guessed constant: a forward that

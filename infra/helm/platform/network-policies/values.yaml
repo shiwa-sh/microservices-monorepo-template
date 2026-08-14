@@ -4,6 +4,13 @@
 # egress), so it stays false and no pod reaches the internet at all.
 externalObjectStorage: false
 
+# The namespace the node-level OTel collector runs in (ADR-0200 — it needs hostPath
+# and hostPorts, and PSA's exception unit is the namespace). Every platform workload
+# exports telemetry to it, and the baseline's intra-namespace allow does not reach
+# across a namespace boundary, so this name appears in four rules in
+# templates/40-observability.yaml. It matches `namespace` in the otel-agent chart.
+otelAgentNamespace: otel-agent
+
 # The cluster's pod CIDR (k3s `--cluster-cidr`, default 10.42.0.0/16 — ADR-0206).
 #
 # Used ONLY by the "stale peer" allows (20-temporal.yaml, 40-observability.yaml),

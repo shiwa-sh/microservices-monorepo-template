@@ -31,6 +31,27 @@ kyverno:
   # on the allow-list in tools/lint-resource-governance instead, which is the honest
   # place for "upstream sets this and we cannot remove it".
 
+opentelemetry-collector:
+  # The node agent's OTLP receivers, with their hostPorts DELETED (ADR-0200,
+  # ADR-0500). In daemonset mode the chart binds every declared port on the node,
+  # and nothing sends there: services address the ClusterIP Service
+  # (infra/helm/service/values.yaml), the perf harness port-forwards to it, and the
+  # edge routes Faro to it. So the binding earned nothing and cost two things — a
+  # claim on two node ports, and a hostPort entry in the Pod Security violation that
+  # keeps this namespace at `privileged`.
+  #
+  # It also made the split itself unschedulable: the new DaemonSet sat Pending on
+  # "node port already allocated" until the old one was deleted, so the two could
+  # never overlap and the migration had a telemetry gap by construction.
+  #
+  # The hostPATH mount stays and is why the namespace is still `privileged` — the
+  # container log tail has no equivalent through the API.
+  ports:
+    otlp:
+      hostPort: null
+    otlp-http:
+      hostPort: null
+
 temporal-worker-controller:
   # The same deletion, and the reason this file exists in the first place: the
   # allow-list in tools/lint-resource-governance carried this container with the

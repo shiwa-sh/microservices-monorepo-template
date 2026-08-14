@@ -117,7 +117,9 @@ temporal:
 
 # Standard observability env (ADR-0500). The shared library reads these.
 otel:
-  endpoint: "http://otel-collector.platform.svc.cluster.local:4317"
+  # The collector runs in its own namespace (ADR-0200), so this is fully qualified
+  # across it and the NetworkPolicy below grants the egress.
+  endpoint: "http://otel-collector.otel-agent.svc.cluster.local:4317"
   sampling: "parentbased_traceidratio=0.1"
   # Deployment environment. Anything other than "" / "dev" / "local" makes the
   # shared library ship logs to OTLP only (no stdout), avoiding double-collection.
@@ -175,3 +177,7 @@ networkPolicy:
   # Other services (by slug) allowed to call this one on the server port.
   # e.g. catalog/payment list `orders` here; orders accepts no inbound svc calls.
   allowFrom: []
+  # The namespace the OTel collector runs in (ADR-0200). Telemetry export is the
+  # one dependency that is not in this service's own namespace, so it is the one
+  # egress rule that has to name a namespace rather than rely on the platform one.
+  otelAgentNamespace: otel-agent

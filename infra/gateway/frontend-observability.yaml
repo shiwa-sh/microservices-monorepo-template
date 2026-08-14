@@ -3,7 +3,7 @@
 # (landing) and authenticated users, so this route is intentionally
 # unauthenticated — no Oathkeeper ForwardAuth — and forwards straight to the
 # OTel Collector's `faro` receiver (port wired in
-# infra/helm/platform/observability/values.yaml). The path is vendor-neutral: it
+# infra/helm/platform/otel-agent/values.yaml). The path is vendor-neutral: it
 # names the concern (RUM), not the agent, so the ingest tool can change without
 # breaking the URL. The receiver uses a catch-all handler, so the beacon path is
 # accepted as-is. A per-project rate-limit middleware can be added here if abuse
@@ -22,6 +22,11 @@ spec:
         - name: security-headers
       services:
         - name: otel-collector
+          # The collector runs apart from the rest of the platform (ADR-0200), so
+          # this is a cross-namespace service reference and needs Traefik's
+          # `allowCrossNamespace` — already on, for the Hubble and Argo CD routes
+          # in ingressroutes.yaml.
+          namespace: otel-agent
           port: 8027
   tls:
     secretName: wildcard-tls

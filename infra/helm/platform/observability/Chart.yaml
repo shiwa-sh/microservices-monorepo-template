@@ -2,11 +2,16 @@ apiVersion: v2
 name: observability
 description: |
   Grafana + Loki/Tempo (monolithic single-binary mode) + Prometheus (Core metrics,
-  local TSDB, OTLP ingest) + a single-tier OTel Collector DaemonSet (ADR-0500).
-  Self-hosted via official charts; log/trace long-term storage is the external S3
-  bucket from ADR-0207. Mimir (metrics Scale swap), Pyroscope (profile storage), and
-  the OTel Collector gateway tier are per-project add-ons (`profiling` / tail-sampling
-  flags / Scale seam), not in the default release.
+  local TSDB, OTLP ingest) + the cluster-state collector (ADR-0500). Self-hosted via
+  official charts; log/trace long-term storage is the external S3 bucket from
+  ADR-0207. Mimir (metrics Scale swap), Pyroscope (profile storage), and the OTel
+  Collector gateway tier are per-project add-ons (`profiling` / tail-sampling flags /
+  Scale seam), not in the default release.
+
+  The single-tier collector DaemonSet everything pushes to is the `otel-agent`
+  chart. It is separate because it needs hostPath and hostPorts, and Pod Security
+  Admission's unit is the namespace (ADR-0200): keeping it here would set this
+  namespace's floor at `privileged` for every backend beside it.
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
@@ -20,7 +25,6 @@ appVersion: "1.0.0"
 #   loki                     7.0.0    https://grafana.github.io/helm-charts
 #   tempo                    1.24.4   https://grafana.github.io/helm-charts
 #   grafana                  10.5.15  https://grafana.github.io/helm-charts
-#   opentelemetry-collector  0.159.0  https://open-telemetry.github.io/opentelemetry-helm-charts
 # Refresh a subchart with: helm pull <repo>/<name> --version <v> -d charts/
 # NOTE: charts/loki-7.0.0.tgz is repacked from upstream with its bundled minio,
 # rollout-operator and grafana-agent-operator grandchild charts removed (Helm

@@ -1,0 +1,192 @@
+# The node-level OTel Collector (ADR-0500), alone in its own namespace (ADR-0200).
+#
+# The backends it exports to — Loki, Tempo, Prometheus — live in `platform` and are
+# addressed by their fully-qualified service names below, so every export is now a
+# cross-namespace call and needs an egress rule. Those rules are in
+# templates/networkpolicy.yaml, beside the workload rather than in the
+# network-policies chart, because that chart governs one namespace and this is the
+# other one.
+
+# The namespace every resource this chart renders lands in. Declared in the
+# namespaces chart with `enforce: privileged` and the reason why; named here
+# because the ApplicationSet's destination is `platform` for every platform chart,
+# and a wrapper chart moves itself with `namespaceOverride` (the same mechanism the
+# kyverno chart uses).
+namespace: otel-agent
+
+# The namespace holding the telemetry backends and the workloads that emit to this
+# agent. Used by the network policies below.
+backendNamespace: platform
+
+opentelemetry-collector:
+  namespaceOverride: otel-agent
+  # One tier: a DaemonSet on every node. Services send OTLP to the ClusterIP
+  # Service; the agent batches, enriches with k8s attributes, head-samples, and
+  # exports directly to Loki/Prometheus/Tempo. There is no separate gateway
+  # deployment.
+  mode: daemonset
+  fullnameOverride: otel-collector
+  # Measured 2026-07-26: 345Mi working set, 110m CPU — the third-heaviest pod in
+  # the cluster, because every service's OTLP, the Faro browser beacons, the Hubble
+  # scrape and the kubeletstats receiver all land in this one process.
+  #
+  # NOTE its `memory_limiter` processor is configured with limit_percentage: 80
+  # (see config below), which reads the CONTAINER limit. So this limit is not just
+  # an OOM guard, it is an input to the collector's own backpressure: at 768Mi the
+  # limiter starts refusing batches around 614Mi. Changing the limit changes when
+  # telemetry starts being dropped, which is why it is set explicitly here rather
+  # than inherited from the namespace LimitRange default.
+  #
+  # The LimitRange lives in `platform` and does not reach this namespace, so these
+  # values are now the only ones this pod gets — there is no default behind them.
+  resources:
+    requests: { cpu: "100m", memory: "384Mi" }
+    limits:   { memory: "768Mi" }
+  # contrib distro: required by the kubernetesAttributes preset (k8sattributes
+  # processor) and the `faro` receiver below (faroreceiver landed in contrib 0.128.0).
+  # The chart's default image is the core collector, so the repo is overridden; the
+  # tag is pinned to the chart's appVersion (0.154.0) to keep config schema + binary
+  # aligned — see the chart dependency version in Chart.yaml.
+  image: { repository: otel/opentelemetry-collector-contrib, tag: "0.154.0" }
+  # logsCollection is the ADR-0500 filelog path: the agent tails /var/log/pods
+  # via the chart's filelog receiver (container parser, collector's own logs
+  # excluded) so PLATFORM workloads that only write stdout — postgres, temporal,
+  # grafana, lowdefy, … — land in Loki too. Repo services push logs over OTLP
+  # from the SDK (libs/go/observability) and write no stdout in-cluster, so the
+  # two paths never double-ingest. k8sattributes stamps service.name from
+  # app.kubernetes.io/name, so these logs match {service_name="…"} on the
+  # service-detail dashboard like everything else.
+  #
+  # This preset is what makes the namespace `privileged`: the tail is a hostPath
+  # mount of /var/log/pods, and `baseline` permits no hostPath at all.
+  presets:
+    kubernetesAttributes: { enabled: true }
+    logsCollection: { enabled: true }
+  # RBAC for the kubeletstats receiver (added to the metrics pipeline below): the
+  # kubelet's /stats/summary endpoint authorizes against the nodes/stats subresource.
+  # The kubernetesAttributes preset creates the ClusterRole (pods/namespaces/nodes);
+  # these rules are APPENDED to it, so no separate binding is needed.
+  clusterRole:
+    # Named for the RELEASE, not for the workload, which is the one place the split
+    # needs a rename. The chart derives both cluster-scoped names from `fullname`,
+    # which is pinned to `otel-collector` for the Service — so a collector in this
+    # chart and a collector in the old one would render the same ClusterRole and
+    # ClusterRoleBinding, and cluster-scoped resources have no namespace to keep
+    # them apart. Two ArgoCD Applications would then own one object, and whichever
+    # pruned last would take the live agent's RBAC with it: k8sattributes stops
+    # resolving pods, every log and metric loses its service.name, and the
+    # dashboards go blank without a single failing pod.
+    name: otel-agent
+    clusterRoleBinding:
+      name: otel-agent
+    rules:
+      - apiGroups: [""]
+        resources: ["nodes/stats", "nodes/proxy"]
+        verbs: ["get", "list", "watch"]
+      # PVC/PV reads for the kubeletstats `volume` metric group's k8s_api_config,
+      # which turns per-volume series keyed by the in-pod name ("data", shared by
+      # every StatefulSet) into series keyed by the actual claim.
+      - apiGroups: [""]
+        resources: ["persistentvolumeclaims", "persistentvolumes"]
+        verbs: ["get", "list", "watch"]
+  # Browser beacons reach the collector through a ClusterIP Service (Traefik →
+  # otel-collector.otel-agent:8027). Services emit to this Service too, at 4317.
+  # In daemonset mode the chart omits the Service unless explicitly enabled.
+  service: { enabled: true }
+  # Expose the Faro receiver port on that Service so Traefik can route to it
+  # (infra/gateway/frontend-observability.yaml, ADR-0400).
+  ports:
+    faro: { enabled: true, containerPort: 8027, servicePort: 8027, protocol: TCP }
+    # The chart declares Jaeger and Zipkin receiver ports by default and this
+    # collector runs none of them — no `jaeger` or `zipkin` receiver appears in the
+    # config below. In daemonset mode every declared port is also bound on the node,
+    # so the defaults claimed four node ports (6831, 14250, 14268, 9411) that answer
+    # nothing. The two ports that ARE used keep their container port and lose their
+    # hostPort, which has to be a deletion and therefore lives in
+    # infra/gitops/platform/shared-values.yaml.
+    jaeger-compact: { enabled: false }
+    jaeger-thrift:  { enabled: false }
+    jaeger-grpc:    { enabled: false }
+    zipkin:         { enabled: false }
+  config:
+    receivers:
+      otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
+      # Browser RUM from the frontend's Grafana Faro agent (ADR-0400). Emits
+      # web traces and RUM logs/events; fed into the traces + logs pipelines
+      # below so browser signals land in the same Tempo/Loki as services.
+      faro: { endpoint: 0.0.0.0:8027 }
+      # Hubble flow metrics off the cilium-agent (ADR-0500) — the ONE scrape in this
+      # repo. Prometheus itself ships `scrape_configs: []` with no ServiceAccount and
+      # no RBAC, because the invariant is "everything reaches Prometheus as an OTLP
+      # push from this collector". Teaching Prometheus kubernetes_sd would mean
+      # inventing RBAC for it and breaking that invariant, so the collector scrapes
+      # and re-exports instead.
+      #
+      # Node-local static target, not service discovery: this collector is a DaemonSet
+      # and so is cilium-agent (hostNetwork), so each pod scrapes the agent on its OWN
+      # node via the chart-injected K8S_NODE_IP. No RBAC, no cross-node traffic, and no
+      # scraping every agent from every collector.
+      prometheus/hubble:
+        config:
+          scrape_configs:
+            - job_name: hubble
+              scrape_interval: 30s
+              static_configs:
+                - targets: ["${env:K8S_NODE_IP}:9965"]
+      # Per-pod/container/node CPU & memory from the local kubelet's Summary API
+      # (ADR-0501 POC — the resource panels on the service-detail dashboard). Same
+      # node-local pattern as the hubble scrape: this DaemonSet pod reads ONLY its
+      # own node's kubelet via the chart-injected K8S_NODE_IP, authenticating with
+      # the pod ServiceAccount token (clusterRole.rules below grant nodes/stats).
+      # insecure_skip_verify: the kubelet serving cert is not signed for the bare
+      # node IP, and this is node-local traffic that never leaves the host.
+      kubeletstats:
+        collection_interval: 20s
+        auth_type: serviceAccount
+        endpoint: "https://${env:K8S_NODE_IP}:10250"
+        insecure_skip_verify: true
+        # `volume` is the one that protects the data tier. Postgres, Loki, Tempo,
+        # Prometheus and MinIO all write to PVCs, and a full PVC does not evict a
+        # pod or fail a probe — Postgres simply starts refusing writes. Nothing
+        # else in this stack reports PVC free space: kubelet knows it, and this is
+        # the only receiver that asks.
+        metric_groups: [pod, container, node, volume]
+        # Resolve volumes to their PersistentVolumeClaim / PV names. Without this
+        # the volume series are keyed by the in-pod volume name ("data"), which is
+        # the same string on every StatefulSet and therefore useless for alerting
+        # on a specific claim. Needs the PVC/PV read grants in clusterRole.rules.
+        k8s_api_config:
+          auth_type: serviceAccount
+        # Usage-vs-limit ratios (off by default). Computed from the pod spec the
+        # receiver reads via the kubelet's /pods endpoint (nodes/proxy, granted
+        # above). Pod-level limit_utilization is only emitted when EVERY
+        # container in the pod declares that limit — pods without limits simply
+        # show a blank cell on the Applications dashboard, not a zero.
+        metrics:
+          k8s.pod.memory_limit_utilization: { enabled: true }
+          k8s.pod.cpu_limit_utilization: { enabled: true }
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+      # Head sampling at the agent (ADR-0500). Error traces are kept at 100% by
+      # the services' parentbased SDK sampler (OTEL_TRACES_SAMPLER_ARG); this
+      # caps healthy-trace volume. Tail sampling needs the gateway tier and is a
+      # per-project flag — not deployed here.
+      probabilistic_sampler:
+        sampling_percentage: 5
+    exporters:
+      otlphttp/tempo:      { endpoint: http://tempo.platform.svc.cluster.local:4318 }
+      # Prometheus native OTLP receiver (--web.enable-otlp-receiver). The otlphttp
+      # exporter appends /v1/metrics to this base path.
+      otlphttp/prometheus: { endpoint: http://prometheus.platform.svc.cluster.local:9090/api/v1/otlp }
+      # Loki's native OTLP endpoint — the standalone `loki` exporter was removed
+      # from the Collector (≤ v0.112), so push logs over OTLP instead.
+      otlphttp/loki:       { endpoint: http://loki.platform.svc.cluster.local:3100/otlp }
+    service:
+      pipelines:
+        traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
+        metrics: { receivers: [otlp, prometheus/hubble, kubeletstats], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
+        logs:    { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }

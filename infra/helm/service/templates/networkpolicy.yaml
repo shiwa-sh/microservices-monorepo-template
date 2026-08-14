@@ -38,10 +38,20 @@ spec:
       ports:
         - { port: {{ .Values.server.adminPort }}, protocol: TCP }
   egress:
-    # Platform deps: Postgres, Temporal, OTel, OpenFGA, Kratos/Oathkeeper, and
+    # Platform deps: Postgres, Temporal, OpenFGA, Kratos/Oathkeeper, and
     # in-namespace service-to-service calls.
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
+    # Telemetry export. The collector is not in `platform` — it needs hostPath and
+    # hostPorts, and PSA's exception unit is the namespace (ADR-0200) — so the rule
+    # above does not cover it. Without this the SDK's OTLP export is denied and the
+    # service simply stops appearing in Loki, Tempo and Prometheus.
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.otelAgentNamespace }} }
+      ports:
+        - { port: 4317, protocol: TCP }
+        - { port: 4318, protocol: TCP }
     {{- if .Values.networkPolicy.egressDNS }}
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
