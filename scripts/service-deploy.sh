@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-# One-shot in-cluster deploy of a service from the WORKING TREE (ADR-0200,
-# ADR-0205) — the occasional "I need my uncommitted service in the cluster for
-# edge/auth/e2e testing" case. No watch loop (that was Skaffold's job; the daily
-# loop is native execution). Builds the image(s), imports them into k3d, and helm-
-# upgrades the same chart prod uses with the local values overlay.
+# One-shot in-cluster deploy from the WORKING TREE (ADR-0200, ADR-0205) — the
+# occasional "I need my uncommitted code in the cluster for edge/auth/e2e testing"
+# case. No watch loop (that was Skaffold's job; the daily loop is native execution).
+# Builds the image(s), imports them into k3d, and helm-upgrades the same chart prod
+# uses with the local values overlay.
 #
 #   mise run service:deploy -- <svc>
+#
+# Two kinds of deployable, one chart. A Go SERVICE lives in services/<name> and
+# builds server (and worker) images from one multi-stage Dockerfile parameterised by
+# SERVICE/APP_CMD. An APP lives in apps/<name>, builds a single image from its own
+# Dockerfile, and is a deployable exactly when it has a local values file — which is
+# what keeps apps/admin out of this path (it ships inside the lowdefy chart).
+# Everything after the build is identical, because both are the same Helm chart with
+# the same values layout, so the split is confined to resolving the source and the
+# build recipe.
 #
 # If the full tier (ArgoCD) manages this service, its auto-sync is paused first so
 # self-heal does not revert your local image; re-enable with:
@@ -20,16 +29,25 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 SVC="${1:?usage: mise run service:deploy -- <svc>}"
-SVC_DIR="services/${SVC}"
 VALUES="infra/gitops/services/local/values/${SVC}.yaml"
-[ -d "$SVC_DIR" ] || {
-  echo "✗ no such service: ${SVC_DIR}" >&2
-  exit 1
-}
 [ -f "$VALUES" ] || {
   echo "✗ missing local values: ${VALUES}" >&2
   exit 1
 }
+
+if [ -d "services/${SVC}" ]; then
+  KIND=service
+  SVC_DIR="services/${SVC}"
+  # The chart's deployment is always <name>-server; only the image name differs.
+  IMAGE="${SVC}-server"
+elif [ -d "apps/${SVC}" ]; then
+  KIND=app
+  SVC_DIR="apps/${SVC}"
+  IMAGE="${SVC}"
+else
+  echo "✗ no such deployable: neither services/${SVC} nor apps/${SVC}" >&2
+  exit 1
+fi
 
 k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
@@ -52,8 +70,12 @@ h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 # and dep-apply.sh then fails its usage guard on an argument nobody wrote.
 deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-z-]*' | sort -u || true)"
 # db-secrets is an in-cluster-only need: a natively-run service reads .env instead,
-# so it is not in the service's own task graph and is added on this path alone.
-for dep in $deps dep:db-secrets; do
+# so it is not in the service's own task graph and is added on this path alone. An
+# app has no database, and the chart mounts it no <name>-db secret.
+if [ "$KIND" = service ]; then
+  deps="${deps} dep:db-secrets"
+fi
+for dep in $deps; do
   bash scripts/dep-apply.sh "${dep#dep:}"
 done
 
@@ -86,27 +108,42 @@ for s in $svcs; do
 done
 
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
-SET=(--set "image.repository=${SVC}-server" --set "image.tag=${TAG}")
+SET=(--set "image.repository=${IMAGE}" --set "image.tag=${TAG}")
 
 # Build identity baked into the image (ADR-0103): the working-tree SHA (+ -dirty
 # for uncommitted edits — the norm for this local path), so /version and the
 # X-App-Version header report exactly what you deployed.
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"
-BUILD_ARGS=(--build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local
-  --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)")
 
-echo "→ building ${SVC}-server"
-docker build -t "${SVC}-server:${TAG}" \
-  --build-arg SERVICE="${SVC}" --build-arg APP_CMD=server "${BUILD_ARGS[@]}" \
-  -f "${SVC_DIR}/Dockerfile" .
-k3d image import "${SVC}-server:${TAG}" -c "$CLUSTER"
+echo "→ building ${IMAGE}"
+if [ "$KIND" = service ]; then
+  docker build -t "${IMAGE}:${TAG}" \
+    --build-arg SERVICE="${SVC}" --build-arg APP_CMD=server \
+    --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
+    --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    -f "${SVC_DIR}/Dockerfile" .
+else
+  # The app's Dockerfile takes its own build identity (SERVICE_VERSION) and, unlike
+  # a Go binary, bakes one env-specific value: `output: "standalone"` freezes
+  # next.config into server.js, so the server-action CSRF allowlist is decided at
+  # BUILD time. Prod builds leave it empty and rely on same-origin (ADR-0306); this
+  # image is local-only and pinned to one host anyway, so it is passed here from the
+  # same values file the pod reads it from at runtime — one origin, one source.
+  docker build -t "${IMAGE}:${TAG}" \
+    --build-arg "SERVICE_VERSION=${REV}" \
+    --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' "$VALUES")" \
+    -f "${SVC_DIR}/Dockerfile" .
+fi
+k3d image import "${IMAGE}:${TAG}" -c "$CLUSTER"
 
 # Build the worker too when this service declares one (orders, payment).
 if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
   echo "→ building ${SVC}-worker"
   docker build -t "${SVC}-worker:${TAG}" \
-    --build-arg SERVICE="${SVC}" --build-arg APP_CMD=worker "${BUILD_ARGS[@]}" \
+    --build-arg SERVICE="${SVC}" --build-arg APP_CMD=worker \
+    --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
+    --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -f "${SVC_DIR}/Dockerfile" .
   k3d image import "${SVC}-worker:${TAG}" -c "$CLUSTER"
   SET+=(--set "worker.image.repository=${SVC}-worker" --set "worker.image.tag=${TAG}")

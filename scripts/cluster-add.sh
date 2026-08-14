@@ -3,6 +3,7 @@
 # you can add to `cluster:base`:
 #
 #   mise run cluster:add -- orders     # a service      → scripts/service-deploy.sh
+#   mise run cluster:add -- frontend   # an app         → scripts/service-deploy.sh
 #   mise run cluster:add -- ory        # a platform chart → scripts/platform-deploy.sh
 #
 # ── Why a dispatcher and not one merged script ────────────────────────────────
@@ -33,23 +34,34 @@ cd "$ROOT"
 NAME="${1:?usage: mise run cluster:add -- <service|chart>}"
 
 is_service=false
+is_app=false
 is_chart=false
 [ -d "services/${NAME}" ] && [ "${NAME#_}" = "${NAME}" ] && is_service=true
+# An app is a deployable only when it has a local values file, which is what tells
+# apps/frontend (deployed by the service chart) from apps/admin (baked into the
+# lowdefy chart and deployed with it).
+[ -d "apps/${NAME}" ] && [ -f "infra/gitops/services/local/values/${NAME}.yaml" ] && is_app=true
 [ -d "infra/helm/platform/${NAME}" ] && is_chart=true
 
 # A name that is both is a repo bug, not a user error — say so plainly rather than
 # silently picking one. Keeping services and platform charts disjoint is the rule
 # that makes this dispatcher unambiguous (ADR-0600).
-if [ "$is_service" = true ] && [ "$is_chart" = true ]; then
-  fail "'${NAME}' is both a service and a platform chart — rename one; the two namespaces must stay disjoint"
+if [ "$is_chart" = true ] && { [ "$is_service" = true ] || [ "$is_app" = true ]; }; then
+  fail "'${NAME}' is both a platform chart and a service/app — rename one; the namespaces must stay disjoint"
+fi
+if [ "$is_service" = true ] && [ "$is_app" = true ]; then
+  fail "'${NAME}' exists under both services/ and apps/ — rename one; the namespaces must stay disjoint"
 fi
 
-if [ "$is_service" = true ]; then
+# A service and an app take the same path: one chart, one values layout, and the
+# build recipe is service-deploy.sh's business.
+if [ "$is_service" = true ] || [ "$is_app" = true ]; then
   exec bash scripts/service-deploy.sh "$NAME"
 elif [ "$is_chart" = true ]; then
   exec bash scripts/platform-deploy.sh "$NAME"
 fi
 
 detail "services:        $(find services -mindepth 1 -maxdepth 1 -type d -not -name '_*' -printf '%f ' 2>/dev/null)"
+detail "apps:            $(find apps -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | while read -r a; do [ -f "infra/gitops/services/local/values/${a}.yaml" ] && printf '%s ' "$a"; done)"
 detail "platform charts: $(find infra/helm/platform -mindepth 1 -maxdepth 1 -type d -printf '%f ' 2>/dev/null)"
-fail "unknown: '${NAME}' is neither a service nor a platform chart"
+fail "unknown: '${NAME}' is not a service, an app, or a platform chart"
