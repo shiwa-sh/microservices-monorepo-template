@@ -58,6 +58,18 @@ for dir in services/*/; do
     }
   done
 
+  # ── Isolated from its siblings by depguard (ADR-0101) ───────────────────────
+  # The constraint is relational — services/X may not import services/Y — and
+  # depguard's unit is a file pattern with a deny list, so it takes one rule per
+  # service. A new service that does not add its block is not caught by depguard
+  # (it has no rule to break), which is exactly the silence this check removes.
+  # Go's own internal/ convention covers today's layout; the rule covers the day a
+  # service exports a package outside internal/.
+  grep -q "service-isolation-${svc}:" .golangci.yml || {
+    warn "${svc}: no 'service-isolation-${svc}' depguard rule in .golangci.yml — nothing stops a sibling importing it"
+    rc=1
+  }
+
   # ── Registered local port, agreeing with what the service binds ─────────────
   # (uniqueness and the reverse direction are lint:ports' job)
   service_port "$svc" >/dev/null 2>&1 || {

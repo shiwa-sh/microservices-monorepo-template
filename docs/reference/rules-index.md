@@ -156,8 +156,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. | `ci:gen` in CI |
 | A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. | `ci:affected` in CI |
 | Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. | `lint:floating-tags` in CI |
-| `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. | `ci:lint` in CI |
-| Route groups inside `apps/frontend/` do not import from each other. | `ci:lint` in CI |
+| `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. | `lint:go, lint:service-contract` in CI |
+| Route groups inside `apps/frontend/` do not import from each other. | `lint:ts` in CI |
 | `tools/` holds repo-local Go programs and `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written. | review |
 | `test/` holds the external harnesses that drive an assembled system — `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package. | review |
 | Each suite under `test/` pins its own tools. `test/` itself carries no toolchain, package manifest, or lockfile. | `lint:node-scope` in CI |

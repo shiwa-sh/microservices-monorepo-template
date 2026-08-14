@@ -651,6 +651,14 @@ depends = ["test"]
 # as forge step-output assignments (ADR-0102). The workflow step only redirects.
 run = "bash scripts/ci-affected-matrix.sh"
 
+[tasks."ci:e2e-gate"]
+# Whether a pull request pays for the smoke suite, as a forge step-output
+# assignment (ADR-0102, ADR-0601). The `e2e-smoke` label still forces it on; a PR
+# touching more than one service now gets it without anyone remembering to ask,
+# because a cross-service regression is exactly what no test below the e2e level
+# can see. Reads LABELED and BASE_REF.
+run = "bash scripts/ci-e2e-gate.sh"
+
 [tasks."ci:nightly-gate"]
 # Whether tonight's cluster:full suite should run, as a forge step-output
 # assignment (ADR-0102, ADR-0601). Reads EVENT.

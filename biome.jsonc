@@ -115,6 +115,81 @@
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     },
     {
+      // Route-group isolation (ADR-0101): a route group does not import from
+      // another. The groups are separate surfaces with separate trust tiers
+      // (ADR-0306) — a shared component that both need belongs in components/ or
+      // lib/, where the sharing is visible, rather than reaching across a boundary
+      // that the URL, the layout and the auth gate all treat as one.
+      "includes": ["**/app/(landing)/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app/(panel)/**", "**/app/(devportal)/**"],
+                    "message": "route groups do not import from each other (ADR-0101); share through components/ or lib/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // Route-group isolation (ADR-0101): a route group does not import from
+      // another. The groups are separate surfaces with separate trust tiers
+      // (ADR-0306) — a shared component that both need belongs in components/ or
+      // lib/, where the sharing is visible, rather than reaching across a boundary
+      // that the URL, the layout and the auth gate all treat as one.
+      "includes": ["**/app/(panel)/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app/(landing)/**", "**/app/(devportal)/**"],
+                    "message": "route groups do not import from each other (ADR-0101); share through components/ or lib/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // Route-group isolation (ADR-0101): a route group does not import from
+      // another. The groups are separate surfaces with separate trust tiers
+      // (ADR-0306) — a shared component that both need belongs in components/ or
+      // lib/, where the sharing is visible, rather than reaching across a boundary
+      // that the URL, the layout and the auth gate all treat as one.
+      "includes": ["**/app/(devportal)/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app/(landing)/**", "**/app/(panel)/**"],
+                    "message": "route groups do not import from each other (ADR-0101); share through components/ or lib/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       // Writes to stdout via console before slog/OTLP wiring.
       "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
       "linter": { "rules": { "suspicious": { "noConsole": "off" } } }

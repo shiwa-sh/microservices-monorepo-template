@@ -330,8 +330,8 @@ Each step is its own ADR when triggered.
 - A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci:gen)`
 - A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci:affected)`
 - Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. `(CI: lint:floating-tags)`
-- `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. `(CI: ci:lint)`
-- Route groups inside `apps/frontend/` do not import from each other. `(CI: ci:lint)`
+- `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. `(CI: lint:go, lint:service-contract)`
+- Route groups inside `apps/frontend/` do not import from each other. `(CI: lint:ts)`
 - `tools/` holds repo-local Go programs and `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written.
 - `test/` holds the external harnesses that drive an assembled system — `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package.
 - Each suite under `test/` pins its own tools. `test/` itself carries no toolchain, package manifest, or lockfile. `(CI: lint:node-scope)`

@@ -79,12 +79,32 @@ jobs:
         if: always()
         run: mise run cluster:delete
 
+  # Does this pull request pay for a bring-up? The `e2e-smoke` label says yes; so
+  # does a change that spans more than one service, which is the class no test below
+  # the e2e level can see (ADR-0601 §Cadence). The policy is a task, not an
+  # expression, because it reads the affected manifest (ADR-0102).
+  pr-gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      # Full history: the affected manifest is a diff against the merge base.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - id: check
+        env:
+          LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'e2e-smoke') }}
+          BASE_REF: ${{ github.base_ref }}
+        run: mise run ci:e2e-gate >> "$GITHUB_OUTPUT"
+
   smoke:
-    # Label-gated per-PR: a golden path + a key dashboard render. Opt-in so an
-    # unlabeled PR never pays a full bring-up (ADR-0601 §Cadence).
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'e2e-smoke')
+    # A golden path + a key dashboard render, on the PRs that need it.
+    needs: pr-gate
+    if: needs.pr-gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
