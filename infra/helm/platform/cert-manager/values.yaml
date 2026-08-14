@@ -2,6 +2,21 @@ cert-manager:
   installCRDs: true
   prometheus: { enabled: false }
 
+# Whether this chart's own ClusterIssuers and Certificates render.
+#
+# It exists because the CRDs those objects need are TEMPLATES of the subchart, not
+# files in its crds/ directory — so Helm renders the whole release in one pass and
+# validates `cert-manager.io/v1` objects against an API server that does not know
+# that group yet. On a cluster where the CRDs already exist it is invisible; on a
+# fresh one the release cannot install at all ("ensure CRDs are installed first").
+#
+# ArgoCD does not need this: sync-waves on the objects below order them after the
+# CRDs, which is why the full tier has always worked. An imperative install has no
+# waves, so scripts/cluster-base.sh installs twice — once with this false to land
+# the CRDs and the controller, then again with it true.
+issuers:
+  enabled: true
+
 # Wildcard host the issued certs cover (e.g. dev.example.com / dev.localtest.me).
 # Set per env in infra/gitops/platform/<env>/values.yaml.
 envHost: ""

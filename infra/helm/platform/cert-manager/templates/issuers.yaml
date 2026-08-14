@@ -1,3 +1,4 @@
+{{- if .Values.issuers.enabled }}
 {{- if .Values.selfSigned.enabled }}
 # Local / non-public TLS (ADR-0205): cert-manager IS the mechanism in every env;
 # only the issuer differs. Locally a local ROOT CA mints the wildcard secrets the
@@ -125,4 +126,5 @@ spec:
   issuerRef: { name: letsencrypt, kind: ClusterIssuer }
   dnsNames:
     - "*.ops.{{ .Values.envHost }}"
+{{- end }}
 {{- end }}

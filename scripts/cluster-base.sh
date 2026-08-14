@@ -71,6 +71,26 @@ step "installing cert-manager + the self-signed wildcard issuer"
 # fall back to update, which is what every other script here already uses.
 h dependency build infra/helm/platform/cert-manager >/dev/null 2>&1 ||
   h dependency update infra/helm/platform/cert-manager >/dev/null
+# TWO passes, because there are two orderings to satisfy and Helm gives us neither
+# inside one release.
+#
+#   1. The CRDs are TEMPLATES of the subchart, not files in its crds/ directory, so
+#      Helm renders the whole release in one go and validates this chart's own
+#      `cert-manager.io/v1` objects against an API server that has never heard of
+#      that group. On a cluster where the CRDs already exist — anyone's second run —
+#      it is invisible; on a fresh one the install cannot even render:
+#      "no matches for kind Certificate … ensure CRDs are installed first".
+#   2. Then the webhook has to be admitting before the Certificates apply, which is
+#      the race the retry below was always for.
+#
+# ArgoCD needs neither: sync-waves on the issuers order them after the CRDs, which
+# is why the full tier has always worked and this path was never exercised clean.
+h upgrade --install cert-manager infra/helm/platform/cert-manager \
+  -n "$NS" --create-namespace --timeout 5m --wait \
+  -f infra/gitops/platform/local/values.yaml \
+  --set issuers.enabled=false
+k -n "$NS" rollout status deploy/cert-manager-webhook --timeout=180s
+
 for attempt in 1 2 3; do
   if h upgrade --install cert-manager infra/helm/platform/cert-manager \
     -n "$NS" --create-namespace --timeout 5m --wait \
@@ -82,6 +102,19 @@ for attempt in 1 2 3; do
   k -n "$NS" rollout status deploy/cert-manager-webhook --timeout=180s || true
 done
 k -n "$NS" wait --for=condition=Ready certificate/wildcard --timeout=120s
+
+# 3b. The PriorityClasses every service chart names (ADR-0204). Cluster-scoped and
+#     tiny, and the service chart sets `priorityClassName: product` unconditionally
+#     — so without them `cluster:add -- <svc>` fails at pod creation with "no
+#     PriorityClass with name product was found", which is a floor that cannot host
+#     the thing its own epilogue tells you to add. Only the classes: the quotas,
+#     limit ranges and PDBs in that chart are sized for the full platform and belong
+#     to the tier that runs it.
+step "applying the priority classes services are scheduled by"
+h template resource-governance infra/helm/platform/resource-governance \
+  -f infra/gitops/platform/local/values.yaml |
+  yq 'select(.kind == "PriorityClass")' |
+  k apply -f - >/dev/null
 
 # 4. The shared edge middlewares (ADR-0305): identity-header stripping, Oathkeeper
 #    forward-auth, the rate limit, security headers. Only middlewares.yaml — the
