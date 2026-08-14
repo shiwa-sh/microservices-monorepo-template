@@ -50,6 +50,15 @@ spec:
   template:
     metadata: { labels: { app: postgres } }
     spec:
+      # `restricted` (ADR-0200), so the one namespace-wide warning the inner loop
+      # emits is not one of ours. uid 70 is `postgres` in the alpine image (it is
+      # 999 in the Debian variants — the number is the image's, not a convention).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: postgres
           image: postgres:17-alpine
@@ -57,15 +66,31 @@ spec:
             - { name: POSTGRES_USER,     value: dev }
             - { name: POSTGRES_PASSWORD, value: dev }
             - { name: POSTGRES_DB,       value: dev }
+            # A SUBDIRECTORY of the mount, which is what makes a non-root Postgres
+            # work on a volume at all: the entrypoint chmods PGDATA, and chmod needs
+            # ownership rather than the group write bit fsGroup grants. initdb
+            # creates this subdirectory itself, so it owns it.
+            - { name: PGDATA,            value: /var/lib/postgresql/data/pgdata }
           ports: [{ containerPort: 5432 }]
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "dev"] }
             initialDelaySeconds: 3
+          # readOnlyRootFilesystem is false: initdb writes its socket and the
+          # cluster under /var/lib/postgresql. Both are emptyDir mounts rather
+          # than the image's own layers, which is the shape ADR-0200 asks for.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: false
           volumeMounts:
             - { name: initdb, mountPath: /docker-entrypoint-initdb.d }
+            - { name: data,   mountPath: /var/lib/postgresql/data }
+            - { name: run,    mountPath: /var/run/postgresql }
       volumes:
         - name: initdb
           configMap: { name: postgres-initdb }
+        - { name: data, emptyDir: {} }
+        - { name: run,  emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service
@@ -90,6 +115,13 @@ spec:
   template:
     metadata: { labels: { app: temporal } }
     spec:
+      # `restricted` (ADR-0200). The dev server image runs as uid 1000.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: temporal
           # A concrete tag, not `latest`: this is the version an inner-loop run gets,
@@ -100,6 +132,9 @@ spec:
           ports:
             - { name: grpc, containerPort: 7233 }
             - { name: ui,   containerPort: 8233 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
           readinessProbe:
             tcpSocket: { port: 7233 }
             initialDelaySeconds: 3
@@ -129,11 +164,22 @@ spec:
   template:
     metadata: { labels: { app: openfga } }
     spec:
+      # `restricted` (ADR-0200). The image is distroless and already non-root; this
+      # states it rather than inheriting it from whatever the tag ships next.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: openfga
           image: openfga/openfga:v1.14.2
           args: ["run", "--datastore-engine", "memory", "--authn-method", "preshared", "--authn-preshared-keys", "dev"]
           ports: [{ name: http, containerPort: 8080 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
           readinessProbe:
             httpGet: { path: /healthz, port: 8080 }
             initialDelaySeconds: 3
