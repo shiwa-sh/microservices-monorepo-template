@@ -1,0 +1,60 @@
+{{- if .Values.policies.allowedImageSources }}
+# Where an image may come from at all (ADR-0104).
+#
+# The other two policies answer questions about OUR images. This one is about
+# everyone else's: a third-party image is pinned by digest and allow-listed, and the
+# allow-list is the part that cannot be derived from the image itself. Without it,
+# an attacker who can create a Pod can run anything on the internet inside a cluster
+# whose whole supply-chain story is about what our own registry contains.
+#
+# The list is generated (`mise run gen:image-allowlist`) from the charts themselves,
+# so a chart bump that adds a sidecar from a new registry shows up as a diff someone
+# has to approve, rather than as a pull nobody sees.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: allowed-image-sources
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    policies.kyverno.io/title: Images come from known registries
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Every image must come from a repository this platform has declared it pulls
+      from (ADR-0104). The list is generated from the platform's own charts, so a
+      new entry is a registry that has never been used here before.
+spec:
+  validationFailureAction: {{ .Values.policies.validationFailureAction }}
+  background: true
+  rules:
+    - name: known-registry
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: >-
+          This image comes from a repository that is not in the allow-list
+          (ADR-0104). If the repository is legitimate, add it by regenerating:
+          `mise run gen:image-allowlist`.
+        foreach:
+          - list: "request.object.spec.[containers || `[]`, initContainers || `[]`, ephemeralContainers || `[]`][]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ `{{ element.image }}` }}"
+                    # AllNotIn, not NotEquals: the value is a LIST, and NotEquals
+                    # compares against it as a whole — every image is "not equal to
+                    # the list", so the rule rejects everything, including what it
+                    # allows. Measured: an allow-listed busybox denied by its own
+                    # allow-list.
+                    operator: AllNotIn
+                    # Wildcards rather than a regex: the entries are repositories,
+                    # and what follows one is a tag or a digest — both of which start
+                    # with a character no repository contains.
+                    value:
+                      {{- range .Values.policies.allowedImageSources }}
+                      - {{ printf "%s:*" . | quote }}
+                      - {{ printf "%s@*" . | quote }}
+                      {{- end }}
+{{- end }}

@@ -115,6 +115,9 @@ spec:
             # upstream defaults that a wrapper chart's own values.yaml cannot
             # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -196,6 +199,9 @@ spec:
             # upstream defaults that a wrapper chart's own values.yaml cannot
             # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -283,6 +289,9 @@ spec:
             # upstream defaults that a wrapper chart's own values.yaml cannot
             # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"

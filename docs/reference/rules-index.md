@@ -8,8 +8,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 153 |
-| Review-enforced | 300 |
+| Machine-enforced | 154 |
+| Review-enforced | 299 |
 | **Total** | **453** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
@@ -202,7 +202,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The signing private key exists only as a SOPS-encrypted secret, decrypted by CI alone; the public key is committed and named by the Kyverno policy. It is never held by a person and never stored unencrypted. There is one platform key pair, not one per environment — an image is built once and the same digest flows through every environment. | review |
 | Kyverno rejects at admission any image lacking a valid signature or referenced by a floating tag. | admission: Kyverno |
 | All images are digest-pinned. | `lint:floating-tags` in CI; admission: Kyverno |
-| Third-party images are pinned by digest and allow-listed, with upstream signatures verified where published. | review |
+| Third-party images are pinned by digest and allow-listed, with upstream signatures verified where published. | `lint:image-allowlist` in CI; admission: Kyverno |
 | Admission policy is committed YAML reconciled by Argo CD, never applied by hand. | review |
 
 ## ADR-0105 — Image Registry
