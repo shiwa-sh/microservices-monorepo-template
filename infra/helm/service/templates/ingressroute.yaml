@@ -34,12 +34,29 @@ spec:
       match: {{ include "service.ingressMatch" . }}
       middlewares:
         # Anti-spoofing (ADR-0305): strip any client-supplied identity headers
-        # BEFORE forwardAuth, so a client cannot inject X-User-* on an anonymous
-        # /api route (Oathkeeper re-adds the authoritative values).
+        # BEFORE anything downstream, so a client cannot inject X-User-* on an
+        # anonymous route. On an API route Oathkeeper re-adds the authoritative
+        # values; on a page route nothing does, which is the point.
         - name: strip-identity-headers
           namespace: platform
+{{- if .Values.ingress.resources }}
+        # Forward-auth belongs to the API surface only. Oathkeeper's rules are
+        # written per resource (`/api/<{products,orders,…}>`), so a request to a
+        # PAGE matches no rule and Oathkeeper answers 404 — which is exactly what
+        # the in-cluster frontend did on every route it served, in every
+        # environment. The rules cannot simply grow a catch-all either: two
+        # matching rules make Oathkeeper 500, which is what tools/lint-api-wildcard
+        # exists to prevent.
+        #
+        # Nothing is lost by omitting it. A page's identity comes from the Kratos
+        # session cookie, read server-side through /sessions/whoami
+        # (src/lib/auth/session.ts) — never from injected headers — and every /api
+        # call the page makes is authenticated by the rule on that route. The local
+        # edge glue has always routed the frontend this way; this makes the chart
+        # match the configuration that works.
         - name: oathkeeper-forward-auth
           namespace: platform
+{{- end }}
         - name: security-headers
           namespace: platform
 {{- if .Values.ingress.resources }}
