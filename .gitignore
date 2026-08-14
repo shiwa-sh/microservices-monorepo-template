@@ -37,6 +37,10 @@ out/
 # Playwright e2e (ADR-0400, ADR-0601)
 playwright-report/
 test-results/
+# Lighthouse CI output: the HTML/JSON reports and lhci's own state directory. CI
+# uploads them as an artifact; locally they are noise.
+lighthouse-report/
+.lighthouseci/
 blob-report/
 # Saved auth storage states (session cookies) from the e2e setup project.
 test/e2e/.auth/

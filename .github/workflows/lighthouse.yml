@@ -1,0 +1,70 @@
+# Web vitals and bundle budgets (ADR-0400): Lighthouse CI on every PR, gating on
+# LCP < 2.5s, INP < 200ms and CLS < 0.1 on the mobile profile. The ADR makes these
+# merge gates, so this runs unconditionally rather than behind a label or a path
+# filter — a change to a shared library moves the bundle as surely as a change to a
+# page does.
+#
+# It used to live in the nightly e2e job for one reason: Lighthouse measures a
+# RENDERED page, the frontend's server components fetch through the edge at render
+# time, and the only origin that existed was `cluster:full`. Two things changed.
+# The API mock (ADR-0600) serves `/api` from the committed contract, and the
+# frontend is deployable as its production container, so the origin is now the
+# inner-loop floor plus two additions — a fraction of the full tier's cost, and the
+# production bundle rather than a dev server's.
+name: lighthouse
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      # The floor: real Traefik, real cert-manager, real Kratos and Oathkeeper.
+      # `/auth/login` is one of the measured URLs, so the identity stack has to be
+      # the real one — there is no page to measure without it.
+      - name: Bring up cluster:base
+        run: mise run cluster:base
+
+      # The production container, not `next dev`. A bundle budget measured against a
+      # development server measures unminified output and means nothing.
+      - name: Deploy the frontend as its production image
+        run: mise run cluster:add -- frontend
+
+      # `/api` from the committed OpenAPI projection. The panel pages render server
+      # components that fetch through the edge; without it they render an error
+      # state and the measurement is of the wrong page.
+      - name: Start the API mock
+        run: mise run mock:start
+
+      - name: Install the Node island
+        run: mise run e2e:install
+
+      - name: Web vitals + bundle budgets
+        run: mise run lighthouse
+
+      - name: Upload the Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: test/e2e/.lighthouseci/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: mise run cluster:delete
