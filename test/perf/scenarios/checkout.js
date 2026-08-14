@@ -89,7 +89,13 @@ export default function checkout(data) {
     `${API}/orders`,
     JSON.stringify({ product_id: data.productId, quantity: 1 }),
     {
-      headers: { "Content-Type": "application/json", ...auth },
+      // A fresh key per iteration: this measures N distinct checkouts, not one
+      // checkout retried N times (ADR-0003).
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": `perf-${__VU}-${__ITER}-${Date.now()}`,
+        ...auth,
+      },
       tags: { endpoint: "create_order" },
     },
   );

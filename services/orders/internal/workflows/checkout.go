@@ -38,6 +38,9 @@ type CheckoutInput struct {
 	// (ADR-0304). Both are what the order's OpenFGA tuples are written from.
 	OwnerID string
 	OrgID   string
+	// IdempotencyKey is the client's, carried into the row so a retried checkout
+	// finds the order the first one created (ADR-0003).
+	IdempotencyKey string
 }
 
 type CheckoutResult struct {

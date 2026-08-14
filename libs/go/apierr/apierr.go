@@ -28,6 +28,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/ogen-go/ogen/ogenerrors"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -141,9 +142,42 @@ func Internal(cause string) *Error {
 	return New(http.StatusInternalServerError, "an internal error occurred")
 }
 
+// ServeError is the ogen server's ErrorHandler: what answers a request the
+// generated server rejected before any handler ran — a malformed body, a parameter
+// that failed the spec's own validation, a required header that is absent.
+//
+// Without it ogen writes a bare 500 and a plain-text body, so a client sees a
+// server fault for its own mistake and is told to retry a request that can never
+// succeed. Wiring it in makes every rejection an RFC 9457 problem with the trace
+// id, exactly like the ones handlers return.
+func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err error) {
+	e, ok := As(err)
+	if !ok {
+		e = Internal(err.Error())
+	}
+	e.WriteContext(ctx, w)
+}
+
 // As unwraps err to an *Error if possible.
+//
+// It also recognises the errors the GENERATED server produces before a handler is
+// reached: a malformed body, a parameter that fails the spec's own validation, a
+// required header that is absent. Those are the client's mistake and belong in the
+// 4xx range, and every service's NewError funnels through here — without this they
+// arrive as an unrecognised error and get answered with a 500, which tells a caller
+// to retry a request that can never succeed.
 func As(err error) (*Error, bool) {
 	var e *Error
-	ok := errors.As(err, &e)
-	return e, ok
+	if errors.As(err, &e) {
+		return e, true
+	}
+	var decodeParams *ogenerrors.DecodeParamsError
+	if errors.As(err, &decodeParams) {
+		return BadRequest(decodeParams.Error()), true
+	}
+	var decodeRequest *ogenerrors.DecodeRequestError
+	if errors.As(err, &decodeRequest) {
+		return BadRequest(decodeRequest.Error()), true
+	}
+	return nil, false
 }

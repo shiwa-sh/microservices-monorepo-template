@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -238,7 +237,7 @@ func handle(workflowID, chargeID string) *payment.WorkflowHandle {
 		ID:        workflowID,
 		RunID:     chargeID,
 		Status:    payment.WorkflowHandleStatusRunning,
-		ResultURL: payment.NewOptURI(url.URL{Path: "/api/charges/" + chargeID}),
+		ResultURL: payment.NewOptString("/api/charges/" + chargeID),
 	}
 }
 

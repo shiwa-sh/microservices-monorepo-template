@@ -32,7 +32,12 @@ paths:
     post:
       operationId: checkout
       tags: [orders]
-      description: Starts the Checkout Temporal saga (ADR-0302).
+      description: |
+        Starts the Checkout Temporal saga (ADR-0302). Idempotent on the
+        Idempotency-Key header: a retry of the same request returns the order the
+        first one created rather than placing a second.
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, description: Client-generated key that makes the checkout idempotent., schema: { type: string, minLength: 1 } }
       requestBody:
         required: true
         description: The checkout to start.
@@ -175,7 +180,11 @@ components:
         id:     { type: string }
         run_id: { type: string }
         status: { type: string, enum: [running, completed, failed, cancelled] }
-        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
+        # uri-reference, not uri: the value is a path on this same origin
+        # (`/api/orders/<id>`), and `format: uri` means an absolute URI — the
+        # committed example fails its own schema under a validator that checks
+        # formats, which is how the API mock found this.
+        result_url: { type: string, format: uri-reference, description: "GET to fetch terminal status + result" }
       # `running` is the honest example: it is what the real 202 returns. Against the
       # API mock the poll never progresses (ADR-0600) — workflow progression is
       # exercised against real services, so build the pending state and stop there.

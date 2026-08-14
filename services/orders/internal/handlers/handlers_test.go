@@ -38,10 +38,22 @@ type fakeQ struct {
 	getErr  error
 	list    []store.ListOrdersRow
 	listErr error
+	byKey   store.GetOrderByIdempotencyKeyRow
 }
 
 func (f fakeQ) GetOrder(context.Context, pgtype.UUID) (store.GetOrderRow, error) {
 	return f.order, f.getErr
+}
+
+// An unset byKey means "no order carries this key", which is the first-attempt
+// path — the zero value would otherwise read as a hit on every test.
+func (f fakeQ) GetOrderByIdempotencyKey(
+	context.Context, pgtype.Text,
+) (store.GetOrderByIdempotencyKeyRow, error) {
+	if f.byKey.Status == "" {
+		return store.GetOrderByIdempotencyKeyRow{}, pgx.ErrNoRows
+	}
+	return f.byKey, nil
 }
 
 func (f fakeQ) ListOrders(context.Context) ([]store.ListOrdersRow, error) {
@@ -167,13 +179,15 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	t.Parallel()
 
 	req := &orders.CheckoutInput{ProductID: "product_01kztmx9e0fq1r13w5d1aerqw6", Quantity: 1}
+	// The header the client sends to make a retry safe (ADR-0003).
+	params := orders.CheckoutParams{IdempotencyKey: "checkout-" + t.Name()}
 
 	t.Run(
 		"anonymous is unauthorized",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
-			_, err := h.Checkout(context.Background(), req)
+			_, err := h.Checkout(context.Background(), req, params)
 			assertStatus(t, err, 401)
 		},
 	)
@@ -185,8 +199,41 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
-			_, err := h.Checkout(opCtx(), req)
+			_, err := h.Checkout(opCtx(), req, params)
 			assertStatus(t, err, 403)
+		},
+	)
+
+	// Without the header a retry cannot be recognised, so it is refused rather than
+	// quietly placing a second order.
+	t.Run(
+		"a missing Idempotency-Key is a bad request",
+		func(t *testing.T) {
+			t.Parallel()
+			h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
+			_, err := h.Checkout(buyerCtx(), req, orders.CheckoutParams{})
+			assertStatus(t, err, 400)
+		},
+	)
+
+	// The replay path: an order already carrying this key means the first attempt
+	// landed, so the same handle comes back and no second workflow starts.
+	t.Run(
+		"a repeated key replays the first order",
+		func(t *testing.T) {
+			t.Parallel()
+			h := &Handlers{
+				q:       fakeQ{byKey: store.GetOrderByIdempotencyKeyRow{Status: statusPending}},
+				tc:      fakeTemporal{err: errors.New("must not be reached")},
+				checker: okChecker(),
+			}
+			handle, err := h.Checkout(buyerCtx(), req, params)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if handle.Status != orders.WorkflowHandleStatusRunning {
+				t.Fatalf("status = %v, want running", handle.Status)
+			}
 		},
 	)
 
@@ -200,7 +247,7 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 				checker:          okChecker(),
 				checkoutsStarted: noopCounter(),
 			}
-			handle, err := h.Checkout(buyerCtx(), req)
+			handle, err := h.Checkout(buyerCtx(), req, params)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

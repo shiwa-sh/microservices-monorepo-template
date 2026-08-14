@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
@@ -58,7 +59,13 @@ func run() error {
 	// authz is spec-first like every HTTP service (ADR-0303): the ogen server routes
 	// and validates; the handlers implement the generated interface. No authmw — the
 	// caller is Oathkeeper (remote_json), not a user session.
-	api, err := authzsdk.NewServer(handlers.New(checker, granter, fineGrained, slog.Default()))
+	api, err := authzsdk.NewServer(
+		handlers.New(checker, granter, fineGrained, slog.Default()),
+		// A request the generated server rejects before a handler runs — a malformed
+		// body, a bad parameter, a missing required header — still gets an RFC 9457
+		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
+		authzsdk.WithErrorHandler(apierr.ServeError),
+	)
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}

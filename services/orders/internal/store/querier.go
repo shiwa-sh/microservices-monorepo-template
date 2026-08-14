@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error)
+	GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error)
 	ListOrders(ctx context.Context) ([]ListOrdersRow, error)
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 }

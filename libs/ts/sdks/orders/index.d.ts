@@ -14,7 +14,11 @@ export interface paths {
         /** @description List all orders. */
         get: operations["listOrders"];
         put?: never;
-        /** @description Starts the Checkout Temporal saga (ADR-0302). */
+        /**
+         * @description Starts the Checkout Temporal saga (ADR-0302). Idempotent on the
+         *     Idempotency-Key header: a retry of the same request returns the order the
+         *     first one created rather than placing a second.
+         */
         post: operations["checkout"];
         delete?: never;
         options?: never;
@@ -145,7 +149,7 @@ export interface components {
             /** @enum {string} */
             status: "running" | "completed" | "failed" | "cancelled";
             /**
-             * Format: uri
+             * Format: uri-reference
              * @description GET to fetch terminal status + result
              */
             result_url?: string;
@@ -216,7 +220,10 @@ export interface operations {
     checkout: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated key that makes the checkout idempotent. */
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };

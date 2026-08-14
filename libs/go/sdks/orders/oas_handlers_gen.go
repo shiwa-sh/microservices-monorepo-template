@@ -189,7 +189,8 @@ func (s *Server) handleCancelOrderRequest(args [1]string, argsEscaped bool, w ht
 
 // handleCheckoutRequest handles checkout operation.
 //
-// Starts the Checkout Temporal saga (ADR-0302).
+// Starts the Checkout Temporal saga (ADR-0302). Idempotent on the Idempotency-Key header: a retry of
+// the same request returns the order the first one created rather than placing a second.
 //
 // POST /orders
 func (s *Server) handleCheckoutRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -263,6 +264,16 @@ func (s *Server) handleCheckoutRequest(args [0]string, argsEscaped bool, w http.
 			ID:   "checkout",
 		}
 	)
+	params, err := decodeCheckoutParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 	request, rawBody, close, err := s.decodeCheckoutRequest(r)
@@ -290,13 +301,18 @@ func (s *Server) handleCheckoutRequest(args [0]string, argsEscaped bool, w http.
 			OperationID:      "checkout",
 			Body:             request,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = *CheckoutInput
-			Params   = struct{}
+			Params   = CheckoutParams
 			Response = *WorkflowHandle
 		)
 		response, err = middleware.HookMiddleware[
@@ -306,14 +322,14 @@ func (s *Server) handleCheckoutRequest(args [0]string, argsEscaped bool, w http.
 		](
 			m,
 			mreq,
-			nil,
+			unpackCheckoutParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.Checkout(ctx, request)
+				response, err = s.h.Checkout(ctx, request, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.Checkout(ctx, request)
+		response, err = s.h.Checkout(ctx, request, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

@@ -74,7 +74,12 @@ export default function Checkout() {
 
   const onSubmit = handleSubmit(async (values) => {
     setStatus({ text: panel.checkout.starting, tone: "blue" });
-    const { data, error } = await orders.POST("/orders", { body: values });
+    // One key per submit, so the browser retrying a request that already reached
+    // the service gets the order it created rather than a second one (ADR-0003).
+    const { data, error } = await orders.POST("/orders", {
+      body: values,
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+    });
     if (error || !data) {
       setStatus({ text: panel.checkout.error, tone: "error" });
       return;

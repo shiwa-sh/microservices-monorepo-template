@@ -36,10 +36,11 @@ type Invoker interface {
 	CancelOrder(ctx context.Context, params CancelOrderParams) (*WorkflowHandle, error)
 	// Checkout invokes checkout operation.
 	//
-	// Starts the Checkout Temporal saga (ADR-0302).
+	// Starts the Checkout Temporal saga (ADR-0302). Idempotent on the Idempotency-Key header: a retry of
+	// the same request returns the order the first one created rather than placing a second.
 	//
 	// POST /orders
-	Checkout(ctx context.Context, request *CheckoutInput) (*WorkflowHandle, error)
+	Checkout(ctx context.Context, request *CheckoutInput, params CheckoutParams) (*WorkflowHandle, error)
 	// GetOrder invokes getOrder operation.
 	//
 	// Fetch an order by id.
@@ -197,15 +198,16 @@ func (c *Client) sendCancelOrder(ctx context.Context, params CancelOrderParams) 
 
 // Checkout invokes checkout operation.
 //
-// Starts the Checkout Temporal saga (ADR-0302).
+// Starts the Checkout Temporal saga (ADR-0302). Idempotent on the Idempotency-Key header: a retry of
+// the same request returns the order the first one created rather than placing a second.
 //
 // POST /orders
-func (c *Client) Checkout(ctx context.Context, request *CheckoutInput) (*WorkflowHandle, error) {
-	res, err := c.sendCheckout(ctx, request)
+func (c *Client) Checkout(ctx context.Context, request *CheckoutInput, params CheckoutParams) (*WorkflowHandle, error) {
+	res, err := c.sendCheckout(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendCheckout(ctx context.Context, request *CheckoutInput) (res *WorkflowHandle, err error) {
+func (c *Client) sendCheckout(ctx context.Context, request *CheckoutInput, params CheckoutParams) (res *WorkflowHandle, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("checkout"),
 		semconv.HTTPRequestMethodKey.String("POST"),
@@ -253,6 +255,20 @@ func (c *Client) sendCheckout(ctx context.Context, request *CheckoutInput) (res 
 	}
 	if err := encodeCheckoutRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "EncodeHeaderParams"
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "Idempotency-Key",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.StringToString(params.IdempotencyKey))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
 	}
 
 	stage = "SendRequest"

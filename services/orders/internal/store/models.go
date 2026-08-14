@@ -19,4 +19,6 @@ type Order struct {
 	OwnerID pgtype.Text `json:"owner_id"`
 	// pii:none
 	OrgID pgtype.UUID `json:"org_id"`
+	// pii:none
+	IdempotencyKey pgtype.Text `json:"idempotency_key"`
 }

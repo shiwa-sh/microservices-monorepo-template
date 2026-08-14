@@ -184,7 +184,11 @@ components:
         id:     { type: string }
         run_id: { type: string }
         status: { type: string, enum: [running, completed, failed, cancelled] }
-        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
+        # uri-reference, not uri: the value is a path on this same origin
+        # (`/api/orders/<id>`), and `format: uri` means an absolute URI — the
+        # committed example fails its own schema under a validator that checks
+        # formats, which is how the API mock found this.
+        result_url: { type: string, format: uri-reference, description: "GET to fetch terminal status + result" }
       # See orders: `running` is what the real 202 returns, and the mock's poll never
       # progresses past it (ADR-0600).
       example: { id: charge-charge_01kztnyqr0f13shqqnx8028xx5, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002, status: running, result_url: /api/charges/charge_01kztnyqr0f13shqqnx8028xx5 }

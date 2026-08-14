@@ -12,19 +12,20 @@ import (
 )
 
 const createOrder = `-- name: CreateOrder :one
-insert into orders (id, product_id, quantity, total_cents, status, owner_id, org_id)
-values ($1, $2, $3, $4, 'pending', $5, $6)
+insert into orders (id, product_id, quantity, total_cents, status, owner_id, org_id, idempotency_key)
+values ($1, $2, $3, $4, 'pending', $5, $6, $7)
 on conflict (id) do nothing
 returning id, product_id, quantity, total_cents, status
 `
 
 type CreateOrderParams struct {
-	ID         pgtype.UUID `json:"id"`
-	ProductID  pgtype.UUID `json:"product_id"`
-	Quantity   int32       `json:"quantity"`
-	TotalCents int32       `json:"total_cents"`
-	OwnerID    pgtype.Text `json:"owner_id"`
-	OrgID      pgtype.UUID `json:"org_id"`
+	ID             pgtype.UUID `json:"id"`
+	ProductID      pgtype.UUID `json:"product_id"`
+	Quantity       int32       `json:"quantity"`
+	TotalCents     int32       `json:"total_cents"`
+	OwnerID        pgtype.Text `json:"owner_id"`
+	OrgID          pgtype.UUID `json:"org_id"`
+	IdempotencyKey pgtype.Text `json:"idempotency_key"`
 }
 
 type CreateOrderRow struct {
@@ -43,6 +44,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Creat
 		arg.TotalCents,
 		arg.OwnerID,
 		arg.OrgID,
+		arg.IdempotencyKey,
 	)
 	var i CreateOrderRow
 	err := row.Scan(
@@ -77,6 +79,38 @@ type GetOrderRow struct {
 func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error) {
 	row := q.db.QueryRow(ctx, getOrder, id)
 	var i GetOrderRow
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.Quantity,
+		&i.TotalCents,
+		&i.Status,
+	)
+	return i, err
+}
+
+const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
+select
+  id,
+  product_id,
+  quantity,
+  total_cents,
+  status
+from orders
+where idempotency_key = $1
+`
+
+type GetOrderByIdempotencyKeyRow struct {
+	ID         pgtype.UUID `json:"id"`
+	ProductID  pgtype.UUID `json:"product_id"`
+	Quantity   int32       `json:"quantity"`
+	TotalCents int32       `json:"total_cents"`
+	Status     string      `json:"status"`
+}
+
+func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error) {
+	row := q.db.QueryRow(ctx, getOrderByIdempotencyKey, idempotencyKey)
+	var i GetOrderByIdempotencyKeyRow
 	err := row.Scan(
 		&i.ID,
 		&i.ProductID,

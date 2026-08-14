@@ -260,7 +260,19 @@
         "tags": [
           "orders"
         ],
-        "description": "Starts the Checkout Temporal saga (ADR-0302).",
+        "description": "Starts the Checkout Temporal saga (ADR-0302). Idempotent on the\nIdempotency-Key header: a retry of the same request returns the order the\nfirst one created rather than placing a second.\n",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Client-generated key that makes the checkout idempotent.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "description": "The checkout to start.",
@@ -872,7 +884,7 @@
           },
           "result_url": {
             "type": "string",
-            "format": "uri",
+            "format": "uri-reference",
             "description": "GET to fetch terminal status + result"
           }
         },

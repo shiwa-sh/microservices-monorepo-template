@@ -40,6 +40,9 @@ async function checkout(ctx: BrowserContext, productId: string): Promise<string>
   await expect(async () => {
     const res = await ctx.request.post(`${BASE_URL}/api/orders`, {
       data: { product_id: productId, quantity: 1 },
+      // Required: a checkout is idempotent on this key (ADR-0003). One per attempt,
+      // so the retry loop below places one order rather than replaying the first.
+      headers: { "Idempotency-Key": `authz-e2e-${Date.now()}-${Math.random()}` },
     });
     expect(res.status(), "checkout accepted once the buyer's org exists").toBe(202);
     orderId = ((await res.json()) as { run_id: string }).run_id;

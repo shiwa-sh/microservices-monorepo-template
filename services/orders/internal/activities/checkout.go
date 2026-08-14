@@ -76,12 +76,13 @@ func (a *Activities) CreateOrderActivity(ctx context.Context, in workflows.Check
 	_, err = store.New(a.DB).CreateOrder(
 		ctx,
 		store.CreateOrderParams{
-			ID:         pgtype.UUID{Bytes: orderID.UUID(), Valid: true},
-			ProductID:  pgtype.UUID{Bytes: productID.UUID(), Valid: true},
-			Quantity:   in.Quantity,
-			TotalCents: 0,
-			OwnerID:    pgtype.Text{String: in.OwnerID, Valid: true},
-			OrgID:      pgtype.UUID{Bytes: orgID.UUID(), Valid: true},
+			ID:             pgtype.UUID{Bytes: orderID.UUID(), Valid: true},
+			ProductID:      pgtype.UUID{Bytes: productID.UUID(), Valid: true},
+			Quantity:       in.Quantity,
+			TotalCents:     0,
+			OwnerID:        pgtype.Text{String: in.OwnerID, Valid: true},
+			OrgID:          pgtype.UUID{Bytes: orgID.UUID(), Valid: true},
+			IdempotencyKey: pgtype.Text{String: in.IdempotencyKey, Valid: in.IdempotencyKey != ""},
 		},
 	)
 	if errors.Is(err, pgx.ErrNoRows) {

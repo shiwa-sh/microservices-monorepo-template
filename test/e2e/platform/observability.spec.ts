@@ -305,6 +305,7 @@ test.describe("end-to-end signal correlation", () => {
         traceparent: header,
         "x-user-id": BUYER_ID,
         "x-org-id": BUYER_ORG_ID,
+        "idempotency-key": `obs-e2e-${Date.now()}`,
       },
       body: JSON.stringify({ product_id: productId, quantity: 2 }),
     });

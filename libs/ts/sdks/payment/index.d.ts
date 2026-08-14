@@ -148,7 +148,7 @@ export interface components {
             /** @enum {string} */
             status: "running" | "completed" | "failed" | "cancelled";
             /**
-             * Format: uri
+             * Format: uri-reference
              * @description GET to fetch terminal status + result
              */
             result_url?: string;

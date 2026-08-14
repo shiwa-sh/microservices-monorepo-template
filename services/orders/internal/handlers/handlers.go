@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -85,7 +84,11 @@ func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
 }
 
-func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*orders.WorkflowHandle, error) {
+func (h *Handlers) Checkout(
+	ctx context.Context,
+	req *orders.CheckoutInput,
+	params orders.CheckoutParams,
+) (*orders.WorkflowHandle, error) {
 	ctx, span := observability.StartSpan(ctx, "orders.Checkout")
 	defer span.End()
 
@@ -102,6 +105,21 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 	if principal.OrgID == "" {
 		return nil, apierr.Forbidden("this identity carries no organization")
 	}
+	if params.IdempotencyKey == "" {
+		return nil, apierr.BadRequest("Idempotency-Key required")
+	}
+
+	// A retry returns the order the first attempt created rather than placing a
+	// second (ADR-0003). The lookup is the fast path; the unique index on the column
+	// is what actually holds, because two concurrent retries both miss this read.
+	existing, err := h.q.GetOrderByIdempotencyKey(ctx, pgtype.Text{String: params.IdempotencyKey, Valid: true})
+	if err == nil {
+		return checkoutHandle(string(orderID(existing.ID))), nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, apierr.Internal(err.Error())
+	}
+
 	key, err := mintOrderID()
 	if err != nil {
 		return nil, err
@@ -120,23 +138,30 @@ func (h *Handlers) Checkout(ctx context.Context, req *orders.CheckoutInput) (*or
 		},
 		workflows.Checkout,
 		workflows.CheckoutInput{
-			OrderID:   oid,
-			ProductID: string(req.ProductID),
-			Quantity:  int32(req.Quantity),
-			OwnerID:   principal.UserID,
-			OrgID:     principal.OrgID,
+			OrderID:        oid,
+			ProductID:      string(req.ProductID),
+			Quantity:       int32(req.Quantity),
+			OwnerID:        principal.UserID,
+			OrgID:          principal.OrgID,
+			IdempotencyKey: params.IdempotencyKey,
 		},
 	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	h.checkoutsStarted.Add(ctx, 1)
+	return checkoutHandle(oid), nil
+}
+
+// checkoutHandle is the 202 body, built the same way whether the checkout was just
+// started or is being replayed from an earlier one.
+func checkoutHandle(oid string) *orders.WorkflowHandle {
 	return &orders.WorkflowHandle{
 		ID:        "checkout-" + oid,
 		RunID:     oid,
 		Status:    orders.WorkflowHandleStatusRunning,
-		ResultURL: orders.NewOptURI(url.URL{Path: "/api/orders/" + oid}),
-	}, nil
+		ResultURL: orders.NewOptString("/api/orders/" + oid),
+	}
 }
 
 func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (*orders.Order, error) {
@@ -229,7 +254,7 @@ func (h *Handlers) CancelOrder(ctx context.Context, params orders.CancelOrderPar
 		ID:        "cancel-order-" + oid,
 		RunID:     oid,
 		Status:    orders.WorkflowHandleStatusRunning,
-		ResultURL: orders.NewOptURI(url.URL{Path: "/api/orders/" + oid}),
+		ResultURL: orders.NewOptString("/api/orders/" + oid),
 	}, nil
 }
 

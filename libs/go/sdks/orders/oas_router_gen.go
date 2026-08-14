@@ -12,7 +12,7 @@ import (
 
 var (
 	rn4AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
+		"POST": "Content-Type,Idempotency-Key",
 	}
 )
 
