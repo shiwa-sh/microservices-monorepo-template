@@ -70,22 +70,31 @@ done
 #
 # Idempotent twice over: the workflow id is derived from the identity, so Temporal
 # rejects a duplicate, and the activities are individually re-runnable.
-step "running the post-registration process for each identity"
-k port-forward svc/orgs-server 18093:80 >/dev/null 2>&1 &
-orgs_pf=$!
-trap 'kill "$pf" "$orgs_pf" 2>/dev/null || true' EXIT
-sleep 3
+# Only where orgs is running. The inner-loop floor (cluster:base) is Postgres, the
+# edge and identity — no application services — so there is nothing to call there,
+# and a seed that insisted would fail the whole tier on a service it never claimed
+# to run. On that tier a seeded identity has no org until `cluster:add -- orgs`
+# brings one up and this script is re-run; it is idempotent.
+if k get svc orgs-server >/dev/null 2>&1; then
+  step "running the post-registration process for each identity"
+  k port-forward svc/orgs-server 18093:80 >/dev/null 2>&1 &
+  orgs_pf=$!
+  trap 'kill "$pf" "${orgs_pf:-}" 2>/dev/null || true' EXIT
+  sleep 3
 
-for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
-  id="$(jq -c ".[$i]" <<<"$identities")"
-  email="$(jq -r .email <<<"$id")"
-  identity_id="$(curl -fsS \
-    "${admin}/admin/identities?credentials_identifier=$(jq -rn --arg e "$email" '$e|@uri')" |
-    jq -r --arg e "$email" 'map(select(.traits.email == $e)) | .[0].id // empty')"
-  [ -n "$identity_id" ] || continue
-  curl -fsS -H 'Content-Type: application/json' -X POST "http://localhost:18093/identity-created" \
-    -d "$(jq -n --arg id "$identity_id" --arg e "$email" '{identity_id: $id, email: $e}')" >/dev/null
-  detail "post-registration process enqueued for ${email}"
-done
+  for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
+    id="$(jq -c ".[$i]" <<<"$identities")"
+    email="$(jq -r .email <<<"$id")"
+    identity_id="$(curl -fsS \
+      "${admin}/admin/identities?credentials_identifier=$(jq -rn --arg e "$email" '$e|@uri')" |
+      jq -r --arg e "$email" 'map(select(.traits.email == $e)) | .[0].id // empty')"
+    [ -n "$identity_id" ] || continue
+    curl -fsS -H 'Content-Type: application/json' -X POST "http://localhost:18093/identity-created" \
+      -d "$(jq -n --arg id "$identity_id" --arg e "$email" '{identity_id: $id, email: $e}')" >/dev/null
+    detail "post-registration process enqueued for ${email}"
+  done
+else
+  detail "orgs is not running in this tier — seeded identities have no org yet"
+fi
 
 ok "test identities present (credentials: test/e2e/fixtures/identities.ts)"
