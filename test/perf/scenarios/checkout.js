@@ -19,7 +19,15 @@ import { sleep } from "k6";
 import http from "k6/http";
 import { Rate, Trend } from "k6/metrics";
 import { expectJSON, expectStatus } from "../lib/checks.js";
-import { API, options as buildOptions, PERF_PREFIX, summaryTrailer } from "../lib/config.js";
+import {
+  API,
+  BASE_URL,
+  options as buildOptions,
+  PERF_PREFIX,
+  PERF_USER,
+  summaryTrailer,
+} from "../lib/config.js";
+import { authHeaders, login } from "../lib/session.js";
 
 // Wall time from "checkout accepted" to "order reached a terminal status". This
 // is the saga's real latency and the metric a capacity decision reads.
@@ -56,6 +64,8 @@ export const options = buildOptions("checkout", 0.25, {
 // and it puts every iteration in contention for the same row — which is where a
 // write-path lock problem would show up if there were one.
 export function setup() {
+  const session = login(BASE_URL, PERF_USER.email, PERF_USER.password);
+
   const res = http.get(`${API}/products`, { tags: { endpoint: "list_products" } });
   if (res.status !== 200) {
     throw new Error(`catalog unreachable at ${API}/products — HTTP ${res.status}`);
@@ -68,17 +78,18 @@ export function setup() {
   // whatever the e2e suite happens to have left behind.
   const seeded = products.filter((p) => String(p.name).startsWith(PERF_PREFIX));
   const [chosen] = seeded.length > 0 ? seeded : products;
-  return { productId: chosen.id, productName: chosen.name };
+  return { productId: chosen.id, productName: chosen.name, session };
 }
 
 export default function checkout(data) {
   // 1. Start the saga.
   const started = Date.now();
+  const auth = authHeaders(data.session);
   const res = http.post(
     `${API}/orders`,
     JSON.stringify({ product_id: data.productId, quantity: 1 }),
     {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...auth },
       tags: { endpoint: "create_order" },
     },
   );
@@ -99,7 +110,10 @@ export default function checkout(data) {
   let status = "pending";
   while (Date.now() - started < SETTLE_TIMEOUT_MS) {
     sleep(POLL_INTERVAL_S);
+    // As the buyer: an order is readable by whoever placed it and by nobody else
+    // (ADR-0003), so the poll carries the same session the checkout did.
     const poll = http.get(`${API}/orders/${orderId}`, {
+      headers: auth,
       tags: { endpoint: "get_order" },
     });
     // A non-200 poll is not a failure of the checkout — the order may simply not

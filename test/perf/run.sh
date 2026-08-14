@@ -19,7 +19,8 @@
 #     and measures that instead — same reason test/e2e/.mise.toml sets NO_PROXY.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
-source ../scripts/lib/log.sh
+# ../../ — this file lives at test/perf/, two levels under the repo root.
+source ../../scripts/lib/log.sh
 
 scenario="${1:-}"
 profile="${2:-smoke}"

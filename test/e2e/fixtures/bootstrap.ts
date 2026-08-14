@@ -6,12 +6,17 @@
 // Split of responsibility (single source of truth):
 //   - cluster:full bring-up seeds the OpenFGA store + model + the static
 //     dashboard->group:operator grants (platform policy; see scripts/cluster-full.sh).
-//   - this bootstrap creates the Kratos identities and writes the one relation that
-//     can only exist at test time: group:operator#member@user:<operator-kratos-id>.
+//   - this bootstrap creates the Kratos identities, runs the post-registration
+//     process for each, and writes the one relation that can only exist at test
+//     time: group:operator#member@user:<operator-kratos-id>.
 import { IDENTITIES, OPERATOR, type TestIdentity } from "./identities";
 import { portForward } from "./kube";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
+// Local forward port for the orgs service, whose /identity-created webhook is the
+// post-registration process. Cluster-audience (no edge route), so it is reached the
+// same way the admin API is.
+const ORGS_LOCAL_PORT = Number(process.env.ORGS_LOCAL_PORT ?? 18094);
 const SCHEMA_ID = "user_v1";
 const OPENFGA_PORT = 8080;
 // Local forward port for the OpenFGA HTTP API. NOT 8080: the local k3d cluster maps
@@ -115,6 +120,27 @@ async function writeTuple(sid: string, user: string, relation: string, object: s
   }
 }
 
+// registerUser runs the post-registration process for an identity created through
+// the admin API.
+//
+// The admin import is not a registration: Kratos runs no self-service flow for it,
+// so the `after` web_hook never fires and RegisterUser never runs (ADR-0304). An
+// identity in that state has no personal org, no `metadata_public.org_id`, and
+// therefore no X-Org-Id at the edge — and an order belongs to the org its buyer
+// acts through, so a seeded identity could not buy anything. Calling the webhook is
+// what the registration flow itself does; the workflow id is derived from the
+// identity, so a repeat is a Temporal no-op.
+async function registerUser(identityId: string, email: string): Promise<void> {
+  const res = await fetch(`http://127.0.0.1:${ORGS_LOCAL_PORT}/identity-created`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ identity_id: identityId, email }),
+  });
+  if (!res.ok) {
+    throw new Error(`orgs identity-created failed for ${email}: ${res.status} ${await res.text()}`);
+  }
+}
+
 // provision creates both identities and writes the operator's group membership.
 // Returns the Kratos id of each, so the setup project can correlate sessions.
 export async function provision(): Promise<Record<string, string>> {
@@ -126,6 +152,15 @@ export async function provision(): Promise<Record<string, string>> {
     }
   } finally {
     kratosPf.stop();
+  }
+
+  const orgsPf = await portForward("orgs-server", ORGS_LOCAL_PORT, 80);
+  try {
+    for (const id of IDENTITIES) {
+      await registerUser(ids[id.label], id.email);
+    }
+  } finally {
+    orgsPf.stop();
   }
 
   // Operator membership keyed by the freshly-created Kratos id (the authz subject

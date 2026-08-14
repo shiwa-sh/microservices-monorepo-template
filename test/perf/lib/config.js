@@ -26,6 +26,17 @@ export const API = `${BASE_URL}/api`;
 // rows are identifiable and removable afterwards.
 export const PERF_PREFIX = "perf-";
 
+// The buyer the write scenarios act as. Checkout requires a signed-in caller with
+// an org (ADR-0304), and this is the committed product-user identity that
+// `mise run auth:seed` provisions — the same credentials
+// test/e2e/fixtures/identities.ts holds. They are copied rather than imported
+// because this island runs on k6's engine and cannot read TypeScript (ADR-0601);
+// a copy that drifts fails `setup()` with the login error, not silently.
+export const PERF_USER = {
+  email: __ENV.PERF_USER_EMAIL || "user@e2e.localtest.me",
+  password: __ENV.PERF_USER_PASSWORD || "Pr0duct-e2e-Sessi0n!",
+};
+
 // ── Load profiles ────────────────────────────────────────────────────────────
 // `vus` is the profile's headline concurrency; a scenario scales it by its own
 // weight (a checkout is far heavier than a product list, so the same profile
