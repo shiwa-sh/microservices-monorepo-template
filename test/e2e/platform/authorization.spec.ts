@@ -11,6 +11,9 @@
 import { expect, test, type BrowserContext, type Browser } from "@playwright/test";
 import { BASE_URL } from "../fixtures/env";
 import { passwordLogin, register } from "../fixtures/kratos";
+import { portForward } from "../fixtures/kube";
+
+const KRATOS_ADMIN = "http://127.0.0.1:4434";
 
 // Unique per run: Kratos enforces address uniqueness globally.
 const stamp = Date.now();
@@ -78,6 +81,30 @@ test.describe("order read authorization", () => {
 
   test.afterAll(async () => {
     await Promise.all([buyer?.close(), other?.close(), anonymous?.close()]);
+
+    // Delete both buyers. A registration per run that nobody removes is not
+    // tidiness: the admin console's identity changelist paginates client-side, so
+    // accumulated test identities push the seeded pair off the first page and
+    // admin.spec's "seeded identities appear" assertion starts failing — a failure
+    // that reads as a broken console and is actually this spec's litter.
+    const pf = await portForward("ory-kratos-admin", 4434, 80);
+    try {
+      for (const who of [BUYER, OTHER]) {
+        const res = await fetch(
+          `${KRATOS_ADMIN}/admin/identities?credentials_identifier=${encodeURIComponent(who.email)}`,
+        );
+        if (!res.ok) {
+          continue;
+        }
+        const list = (await res.json()) as Array<{ id: string; traits?: { email?: string } }>;
+        const hit = list.find((i) => i.traits?.email === who.email);
+        if (hit) {
+          await fetch(`${KRATOS_ADMIN}/admin/identities/${hit.id}`, { method: "DELETE" });
+        }
+      }
+    } finally {
+      pf.stop();
+    }
   });
 
   // The row is written by the saga's first activity, so it appears just after the
