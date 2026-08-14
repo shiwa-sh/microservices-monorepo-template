@@ -33,7 +33,12 @@ CHECK=false
 
 OUT="infra/gitops/platform/image-allowlist.yaml"
 SHARED="infra/gitops/platform/shared-values.yaml"
-ENV_VALUES="infra/gitops/platform/local/values.yaml"
+# The environment the list is generated FOR. Image repositories differ by
+# environment — the local tier pulls first-party images from the k3d registry where
+# a deployed one pulls them from ghcr — so the list is per-environment by nature,
+# and this is the one the template ships with.
+ENV_NAME="local"
+ENV_VALUES="infra/gitops/platform/${ENV_NAME}/values.yaml"
 
 # collect_images reads rendered YAML on stdin and prints one image reference per
 # line, from two places.
@@ -66,6 +71,15 @@ collect_images() {
       | .[] | .image // ""
     ' 2>/dev/null || true
     printf '%s' "$rendered" | yq -r '.. | select(has("imageName")) | .imageName' 2>/dev/null || true
+    # A pod template inside a CUSTOM RESOURCE. Temporal's `WorkerDeployment` carries
+    # one, so every worker image lives here and nowhere a kind-based selector looks —
+    # three of this platform's images, rejected by the allow-list they were missing
+    # from. The generic walk is safe because of the charset filter below: a CRD ships
+    # the Kubernetes schema, where `containers` is a property name and `image` holds
+    # a sentence.
+    printf '%s' "$rendered" | yq -r '
+      .. | select(has("template")) | .template.spec.containers // [] | .[] | .image // ""
+    ' 2>/dev/null || true
   } | grep -E '^[a-z0-9][a-z0-9._-]*(:[0-9]+)?(/[a-z0-9._/-]+)+(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]+)?$' || true
 }
 
@@ -87,14 +101,34 @@ for dir in infra/helm/platform/*/; do
   # whatever it did render. The allow-list is a union, and a missing entry surfaces
   # as a rejected pod rather than as a silent hole — Kyverno is the check, this is
   # its input.
-  helm template "$name" "$dir" -f "$SHARED" -f "$ENV_VALUES" 2>/dev/null |
-    collect_images >>"$images" || true
+  # The same fileParameters the ApplicationSets pass. Without them a template gated
+  # on one of these values renders NOTHING and its image is missing from the list —
+  # measured on the OpenFGA seed Job, which is gated on `seed.model` and pulls an
+  # image no other template does. Kyverno then rejected the Job, the app never
+  # became healthy, and the root app sat in its wave with no explanation.
+  #
+  # The paths are relative to the chart, as they are in the appsets. A chart that
+  # does not declare the value ignores it.
+  helm template "$name" "$dir" -f "$SHARED" -f "$ENV_VALUES" \
+    --set-file "seed.model=infra/auth/openfga/model.json" \
+    --set-file "policies.publicKey=infra/auth/cosign/cosign.pub" \
+    --set-file 'kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json' \
+    --set-file "oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json" \
+    2>/dev/null | collect_images >>"$images" || true
 done
 
-# The service chart too: its own image is first-party, but its initContainers and
-# sidecars are not.
-helm template service infra/helm/service -f "$SHARED" 2>/dev/null |
-  collect_images >>"$images" || true
+# The service chart, once PER SERVICE with that service's values — the same way the
+# services ApplicationSet renders it. Rendering it once with chart defaults gives
+# one placeholder repository and misses every real one: the images are
+# `<registry>/<service>-server`, so a five-service platform has ten repositories the
+# default render never names. Kyverno then rejects every service Deployment, which
+# is how this was found.
+for values in infra/gitops/services/"$ENV_NAME"/values/*.yaml; do
+  [ -f "$values" ] || continue
+  helm template "$(basename "$values" .yaml)" infra/helm/service \
+    -f "$SHARED" -f "$values" 2>/dev/null |
+    collect_images >>"$images" || true
+done
 
 target="$OUT"
 if [ "$CHECK" = true ]; then

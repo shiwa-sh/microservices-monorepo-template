@@ -165,7 +165,17 @@ pgweb:
 # is only ever exercised in CI is a policy nobody can debug.
 policies:
   imagePrefix: ""
-  # Audit rather than Enforce wherever a policy DOES get scoped here by hand: a
-  # laptop where nothing can start is a laptop nobody uses, and the report carries
-  # the same information.
+  # Audit, not Enforce, and this is load-bearing rather than lenient.
+  #
+  # The allow-list policy renders here — the generated list is passed to every chart
+  # in the tier — and the inner loop's working-tree path (`cluster:add`) deploys
+  # NODE-RESIDENT images tagged `<service>:local-<timestamp>`, whose repository has
+  # no registry at all. Those cannot be in a list generated from committed values,
+  # and they should not be: a bare repository is exactly what the rule forbids
+  # everywhere it matters. Enforcing here would block the one path this tier exists
+  # for, so the local tier reports instead — which is the same information, minus
+  # the laptop where nothing can start.
+  #
+  # A deployed environment enforces, because nothing there deploys from a working
+  # tree.
   validationFailureAction: Audit

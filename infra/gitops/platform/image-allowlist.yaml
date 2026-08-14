@@ -9,6 +9,7 @@
 # answers the other question — may this image be here at all.
 policies:
   allowedImageSources:
+    - alpine/k8s
     - docker.io/bats/bats
     - docker.io/busybox
     - docker.io/grafana/grafana
@@ -25,6 +26,15 @@ policies:
     - grafana/alloy
     - grafana/pyroscope
     - k3d-registry.localhost:5000/admin
+    - k3d-registry.localhost:5000/authz-server
+    - k3d-registry.localhost:5000/catalog-server
+    - k3d-registry.localhost:5000/frontend
+    - k3d-registry.localhost:5000/orders-server
+    - k3d-registry.localhost:5000/orders-worker
+    - k3d-registry.localhost:5000/orgs-server
+    - k3d-registry.localhost:5000/orgs-worker
+    - k3d-registry.localhost:5000/payment-server
+    - k3d-registry.localhost:5000/payment-worker
     - openfga/openfga
     - otel/opentelemetry-collector-contrib
     - prom/prometheus

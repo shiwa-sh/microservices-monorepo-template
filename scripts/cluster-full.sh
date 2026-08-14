@@ -158,10 +158,20 @@ build_push frontend apps/frontend/Dockerfile . \
 #     and reconciles them to the same charts, so the release records are inert
 #     bookkeeping. Uninstalling them would delete workloads Argo is about to
 #     recreate, for no gain.
-if k -n "$NS" get deploy postgres >/dev/null 2>&1; then
-  echo "→ removing the inner loop's Postgres stand-in (CNPG owns the data tier here)"
-  k -n "$NS" delete deploy/postgres svc/postgres cm/postgres-initdb --ignore-not-found >/dev/null
-fi
+#     All THREE stand-ins, not just Postgres. `dep:temporal` and `dep:openfga` are
+#     opt-in on the inner loop, so whether they exist depends on what someone ran
+#     there — and the one that bites is the quiet one: the stand-in Deployment and
+#     the chart's carry different `spec.selector` values, which is IMMUTABLE, so
+#     ArgoCD retries the update twenty times and gives up with "field is immutable".
+#     The app then sits OutOfSync forever, the root app never leaves its wave, and
+#     nothing says why. Measured on openfga, after Postgres alone had been handled.
+for stand_in in postgres temporal openfga; do
+  if k -n "$NS" get deploy "$stand_in" >/dev/null 2>&1; then
+    echo "→ removing the inner loop's ${stand_in} stand-in (the platform chart owns it here)"
+    k -n "$NS" delete "deploy/${stand_in}" "svc/${stand_in}" --ignore-not-found >/dev/null
+  fi
+done
+k -n "$NS" delete cm/postgres-initdb --ignore-not-found >/dev/null
 if k -n "$NS" get secret kratos-secrets >/dev/null 2>&1 &&
   [ -z "$(k -n "$NS" get secret kratos-secrets -o jsonpath='{.metadata.ownerReferences}')" ]; then
   echo "→ handing kratos-secrets back to the sops-operator"
