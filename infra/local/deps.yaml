@@ -92,7 +92,10 @@ spec:
     spec:
       containers:
         - name: temporal
-          image: temporalio/temporal:latest
+          # A concrete tag, not `latest`: this is the version an inner-loop run gets,
+          # and a moving one means two engineers debug different Temporals
+          # (ADR-0101). Renovate bumps it with the other local stand-ins.
+          image: temporalio/temporal:1.8.2
           args: ["server", "start-dev", "--ip", "0.0.0.0"]
           ports:
             - { name: grpc, containerPort: 7233 }

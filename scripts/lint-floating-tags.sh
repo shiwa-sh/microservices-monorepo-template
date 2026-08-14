@@ -22,7 +22,11 @@ scan() {
   fi
 }
 
-paths=(Dockerfile infra/helm .github/workflows .mise.toml services apps)
+# infra/local is in the list because the inner loop is where a floating tag does
+# its quietest damage: nobody reviews a dev stand-in, and a version that moved
+# under one engineer and not another produces a bug neither can reproduce. The
+# Temporal stand-in sat on `latest` for exactly as long as this gate did not look.
+paths=(Dockerfile infra/helm infra/local .github/workflows .mise.toml services apps)
 
 # Floating image tags in Helm values / Dockerfiles / workflows.
 scan "floating image tags" \

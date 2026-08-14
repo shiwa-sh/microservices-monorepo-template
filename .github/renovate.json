@@ -1,26 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":semanticCommits", ":dependencyDashboard"],
-
   "description": [
     "Dependency updates per ADR-0106. Renovate opens the pull request; the gates decide.",
     "It merges nothing: every update passes the same lint, drift, and test gates a human PR passes, because a bump that skips them is a pin that was never load-bearing.",
     "A dependency held back carries its reason on the package rule that holds it. A pin with no recorded reason is treated as unreviewed."
   ],
-
   "labels": ["dependencies"],
   "rangeStrategy": "pin",
   "pinDigests": true,
   "separateMajorMinor": true,
   "separateMultipleMajor": true,
   "dependencyDashboard": true,
-
   "schedule": ["before 6am on monday"],
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"]
   },
-
   "packageRules": [
     {
       "description": "A major version is a decision, so it is proposed alone and never joins a group (ADR-0106).",
@@ -70,9 +66,15 @@
       "matchDepNames": ["template"],
       "groupName": "template",
       "groupSlug": "template"
+    },
+    {
+      "description": "The inner loop's local stand-ins (infra/local/*.yaml): Postgres, the Temporal dev server, OpenFGA and the API mock. One PR, because they are one thing \u2014 the floor an engineer runs against (ADR-0600) \u2014 and none of them is deployed anywhere.",
+      "matchManagers": ["kubernetes"],
+      "matchFileNames": ["infra/local/**"],
+      "groupName": "local dev stand-ins",
+      "groupSlug": "local-deps"
     }
   ],
-
   "customManagers": [
     {
       "description": "Copier records the template commit a generated project tracks. Renovate bumps it; `copier update` performs the 3-way merge (ADR-0106).",
@@ -94,12 +96,14 @@
       "extractVersionTemplate": "^v(?<version>.+)$"
     }
   ],
-
   "vulnerabilityAlerts": {
-    "description": "A CVE with a fixed version available is proposed immediately, outside the batch — it is the one class where the weekly slot is too slow (ADR-0106, ADR-0104).",
+    "description": "A CVE with a fixed version available is proposed immediately, outside the batch \u2014 it is the one class where the weekly slot is too slow (ADR-0106, ADR-0104).",
     "labels": ["dependencies", "security"],
     "schedule": ["at any time"],
     "minimumReleaseAge": null
   },
-  "osvVulnerabilityAlerts": true
+  "osvVulnerabilityAlerts": true,
+  "kubernetes": {
+    "managerFilePatterns": ["/^infra/local/.+\\.ya?ml$/"]
+  }
 }
