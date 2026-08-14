@@ -1,0 +1,174 @@
+# The API mock for the UI development loop (ADR-0600). Local-only, like the rest of
+# infra/local/: it appears in no chart, no deployed environment, and no tier in
+# docs/operational-surface.md.
+#
+# What it replaces and what it does not. The mock stands in for every application
+# service on /api — and for nothing else. The edge in front of it is the real one,
+# middleware chain included, because the 401/403 behaviour is Oathkeeper's and the
+# mock has no authentication or authorization responsibility to fake (ADR-0600):
+# it issues no 401, is unaware of sessions, and ignores every credential it sees.
+# That is not a simplification. Authentication is enforced outside OpenAPI, so no
+# spec declares a securityScheme, and a contract mock derives behaviour from the
+# spec alone.
+#
+# Its only input is the committed `internal.json` projection — the frontend's edge
+# surface by construction, merged, drift-checked. The ConfigMap holding it is NOT
+# in this file: `mise run mock:start` stamps it from the artifact on every run, so
+# the mock cannot serve a spec older than the working tree.
+#
+# Prism runs examples-first (its default): committed `example` values from the
+# specs, falling back to schema generation only where a response has none. That
+# fallback is the weak mode — an array schema with no minItems legitimately
+# generates an empty list — and the fix belongs in the contract, where the same
+# example also renders in the developer portal.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: mock
+    local.platform/component: mock
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: mock }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mock
+        local.platform/component: mock
+      annotations:
+        # Roll the pod whenever the stamped spec changes. Prism reads the document
+        # once at startup, so without this a re-stamped ConfigMap would leave the
+        # old contract being served until someone noticed.
+        local.platform/spec-hash: "stamped-by-mock-start"
+    spec:
+      containers:
+        - name: prism
+          # A vendored container: no package.json, no lockfile, no node_modules
+          # anywhere in the repo (ADR-0600, enforced by lint:node-scope).
+          image: stoplight/prism:5.15.10
+          # `-h 0.0.0.0` because the container's default binding is loopback, which
+          # a Service cannot reach.
+          #
+          # `--multiprocess false` because the default (true) crashes this image on
+          # startup: `createMultiProcessPrism` reads `cluster.isPrimary` off an
+          # undefined import and the process exits before it binds. Forking exists
+          # to speed up log processing, which is not a property this loop needs.
+          #
+          # `--errors true` is the request validation ADR-0600 chose Prism for: an
+          # unknown route 404s and a body that violates the schema 422s, instead of
+          # being answered with a cheerful example. That feedback is the difference
+          # between a mock and a fixture server.
+          args:
+            - mock
+            - -h
+            - 0.0.0.0
+            - -p
+            - "4010"
+            - --multiprocess
+            - "false"
+            - --errors
+            - "true"
+            - /spec/internal.json
+          ports:
+            - { name: http, containerPort: 4010 }
+          readinessProbe:
+            httpGet: { path: /products, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { memory: "256Mi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec, readOnly: true }
+      volumes:
+        - name: spec
+          configMap: { name: mock-spec }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: mock
+    local.platform/component: mock
+spec:
+  selector: { app.kubernetes.io/name: mock }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+# The /api takeover. An explicit priority, not Traefik's default rule-length
+# ordering: a real service's route is `PathPrefix(/api/orders)`, which is a LONGER
+# rule than this one and would otherwise win wherever the full tier is also
+# running. The number is above any rule length a service route can reach, so
+# starting the mock means the mock answers — and stopping it hands /api straight
+# back, with nothing left behind to unwind.
+#
+# `/api` is stripped before the mock. `internal.json` declares
+# `servers: [{url: /api}]`, but Prism routes on the spec's `paths` alone and
+# ignores the server prefix — `/api/products` answers NO_PATH_MATCHED while
+# `/products` resolves. That makes the chain here the same one a real service gets,
+# stripprefix included: identity headers stripped, forward-auth, security headers,
+# then the prefix removed. Order matters — Oathkeeper matches on the original URL,
+# so the strip has to come after it, exactly as the service chart orders it.
+# The edge reaches nothing it has not been allowed to (ADR-0206): the baseline is
+# default-deny, and every edge-fronted workload carries its own ingress rule. The
+# real services get theirs from the service chart, which the mock does not use, so
+# it carries its own here — local-only, like the rest of this file. Cilium enforces
+# on the pod's containerPort, not the Service port in front of it.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: mock
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: mock
+    local.platform/component: mock
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: mock
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "4010", protocol: TCP }]
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: mock-stripprefix
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: mock
+    local.platform/component: mock
+spec:
+  stripPrefix:
+    prefixes: ["/api"]
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: mock
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: mock
+    local.platform/component: mock
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: Host(`dev.localtest.me`) && PathPrefix(`/api`)
+      priority: 1000
+      middlewares:
+        - { name: strip-identity-headers, namespace: platform }
+        - { name: oathkeeper-forward-auth, namespace: platform }
+        - { name: security-headers, namespace: platform }
+        - { name: mock-stripprefix, namespace: platform }
+      services:
+        - { name: mock, port: 80 }
+  tls:
+    secretName: wildcard-tls

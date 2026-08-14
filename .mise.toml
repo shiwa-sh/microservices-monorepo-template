@@ -270,6 +270,22 @@ run = "bash scripts/dev-forward.sh"
 env = { EDGE_PUBLIC_ORIGIN = "https://dev.localtest.me:8443" }
 run = "bash scripts/dev-frontend.sh"
 
+[tasks."mock:start"]
+# The API mock for UI work (ADR-0600): Prism serving the committed `internal.json`
+# projection, behind the real edge and its real middleware chain. It takes over
+# /api at a priority no service route can reach, so it works whether or not the
+# full tier is running. Local tooling only — it is forbidden in `test`,
+# `ci:affected`, and the e2e and visual suites.
+run = "bash scripts/mock.sh start"
+
+[tasks."mock:stop"]
+run = "bash scripts/mock.sh stop"
+
+[tasks."mock:logs"]
+# The interesting output: a request that matched no operation, and a body that
+# failed the spec's own validation.
+run = "bash scripts/mock.sh logs"
+
 [tasks."db:migrate"]
 run = "bash scripts/db-migrate.sh"
 

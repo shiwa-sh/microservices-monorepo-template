@@ -133,7 +133,7 @@ bash scripts/identity-seed.sh
 # The credentials are committed once, in the e2e fixtures; read them rather than
 # repeating them here (bun reads the .ts directly — no Node, no e2e install).
 login_email="$(bun --silent -e \
-  "console.log((await import('${ROOT}/e2e/fixtures/identities.ts')).USER.email)" 2>/dev/null ||
+  "console.log((await import('${ROOT}/test/e2e/fixtures/identities.ts')).USER.email)" 2>/dev/null ||
   echo '<see test/e2e/fixtures/identities.ts>')"
 
 cat <<EOF
@@ -149,8 +149,11 @@ cat <<EOF
                  (password: test/e2e/fixtures/identities.ts — sessions last 7 days)
   Teardown:      mise run cluster:stop  (keep cache) / cluster:delete (delete)
 
-  Base alone serves no application data: /api routes 404 until you add the service
-  behind them. The auth path is complete — logging in, CSRF, expiry and the
+  Base alone serves no application data: /api routes 404 until something answers
+  behind them — a service you add, or the contract mock:
+    mise run mock:start                     /api from the committed OpenAPI
+
+  The auth path is complete either way — logging in, CSRF, expiry and the
   Oathkeeper 401/403 all behave as they do in production.
 
   Persistence here is ephemeral (the Postgres stand-in has no volume) and no

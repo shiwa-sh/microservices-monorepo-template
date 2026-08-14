@@ -108,7 +108,7 @@ mise run cluster:base
 mise run dev:frontend    # host :3000, reached through the edge
 ```
 
-The mock is a vendored Prism container fed the committed `internal.json` projection, started with the floor. `mise run mock:start`, `mock:stop`, and `mock:logs` control it directly when you need to.
+The mock is a vendored Prism container fed the committed `internal.json` projection, added on top of the floor rather than part of it — `mise run mock:start` stamps the current projection into the cluster and takes over `/api`, `mock:stop` hands `/api` straight back, and `mock:logs` shows what it matched. Starting it is idempotent: an unchanged projection leaves the pod alone.
 
 `dev:frontend` extracts the local CA from the cluster and trusts exactly it, so nothing disables TLS verification — the same mechanism the in-cluster image uses.
 
