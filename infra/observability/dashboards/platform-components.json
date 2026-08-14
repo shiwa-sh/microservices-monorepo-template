@@ -3,30 +3,46 @@
   "uid": "platform-components",
   "schemaVersion": 39,
   "tags": ["platform", "components"],
-  "description": "Component-native metrics for the platform tier (ADR-0501): postgres via the CNPG instance manager's built-in exporter (:9187, includes the pgbouncer poolers) and the Temporal server roles (:9090) — scraped by the otel-cluster collector and re-exported over OTLP, so Prometheus itself still scrapes nothing (ADR-0500). These are the components' REAL golden signals (transactions, task latencies) — they are not HTTP servers, so forcing them into the service-detail SLO/RED panels would be fake. Universal health for the same workloads (pods/restarts/logs/resources) lives on service-detail.",
+  "description": "Component-native metrics for the platform tier (ADR-0501): postgres via the CNPG instance manager's built-in exporter (:9187, includes the pgbouncer poolers) and the Temporal server roles (:9090) \u2014 scraped by the otel-cluster collector and re-exported over OTLP, so Prometheus itself still scrapes nothing (ADR-0500). These are the components' REAL golden signals (transactions, task latencies) \u2014 they are not HTTP servers, so forcing them into the service-detail SLO/RED panels would be fake. Universal health for the same workloads (pods/restarts/logs/resources) lives on service-detail.",
   "links": [
     {
-      "title": "◀ Back to Applications",
+      "title": "\u25c0 Back to Applications",
       "type": "link",
       "url": "/d/applications/applications?${__url_time_range}",
       "icon": "external link"
     }
   ],
-  "templating": { "list": [] },
+  "templating": {
+    "list": []
+  },
   "panels": [
     {
       "type": "row",
       "title": "PostgreSQL (CNPG exporter)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "type": "timeseries",
       "title": "Transactions/s by database",
-      "description": "Commits + rollbacks per second per database — postgres's request rate.",
+      "description": "Commits + rollbacks per second per database \u2014 postgres's request rate.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
-      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -40,8 +56,17 @@
       "title": "Backends by database",
       "description": "Open server connections per database. The poolers keep this low and steady (ADR-0300, transaction mode); a climb here means something is bypassing pgbouncer or leaking connections.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
-      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -55,16 +80,36 @@
       "title": "Cache hit ratio / deadlocks",
       "description": "Shared-buffers hit ratio (left, should sit near 100%) and deadlocks per second (right, should sit at zero).",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "fieldConfig": {
-        "defaults": { "unit": "percentunit", "max": 1 },
+        "defaults": {
+          "unit": "percentunit",
+          "max": 1
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "deadlocks/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "deadlocks/s"
+            },
             "properties": [
-              { "id": "unit", "value": "ops" },
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "max", "value": null }
+              {
+                "id": "unit",
+                "value": "ops"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "max",
+                "value": null
+              }
             ]
           }
         ]
@@ -85,10 +130,19 @@
     {
       "type": "timeseries",
       "title": "WAL write rate",
-      "description": "Bytes of WAL generated per second — the write-load signal, and (with backups enabled) what ships to the object store.",
+      "description": "Bytes of WAL generated per second \u2014 the write-load signal, and (with backups enabled) what ships to the object store.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
-      "fieldConfig": { "defaults": { "unit": "Bps" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -102,8 +156,17 @@
       "title": "Database size",
       "description": "On-disk size per database.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 9 },
-      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -117,8 +180,17 @@
       "title": "Longest transaction",
       "description": "Max open-transaction duration across backends. Long-running transactions block vacuum and bloat the poolers (transaction mode holds a server connection for the whole transaction).",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
-      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -130,7 +202,12 @@
     {
       "type": "row",
       "title": "Temporal (server metrics)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": []
     },
     {
@@ -138,8 +215,17 @@
       "title": "gRPC request rate by role",
       "description": "service_requests_total per second, split by server role (the per-role identity survives in the `type` label; the exporter's own service_name label is dropped by otel-cluster to keep the workload identity whole).",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
-      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -151,10 +237,19 @@
     {
       "type": "timeseries",
       "title": "Frontend latency p50 / p95 / p99",
-      "description": "Client-facing gRPC latency at the frontend role — Temporal's own \"D\" of RED. Long-poll operations are excluded: they block ~60s by design and would swamp the percentiles.",
+      "description": "Client-facing gRPC latency at the frontend role \u2014 Temporal's own \"D\" of RED. Long-poll operations are excluded: they block ~60s by design and would swamp the percentiles.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
-      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -178,15 +273,34 @@
       "title": "Persistence requests / errors",
       "description": "Temporal's calls into its postgres store. Error rate here (right axis) is the first place database trouble surfaces.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
       "fieldConfig": {
-        "defaults": { "unit": "ops" },
+        "defaults": {
+          "unit": "ops"
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "errors/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "errors/s"
+            },
             "properties": [
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
             ]
           }
         ]
@@ -209,8 +323,17 @@
       "title": "Workflow completions/s",
       "description": "Successfully completed workflow executions per second.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
-      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -222,15 +345,141 @@
     {
       "type": "timeseries",
       "title": "Task schedule-to-start p95",
-      "description": "How long tasks sit in matching queues before a worker picks them up — the backlog/worker-starvation signal. Rising p95 with flat request rate means workers are under-provisioned.",
+      "description": "How long tasks sit in matching queues before a worker picks them up \u2014 the backlog/worker-starvation signal. Rising p95 with flat request rate means workers are under-provisioned.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
-      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(task_schedule_to_start_latency_bucket{service_name=\"temporal\"}[5m])))",
-          "legendFormat": "p95 schedule→start"
+          "legendFormat": "p95 schedule\u2192start"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Kyverno (admission control)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Admission review latency p50 / p95 / p99",
+      "description": "kyverno_admission_review_duration_seconds. This is time the API SERVER spends waiting: every create and update in the cluster is blocked on it. The webhook timeout is 30s, and a review that reaches it is decided by the failurePolicy rather than by the policy (ADR-0104).",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(kyverno_admission_review_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(kyverno_admission_review_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(kyverno_admission_review_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Policy results by rule",
+      "description": "kyverno_policy_results_total split by policy, rule and outcome. A `fail` here is an image this platform refused to run \u2014 an unsigned build, a floating tag, or a registry that is not on the allow-list. Sustained fails mean a pipeline is producing images the cluster will not accept.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (policy_name, rule_name, rule_result) (rate(kyverno_policy_results_total[5m]))",
+          "legendFormat": "{{policy_name}}/{{rule_name}} {{rule_result}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Controller reconciles/s",
+      "description": "kyverno_controller_reconcile_total by controller. Flat zero on every controller is what the KyvernoAdmissionControllerAbsent alert fires on: a controller that is not running exports nothing, so absence \u2014 not a threshold \u2014 is the signal.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (controller_name) (rate(kyverno_controller_reconcile_total[5m]))",
+          "legendFormat": "{{controller_name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Admission requests/s by operation",
+      "description": "kyverno_admission_requests_total. The volume the webhook is carrying; read beside the latency panel, since the two together are what decides whether the 30s timeout is anywhere near being reached.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (operation) (rate(kyverno_admission_requests_total[5m]))",
+          "legendFormat": "{{operation}}"
         }
       ]
     }

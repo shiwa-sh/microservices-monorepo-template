@@ -393,7 +393,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -465,6 +465,13 @@ run = "go run ./tools/lint-service-deps"
 # a missing registration invisible until a real workflow fails with "unable to find
 # activityType" — in the workflow history, where nobody looks first.
 run = "go run ./tools/lint-activity-register"
+
+[tasks."lint:authz-dual-write"]
+# ADR-0304's dual-write rule, statically: a tuple is written from an activity, never
+# from a handler. There is no transaction across Postgres and OpenFGA, so the saga
+# is what makes "the row exists and the tuple exists" eventually true — a handler
+# that does both leaves a resource that exists and nobody can read.
+run = "go run ./tools/lint-authz-dual-write"
 
 [tasks."lint:money"]
 # The monetary-value gate (ADR-0100, ADR-0300): a money-ish OpenAPI property is the

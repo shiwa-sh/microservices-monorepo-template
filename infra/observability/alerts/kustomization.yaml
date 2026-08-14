@@ -28,3 +28,4 @@ configMapGenerator:
       - policy-drops.yaml
       - workload-health.yaml
       - capacity.yaml
+      - admission.yaml

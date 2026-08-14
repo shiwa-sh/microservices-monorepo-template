@@ -59,6 +59,30 @@ spec:
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
 ---
+## otel-cluster → Kyverno's metrics (ADR-0104, ADR-0500). The only cross-namespace
+## scrape in this repo, and it needs an EGRESS rule because the baseline allows
+## reaching `platform` and nothing else — Kyverno runs in its own namespace, since
+## it excludes the namespace it lives in from every policy.
+##
+## Measured: with the scrape config and no rule, the collector discovers all four
+## controllers and every scrape fails. The symptom is an empty admission dashboard
+## and an alert that never fires, which is the same shape as the prometheus rule
+## below it — that push was netpol-dropped from the day it was written.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: otel-cluster-kyverno-scrape
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: otel-cluster
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kyverno
+      toPorts:
+        - ports: [{ port: "8000", protocol: TCP }]
+---
 ## Tempo — trace push (OTLP 4317/4318) from OTel, queries (3200) from Grafana.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

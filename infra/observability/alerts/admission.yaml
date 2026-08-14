@@ -1,0 +1,79 @@
+# Admission-control alerts (ADR-0104, ADR-0500). Native Prometheus rule-file
+# format — mounted into Prometheus via the `prometheus-alerts` ConfigMap (see
+# service-availability.yaml for the delivery path).
+#
+# Kyverno sits in the write path of every API write this cluster accepts, which
+# makes its health a different kind of problem from a workload's. A workload that
+# stops answering produces failing requests someone notices. An admission controller
+# that stops answering produces one of two silences:
+#
+#   - the fail-CLOSED webhook (our signature policy) rejects every pod creation,
+#     which looks like "the cluster stopped scheduling" and points nowhere near
+#     admission;
+#   - the fail-OPEN webhook admits everything unverified, which looks like nothing
+#     at all. The control has quietly stopped existing, and the first evidence is an
+#     unsigned image running in production.
+#
+# The second is the case ADR-0104's Kyverno decision is bought for, so it needs an
+# alert of its own rather than being inferred from the absence of denials.
+groups:
+  - name: admission.availability
+    rules:
+      # `absent()` rather than a threshold on a counter: a controller that is gone
+      # exports nothing, so every rate() over its series is empty and every
+      # comparison silently evaluates to no data. Absence IS the signal here, and
+      # it is the only shape that fires when the process is not there to report.
+      - alert: KyvernoAdmissionControllerAbsent
+        expr: |
+          absent(kyverno_controller_reconcile_total{service_name="kyverno"})
+        for: 10m
+        labels: { severity: page }
+        annotations:
+          summary: "Kyverno is not reporting — image admission control is not running"
+          description: >-
+            No metrics from Kyverno for 10 minutes. Every image-provenance check
+            (ADR-0104) runs in its webhooks, so the cluster is either rejecting all
+            pod creations (the fail-closed policy) or admitting images with no
+            signature check at all. Check `kubectl -n kyverno get pods` and the
+            ValidatingWebhookConfigurations; a webhook whose service is gone is the
+            failure this alert exists for.
+
+      # The webhook has a 30s timeout and the API server gives up on it; a request
+      # that reaches the timeout is admitted or rejected by the failurePolicy rather
+      # than by the policy. Sustained slowness is therefore the same failure as
+      # being down, arriving gradually — which is exactly the shape nobody notices.
+      - alert: KyvernoAdmissionSlow
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le) (rate(kyverno_admission_review_duration_seconds_bucket[10m]))
+          ) > 10
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Kyverno admission reviews are approaching the webhook timeout"
+          description: >-
+            p99 admission review latency is over 10s against a 30s webhook timeout.
+            Signature verification reaches the registry, so this is usually the
+            registry being slow or unreachable rather than Kyverno itself — and a
+            review that times out is decided by the failurePolicy, not by the
+            policy.
+
+  - name: admission.enforcement
+    rules:
+      # A rejection is not an incident: it is the control working, and one arrives
+      # every time someone deploys something unsigned. A SUSTAINED stream of them is
+      # different — it means a pipeline is producing images this cluster will not
+      # run, and every rollout it attempts is failing.
+      - alert: KyvernoRejectionsSustained
+        expr: |
+          sum(rate(kyverno_policy_results_total{rule_result="fail"}[15m])) > 0.05
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Admission is rejecting workloads continuously"
+          description: >-
+            Kyverno has been failing policy checks for 30 minutes. Either a
+            deployment is retrying against a policy it cannot satisfy — an unsigned
+            image, a floating tag, an unlisted registry — or a policy has become
+            wrong. `kubectl get clusterpolicyreport -A` names the resources.

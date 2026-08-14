@@ -36,23 +36,37 @@ SHARED="infra/gitops/platform/shared-values.yaml"
 ENV_VALUES="infra/gitops/platform/local/values.yaml"
 
 # collect_images reads rendered YAML on stdin and prints one image reference per
-# line.
+# line, from two places.
 #
-# It selects WORKLOAD DOCUMENTS by kind and reads their pod spec, rather than
-# walking for any `image` key. A chart that ships CRDs ships the Kubernetes API
-# schema with them, where `containers` is a property name and `image` is a field
-# description — a generic walk collects "Container image name." as a registry, which
-# is how a generated list quietly becomes nonsense.
+# 1. WORKLOAD documents, by kind, reading their pod specs. Precise, and the only
+#    place most images live.
+# 2. Any `image` or `imageName` key anywhere in the document. This is the half that
+#    catches an image reaching a pod through a CUSTOM RESOURCE rather than through a
+#    pod spec — CNPG's `Cluster.spec.imageName` is the one that taught this: the
+#    allow-list was generated without it, Kyverno rejected the operator's own
+#    Postgres pod, and the failure surfaced as a PVC stuck WaitForFirstConsumer with
+#    nothing in the operator's log. An operator that builds pods from a CR is exactly
+#    the case a workload-only walk cannot see.
+#
+# The charset filter is what makes (2) safe: a chart that ships CRDs ships the
+# Kubernetes API schema, where `image` is a field DESCRIPTION. "Container image
+# name." is not a reference and does not survive the grep.
 collect_images() {
-  yq -r '
-    select(.kind == "Deployment" or .kind == "StatefulSet" or .kind == "DaemonSet"
-        or .kind == "Job" or .kind == "ReplicaSet" or .kind == "Pod"
-        or .kind == "CronJob")
-    | [.spec.template.spec, .spec.jobTemplate.spec.template.spec, .spec]
-    | .[] | select(. != null)
-    | ((.containers // []) + (.initContainers // []) + (.ephemeralContainers // []))
-    | .[] | .image // ""
-  ' 2>/dev/null | grep -vE '^\s*$' || true
+  local rendered
+  rendered="$(cat)"
+
+  {
+    printf '%s' "$rendered" | yq -r '
+      select(.kind == "Deployment" or .kind == "StatefulSet" or .kind == "DaemonSet"
+          or .kind == "Job" or .kind == "ReplicaSet" or .kind == "Pod"
+          or .kind == "CronJob")
+      | [.spec.template.spec, .spec.jobTemplate.spec.template.spec, .spec]
+      | .[] | select(. != null)
+      | ((.containers // []) + (.initContainers // []) + (.ephemeralContainers // []))
+      | .[] | .image // ""
+    ' 2>/dev/null || true
+    printf '%s' "$rendered" | yq -r '.. | select(has("imageName")) | .imageName' 2>/dev/null || true
+  } | grep -E '^[a-z0-9][a-z0-9._-]*(:[0-9]+)?(/[a-z0-9._/-]+)+(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]+)?$' || true
 }
 
 step "rendering every platform chart to collect its images"

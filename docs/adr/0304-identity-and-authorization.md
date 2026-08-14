@@ -330,7 +330,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - Directory provisioning ships only after the documented contract trigger fires. Until then, membership changes go through invitations.
 - Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. `(CI: ci:lint)`
 - The OpenFGA schema is one global file. Per-service schemas are not used. `(CI: lint:authz)`
-- Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. `(CI: lint:authz)`
+- Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. `(CI: lint:authz-dual-write)`
 - Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
 - Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer.
 - A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.

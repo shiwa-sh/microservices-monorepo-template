@@ -460,7 +460,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Directory provisioning ships only after the documented contract trigger fires. Until then, membership changes go through invitations. | review |
 | Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. | `ci:lint` in CI |
 | The OpenFGA schema is one global file. Per-service schemas are not used. | `lint:authz` in CI |
-| Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. | `lint:authz` in CI |
+| Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. | `lint:authz-dual-write` in CI |
 | Inline role checks in handlers are not used. Every permission decision goes through `Checker`. | `lint:authz` in CI |
 | Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer. | review |
 | A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine. | review |

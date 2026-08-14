@@ -135,6 +135,33 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
+            # Kyverno (ADR-0104), in its OWN namespace — it excludes the namespace
+            # it runs in from every policy, so it cannot share `platform`. That is
+            # why this job names the namespace explicitly where the two above
+            # inherit the release's.
+            #
+            # It is in the write path of every API write this cluster accepts, so
+            # "is it up" is not an operational nicety: a controller that is down
+            # either blocks every pod creation (the fail-closed webhook) or admits
+            # everything unverified (the fail-open one), and neither announces
+            # itself. The alert on these series is in
+            # infra/observability/alerts/admission.yaml.
+            #
+            # The port name differs by controller — `metrics-port` on the admission
+            # controller, `metrics` on the other three — so the keep regex accepts
+            # both rather than silently dropping the one that matters most.
+            - job_name: kyverno
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [kyverno] }
+                  selectors:
+                    - role: pod
+                      label: "app.kubernetes.io/part-of=kyverno"
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: "metrics(-port)?"
     processors:
       # Same workload-identity mapping the DaemonSet's kubernetesAttributes
       # preset applies: associate pod-scoped resources by k8s.pod.uid and derive
