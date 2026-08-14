@@ -34,8 +34,10 @@ blocks:
               headerName: Id
             - field: order_id
               headerName: Order id
-            - field: amount_cents
-              headerName: Amount cents
+            - field: amount.amount
+              headerName: Amount
+            - field: amount.currency
+              headerName: Currency
             - field: status
               headerName: Status
           pagination: true

@@ -70,11 +70,13 @@ blocks:
       - id: name
         type: TextInput
         properties:
-          label: Name
+          label:
+            title: Name
       - id: operator
         type: Switch
         properties:
-          label: Operator
+          label:
+            title: Operator
       - id: save
         type: Button
         properties:

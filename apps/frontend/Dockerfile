@@ -14,6 +14,7 @@ COPY package.json bun.lock ./
 # A new member needs a line here — the root list and this stage are one decision.
 COPY apps/frontend/package.json apps/frontend/
 COPY libs/ts/id/package.json libs/ts/id/
+COPY libs/ts/money/package.json libs/ts/money/
 RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
 
 FROM oven/bun:${BUN_VERSION}-alpine AS build

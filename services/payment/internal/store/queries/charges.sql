@@ -1,13 +1,16 @@
 -- name: CreateCharge :one
-insert into charges (id, order_id, amount_cents, status, idempotency_key)
-values ($1, $2, $3, 'pending', $4)
-returning id, order_id, amount_cents, status;
+-- amount_cents is written from the money columns until the follow-up migration
+-- drops it: the column is still NOT NULL, and nothing reads it any more.
+insert into charges (id, order_id, amount, currency, status, idempotency_key, amount_cents)
+values ($1, $2, $3, $4, 'pending', $5, ($3::numeric * 100)::integer)
+returning id, order_id, amount, currency, status;
 
 -- name: ListCharges :many
 select
   id,
   order_id,
-  amount_cents,
+  amount,
+  currency,
   status
 from charges
 order by created_at desc limit 100;
@@ -16,7 +19,8 @@ order by created_at desc limit 100;
 select
   id,
   order_id,
-  amount_cents,
+  amount,
+  currency,
   status
 from charges
 where id = $1;
@@ -25,7 +29,8 @@ where id = $1;
 select
   id,
   order_id,
-  amount_cents,
+  amount,
+  currency,
   status
 from charges
 where idempotency_key = $1;

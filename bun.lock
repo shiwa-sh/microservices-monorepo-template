@@ -16,6 +16,7 @@
         "@grafana/faro-web-tracing": "2.7.1",
         "@hookform/resolvers": "5.4.0",
         "@libs/id": "workspace:*",
+        "@libs/money": "workspace:*",
         "@openfeature/web-sdk": "1.9.0",
         "@scalar/api-reference-react": "0.9.54",
         "@tanstack/react-query": "5.101.0",
@@ -48,6 +49,10 @@
     },
     "libs/ts/id": {
       "name": "@libs/id",
+      "version": "0.0.0",
+    },
+    "libs/ts/money": {
+      "name": "@libs/money",
       "version": "0.0.0",
     },
   },
@@ -205,6 +210,8 @@
     "@lezer/yaml": ["@lezer/yaml@1.0.4", "", { "dependencies": { "@lezer/common": "^1.2.0", "@lezer/highlight": "^1.0.0", "@lezer/lr": "^1.4.0" } }, "sha512-2lrrHqxalACEbxIbsjhqGpSW8kWpUKuY6RHgnSAFZa6qK62wvnPxA8hGOwOoDbwHcOFs5M4o27mjGu+P7TvBmw=="],
 
     "@libs/id": ["@libs/id@workspace:libs/ts/id"],
+
+    "@libs/money": ["@libs/money@workspace:libs/ts/money"],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.3", "", {}, "sha512-FY+MKLBoTsLNJF/eLWaOsXGdz6uh3Iu1axjPf6TUq92IYumcTcXWHoS747JARLkcdlJ/Waiaxc5wQfFO8jC6NA=="],
 

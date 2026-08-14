@@ -22,9 +22,9 @@ paths:
                 # verbatim, and an unconstrained array schema generates an empty list —
                 # a UI built against that has no rows, no pagination, and no truncation.
                 example:
-                  - {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price_cents: 129900}
-                  - {id: product_01kztn1f78evjtsk2gbgjk5hs3, name: Standing desk, price_cents: 89900}
-                  - {id: product_01kztn5n0gfphac1fsep3b64nj, name: Monitor arm, price_cents: 14900}
+                  - {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price: {amount: "1299.00", currency: EUR}}
+                  - {id: product_01kztn1f78evjtsk2gbgjk5hs3, name: Standing desk, price: {amount: "899.00", currency: EUR}}
+                  - {id: product_01kztn5n0gfphac1fsep3b64nj, name: Monitor arm, price: {amount: "149.00", currency: EUR}}
         default: {$ref: "#/components/responses/Error"}
     post:
       operationId: createProduct
@@ -138,16 +138,41 @@ components:
               pointer:
                 type: string
                 description: RFC 6901 JSON Pointer to the offending member.
-                example: /price_cents
+                example: /price/amount
               message:
                 type: string
-                example: must be greater than or equal to 0
+                example: must be a decimal amount
       example:
         type: "about:blank"
         title: Not Found
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
+    # IEEE-754 double by every TypeScript client, and a double cannot represent a
+    # decimal amount exactly. A `type: number` monetary field is a contract defect.
+    Money:
+      type: object
+      description: |
+        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+        double in the TypeScript client, and a double cannot hold a decimal amount
+        exactly. Currency travels with the amount, because an amount without one is
+        not a quantity of anything.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal amount, sign-prefixed when negative. No thousands separators.
+          pattern: '^-?[0-9]+(\.[0-9]+)?$'
+          example: "1299.00"
+        currency:
+          type: string
+          description: ISO 4217 alphabetic code, uppercase.
+          pattern: "^[A-Z]{3}$"
+          example: EUR
+      example:
+        amount: "1299.00"
+        currency: EUR
     # <<< shared-components
     # A wire identifier (ADR-0003). The stored column stays a bare `uuid`; this form
     # exists so a value in a log line, a ticket, or a URL says what it is.
@@ -162,19 +187,22 @@ components:
     Product:
       type: object
       description: A catalog product.
-      required: [id, name, price_cents]
+      required: [id, name, price]
       properties:
         id: {$ref: "#/components/schemas/ProductId"}
         name: {type: string}
-        price_cents: {type: integer, minimum: 0}
+        # The shared money type (ADR-0300): a decimal STRING with its currency, never
+        # a JSON number — a double cannot hold a decimal amount exactly — and never
+        # an integer of minor units, which pushes the scale into every reader.
+        price: {$ref: "#/components/schemas/Money"}
       # One example on the schema serves every response that references it — the
       # detail page, the create/update echo, the developer portal, and the API mock
       # (ADR-0303, ADR-0600). It is code-reviewed data, not generated noise.
-      example: {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price_cents: 129900}
+      example: {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price: {amount: "1299.00", currency: EUR}}
     ProductInput:
       type: object
       description: Request body to create a product.
-      required: [name, price_cents]
+      required: [name, price]
       properties:
         name: {type: string, minLength: 1}
-        price_cents: {type: integer, minimum: 0}
+        price: {$ref: "#/components/schemas/Money"}

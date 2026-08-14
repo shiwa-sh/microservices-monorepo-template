@@ -24,9 +24,9 @@ paths:
                 # Served verbatim by the API mock (ADR-0600); the statuses vary so the
                 # UI has to render every one of them.
                 example:
-                  - { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount_cents: 259800, status: settled }
-                  - { id: charge_01kztp2xh8e6nr9gh2xr7ryye5, order_id: order_01kztnpc5gfx2a9kkhxe1h4ar3, amount_cents: 89900, status: pending }
-                  - { id: charge_01kztp73agejgvn558snqmna6f, order_id: order_01kztnthyrfsj8a9pjx1md2pqs, amount_cents: 59600, status: refunded }
+                  - { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount: { amount: "2598.00", currency: EUR }, status: settled }
+                  - { id: charge_01kztp2xh8e6nr9gh2xr7ryye5, order_id: order_01kztnpc5gfx2a9kkhxe1h4ar3, amount: { amount: "899.00", currency: EUR }, status: pending }
+                  - { id: charge_01kztp73agejgvn558snqmna6f, order_id: order_01kztnthyrfsj8a9pjx1md2pqs, amount: { amount: "596.00", currency: EUR }, status: refunded }
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createCharge
@@ -146,16 +146,41 @@ components:
               pointer:
                 type: string
                 description: RFC 6901 JSON Pointer to the offending member.
-                example: /price_cents
+                example: /price/amount
               message:
                 type: string
-                example: must be greater than or equal to 0
+                example: must be a decimal amount
       example:
         type: "about:blank"
         title: Not Found
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
+    # IEEE-754 double by every TypeScript client, and a double cannot represent a
+    # decimal amount exactly. A `type: number` monetary field is a contract defect.
+    Money:
+      type: object
+      description: |
+        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+        double in the TypeScript client, and a double cannot hold a decimal amount
+        exactly. Currency travels with the amount, because an amount without one is
+        not a quantity of anything.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal amount, sign-prefixed when negative. No thousands separators.
+          pattern: '^-?[0-9]+(\.[0-9]+)?$'
+          example: "1299.00"
+        currency:
+          type: string
+          description: ISO 4217 alphabetic code, uppercase.
+          pattern: "^[A-Z]{3}$"
+          example: EUR
+      example:
+        amount: "1299.00"
+        currency: EUR
     # <<< shared-components
     # Wire identifiers (ADR-0003). The stored columns stay bare `uuid`; this form
     # exists so a value in a log line, a ticket, or a URL says what it is.
@@ -195,10 +220,10 @@ components:
     ChargeInput:
       type: object
       description: Request body to create a charge.
-      required: [order_id, amount_cents]
+      required: [order_id, amount]
       properties:
-        order_id:     { $ref: "#/components/schemas/OrderId" }
-        amount_cents: { type: integer, minimum: 1 }
+        order_id: { $ref: "#/components/schemas/OrderId" }
+        amount:   { $ref: "#/components/schemas/Money" }
     RefundInput:
       type: object
       description: Request body to refund a charge.
@@ -208,10 +233,10 @@ components:
     Charge:
       type: object
       description: A payment charge against an order.
-      required: [id, order_id, amount_cents, status]
+      required: [id, order_id, amount, status]
       properties:
-        id:           { $ref: "#/components/schemas/ChargeId" }
-        order_id:     { $ref: "#/components/schemas/OrderId" }
-        amount_cents: { type: integer }
-        status:       { type: string, enum: [pending, settled, failed, refunded] }
-      example: { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount_cents: 259800, status: settled }
+        id:       { $ref: "#/components/schemas/ChargeId" }
+        order_id: { $ref: "#/components/schemas/OrderId" }
+        amount:   { $ref: "#/components/schemas/Money" }
+        status:   { type: string, enum: [pending, settled, failed, refunded] }
+      example: { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount: { amount: "2598.00", currency: EUR }, status: settled }

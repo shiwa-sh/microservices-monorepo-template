@@ -114,12 +114,34 @@ export interface components {
             errors?: {
                 /**
                  * @description RFC 6901 JSON Pointer to the offending member.
-                 * @example /price_cents
+                 * @example /price/amount
                  */
                 pointer: string;
-                /** @example must be greater than or equal to 0 */
+                /** @example must be a decimal amount */
                 message: string;
             }[];
+        };
+        /**
+         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+         *     double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. Currency travels with the amount, because an amount without one is
+         *     not a quantity of anything.
+         * @example {
+         *       "amount": "1299.00",
+         *       "currency": "EUR"
+         *     }
+         */
+        Money: {
+            /**
+             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @example 1299.00
+             */
+            amount: string;
+            /**
+             * @description ISO 4217 alphabetic code, uppercase.
+             * @example EUR
+             */
+            currency: string;
         };
         /**
          * @description An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
@@ -165,7 +187,10 @@ export interface components {
          *       "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
          *       "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
          *       "quantity": 2,
-         *       "total_cents": 259800,
+         *       "total": {
+         *         "amount": "2598.00",
+         *         "currency": "EUR"
+         *       },
          *       "status": "confirmed"
          *     }
          */
@@ -173,7 +198,7 @@ export interface components {
             id: components["schemas"]["OrderId"];
             product_id: components["schemas"]["ProductId"];
             quantity: number;
-            total_cents: number;
+            total: components["schemas"]["Money"];
             /** @enum {string} */
             status: "pending" | "confirmed" | "failed" | "cancelled";
         };

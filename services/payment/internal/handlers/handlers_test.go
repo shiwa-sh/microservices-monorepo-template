@@ -22,6 +22,8 @@ const statusSettled = "settled"
 // handler's logic rather than its identifier decoding — which has its own case.
 const testChargeID = payment.ChargeId("charge_01kztnyqr0f13shqqnx8028xx5")
 
+const testOrderID = payment.OrderId("order_01kztnj6c8e0jt7vzw0cn1wxvd")
+
 // fakeQ embeds store.Querier so only the methods a test exercises need stubbing;
 // any other call would nil-panic, which is the desired "unexpected query" signal.
 type fakeQ struct {
@@ -183,6 +185,22 @@ func (c resourceChecker) Allowed(_ context.Context, _, _, resource string) (bool
 	return c[resource], nil
 }
 
+// testCurrency is the currency every fixture here is denominated in; which one it
+// is does not matter, only that it travels with the amount.
+const testCurrency = "EUR"
+
+// numeric is a stored `numeric(19,4)`, which the zero pgtype.Numeric is not — a
+// handler that renders money needs a row that has some.
+func numeric(t *testing.T, v string) pgtype.Numeric {
+	t.Helper()
+	var n pgtype.Numeric
+	err := n.Scan(v)
+	if err != nil {
+		t.Fatalf("scan %q: %v", v, err)
+	}
+	return n
+}
+
 // chargeObject is the OpenFGA object the read gate checks.
 var chargeObject = "charge:" + string(testChargeID)
 
@@ -206,7 +224,12 @@ func TestGetChargeAuthz(t *testing.T) {
 			tc.name,
 			func(t *testing.T) {
 				t.Parallel()
-				h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: statusSettled}}, checker: tc.checker}
+				row := store.GetChargeRow{
+					Status:   statusSettled,
+					Amount:   numeric(t, "25.98"),
+					Currency: testCurrency,
+				}
+				h := &Handlers{q: fakeQ{charge: row}, checker: tc.checker}
 				_, err := h.GetCharge(tc.ctx(), payment.GetChargeParams{ID: testChargeID})
 				if tc.want == 0 {
 					if err != nil {
@@ -215,6 +238,39 @@ func TestGetChargeAuthz(t *testing.T) {
 					return
 				}
 				assertStatus(t, err, tc.want)
+			},
+		)
+	}
+}
+
+// The amount is validated by the shared money type, and a value it refuses is the
+// client's mistake rather than a 500 — these are the shapes a generated validator
+// cannot catch, because the wire form of an amount is just a string.
+func TestCreateChargeAmount(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		amount payment.Money
+	}{
+		{"a non-decimal amount", payment.Money{Amount: "12,00", Currency: testCurrency}},
+		{"an unknown currency form", payment.Money{Amount: "12.00", Currency: "eur"}},
+		{"zero is not a charge", payment.Money{Amount: "0.00", Currency: testCurrency}},
+		{"a negative amount is a refund, not a charge", payment.Money{Amount: "-1.00", Currency: testCurrency}},
+	}
+	for _, tc := range tests {
+		t.Run(
+			tc.name,
+			func(t *testing.T) {
+				t.Parallel()
+				h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
+				req := &payment.ChargeInput{OrderID: testOrderID, Amount: tc.amount}
+				_, err := h.CreateCharge(
+					opCtx(),
+					req,
+					payment.CreateChargeParams{IdempotencyKey: "key-1"},
+				)
+				assertStatus(t, err, 400)
 			},
 		)
 	}
@@ -261,13 +317,16 @@ func TestListCharges(t *testing.T) {
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{list: []store.ListChargesRow{
-				{AmountCents: 999, Status: statusSettled},
+				{Amount: numeric(t, "9.99"), Currency: testCurrency, Status: statusSettled},
 			}}, checker: okChecker()}
 			got, err := h.ListCharges(opCtx())
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if len(got) != 1 || got[0].AmountCents != 999 || got[0].Status != payment.ChargeStatusSettled {
+			// The stored numeric reaches the wire as a decimal string with its
+			// currency, never as a number and never as minor units (ADR-0300).
+			if len(got) != 1 || got[0].Amount.Amount != "9.99" ||
+				got[0].Amount.Currency != testCurrency || got[0].Status != payment.ChargeStatusSettled {
 				t.Fatalf("mapping = %+v", got)
 			}
 		},

@@ -12,25 +12,42 @@ import (
 )
 
 const createProduct = `-- name: CreateProduct :one
-insert into products (id, name, price_cents) values ($1, $2, $3) returning id, name, price_cents
+insert into products (id, name, price, currency, price_cents)
+values ($1, $2, $3, $4, ($3::numeric * 100)::integer)
+returning id, name, price, currency
 `
 
 type CreateProductParams struct {
-	ID         pgtype.UUID `json:"id"`
-	Name       string      `json:"name"`
-	PriceCents int32       `json:"price_cents"`
+	ID       pgtype.UUID    `json:"id"`
+	Name     string         `json:"name"`
+	Price    pgtype.Numeric `json:"price"`
+	Currency string         `json:"currency"`
 }
 
 type CreateProductRow struct {
-	ID         pgtype.UUID `json:"id"`
-	Name       string      `json:"name"`
-	PriceCents int32       `json:"price_cents"`
+	ID       pgtype.UUID    `json:"id"`
+	Name     string         `json:"name"`
+	Price    pgtype.Numeric `json:"price"`
+	Currency string         `json:"currency"`
 }
 
+// The write still fills price_cents alongside price: the column is not dropped yet
+// (see the migration), it is NOT NULL, and a row inserted without it would fail.
+// The follow-up migration that drops it removes this too.
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (CreateProductRow, error) {
-	row := q.db.QueryRow(ctx, createProduct, arg.ID, arg.Name, arg.PriceCents)
+	row := q.db.QueryRow(ctx, createProduct,
+		arg.ID,
+		arg.Name,
+		arg.Price,
+		arg.Currency,
+	)
 	var i CreateProductRow
-	err := row.Scan(&i.ID, &i.Name, &i.PriceCents)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Price,
+		&i.Currency,
+	)
 	return i, err
 }
 
@@ -47,21 +64,28 @@ const getProduct = `-- name: GetProduct :one
 select
   id,
   name,
-  price_cents
+  price,
+  currency
 from products
 where id = $1
 `
 
 type GetProductRow struct {
-	ID         pgtype.UUID `json:"id"`
-	Name       string      `json:"name"`
-	PriceCents int32       `json:"price_cents"`
+	ID       pgtype.UUID    `json:"id"`
+	Name     string         `json:"name"`
+	Price    pgtype.Numeric `json:"price"`
+	Currency string         `json:"currency"`
 }
 
 func (q *Queries) GetProduct(ctx context.Context, id pgtype.UUID) (GetProductRow, error) {
 	row := q.db.QueryRow(ctx, getProduct, id)
 	var i GetProductRow
-	err := row.Scan(&i.ID, &i.Name, &i.PriceCents)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Price,
+		&i.Currency,
+	)
 	return i, err
 }
 
@@ -69,15 +93,17 @@ const listProducts = `-- name: ListProducts :many
 select
   id,
   name,
-  price_cents
+  price,
+  currency
 from products
 order by created_at desc limit 100
 `
 
 type ListProductsRow struct {
-	ID         pgtype.UUID `json:"id"`
-	Name       string      `json:"name"`
-	PriceCents int32       `json:"price_cents"`
+	ID       pgtype.UUID    `json:"id"`
+	Name     string         `json:"name"`
+	Price    pgtype.Numeric `json:"price"`
+	Currency string         `json:"currency"`
 }
 
 func (q *Queries) ListProducts(ctx context.Context) ([]ListProductsRow, error) {
@@ -89,7 +115,12 @@ func (q *Queries) ListProducts(ctx context.Context) ([]ListProductsRow, error) {
 	var items []ListProductsRow
 	for rows.Next() {
 		var i ListProductsRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.PriceCents); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Price,
+			&i.Currency,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -101,26 +132,38 @@ func (q *Queries) ListProducts(ctx context.Context) ([]ListProductsRow, error) {
 }
 
 const updateProduct = `-- name: UpdateProduct :one
-update products set name = $2, price_cents = $3
+update products set name = $2, price = $3, currency = $4, price_cents = ($3::numeric * 100)::integer
 where id = $1
-returning id, name, price_cents
+returning id, name, price, currency
 `
 
 type UpdateProductParams struct {
-	ID         pgtype.UUID `json:"id"`
-	Name       string      `json:"name"`
-	PriceCents int32       `json:"price_cents"`
+	ID       pgtype.UUID    `json:"id"`
+	Name     string         `json:"name"`
+	Price    pgtype.Numeric `json:"price"`
+	Currency string         `json:"currency"`
 }
 
 type UpdateProductRow struct {
-	ID         pgtype.UUID `json:"id"`
-	Name       string      `json:"name"`
-	PriceCents int32       `json:"price_cents"`
+	ID       pgtype.UUID    `json:"id"`
+	Name     string         `json:"name"`
+	Price    pgtype.Numeric `json:"price"`
+	Currency string         `json:"currency"`
 }
 
 func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (UpdateProductRow, error) {
-	row := q.db.QueryRow(ctx, updateProduct, arg.ID, arg.Name, arg.PriceCents)
+	row := q.db.QueryRow(ctx, updateProduct,
+		arg.ID,
+		arg.Name,
+		arg.Price,
+		arg.Currency,
+	)
 	var i UpdateProductRow
-	err := row.Scan(&i.ID, &i.Name, &i.PriceCents)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Price,
+		&i.Currency,
+	)
 	return i, err
 }

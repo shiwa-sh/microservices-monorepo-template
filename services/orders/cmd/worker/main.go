@@ -59,6 +59,7 @@ func run() error {
 	w.RegisterActivity(acts.CreateOrderActivity)
 	w.RegisterActivity(acts.GrantOrderAccessActivity)
 	w.RegisterActivity(acts.LookupProductActivity)
+	w.RegisterActivity(acts.SetOrderTotalActivity)
 	w.RegisterActivity(acts.ChargeActivity)
 	w.RegisterActivity(acts.MarkOrderStatusActivity)
 

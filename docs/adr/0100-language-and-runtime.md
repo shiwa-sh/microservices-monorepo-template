@@ -154,7 +154,7 @@ Every escape-hatch service carries its own ADR recording the measured need, and 
 
 - Every backend service is written in Go. Another language requires its own ADR admitting the service under a documented escape hatch.
 - The Go version is pinned by the root `.mise.toml` and no service overrides it. Only a release still receiving upstream security fixes is pinned — the two most recent major releases ([Go release policy](https://go.dev/doc/devel/release)). `(CI: ci:lint)`
-- A monetary amount is the shared money type, never a floating-point number — `numeric` in the database, a string in the OpenAPI schema, and a string on the wire.
+- A monetary amount is the shared money type, never a floating-point number — `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. `(CI: lint:money)`
 - The frontend is TypeScript.
 - Bun is the only JS runtime for code we author. No Go service image, the frontend image, or any artifact built from our own source installs Node. `(CI: lint:node-scope)`
 - Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config against the root `[env] NODE_VERSION`; an island shipping as a container pins no Node at all. A fourth Node island requires amending this ADR. `(CI: lint:node-scope)`

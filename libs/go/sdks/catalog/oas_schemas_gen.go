@@ -39,6 +39,37 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
 }
 
+// A monetary amount. The amount is a decimal STRING — a JSON number becomes a double in the
+// TypeScript client, and a double cannot hold a decimal amount exactly. Currency travels with the
+// amount, because an amount without one is not a quantity of anything.
+// Ref: #/components/schemas/Money
+type Money struct {
+	// Decimal amount, sign-prefixed when negative. No thousands separators.
+	Amount string `json:"amount"`
+	// ISO 4217 alphabetic code, uppercase.
+	Currency string `json:"currency"`
+}
+
+// GetAmount returns the value of Amount.
+func (s *Money) GetAmount() string {
+	return s.Amount
+}
+
+// GetCurrency returns the value of Currency.
+func (s *Money) GetCurrency() string {
+	return s.Currency
+}
+
+// SetAmount sets the value of Amount.
+func (s *Money) SetAmount(val string) {
+	s.Amount = val
+}
+
+// SetCurrency sets the value of Currency.
+func (s *Money) SetCurrency(val string) {
+	s.Currency = val
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -196,9 +227,9 @@ func (s *ProblemErrorsItem) SetMessage(val string) {
 // A catalog product.
 // Ref: #/components/schemas/Product
 type Product struct {
-	ID         ProductId `json:"id"`
-	Name       string    `json:"name"`
-	PriceCents int       `json:"price_cents"`
+	ID    ProductId `json:"id"`
+	Name  string    `json:"name"`
+	Price Money     `json:"price"`
 }
 
 // GetID returns the value of ID.
@@ -211,9 +242,9 @@ func (s *Product) GetName() string {
 	return s.Name
 }
 
-// GetPriceCents returns the value of PriceCents.
-func (s *Product) GetPriceCents() int {
-	return s.PriceCents
+// GetPrice returns the value of Price.
+func (s *Product) GetPrice() Money {
+	return s.Price
 }
 
 // SetID sets the value of ID.
@@ -226,9 +257,9 @@ func (s *Product) SetName(val string) {
 	s.Name = val
 }
 
-// SetPriceCents sets the value of PriceCents.
-func (s *Product) SetPriceCents(val int) {
-	s.PriceCents = val
+// SetPrice sets the value of Price.
+func (s *Product) SetPrice(val Money) {
+	s.Price = val
 }
 
 type ProductId string
@@ -236,8 +267,8 @@ type ProductId string
 // Request body to create a product.
 // Ref: #/components/schemas/ProductInput
 type ProductInput struct {
-	Name       string `json:"name"`
-	PriceCents int    `json:"price_cents"`
+	Name  string `json:"name"`
+	Price Money  `json:"price"`
 }
 
 // GetName returns the value of Name.
@@ -245,9 +276,9 @@ func (s *ProductInput) GetName() string {
 	return s.Name
 }
 
-// GetPriceCents returns the value of PriceCents.
-func (s *ProductInput) GetPriceCents() int {
-	return s.PriceCents
+// GetPrice returns the value of Price.
+func (s *ProductInput) GetPrice() Money {
+	return s.Price
 }
 
 // SetName sets the value of Name.
@@ -255,7 +286,7 @@ func (s *ProductInput) SetName(val string) {
 	s.Name = val
 }
 
-// SetPriceCents sets the value of PriceCents.
-func (s *ProductInput) SetPriceCents(val int) {
-	s.PriceCents = val
+// SetPrice sets the value of Price.
+func (s *ProductInput) SetPrice(val Money) {
+	s.Price = val
 }

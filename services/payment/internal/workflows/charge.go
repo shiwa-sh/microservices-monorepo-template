@@ -9,15 +9,17 @@ import (
 
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 )
 
 // statusFailed is the terminal status of a charge the workflow could not complete.
 const statusFailed = "failed"
 
 type ChargeInput struct {
-	ChargeID    string
-	OrderID     string
-	AmountCents int32
+	ChargeID string
+	OrderID  string
+	Amount   money.Amount
 }
 
 type ChargeResult struct {

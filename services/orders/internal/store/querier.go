@@ -11,10 +11,13 @@ import (
 )
 
 type Querier interface {
+	// total_cents is still written because the column is NOT NULL until the follow-up
+	// migration drops it; the order starts at zero either way.
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error)
 	GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error)
 	ListOrders(ctx context.Context) ([]ListOrdersRow, error)
+	SetOrderTotal(ctx context.Context, arg SetOrderTotalParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 }
 

@@ -52,8 +52,10 @@ blocks:
               headerName: Id
             - field: name
               headerName: Name
-            - field: price_cents
-              headerName: Price cents
+            - field: price.amount
+              headerName: Price
+            - field: price.currency
+              headerName: Currency
           pagination: true
           paginationPageSize: 20
           rowData:

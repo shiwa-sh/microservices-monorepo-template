@@ -13,4 +13,8 @@ type Product struct {
 	Name       string             `json:"name"`
 	PriceCents int32              `json:"price_cents"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	// pii:none
+	Price pgtype.Numeric `json:"price"`
+	// pii:none
+	Currency string `json:"currency"`
 }

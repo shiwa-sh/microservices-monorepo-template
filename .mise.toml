@@ -376,7 +376,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:activity-register", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -431,6 +431,29 @@ run = "bash scripts/lint-ports.sh"
 # service is edge-exposed (public ⇔ has an /api route). Spec-less control-plane
 # services (authz) are exempt. Prevents the finding-D omission from recurring.
 run = "go run ./tools/lint-api-audience"
+
+[tasks."lint:activity-register"]
+# Temporal registration gate (ADR-0302): every activity a workflow names as a
+# string is registered on its service's worker. The string is what keeps the
+# workflow package from importing the activities package, and it is also what makes
+# a missing registration invisible until a real workflow fails with "unable to find
+# activityType" — in the workflow history, where nobody looks first.
+run = "go run ./tools/lint-activity-register"
+
+[tasks."lint:money"]
+# The monetary-value gate (ADR-0100, ADR-0300): a money-ish OpenAPI property is the
+# shared `Money` component, no Go field or variable with a money-ish name is a
+# float, and no TypeScript money value is a number. Every violation of this rule
+# compiles and passes its own tests, which is why it is a gate rather than a review
+# note.
+run = "go run ./tools/lint-money"
+
+[tasks."lint:naming"]
+# The resource-name grammar (ADR-0003): `{project}-{env}-{role}[-{n}]` across the
+# Ansible inventory, the sops recipients, and the GitOps overlays, with the role
+# vocabulary read from the ADR's own table. Nothing in the cluster can check this —
+# a provider accepts any name it can encode.
+run = "go run ./tools/lint-naming"
 
 [tasks."lint:resource-governance"]
 # ADR-0204 gate: renders every chart (each service separately) and checks the

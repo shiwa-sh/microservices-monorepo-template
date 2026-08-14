@@ -91,7 +91,10 @@ test.describe("full purchase scenario", () => {
     test("via the admin console add-product page @smoke", async ({ page }) => {
       await page.goto(`${opsURL("lowdefy")}/products_new`);
       await page.getByLabel(/^name$/i).fill(PRODUCT_NAME);
-      await page.getByLabel(/price/i).fill("4200");
+      // Two fields, not one: a price is an amount AND a currency (ADR-0300), and the
+      // admin generator renders the shared Money component as the pair.
+      await page.getByLabel(/^price$/i).fill("42.00");
+      await page.getByLabel(/^currency$/i).fill("EUR");
       await page.getByRole("button", { name: "Create", exact: true }).click();
       await expect(page).toHaveURL(/\/products$/, { timeout: 20_000 });
       await expect(page.getByText(PRODUCT_NAME)).toBeVisible({ timeout: 30_000 });

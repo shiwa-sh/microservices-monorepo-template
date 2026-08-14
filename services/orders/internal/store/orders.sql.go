@@ -12,36 +12,39 @@ import (
 )
 
 const createOrder = `-- name: CreateOrder :one
-insert into orders (id, product_id, quantity, total_cents, status, owner_id, org_id, idempotency_key)
-values ($1, $2, $3, $4, 'pending', $5, $6, $7)
+insert into orders (id, product_id, quantity, total, currency, status, owner_id, org_id, idempotency_key, total_cents)
+values ($1, $2, $3, 0, $4, 'pending', $5, $6, $7, 0)
 on conflict (id) do nothing
-returning id, product_id, quantity, total_cents, status
+returning id, product_id, quantity, total, currency, status
 `
 
 type CreateOrderParams struct {
 	ID             pgtype.UUID `json:"id"`
 	ProductID      pgtype.UUID `json:"product_id"`
 	Quantity       int32       `json:"quantity"`
-	TotalCents     int32       `json:"total_cents"`
+	Currency       string      `json:"currency"`
 	OwnerID        pgtype.Text `json:"owner_id"`
 	OrgID          pgtype.UUID `json:"org_id"`
 	IdempotencyKey pgtype.Text `json:"idempotency_key"`
 }
 
 type CreateOrderRow struct {
-	ID         pgtype.UUID `json:"id"`
-	ProductID  pgtype.UUID `json:"product_id"`
-	Quantity   int32       `json:"quantity"`
-	TotalCents int32       `json:"total_cents"`
-	Status     string      `json:"status"`
+	ID        pgtype.UUID    `json:"id"`
+	ProductID pgtype.UUID    `json:"product_id"`
+	Quantity  int32          `json:"quantity"`
+	Total     pgtype.Numeric `json:"total"`
+	Currency  string         `json:"currency"`
+	Status    string         `json:"status"`
 }
 
+// total_cents is still written because the column is NOT NULL until the follow-up
+// migration drops it; the order starts at zero either way.
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error) {
 	row := q.db.QueryRow(ctx, createOrder,
 		arg.ID,
 		arg.ProductID,
 		arg.Quantity,
-		arg.TotalCents,
+		arg.Currency,
 		arg.OwnerID,
 		arg.OrgID,
 		arg.IdempotencyKey,
@@ -51,7 +54,8 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Creat
 		&i.ID,
 		&i.ProductID,
 		&i.Quantity,
-		&i.TotalCents,
+		&i.Total,
+		&i.Currency,
 		&i.Status,
 	)
 	return i, err
@@ -62,18 +66,20 @@ select
   id,
   product_id,
   quantity,
-  total_cents,
+  total,
+  currency,
   status
 from orders
 where id = $1
 `
 
 type GetOrderRow struct {
-	ID         pgtype.UUID `json:"id"`
-	ProductID  pgtype.UUID `json:"product_id"`
-	Quantity   int32       `json:"quantity"`
-	TotalCents int32       `json:"total_cents"`
-	Status     string      `json:"status"`
+	ID        pgtype.UUID    `json:"id"`
+	ProductID pgtype.UUID    `json:"product_id"`
+	Quantity  int32          `json:"quantity"`
+	Total     pgtype.Numeric `json:"total"`
+	Currency  string         `json:"currency"`
+	Status    string         `json:"status"`
 }
 
 func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error) {
@@ -83,7 +89,8 @@ func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, er
 		&i.ID,
 		&i.ProductID,
 		&i.Quantity,
-		&i.TotalCents,
+		&i.Total,
+		&i.Currency,
 		&i.Status,
 	)
 	return i, err
@@ -94,18 +101,20 @@ select
   id,
   product_id,
   quantity,
-  total_cents,
+  total,
+  currency,
   status
 from orders
 where idempotency_key = $1
 `
 
 type GetOrderByIdempotencyKeyRow struct {
-	ID         pgtype.UUID `json:"id"`
-	ProductID  pgtype.UUID `json:"product_id"`
-	Quantity   int32       `json:"quantity"`
-	TotalCents int32       `json:"total_cents"`
-	Status     string      `json:"status"`
+	ID        pgtype.UUID    `json:"id"`
+	ProductID pgtype.UUID    `json:"product_id"`
+	Quantity  int32          `json:"quantity"`
+	Total     pgtype.Numeric `json:"total"`
+	Currency  string         `json:"currency"`
+	Status    string         `json:"status"`
 }
 
 func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error) {
@@ -115,7 +124,8 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey p
 		&i.ID,
 		&i.ProductID,
 		&i.Quantity,
-		&i.TotalCents,
+		&i.Total,
+		&i.Currency,
 		&i.Status,
 	)
 	return i, err
@@ -126,18 +136,20 @@ select
   id,
   product_id,
   quantity,
-  total_cents,
+  total,
+  currency,
   status
 from orders
 order by created_at desc limit 100
 `
 
 type ListOrdersRow struct {
-	ID         pgtype.UUID `json:"id"`
-	ProductID  pgtype.UUID `json:"product_id"`
-	Quantity   int32       `json:"quantity"`
-	TotalCents int32       `json:"total_cents"`
-	Status     string      `json:"status"`
+	ID        pgtype.UUID    `json:"id"`
+	ProductID pgtype.UUID    `json:"product_id"`
+	Quantity  int32          `json:"quantity"`
+	Total     pgtype.Numeric `json:"total"`
+	Currency  string         `json:"currency"`
+	Status    string         `json:"status"`
 }
 
 func (q *Queries) ListOrders(ctx context.Context) ([]ListOrdersRow, error) {
@@ -153,7 +165,8 @@ func (q *Queries) ListOrders(ctx context.Context) ([]ListOrdersRow, error) {
 			&i.ID,
 			&i.ProductID,
 			&i.Quantity,
-			&i.TotalCents,
+			&i.Total,
+			&i.Currency,
 			&i.Status,
 		); err != nil {
 			return nil, err
@@ -164,6 +177,22 @@ func (q *Queries) ListOrders(ctx context.Context) ([]ListOrdersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setOrderTotal = `-- name: SetOrderTotal :exec
+update orders set total = $2, currency = $3, total_cents = ($2::numeric * 100)::integer
+where id = $1
+`
+
+type SetOrderTotalParams struct {
+	ID       pgtype.UUID    `json:"id"`
+	Total    pgtype.Numeric `json:"total"`
+	Currency string         `json:"currency"`
+}
+
+func (q *Queries) SetOrderTotal(ctx context.Context, arg SetOrderTotalParams) error {
+	_, err := q.db.Exec(ctx, setOrderTotal, arg.ID, arg.Total, arg.Currency)
+	return err
 }
 
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec

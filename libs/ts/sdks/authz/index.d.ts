@@ -127,10 +127,10 @@ export interface components {
             errors?: {
                 /**
                  * @description RFC 6901 JSON Pointer to the offending member.
-                 * @example /price_cents
+                 * @example /price/amount
                  */
                 pointer: string;
-                /** @example must be greater than or equal to 0 */
+                /** @example must be a decimal amount */
                 message: string;
             }[];
         };

@@ -264,6 +264,7 @@ Authz dual-write discipline is [ADR-0304](0304-identity-and-authorization.md)'s,
 - Worker graceful-stop is configured, and `terminationGracePeriodSeconds` is derived from the worker stop timeout rather than set independently.
 - Workflow code is deterministic and side effects go through activities. `(CI: ci:lint)`
 - Activities are idempotent and accept retries.
+- Every activity a workflow executes by name is registered on that service's worker. `(CI: lint:activity-register)`
 - Workflow IDs encode business intent, not opaque UUIDs.
 - Activity inputs and outputs stay in kilobytes; larger payloads go through the bucket by reference.
 - Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is reserved for pure infrastructure.

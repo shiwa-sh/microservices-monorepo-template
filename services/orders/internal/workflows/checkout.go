@@ -25,6 +25,8 @@ import (
 
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 )
 
 // statusFailed is the terminal status of an order the saga could not complete.
@@ -44,9 +46,9 @@ type CheckoutInput struct {
 }
 
 type CheckoutResult struct {
-	Status     string // "confirmed" | "failed"
-	TotalCents int32
-	ChargeID   string
+	Status   string // "confirmed" | "failed"
+	Total    money.Amount
+	ChargeID string
 }
 
 func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
@@ -67,28 +69,38 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 		return CheckoutResult{Status: statusFailed}, fmt.Errorf("checkout: grant order access: %w", err)
 	}
 
-	var price int32
+	var price money.Amount
 	err = workflow.ExecuteActivity(ctx, "LookupProductActivity", in.ProductID).Get(ctx, &price)
 	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, statusFailed).Get(ctx, nil)
 		return CheckoutResult{Status: statusFailed}, fmt.Errorf("checkout: lookup product: %w", err)
 	}
-	total := price * in.Quantity
+	// Money multiplication, not a bare integer product: the shared type carries the
+	// currency and the scale, so the total cannot silently become a different unit
+	// (ADR-0300). Deterministic — it is integer arithmetic on big.Int, no clock and
+	// no rounding mode in play for a whole-number factor.
+	total := price.Mul(int64(in.Quantity))
+
+	err = workflow.ExecuteActivity(ctx, "SetOrderTotalActivity", in.OrderID, total).Get(ctx, nil)
+	if err != nil {
+		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, statusFailed).Get(ctx, nil)
+		return CheckoutResult{Status: statusFailed, Total: total}, fmt.Errorf("checkout: set order total: %w", err)
+	}
 
 	var chargeID string
 	err = workflow.ExecuteActivity(ctx, "ChargeActivity", in.OrderID, total).Get(ctx, &chargeID)
 	if err != nil {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, statusFailed).Get(ctx, nil)
-		return CheckoutResult{Status: statusFailed, TotalCents: total}, fmt.Errorf("checkout: charge: %w", err)
+		return CheckoutResult{Status: statusFailed, Total: total}, fmt.Errorf("checkout: charge: %w", err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, "confirmed").Get(ctx, nil)
 	if err != nil {
 		return CheckoutResult{
-			Status:     "confirmed",
-			TotalCents: total,
-			ChargeID:   chargeID,
+			Status:   "confirmed",
+			Total:    total,
+			ChargeID: chargeID,
 		}, fmt.Errorf("checkout: mark order confirmed: %w", err)
 	}
-	return CheckoutResult{Status: "confirmed", TotalCents: total, ChargeID: chargeID}, nil
+	return CheckoutResult{Status: "confirmed", Total: total, ChargeID: chargeID}, nil
 }

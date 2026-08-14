@@ -71,10 +71,10 @@ schemas:
             pointer:
               type: string
               description: RFC 6901 JSON Pointer to the offending member.
-              example: /price_cents
+              example: /price/amount
             message:
               type: string
-              example: must be greater than or equal to 0
+              example: must be a decimal amount
     example:
       type: "about:blank"
       title: Not Found

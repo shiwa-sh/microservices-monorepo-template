@@ -36,11 +36,13 @@ blocks:
       - id: id
         type: TextInput
         properties:
-          label: Id
+          label:
+            title: Id
       - id: reason
         type: TextInput
         properties:
-          label: Reason
+          label:
+            title: Reason
       - id: submit
         type: Button
         properties:

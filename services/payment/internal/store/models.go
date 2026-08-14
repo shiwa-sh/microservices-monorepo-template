@@ -15,4 +15,8 @@ type Charge struct {
 	Status         string             `json:"status"`
 	IdempotencyKey string             `json:"idempotency_key"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	// pii:none
+	Amount pgtype.Numeric `json:"amount"`
+	// pii:none
+	Currency string `json:"currency"`
 }

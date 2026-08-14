@@ -113,12 +113,34 @@ export interface components {
             errors?: {
                 /**
                  * @description RFC 6901 JSON Pointer to the offending member.
-                 * @example /price_cents
+                 * @example /price/amount
                  */
                 pointer: string;
-                /** @example must be greater than or equal to 0 */
+                /** @example must be a decimal amount */
                 message: string;
             }[];
+        };
+        /**
+         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+         *     double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. Currency travels with the amount, because an amount without one is
+         *     not a quantity of anything.
+         * @example {
+         *       "amount": "1299.00",
+         *       "currency": "EUR"
+         *     }
+         */
+        Money: {
+            /**
+             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @example 1299.00
+             */
+            amount: string;
+            /**
+             * @description ISO 4217 alphabetic code, uppercase.
+             * @example EUR
+             */
+            currency: string;
         };
         /**
          * @description A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford
@@ -156,7 +178,7 @@ export interface components {
         /** @description Request body to create a charge. */
         ChargeInput: {
             order_id: components["schemas"]["OrderId"];
-            amount_cents: number;
+            amount: components["schemas"]["Money"];
         };
         /** @description Request body to refund a charge. */
         RefundInput: {
@@ -167,14 +189,17 @@ export interface components {
          * @example {
          *       "id": "charge_01kztnyqr0f13shqqnx8028xx5",
          *       "order_id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
-         *       "amount_cents": 259800,
+         *       "amount": {
+         *         "amount": "2598.00",
+         *         "currency": "EUR"
+         *       },
          *       "status": "settled"
          *     }
          */
         Charge: {
             id: components["schemas"]["ChargeId"];
             order_id: components["schemas"]["OrderId"];
-            amount_cents: number;
+            amount: components["schemas"]["Money"];
             /** @enum {string} */
             status: "pending" | "settled" | "failed" | "refunded";
         };

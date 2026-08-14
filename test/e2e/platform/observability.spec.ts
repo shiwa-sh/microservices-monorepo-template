@@ -286,7 +286,10 @@ test.describe("end-to-end signal correlation", () => {
     const productRes = await fetch(`${catalog}/products`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-user-id": "admin-console" },
-      body: JSON.stringify({ name: `obs-e2e-${Date.now()}`, price_cents: 4200 }),
+      body: JSON.stringify({
+        name: `obs-e2e-${Date.now()}`,
+        price: { amount: "42.00", currency: "EUR" },
+      }),
     });
     expect(productRes.ok, "operator can create a product").toBeTruthy();
     const productId = ((await productRes.json()) as { id: string }).id;

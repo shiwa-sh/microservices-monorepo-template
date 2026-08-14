@@ -6,7 +6,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"math"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -19,6 +18,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
 	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/store"
@@ -101,8 +101,15 @@ func (h *Handlers) CreateCharge(
 	if params.IdempotencyKey == "" {
 		return nil, apierr.BadRequest("Idempotency-Key required")
 	}
-	if req.AmountCents < 0 || req.AmountCents > math.MaxInt32 {
-		return nil, apierr.BadRequest("amount_cents out of range")
+	// The amount is validated by the shared money type rather than by a range check:
+	// a `numeric(19,4)` column has no int32 ceiling to guard, and what can actually
+	// arrive wrong is the decimal form or the currency.
+	amount, err := money.Parse(req.Amount.Amount, req.Amount.Currency)
+	if err != nil {
+		return nil, apierr.BadRequest(err.Error())
+	}
+	if amount.Sign() <= 0 {
+		return nil, apierr.BadRequest("amount must be positive")
 	}
 
 	// Idempotency lookup before anything else (ADR-0302).
@@ -115,7 +122,7 @@ func (h *Handlers) CreateCharge(
 		return nil, apierr.Internal(err.Error())
 	}
 
-	created, err := h.insertCharge(ctx, req.OrderID, int32(req.AmountCents), params.IdempotencyKey)
+	created, err := h.insertCharge(ctx, req.OrderID, amount, params.IdempotencyKey)
 	if err != nil {
 		return nil, err
 	}
@@ -129,9 +136,9 @@ func (h *Handlers) CreateCharge(
 		},
 		workflows.Charge,
 		workflows.ChargeInput{
-			ChargeID:    cid,
-			OrderID:     string(orderID(created.OrderID)),
-			AmountCents: created.AmountCents,
+			ChargeID: cid,
+			OrderID:  string(orderID(created.OrderID)),
+			Amount:   amount,
 		},
 	)
 	if err != nil {
@@ -197,11 +204,15 @@ func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
 	}
 	out := make([]payment.Charge, 0, len(rows))
 	for _, r := range rows {
+		wire, err := wireAmount(r.Amount, r.Currency)
+		if err != nil {
+			return nil, err
+		}
 		c := payment.Charge{
-			ID:          chargeID(r.ID),
-			OrderID:     orderID(r.OrderID),
-			AmountCents: int(r.AmountCents),
-			Status:      payment.ChargeStatus(r.Status),
+			ID:      chargeID(r.ID),
+			OrderID: orderID(r.OrderID),
+			Amount:  wire,
+			Status:  payment.ChargeStatus(r.Status),
 		}
 		out = append(out, c)
 	}
@@ -224,11 +235,15 @@ func (h *Handlers) GetCharge(ctx context.Context, params payment.GetChargeParams
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
+	wire, err := wireAmount(row.Amount, row.Currency)
+	if err != nil {
+		return nil, err
+	}
 	return &payment.Charge{
-		ID:          chargeID(row.ID),
-		OrderID:     orderID(row.OrderID),
-		AmountCents: int(row.AmountCents),
-		Status:      payment.ChargeStatus(row.Status),
+		ID:      chargeID(row.ID),
+		OrderID: orderID(row.OrderID),
+		Amount:  wire,
+		Status:  payment.ChargeStatus(row.Status),
 	}, nil
 }
 
@@ -264,13 +279,33 @@ func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatus
 	return &payment.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
+// wireAmount renders the stored amount for the wire (ADR-0300): the column is
+// `numeric` and the wire is a decimal STRING with its currency. It goes through
+// money.Amount so the value matches what the shared type would produce anywhere
+// else, rather than whatever the driver formats a numeric as.
+func wireAmount(amount pgtype.Numeric, currency string) (payment.Money, error) {
+	raw, err := amount.Value()
+	if err != nil {
+		return payment.Money{}, apierr.Internal(err.Error())
+	}
+	text, ok := raw.(string)
+	if !ok {
+		return payment.Money{}, apierr.Internal("amount is not a numeric")
+	}
+	parsed, err := money.Parse(text, currency)
+	if err != nil {
+		return payment.Money{}, apierr.Internal(err.Error())
+	}
+	return payment.Money{Amount: parsed.String(), Currency: parsed.Currency()}, nil
+}
+
 // insertCharge puts the row on the two identifiers it needs: the order's, decoded
 // from the wire, and its own, minted here (ADR-0003). The amount arrives already
-// narrowed, so the range check stays with the request it validates.
+// parsed, so the validation stays with the request it belongs to.
 func (h *Handlers) insertCharge(
 	ctx context.Context,
 	order payment.OrderId,
-	amountCents int32,
+	amount money.Amount,
 	idempotencyKey string,
 ) (store.CreateChargeRow, error) {
 	orderKey, err := storedOrderID(order)
@@ -281,12 +316,18 @@ func (h *Handlers) insertCharge(
 	if err != nil {
 		return store.CreateChargeRow{}, err
 	}
+	var stored pgtype.Numeric
+	err = stored.Scan(amount.String())
+	if err != nil {
+		return store.CreateChargeRow{}, apierr.Internal(err.Error())
+	}
 	created, err := h.q.CreateCharge(
 		ctx,
 		store.CreateChargeParams{
 			ID:             key,
 			OrderID:        orderKey,
-			AmountCents:    amountCents,
+			Amount:         stored,
+			Currency:       amount.Currency(),
 			IdempotencyKey: idempotencyKey,
 		},
 	)

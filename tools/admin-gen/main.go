@@ -36,8 +36,13 @@ const (
 	outRoot  = "apps/admin/_generated"
 	adminDir = "apps/admin"
 
-	pageType   = "PageSiderMenu"
-	typeAxios  = "AxiosHttp"
+	pageType  = "PageSiderMenu"
+	typeAxios = "AxiosHttp"
+	// AG Grid's column keys: the row binding and the header label, both of which a
+	// money column emits twice.
+	keyField      = "field"
+	keyHeaderName = "headerName"
+
 	typeText   = "TextInput"
 	typeNum    = "NumberInput"
 	typeSwitch = "Switch"
@@ -327,7 +332,7 @@ func (d *doc) writeCreatePage(svc string, r *resource) (string, error) {
 	data := map[string]any{}
 	form := make([]block, 0, len(fields)+3)
 	for _, f := range fields {
-		form = append(form, input(f.Name, f.Name, f.Type))
+		form = append(form, inputsFor(f)...)
 		payload[f.Name] = map[string]any{stateKey: f.Name}
 		data[f.Name] = map[string]any{payloadKey: f.Name}
 	}
@@ -369,7 +374,7 @@ func (d *doc) writeEditPage(svc string, r *resource) (string, error) {
 	form := make([]block, 0, len(fields)+5)
 	form = append(form, readonlyID(idFromQuery))
 	for _, f := range fields {
-		form = append(form, input(f.Name, f.Name, f.Type))
+		form = append(form, inputsFor(f)...)
 	}
 	form = append(form, d.editWrites(&pg, svc, r, fields, idFromQuery)...)
 	form = append(form, linkButton("back", "Back to list", r.name, nil, ""))
@@ -554,13 +559,45 @@ func (d *doc) columnDefs(schema yaml.Node) []any {
 	cols := d.props(schema)
 	defs := make([]any, 0, len(cols))
 	for _, c := range cols {
-		defs = append(defs, map[string]any{"field": c.Name, "headerName": headerName(c.Name)})
+		// A money column is two columns. AG Grid reads a dotted field as a path into
+		// the row, so this needs no expression and no formatter — and showing the
+		// currency as its own column is what a changelist of mixed currencies needs.
+		if c.isMoney() {
+			defs = append(
+				defs,
+				map[string]any{keyField: c.Name + ".amount", keyHeaderName: headerName(c.Name)},
+				map[string]any{keyField: c.Name + ".currency", keyHeaderName: "Currency"},
+			)
+			continue
+		}
+		defs = append(defs, map[string]any{keyField: c.Name, keyHeaderName: headerName(c.Name)})
 	}
 	return defs
 }
 
+// inputsFor is the form side of the same case. A dotted block id is nested state in
+// Lowdefy, so `price.amount` and `price.currency` assemble the object the request
+// payload already reads as `price` — the two fields a human fills, and the one
+// object the API takes.
+//
+// The amount is a TextInput and not a NumberInput deliberately: a NumberInput hands
+// back a JavaScript number, which is the double the string form exists to avoid.
+func inputsFor(f prop) []block {
+	if !f.isMoney() {
+		return []block{input(f.Name, f.Name, f.Type)}
+	}
+	return []block{
+		input(f.Name+".amount", f.Name, "string"),
+		input(f.Name+".currency", "currency", "string"),
+	}
+}
+
 func input(state, label, typ string) block {
-	b := block{ID: state, Properties: map[string]any{"label": headerName(label)}}
+	// Lowdefy's `label` is an OBJECT, not a string: a bare string is ignored and the
+	// field falls back to labelling itself with its own block id. That was invisible
+	// while every id was already the field name ("price" labelled `price`), and
+	// stopped being invisible the moment a money field's id became `price.amount`.
+	b := block{ID: state, Properties: map[string]any{"label": map[string]any{"title": headerName(label)}}}
 	switch typ {
 	case "integer", "number":
 		b.Type = typeNum
@@ -695,7 +732,18 @@ func (r *resource) classify(o op) {
 
 type prop struct {
 	Name, Type, Format string
+	// Ref is the component this property points at, when it is a $ref rather than an
+	// inline type. It is what makes a shared shape recognisable here: `Money` is an
+	// object, and an object rendered by the default path is a TextInput that posts
+	// "[object Object]".
+	Ref string
 }
+
+// isMoney reports whether the property is the shared Money component (ADR-0300):
+// an amount as a decimal STRING plus its currency. It is the one shared shape this
+// generator special-cases, because it is the one that is structurally an object and
+// semantically a single field a human types into.
+func (p prop) isMoney() bool { return path.Base(p.Ref) == "Money" }
 
 // props resolves a schema node to its ordered properties, following a $ref into
 // components and unwrapping an array to its item schema.
@@ -736,9 +784,10 @@ func orderedProps(node yaml.Node) []prop {
 		var v struct {
 			Type   string `yaml:"type"`
 			Format string `yaml:"format"`
+			Ref    string `yaml:"$ref"`
 		}
 		_ = node.Content[i+1].Decode(&v)
-		out = append(out, prop{Name: node.Content[i].Value, Type: v.Type, Format: v.Format})
+		out = append(out, prop{Name: node.Content[i].Value, Type: v.Type, Format: v.Format, Ref: v.Ref})
 	}
 	return out
 }

@@ -67,7 +67,10 @@ test.describe("lowdefy ops dashboard", () => {
       // empty grid (the NetworkPolicy / `.data` / write-auth bugs) would fail.
       await page.goto(`${admin}/products_new`);
       await page.getByLabel(/^name$/i).fill(name);
-      await page.getByLabel(/price/i).fill("4200");
+      // Two fields, not one: a price is an amount AND a currency (ADR-0300), and the
+      // admin generator renders the shared Money component as the pair.
+      await page.getByLabel(/^price$/i).fill("42.00");
+      await page.getByLabel(/^currency$/i).fill("EUR");
       await page.getByRole("button", { name: "Create", exact: true }).click();
       await expect(page).toHaveURL(/\/products$/, { timeout: 20_000 });
       await expect(page.getByText(name)).toBeVisible({ timeout: 30_000 });
@@ -198,9 +201,13 @@ test.describe("lowdefy ops dashboard", () => {
     const pages: Array<{ path: string; control: string; role: "button" | "text" }> = [
       { path: "/products", control: "Add product", role: "button" }, // changelist add
       { path: "/products_new", control: "Create", role: "button" }, // add form
-      { path: "/orgs", control: "Add org", role: "button" }, // changelist add
-      { path: "/orders", control: "Total cents", role: "text" }, // list-only grid header
-      { path: "/charges", control: "Amount cents", role: "text" }, // list-only grid header
+      // Orgs has no add form: `POST /orgs` was withdrawn, because an org is created
+      // by the registration workflow and never by hand. The changelist is what the
+      // page is, so its own hint is the control that proves it painted.
+      { path: "/orgs", control: "Click a row to edit.", role: "text" },
+      // The money columns, since C5: an amount and its currency, not minor units.
+      { path: "/orders", control: "Total", role: "text" }, // list-only grid header
+      { path: "/charges", control: "Amount", role: "text" }, // list-only grid header
       { path: "/refundCharge", control: "Refund charge", role: "button" }, // action form
       { path: "/cancelOrder", control: "Cancel order", role: "button" }, // action form
     ];

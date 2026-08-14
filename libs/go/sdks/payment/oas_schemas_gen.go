@@ -15,10 +15,10 @@ func (s *ErrorStatusCode) Error() string {
 // A payment charge against an order.
 // Ref: #/components/schemas/Charge
 type Charge struct {
-	ID          ChargeId     `json:"id"`
-	OrderID     OrderId      `json:"order_id"`
-	AmountCents int          `json:"amount_cents"`
-	Status      ChargeStatus `json:"status"`
+	ID      ChargeId     `json:"id"`
+	OrderID OrderId      `json:"order_id"`
+	Amount  Money        `json:"amount"`
+	Status  ChargeStatus `json:"status"`
 }
 
 // GetID returns the value of ID.
@@ -31,9 +31,9 @@ func (s *Charge) GetOrderID() OrderId {
 	return s.OrderID
 }
 
-// GetAmountCents returns the value of AmountCents.
-func (s *Charge) GetAmountCents() int {
-	return s.AmountCents
+// GetAmount returns the value of Amount.
+func (s *Charge) GetAmount() Money {
+	return s.Amount
 }
 
 // GetStatus returns the value of Status.
@@ -51,9 +51,9 @@ func (s *Charge) SetOrderID(val OrderId) {
 	s.OrderID = val
 }
 
-// SetAmountCents sets the value of AmountCents.
-func (s *Charge) SetAmountCents(val int) {
-	s.AmountCents = val
+// SetAmount sets the value of Amount.
+func (s *Charge) SetAmount(val Money) {
+	s.Amount = val
 }
 
 // SetStatus sets the value of Status.
@@ -66,8 +66,8 @@ type ChargeId string
 // Request body to create a charge.
 // Ref: #/components/schemas/ChargeInput
 type ChargeInput struct {
-	OrderID     OrderId `json:"order_id"`
-	AmountCents int     `json:"amount_cents"`
+	OrderID OrderId `json:"order_id"`
+	Amount  Money   `json:"amount"`
 }
 
 // GetOrderID returns the value of OrderID.
@@ -75,9 +75,9 @@ func (s *ChargeInput) GetOrderID() OrderId {
 	return s.OrderID
 }
 
-// GetAmountCents returns the value of AmountCents.
-func (s *ChargeInput) GetAmountCents() int {
-	return s.AmountCents
+// GetAmount returns the value of Amount.
+func (s *ChargeInput) GetAmount() Money {
+	return s.Amount
 }
 
 // SetOrderID sets the value of OrderID.
@@ -85,9 +85,9 @@ func (s *ChargeInput) SetOrderID(val OrderId) {
 	s.OrderID = val
 }
 
-// SetAmountCents sets the value of AmountCents.
-func (s *ChargeInput) SetAmountCents(val int) {
-	s.AmountCents = val
+// SetAmount sets the value of Amount.
+func (s *ChargeInput) SetAmount(val Money) {
+	s.Amount = val
 }
 
 type ChargeStatus string
@@ -169,6 +169,37 @@ func (s *ErrorStatusCode) SetStatusCode(val int) {
 // SetResponse sets the value of Response.
 func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
+}
+
+// A monetary amount. The amount is a decimal STRING — a JSON number becomes a double in the
+// TypeScript client, and a double cannot hold a decimal amount exactly. Currency travels with the
+// amount, because an amount without one is not a quantity of anything.
+// Ref: #/components/schemas/Money
+type Money struct {
+	// Decimal amount, sign-prefixed when negative. No thousands separators.
+	Amount string `json:"amount"`
+	// ISO 4217 alphabetic code, uppercase.
+	Currency string `json:"currency"`
+}
+
+// GetAmount returns the value of Amount.
+func (s *Money) GetAmount() string {
+	return s.Amount
+}
+
+// GetCurrency returns the value of Currency.
+func (s *Money) GetCurrency() string {
+	return s.Currency
+}
+
+// SetAmount sets the value of Amount.
+func (s *Money) SetAmount(val string) {
+	s.Amount = val
+}
+
+// SetCurrency sets the value of Currency.
+func (s *Money) SetCurrency(val string) {
+	s.Currency = val
 }
 
 // NewOptString returns new OptString with value set to v.

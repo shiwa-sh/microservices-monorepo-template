@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/testsuite"
+
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 )
 
 var testCheckout = CheckoutInput{
@@ -33,11 +35,15 @@ func checkoutEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnviron
 		activity.RegisterOptions{Name: "GrantOrderAccessActivity"},
 	)
 	env.RegisterActivityWithOptions(
-		func(context.Context, string) (int32, error) { return 0, nil },
+		func(context.Context, string) (money.Amount, error) { return money.Amount{}, nil },
 		activity.RegisterOptions{Name: "LookupProductActivity"},
 	)
 	env.RegisterActivityWithOptions(
-		func(context.Context, string, int32) (string, error) { return "", nil },
+		func(context.Context, string, money.Amount) error { return nil },
+		activity.RegisterOptions{Name: "SetOrderTotalActivity"},
+	)
+	env.RegisterActivityWithOptions(
+		func(context.Context, string, money.Amount) (string, error) { return "", nil },
 		activity.RegisterOptions{Name: "ChargeActivity"},
 	)
 	env.RegisterActivityWithOptions(
@@ -64,16 +70,24 @@ func TestCheckoutWorkflow(t *testing.T) {
 				testCheckout.OwnerID,
 				testCheckout.OrgID,
 			).Return(nil).Once()
+			unitPrice := money.MustParse("15.00", "EUR")
+			orderTotal := money.MustParse("30.00", "EUR")
 			env.OnActivity(
 				"LookupProductActivity",
 				mock.Anything,
 				testCheckout.ProductID,
-			).Return(int32(1500), nil).Once()
+			).Return(unitPrice, nil).Once()
+			env.OnActivity(
+				"SetOrderTotalActivity",
+				mock.Anything,
+				testCheckout.OrderID,
+				orderTotal,
+			).Return(nil).Once()
 			env.OnActivity(
 				"ChargeActivity",
 				mock.Anything,
 				testCheckout.OrderID,
-				int32(3000),
+				orderTotal,
 			).Return("charge_01kztnyqr0f13shqqnx8028xx5", nil).Once()
 			env.OnActivity(
 				"MarkOrderStatusActivity",
@@ -89,7 +103,10 @@ func TestCheckoutWorkflow(t *testing.T) {
 			var res CheckoutResult
 			require.NoError(t, env.GetWorkflowResult(&res))
 			require.Equal(t, "confirmed", res.Status)
-			require.Equal(t, int32(3000), res.TotalCents)
+			// The saga multiplied the unit price by the quantity through the shared
+			// money type, so the total carries its currency and not just a scale.
+			require.Equal(t, "30", res.Total.String())
+			require.Equal(t, "EUR", res.Total.Currency())
 			env.AssertExpectations(t)
 		},
 	)

@@ -36,8 +36,10 @@ blocks:
               headerName: Product id
             - field: quantity
               headerName: Quantity
-            - field: total_cents
-              headerName: Total cents
+            - field: total.amount
+              headerName: Total
+            - field: total.currency
+              headerName: Currency
             - field: status
               headerName: Status
           pagination: true

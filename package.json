@@ -4,6 +4,7 @@
   "workspaces": [
     "apps/frontend",
     "libs/ts/id",
+    "libs/ts/money",
     "libs/ts/sdks/*"
   ],
   "devDependencies": {

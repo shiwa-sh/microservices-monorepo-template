@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	// amount_cents is written from the money columns until the follow-up migration
+	// drops it: the column is still NOT NULL, and nothing reads it any more.
 	CreateCharge(ctx context.Context, arg CreateChargeParams) (CreateChargeRow, error)
 	GetByIdempotencyKey(ctx context.Context, idempotencyKey string) (GetByIdempotencyKeyRow, error)
 	GetCharge(ctx context.Context, id pgtype.UUID) (GetChargeRow, error)

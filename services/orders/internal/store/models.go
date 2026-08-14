@@ -21,4 +21,8 @@ type Order struct {
 	OrgID pgtype.UUID `json:"org_id"`
 	// pii:none
 	IdempotencyKey pgtype.Text `json:"idempotency_key"`
+	// pii:none
+	Total pgtype.Numeric `json:"total"`
+	// pii:none
+	Currency string `json:"currency"`
 }

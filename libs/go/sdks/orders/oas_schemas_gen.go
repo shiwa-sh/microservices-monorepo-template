@@ -65,6 +65,37 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
 }
 
+// A monetary amount. The amount is a decimal STRING — a JSON number becomes a double in the
+// TypeScript client, and a double cannot hold a decimal amount exactly. Currency travels with the
+// amount, because an amount without one is not a quantity of anything.
+// Ref: #/components/schemas/Money
+type Money struct {
+	// Decimal amount, sign-prefixed when negative. No thousands separators.
+	Amount string `json:"amount"`
+	// ISO 4217 alphabetic code, uppercase.
+	Currency string `json:"currency"`
+}
+
+// GetAmount returns the value of Amount.
+func (s *Money) GetAmount() string {
+	return s.Amount
+}
+
+// GetCurrency returns the value of Currency.
+func (s *Money) GetCurrency() string {
+	return s.Currency
+}
+
+// SetAmount sets the value of Amount.
+func (s *Money) SetAmount(val string) {
+	s.Amount = val
+}
+
+// SetCurrency sets the value of Currency.
+func (s *Money) SetCurrency(val string) {
+	s.Currency = val
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -114,11 +145,11 @@ func (o OptString) Or(d string) string {
 // A customer order.
 // Ref: #/components/schemas/Order
 type Order struct {
-	ID         OrderId     `json:"id"`
-	ProductID  ProductId   `json:"product_id"`
-	Quantity   int         `json:"quantity"`
-	TotalCents int         `json:"total_cents"`
-	Status     OrderStatus `json:"status"`
+	ID        OrderId     `json:"id"`
+	ProductID ProductId   `json:"product_id"`
+	Quantity  int         `json:"quantity"`
+	Total     Money       `json:"total"`
+	Status    OrderStatus `json:"status"`
 }
 
 // GetID returns the value of ID.
@@ -136,9 +167,9 @@ func (s *Order) GetQuantity() int {
 	return s.Quantity
 }
 
-// GetTotalCents returns the value of TotalCents.
-func (s *Order) GetTotalCents() int {
-	return s.TotalCents
+// GetTotal returns the value of Total.
+func (s *Order) GetTotal() Money {
+	return s.Total
 }
 
 // GetStatus returns the value of Status.
@@ -161,9 +192,9 @@ func (s *Order) SetQuantity(val int) {
 	s.Quantity = val
 }
 
-// SetTotalCents sets the value of TotalCents.
-func (s *Order) SetTotalCents(val int) {
-	s.TotalCents = val
+// SetTotal sets the value of Total.
+func (s *Order) SetTotal(val Money) {
+	s.Total = val
 }
 
 // SetStatus sets the value of Status.

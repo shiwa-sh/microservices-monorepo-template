@@ -25,9 +25,9 @@ paths:
                 # purpose: a list example with one status is how a UI ships with an
                 # unstyled badge for every other one.
                 example:
-                  - { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total_cents: 259800, status: confirmed }
-                  - { id: order_01kztnpc5gfx2a9kkhxe1h4ar3, product_id: product_01kztn1f78evjtsk2gbgjk5hs3, quantity: 1, total_cents: 89900, status: pending }
-                  - { id: order_01kztnthyrfsj8a9pjx1md2pqs, product_id: product_01kztn5n0gfphac1fsep3b64nj, quantity: 4, total_cents: 59600, status: cancelled }
+                  - { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total: {amount: "2598.00", currency: EUR}, status: confirmed }
+                  - { id: order_01kztnpc5gfx2a9kkhxe1h4ar3, product_id: product_01kztn1f78evjtsk2gbgjk5hs3, quantity: 1, total: {amount: "899.00", currency: EUR}, status: pending }
+                  - { id: order_01kztnthyrfsj8a9pjx1md2pqs, product_id: product_01kztn5n0gfphac1fsep3b64nj, quantity: 4, total: {amount: "596.00", currency: EUR}, status: cancelled }
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: checkout
@@ -142,16 +142,41 @@ components:
               pointer:
                 type: string
                 description: RFC 6901 JSON Pointer to the offending member.
-                example: /price_cents
+                example: /price/amount
               message:
                 type: string
-                example: must be greater than or equal to 0
+                example: must be a decimal amount
       example:
         type: "about:blank"
         title: Not Found
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
+    # IEEE-754 double by every TypeScript client, and a double cannot represent a
+    # decimal amount exactly. A `type: number` monetary field is a contract defect.
+    Money:
+      type: object
+      description: |
+        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+        double in the TypeScript client, and a double cannot hold a decimal amount
+        exactly. Currency travels with the amount, because an amount without one is
+        not a quantity of anything.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal amount, sign-prefixed when negative. No thousands separators.
+          pattern: '^-?[0-9]+(\.[0-9]+)?$'
+          example: "1299.00"
+        currency:
+          type: string
+          description: ISO 4217 alphabetic code, uppercase.
+          pattern: "^[A-Z]{3}$"
+          example: EUR
+      example:
+        amount: "1299.00"
+        currency: EUR
     # <<< shared-components
     # Wire identifiers (ADR-0003). The stored columns stay bare `uuid`; this form
     # exists so a value in a log line, a ticket, or a URL says what it is.
@@ -199,11 +224,12 @@ components:
     Order:
       type: object
       description: A customer order.
-      required: [id, product_id, quantity, total_cents, status]
+      required: [id, product_id, quantity, total, status]
       properties:
         id:          { $ref: "#/components/schemas/OrderId" }
         product_id:  { $ref: "#/components/schemas/ProductId" }
         quantity:    { type: integer }
-        total_cents: { type: integer }
+        # The shared money type (ADR-0300). Zero until the saga prices the order.
+        total:       { $ref: "#/components/schemas/Money" }
         status:      { type: string, enum: [pending, confirmed, failed, cancelled] }
-      example: { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total_cents: 259800, status: confirmed }
+      example: { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total: {amount: "2598.00", currency: EUR}, status: confirmed }

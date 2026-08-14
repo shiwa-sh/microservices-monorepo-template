@@ -31,7 +31,8 @@ blocks:
       - id: id
         type: TextInput
         properties:
-          label: Id
+          label:
+            title: Id
       - id: submit
         type: Button
         properties:

@@ -26,7 +26,7 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 // rejects before any DB access, so a nil store is fine for these cases.
 func TestCreateProductAuthz(t *testing.T) {
 	t.Parallel()
-	req := &catalog.ProductInput{Name: "widget", PriceCents: 100}
+	req := &catalog.ProductInput{Name: "widget", Price: catalog.Money{Amount: "1.00", Currency: "EUR"}}
 
 	tests := []struct {
 		name    string
@@ -65,7 +65,7 @@ func TestCreateProductAuthz(t *testing.T) {
 // CreateProduct, before any DB access — so a nil store is fine for these cases.
 func TestWriteAuthz(t *testing.T) {
 	t.Parallel()
-	input := &catalog.ProductInput{Name: "widget", PriceCents: 100}
+	input := &catalog.ProductInput{Name: "widget", Price: catalog.Money{Amount: "1.00", Currency: "EUR"}}
 
 	writes := map[string]func(context.Context, *Handlers) error{
 		"UpdateProduct": func(ctx context.Context, h *Handlers) error {

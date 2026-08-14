@@ -6,7 +6,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"math"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -18,6 +17,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/catalog"
 	"github.com/tabmadi/microservices-monorepo-template/services/catalog/internal/store"
@@ -62,6 +62,41 @@ func mintID() (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
 }
 
+// wirePrice renders the stored amount for the wire (ADR-0300): the column is
+// `numeric` and the wire is a decimal STRING with its currency. It goes through
+// money.Amount rather than formatting the numeric directly, so the value on the
+// wire is the one the shared type would produce anywhere else.
+func wirePrice(price pgtype.Numeric, currency string) (catalog.Money, error) {
+	raw, err := price.Value()
+	if err != nil {
+		return catalog.Money{}, apierr.Internal(err.Error())
+	}
+	text, ok := raw.(string)
+	if !ok {
+		return catalog.Money{}, apierr.Internal("price is not a numeric")
+	}
+	amount, err := money.Parse(text, currency)
+	if err != nil {
+		return catalog.Money{}, apierr.Internal(err.Error())
+	}
+	return catalog.Money{Amount: amount.String(), Currency: amount.Currency()}, nil
+}
+
+// storedPrice is the inverse, and the validation: an amount the shared type refuses
+// is a bad request, not a 500 — the client sent it.
+func storedPrice(m catalog.Money) (pgtype.Numeric, string, error) {
+	amount, err := money.Parse(m.Amount, m.Currency)
+	if err != nil {
+		return pgtype.Numeric{}, "", apierr.BadRequest(err.Error())
+	}
+	var price pgtype.Numeric
+	err = price.Scan(amount.String())
+	if err != nil {
+		return pgtype.Numeric{}, "", apierr.Internal(err.Error())
+	}
+	return price, amount.Currency(), nil
+}
+
 func storedID(v catalog.ProductId) (pgtype.UUID, error) {
 	parsed, err := id.Parse("product", string(v))
 	if err != nil {
@@ -77,7 +112,11 @@ func (h *Handlers) ListProducts(ctx context.Context) ([]catalog.Product, error) 
 	}
 	out := make([]catalog.Product, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, catalog.Product{ID: productID(r.ID), Name: r.Name, PriceCents: int(r.PriceCents)})
+		price, err := wirePrice(r.Price, r.Currency)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, catalog.Product{ID: productID(r.ID), Name: r.Name, Price: price})
 	}
 	return out, nil
 }
@@ -94,7 +133,11 @@ func (h *Handlers) GetProduct(ctx context.Context, params catalog.GetProductPara
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &catalog.Product{ID: productID(row.ID), Name: row.Name, PriceCents: int(row.PriceCents)}, nil
+	price, err := wirePrice(row.Price, row.Currency)
+	if err != nil {
+		return nil, err
+	}
+	return &catalog.Product{ID: productID(row.ID), Name: row.Name, Price: price}, nil
 }
 
 func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput) (*catalog.Product, error) {
@@ -105,8 +148,12 @@ func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput)
 	if err != nil {
 		return nil, err
 	}
-	if req.Name == "" || req.PriceCents < 0 || req.PriceCents > math.MaxInt32 {
-		return nil, apierr.BadRequest("name and price_cents required")
+	if req.Name == "" {
+		return nil, apierr.BadRequest("name required")
+	}
+	price, currency, err := storedPrice(req.Price)
+	if err != nil {
+		return nil, err
 	}
 	key, err := mintID()
 	if err != nil {
@@ -114,13 +161,17 @@ func (h *Handlers) CreateProduct(ctx context.Context, req *catalog.ProductInput)
 	}
 	row, err := h.q.CreateProduct(
 		ctx,
-		store.CreateProductParams{ID: key, Name: req.Name, PriceCents: int32(req.PriceCents)},
+		store.CreateProductParams{ID: key, Name: req.Name, Price: price, Currency: currency},
 	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	h.productsCreated.Add(ctx, 1)
-	return &catalog.Product{ID: productID(row.ID), Name: row.Name, PriceCents: int(row.PriceCents)}, nil
+	wire, err := wirePrice(row.Price, row.Currency)
+	if err != nil {
+		return nil, err
+	}
+	return &catalog.Product{ID: productID(row.ID), Name: row.Name, Price: wire}, nil
 }
 
 func (h *Handlers) UpdateProduct(
@@ -135,8 +186,12 @@ func (h *Handlers) UpdateProduct(
 	if err != nil {
 		return nil, err
 	}
-	if req.Name == "" || req.PriceCents < 0 || req.PriceCents > math.MaxInt32 {
-		return nil, apierr.BadRequest("name and price_cents required")
+	if req.Name == "" {
+		return nil, apierr.BadRequest("name required")
+	}
+	price, currency, err := storedPrice(req.Price)
+	if err != nil {
+		return nil, err
 	}
 	key, err := storedID(params.ID)
 	if err != nil {
@@ -145,9 +200,10 @@ func (h *Handlers) UpdateProduct(
 	row, err := h.q.UpdateProduct(
 		ctx,
 		store.UpdateProductParams{
-			ID:         key,
-			Name:       req.Name,
-			PriceCents: int32(req.PriceCents),
+			ID:       key,
+			Name:     req.Name,
+			Price:    price,
+			Currency: currency,
 		},
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -156,7 +212,11 @@ func (h *Handlers) UpdateProduct(
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return &catalog.Product{ID: productID(row.ID), Name: row.Name, PriceCents: int(row.PriceCents)}, nil
+	wire, err := wirePrice(row.Price, row.Currency)
+	if err != nil {
+		return nil, err
+	}
+	return &catalog.Product{ID: productID(row.ID), Name: row.Name, Price: wire}, nil
 }
 
 func (h *Handlers) DeleteProduct(ctx context.Context, params catalog.DeleteProductParams) error {

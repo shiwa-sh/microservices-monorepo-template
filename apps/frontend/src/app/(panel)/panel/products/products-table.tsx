@@ -4,9 +4,11 @@
 // which only works client-side — a Server Component hands it opaque client
 // references and the collection renders empty/undefined. So the RSC page fetches
 // the data and this client child renders the interactive Table from it.
+import { formatMoney, type Money } from "@libs/money";
+
 import { Table } from "@/components/application/table/table";
 
-export type Product = { id: string; name: string; price_cents: number };
+export type Product = { id: string; name: string; price: Money };
 
 export function ProductsTable({ products }: { products: Product[] }) {
   return (
@@ -19,7 +21,10 @@ export function ProductsTable({ products }: { products: Product[] }) {
         {products.map((p) => (
           <Table.Row key={p.id} id={p.id}>
             <Table.Cell className="font-medium text-primary">{p.name}</Table.Cell>
-            <Table.Cell className="tabular-nums">${(p.price_cents / 100).toFixed(2)}</Table.Cell>
+            {/* formatMoney, not `/ 100` and a hardcoded `$`: the minor digits and the
+                symbol belong to the currency, and the amount is a decimal string
+                precisely so it never passes through a double (ADR-0300). */}
+            <Table.Cell className="tabular-nums">{formatMoney(p.price)}</Table.Cell>
           </Table.Row>
         ))}
       </Table.Body>

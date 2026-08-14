@@ -22,6 +22,22 @@ import (
 
 const statusPending = "pending"
 
+// testCurrency is the currency every fixture here is denominated in; which one it
+// is does not matter, only that it travels with the amount.
+const testCurrency = "EUR"
+
+// pendingOrder is a row that can actually be rendered: the total is a valid
+// numeric with a currency, which the zero pgtype.Numeric is not — a handler that
+// renders money needs a row that has some.
+func pendingOrder() store.GetOrderRow {
+	var total pgtype.Numeric
+	err := total.Scan("30.00")
+	if err != nil {
+		panic(err)
+	}
+	return store.GetOrderRow{Status: statusPending, Total: total, Currency: testCurrency}
+}
+
 // testUser is the principal every authenticated case acts as.
 const testUser = "alice"
 
@@ -159,7 +175,7 @@ func TestGetOrderAuthz(t *testing.T) {
 			tc.name,
 			func(t *testing.T) {
 				t.Parallel()
-				h := &Handlers{q: fakeQ{order: store.GetOrderRow{Status: statusPending}}, checker: tc.checker}
+				h := &Handlers{q: fakeQ{order: pendingOrder()}, checker: tc.checker}
 				_, err := h.GetOrder(tc.ctx(), orders.GetOrderParams{ID: testOrderID})
 				if tc.want == 0 {
 					if err != nil {
@@ -397,15 +413,22 @@ func TestListOrders(t *testing.T) {
 		"rows map to the API schema",
 		func(t *testing.T) {
 			t.Parallel()
+			var total pgtype.Numeric
+			err := total.Scan("5.00")
+			if err != nil {
+				t.Fatalf("scan total: %v", err)
+			}
 			h := &Handlers{q: fakeQ{list: []store.ListOrdersRow{
-				{Quantity: 2, TotalCents: 500, Status: statusPending},
+				{Quantity: 2, Total: total, Currency: testCurrency, Status: statusPending},
 			}}, checker: okChecker()}
 			got, err := h.ListOrders(opCtx())
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if len(got) != 1 || got[0].Quantity != 2 || got[0].TotalCents != 500 ||
-				got[0].Status != orders.OrderStatusPending {
+			// The stored numeric reaches the wire as a decimal string with its
+			// currency, never as a number and never as minor units (ADR-0300).
+			if len(got) != 1 || got[0].Quantity != 2 || got[0].Total.Amount != "5" ||
+				got[0].Total.Currency != testCurrency || got[0].Status != orders.OrderStatusPending {
 				t.Fatalf("mapping = %+v", got)
 			}
 		},

@@ -20,9 +20,14 @@ import (
 
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/store"
 	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/workflows"
 )
+
+// defaultCurrency is what an order is priced in before catalog has answered. It is
+// overwritten by the product's own currency the moment the total is known.
+const defaultCurrency = "EUR"
 
 type Activities struct {
 	DB         *pgxpool.Pool
@@ -76,10 +81,14 @@ func (a *Activities) CreateOrderActivity(ctx context.Context, in workflows.Check
 	_, err = store.New(a.DB).CreateOrder(
 		ctx,
 		store.CreateOrderParams{
-			ID:             pgtype.UUID{Bytes: orderID.UUID(), Valid: true},
-			ProductID:      pgtype.UUID{Bytes: productID.UUID(), Valid: true},
-			Quantity:       in.Quantity,
-			TotalCents:     0,
+			ID:        pgtype.UUID{Bytes: orderID.UUID(), Valid: true},
+			ProductID: pgtype.UUID{Bytes: productID.UUID(), Valid: true},
+			Quantity:  in.Quantity,
+			// The currency the order is priced in. The total starts at zero and the
+			// saga sets it once catalog has answered; the currency comes from the
+			// same answer, so an order can only ever be priced in the currency its
+			// product carries.
+			Currency:       defaultCurrency,
 			OwnerID:        pgtype.Text{String: in.OwnerID, Valid: true},
 			OrgID:          pgtype.UUID{Bytes: orgID.UUID(), Valid: true},
 			IdempotencyKey: pgtype.Text{String: in.IdempotencyKey, Valid: in.IdempotencyKey != ""},
@@ -111,32 +120,72 @@ func (a *Activities) GrantOrderAccessActivity(ctx context.Context, orderID, owne
 	return nil
 }
 
-// LookupProductActivity calls catalog. Returns the product's price in cents.
-func (a *Activities) LookupProductActivity(ctx context.Context, productID string) (int32, error) {
+// LookupProductActivity calls catalog. Returns the product's price as the shared
+// money type, which is what crosses the wire in both directions (ADR-0300) — an
+// activity result is a boundary like any other, and a bare number here would put
+// the scale back in the caller's head.
+func (a *Activities) LookupProductActivity(ctx context.Context, productID string) (money.Amount, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, a.CatalogURL+"/products/"+productID, nil)
 	resp, err := a.HTTP.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("lookup product: call catalog: %w", err)
+		return money.Amount{}, fmt.Errorf("lookup product: call catalog: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("catalog status %d", resp.StatusCode)
+		return money.Amount{}, fmt.Errorf("catalog status %d", resp.StatusCode)
 	}
 	var out struct {
-		PriceCents int32 `json:"price_cents"`
+		Price struct {
+			Amount   string `json:"amount"`
+			Currency string `json:"currency"`
+		} `json:"price"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&out)
 	if err != nil {
-		return 0, fmt.Errorf("lookup product: decode response: %w", err)
+		return money.Amount{}, fmt.Errorf("lookup product: decode response: %w", err)
 	}
-	return out.PriceCents, nil
+	price, err := money.Parse(out.Price.Amount, out.Price.Currency)
+	if err != nil {
+		return money.Amount{}, fmt.Errorf("lookup product: %w", err)
+	}
+	return price, nil
+}
+
+// SetOrderTotalActivity records what the saga priced the order at.
+func (a *Activities) SetOrderTotalActivity(ctx context.Context, orderID string, total money.Amount) error {
+	parsed, err := id.Parse("order", orderID)
+	if err != nil {
+		return fmt.Errorf("set order total: parse order id: %w", err)
+	}
+	var amount pgtype.Numeric
+	err = amount.Scan(total.String())
+	if err != nil {
+		return fmt.Errorf("set order total: %w", err)
+	}
+	err = store.New(a.DB).SetOrderTotal(
+		ctx,
+		store.SetOrderTotalParams{
+			ID:       pgtype.UUID{Bytes: parsed.UUID(), Valid: true},
+			Total:    amount,
+			Currency: total.Currency(),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("set order total: update: %w", err)
+	}
+	return nil
 }
 
 // ChargeActivity calls payment with an idempotency key derived from the order ID.
 // Returns the charge handle ID. The order id is already type-prefixed (ADR-0003),
 // so it names its own type in payment's dedup store without a second prefix.
-func (a *Activities) ChargeActivity(ctx context.Context, orderID string, totalCents int32) (string, error) {
-	body, err := json.Marshal(map[string]any{"order_id": orderID, "amount_cents": totalCents})
+func (a *Activities) ChargeActivity(ctx context.Context, orderID string, total money.Amount) (string, error) {
+	body, err := json.Marshal(
+		map[string]any{
+			"order_id": orderID,
+			"amount":   map[string]string{"amount": total.String(), "currency": total.Currency()},
+		},
+	)
 	if err != nil {
 		return "", fmt.Errorf("charge: marshal request: %w", err)
 	}

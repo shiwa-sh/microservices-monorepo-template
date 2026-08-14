@@ -78,7 +78,15 @@ export default function browse(data) {
     tags: { endpoint: "get_product" },
   });
   if (expectStatus(detail, 200, "get product")) {
-    expectJSON(detail, "get product", (p) => p.id === id && typeof p.price_cents === "number");
+    // The price is an object with a decimal STRING amount, never a number
+    // (ADR-0300) — asserting the shape here is what catches a spec regression that
+    // a status code would not.
+    expectJSON(
+      detail,
+      "get product",
+      (p) =>
+        p.id === id && typeof p.price?.amount === "string" && typeof p.price?.currency === "string",
+    );
   }
 
   sleep(0.5 + Math.random());

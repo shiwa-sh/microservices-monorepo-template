@@ -95,12 +95,34 @@ export interface components {
             errors?: {
                 /**
                  * @description RFC 6901 JSON Pointer to the offending member.
-                 * @example /price_cents
+                 * @example /price/amount
                  */
                 pointer: string;
-                /** @example must be greater than or equal to 0 */
+                /** @example must be a decimal amount */
                 message: string;
             }[];
+        };
+        /**
+         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+         *     double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. Currency travels with the amount, because an amount without one is
+         *     not a quantity of anything.
+         * @example {
+         *       "amount": "1299.00",
+         *       "currency": "EUR"
+         *     }
+         */
+        Money: {
+            /**
+             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @example 1299.00
+             */
+            amount: string;
+            /**
+             * @description ISO 4217 alphabetic code, uppercase.
+             * @example EUR
+             */
+            currency: string;
         };
         /**
          * @description A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
@@ -114,18 +136,21 @@ export interface components {
          * @example {
          *       "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
          *       "name": "Aeron chair",
-         *       "price_cents": 129900
+         *       "price": {
+         *         "amount": "1299.00",
+         *         "currency": "EUR"
+         *       }
          *     }
          */
         Product: {
             id: components["schemas"]["ProductId"];
             name: string;
-            price_cents: number;
+            price: components["schemas"]["Money"];
         };
         /** @description Request body to create a product. */
         ProductInput: {
             name: string;
-            price_cents: number;
+            price: components["schemas"]["Money"];
         };
     };
     responses: {

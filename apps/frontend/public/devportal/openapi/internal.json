@@ -45,17 +45,26 @@
                     {
                       "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
                       "name": "Aeron chair",
-                      "price_cents": 129900
+                      "price": {
+                        "amount": "1299.00",
+                        "currency": "EUR"
+                      }
                     },
                     {
                       "id": "product_01kztn1f78evjtsk2gbgjk5hs3",
                       "name": "Standing desk",
-                      "price_cents": 89900
+                      "price": {
+                        "amount": "899.00",
+                        "currency": "EUR"
+                      }
                     },
                     {
                       "id": "product_01kztn5n0gfphac1fsep3b64nj",
                       "name": "Monitor arm",
-                      "price_cents": 14900
+                      "price": {
+                        "amount": "149.00",
+                        "currency": "EUR"
+                      }
                     }
                   ]
                 }
@@ -228,21 +237,30 @@
                       "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
                       "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
                       "quantity": 2,
-                      "total_cents": 259800,
+                      "total": {
+                        "amount": "2598.00",
+                        "currency": "EUR"
+                      },
                       "status": "confirmed"
                     },
                     {
                       "id": "order_01kztnpc5gfx2a9kkhxe1h4ar3",
                       "product_id": "product_01kztn1f78evjtsk2gbgjk5hs3",
                       "quantity": 1,
-                      "total_cents": 89900,
+                      "total": {
+                        "amount": "899.00",
+                        "currency": "EUR"
+                      },
                       "status": "pending"
                     },
                     {
                       "id": "order_01kztnthyrfsj8a9pjx1md2pqs",
                       "product_id": "product_01kztn5n0gfphac1fsep3b64nj",
                       "quantity": 4,
-                      "total_cents": 59600,
+                      "total": {
+                        "amount": "596.00",
+                        "currency": "EUR"
+                      },
                       "status": "cancelled"
                     }
                   ]
@@ -534,19 +552,28 @@
                     {
                       "id": "charge_01kztnyqr0f13shqqnx8028xx5",
                       "order_id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
-                      "amount_cents": 259800,
+                      "amount": {
+                        "amount": "2598.00",
+                        "currency": "EUR"
+                      },
                       "status": "settled"
                     },
                     {
                       "id": "charge_01kztp2xh8e6nr9gh2xr7ryye5",
                       "order_id": "order_01kztnpc5gfx2a9kkhxe1h4ar3",
-                      "amount_cents": 89900,
+                      "amount": {
+                        "amount": "899.00",
+                        "currency": "EUR"
+                      },
                       "status": "pending"
                     },
                     {
                       "id": "charge_01kztp73agejgvn558snqmna6f",
                       "order_id": "order_01kztnthyrfsj8a9pjx1md2pqs",
-                      "amount_cents": 59600,
+                      "amount": {
+                        "amount": "596.00",
+                        "currency": "EUR"
+                      },
                       "status": "refunded"
                     }
                   ]
@@ -751,11 +778,11 @@
                 "pointer": {
                   "type": "string",
                   "description": "RFC 6901 JSON Pointer to the offending member.",
-                  "example": "/price_cents"
+                  "example": "/price/amount"
                 },
                 "message": {
                   "type": "string",
-                  "example": "must be greater than or equal to 0"
+                  "example": "must be a decimal amount"
                 }
               }
             }
@@ -767,6 +794,32 @@
           "status": 404,
           "detail": "No product with that identifier.",
           "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+        }
+      },
+      "Money": {
+        "type": "object",
+        "description": "A monetary amount. The amount is a decimal STRING — a JSON number becomes a\ndouble in the TypeScript client, and a double cannot hold a decimal amount\nexactly. Currency travels with the amount, because an amount without one is\nnot a quantity of anything.\n",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Decimal amount, sign-prefixed when negative. No thousands separators.",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "example": "1299.00"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 alphabetic code, uppercase.",
+            "pattern": "^[A-Z]{3}$",
+            "example": "EUR"
+          }
+        },
+        "example": {
+          "amount": "1299.00",
+          "currency": "EUR"
         }
       },
       "ProductId": {
@@ -781,7 +834,7 @@
         "required": [
           "id",
           "name",
-          "price_cents"
+          "price"
         ],
         "properties": {
           "id": {
@@ -790,15 +843,17 @@
           "name": {
             "type": "string"
           },
-          "price_cents": {
-            "type": "integer",
-            "minimum": 0
+          "price": {
+            "$ref": "#/components/schemas/Money"
           }
         },
         "example": {
           "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
           "name": "Aeron chair",
-          "price_cents": 129900
+          "price": {
+            "amount": "1299.00",
+            "currency": "EUR"
+          }
         }
       },
       "ProductInput": {
@@ -806,16 +861,15 @@
         "description": "Request body to create a product.",
         "required": [
           "name",
-          "price_cents"
+          "price"
         ],
         "properties": {
           "name": {
             "type": "string",
             "minLength": 1
           },
-          "price_cents": {
-            "type": "integer",
-            "minimum": 0
+          "price": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -886,7 +940,7 @@
           "id",
           "product_id",
           "quantity",
-          "total_cents",
+          "total",
           "status"
         ],
         "properties": {
@@ -899,8 +953,8 @@
           "quantity": {
             "type": "integer"
           },
-          "total_cents": {
-            "type": "integer"
+          "total": {
+            "$ref": "#/components/schemas/Money"
           },
           "status": {
             "type": "string",
@@ -916,7 +970,10 @@
           "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
           "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
           "quantity": 2,
-          "total_cents": 259800,
+          "total": {
+            "amount": "2598.00",
+            "currency": "EUR"
+          },
           "status": "confirmed"
         }
       },
@@ -970,15 +1027,14 @@
         "description": "Request body to create a charge.",
         "required": [
           "order_id",
-          "amount_cents"
+          "amount"
         ],
         "properties": {
           "order_id": {
             "$ref": "#/components/schemas/OrderId"
           },
-          "amount_cents": {
-            "type": "integer",
-            "minimum": 1
+          "amount": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -1001,7 +1057,7 @@
         "required": [
           "id",
           "order_id",
-          "amount_cents",
+          "amount",
           "status"
         ],
         "properties": {
@@ -1011,8 +1067,8 @@
           "order_id": {
             "$ref": "#/components/schemas/OrderId"
           },
-          "amount_cents": {
-            "type": "integer"
+          "amount": {
+            "$ref": "#/components/schemas/Money"
           },
           "status": {
             "type": "string",
@@ -1027,7 +1083,10 @@
         "example": {
           "id": "charge_01kztnyqr0f13shqqnx8028xx5",
           "order_id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
-          "amount_cents": 259800,
+          "amount": {
+            "amount": "2598.00",
+            "currency": "EUR"
+          },
           "status": "settled"
         }
       }

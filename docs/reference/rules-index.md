@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 146 |
-| Review-enforced | 306 |
-| **Total** | **452** |
+| Machine-enforced | 153 |
+| Review-enforced | 300 |
+| **Total** | **453** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -102,13 +102,13 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | Every named resource derives from `{project}-{env}-{role}[-{n}]`. Shared infrastructure not tied to a product — a team proxy, an internal forge, a registry mirror — is modelled as its own project with its own slug and follows the same grammar. | review |
-| A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. | review |
-| The project slug is 6–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. | review |
-| `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. | review |
-| `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. | review |
+| A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. | `lint:naming` in CI |
+| The project slug is 6–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. | `lint:naming` in CI |
+| `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. | `lint:naming` in CI |
+| `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. | `lint:naming` in CI |
 | The same string is used in files and in every provider's console. Where a namespace rejects hyphens, the compact form — the slug with hyphens removed — is used, and no other transformation is applied. | review |
 | A name records only facts that are constant for the life of the resource. Owner, cost centre, and application metadata are Kubernetes labels, OTel resource attributes, or provider tags. | review |
-| A true provider-global collision is resolved by appending a random `[a-z0-9]{4}` token to the project slug, never a descriptive or per-resource suffix. | review |
+| A true provider-global collision is resolved by appending a random `[a-z0-9]{4}` token to the project slug, never a descriptive or per-resource suffix. | `lint:naming` in CI |
 | The full slug is required where names cross the cluster boundary — provider resources, Kubernetes contexts, SSH aliases, `age` recipients. In-cluster hostnames and namespaces drop the implied `{project}-{env}`. | review |
 | SSH key pairs are named `{project}-{env}` on an engineer's laptop. Where several engineers' public keys share a namespace, each carries a `{handle}` owner segment. | review |
 | A primary key is a UUIDv7 in a Postgres `uuid` column, generated in application code. Sequential integer keys and UUIDv4 are not used. | standard: RFC 9562 |
@@ -130,7 +130,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Every backend service is written in Go. Another language requires its own ADR admitting the service under a documented escape hatch. | review |
 | The Go version is pinned by the root `.mise.toml` and no service overrides it. Only a release still receiving upstream security fixes is pinned — the two most recent major releases ([Go release policy](https://go.dev/doc/devel/release)). | `ci:lint` in CI |
-| A monetary amount is the shared money type, never a floating-point number — `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. | review |
+| A monetary amount is the shared money type, never a floating-point number — `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. | `lint:money` in CI |
 | The frontend is TypeScript. | review |
 | Bun is the only JS runtime for code we author. No Go service image, the frontend image, or any artifact built from our own source installs Node. | `lint:node-scope` in CI |
 | Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config against the root `[env] NODE_VERSION`; an island shipping as a container pins no Node at all. A fourth Node island requires amending this ADR. | `lint:node-scope` in CI |
@@ -410,6 +410,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Worker graceful-stop is configured, and `terminationGracePeriodSeconds` is derived from the worker stop timeout rather than set independently. | review |
 | Workflow code is deterministic and side effects go through activities. | `ci:lint` in CI |
 | Activities are idempotent and accept retries. | review |
+| Every activity a workflow executes by name is registered on that service's worker. | `lint:activity-register` in CI |
 | Workflow IDs encode business intent, not opaque UUIDs. | review |
 | Activity inputs and outputs stay in kilobytes; larger payloads go through the bucket by reference. | review |
 | Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is reserved for pure infrastructure. | review |

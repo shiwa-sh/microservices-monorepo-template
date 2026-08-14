@@ -20,6 +20,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	orders "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orders"
 	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/store"
@@ -74,6 +75,25 @@ func mintOrderID() (pgtype.UUID, error) {
 		return pgtype.UUID{}, apierr.Internal(err.Error())
 	}
 	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
+}
+
+// wireTotal renders the stored total for the wire (ADR-0300): the column is
+// `numeric` and the wire is a decimal string with its currency. Through
+// money.Amount, so the value matches what the shared type produces anywhere else.
+func wireTotal(total pgtype.Numeric, currency string) (orders.Money, error) {
+	raw, err := total.Value()
+	if err != nil {
+		return orders.Money{}, apierr.Internal(err.Error())
+	}
+	text, ok := raw.(string)
+	if !ok {
+		return orders.Money{}, apierr.Internal("total is not a numeric")
+	}
+	amount, err := money.Parse(text, currency)
+	if err != nil {
+		return orders.Money{}, apierr.Internal(err.Error())
+	}
+	return orders.Money{Amount: amount.String(), Currency: amount.Currency()}, nil
 }
 
 func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
@@ -180,12 +200,16 @@ func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
+	total, err := wireTotal(row.Total, row.Currency)
+	if err != nil {
+		return nil, err
+	}
 	return &orders.Order{
-		ID:         orderID(row.ID),
-		ProductID:  productID(row.ProductID),
-		Quantity:   int(row.Quantity),
-		TotalCents: int(row.TotalCents),
-		Status:     orders.OrderStatus(row.Status),
+		ID:        orderID(row.ID),
+		ProductID: productID(row.ProductID),
+		Quantity:  int(row.Quantity),
+		Total:     total,
+		Status:    orders.OrderStatus(row.Status),
 	}, nil
 }
 
@@ -202,14 +226,20 @@ func (h *Handlers) ListOrders(ctx context.Context) ([]orders.Order, error) {
 	}
 	out := make([]orders.Order, 0, len(rows))
 	for _, r := range rows {
-		o := orders.Order{
-			ID:         orderID(r.ID),
-			ProductID:  productID(r.ProductID),
-			Quantity:   int(r.Quantity),
-			TotalCents: int(r.TotalCents),
-			Status:     orders.OrderStatus(r.Status),
+		total, err := wireTotal(r.Total, r.Currency)
+		if err != nil {
+			return nil, err
 		}
-		out = append(out, o)
+		out = append(
+			out,
+			orders.Order{
+				ID:        orderID(r.ID),
+				ProductID: productID(r.ProductID),
+				Quantity:  int(r.Quantity),
+				Total:     total,
+				Status:    orders.OrderStatus(r.Status),
+			},
+		)
 	}
 	return out, nil
 }

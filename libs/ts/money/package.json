@@ -1,0 +1,11 @@
+{
+  "name": "@libs/money",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monetary amounts on the TypeScript side (ADR-0300, ADR-0100).",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "types": "./index.ts"
+}

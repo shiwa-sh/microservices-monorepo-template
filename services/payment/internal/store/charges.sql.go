@@ -12,37 +12,43 @@ import (
 )
 
 const createCharge = `-- name: CreateCharge :one
-insert into charges (id, order_id, amount_cents, status, idempotency_key)
-values ($1, $2, $3, 'pending', $4)
-returning id, order_id, amount_cents, status
+insert into charges (id, order_id, amount, currency, status, idempotency_key, amount_cents)
+values ($1, $2, $3, $4, 'pending', $5, ($3::numeric * 100)::integer)
+returning id, order_id, amount, currency, status
 `
 
 type CreateChargeParams struct {
-	ID             pgtype.UUID `json:"id"`
-	OrderID        pgtype.UUID `json:"order_id"`
-	AmountCents    int32       `json:"amount_cents"`
-	IdempotencyKey string      `json:"idempotency_key"`
+	ID             pgtype.UUID    `json:"id"`
+	OrderID        pgtype.UUID    `json:"order_id"`
+	Amount         pgtype.Numeric `json:"amount"`
+	Currency       string         `json:"currency"`
+	IdempotencyKey string         `json:"idempotency_key"`
 }
 
 type CreateChargeRow struct {
-	ID          pgtype.UUID `json:"id"`
-	OrderID     pgtype.UUID `json:"order_id"`
-	AmountCents int32       `json:"amount_cents"`
-	Status      string      `json:"status"`
+	ID       pgtype.UUID    `json:"id"`
+	OrderID  pgtype.UUID    `json:"order_id"`
+	Amount   pgtype.Numeric `json:"amount"`
+	Currency string         `json:"currency"`
+	Status   string         `json:"status"`
 }
 
+// amount_cents is written from the money columns until the follow-up migration
+// drops it: the column is still NOT NULL, and nothing reads it any more.
 func (q *Queries) CreateCharge(ctx context.Context, arg CreateChargeParams) (CreateChargeRow, error) {
 	row := q.db.QueryRow(ctx, createCharge,
 		arg.ID,
 		arg.OrderID,
-		arg.AmountCents,
+		arg.Amount,
+		arg.Currency,
 		arg.IdempotencyKey,
 	)
 	var i CreateChargeRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrderID,
-		&i.AmountCents,
+		&i.Amount,
+		&i.Currency,
 		&i.Status,
 	)
 	return i, err
@@ -52,17 +58,19 @@ const getByIdempotencyKey = `-- name: GetByIdempotencyKey :one
 select
   id,
   order_id,
-  amount_cents,
+  amount,
+  currency,
   status
 from charges
 where idempotency_key = $1
 `
 
 type GetByIdempotencyKeyRow struct {
-	ID          pgtype.UUID `json:"id"`
-	OrderID     pgtype.UUID `json:"order_id"`
-	AmountCents int32       `json:"amount_cents"`
-	Status      string      `json:"status"`
+	ID       pgtype.UUID    `json:"id"`
+	OrderID  pgtype.UUID    `json:"order_id"`
+	Amount   pgtype.Numeric `json:"amount"`
+	Currency string         `json:"currency"`
+	Status   string         `json:"status"`
 }
 
 func (q *Queries) GetByIdempotencyKey(ctx context.Context, idempotencyKey string) (GetByIdempotencyKeyRow, error) {
@@ -71,7 +79,8 @@ func (q *Queries) GetByIdempotencyKey(ctx context.Context, idempotencyKey string
 	err := row.Scan(
 		&i.ID,
 		&i.OrderID,
-		&i.AmountCents,
+		&i.Amount,
+		&i.Currency,
 		&i.Status,
 	)
 	return i, err
@@ -81,17 +90,19 @@ const getCharge = `-- name: GetCharge :one
 select
   id,
   order_id,
-  amount_cents,
+  amount,
+  currency,
   status
 from charges
 where id = $1
 `
 
 type GetChargeRow struct {
-	ID          pgtype.UUID `json:"id"`
-	OrderID     pgtype.UUID `json:"order_id"`
-	AmountCents int32       `json:"amount_cents"`
-	Status      string      `json:"status"`
+	ID       pgtype.UUID    `json:"id"`
+	OrderID  pgtype.UUID    `json:"order_id"`
+	Amount   pgtype.Numeric `json:"amount"`
+	Currency string         `json:"currency"`
+	Status   string         `json:"status"`
 }
 
 func (q *Queries) GetCharge(ctx context.Context, id pgtype.UUID) (GetChargeRow, error) {
@@ -100,7 +111,8 @@ func (q *Queries) GetCharge(ctx context.Context, id pgtype.UUID) (GetChargeRow, 
 	err := row.Scan(
 		&i.ID,
 		&i.OrderID,
-		&i.AmountCents,
+		&i.Amount,
+		&i.Currency,
 		&i.Status,
 	)
 	return i, err
@@ -110,17 +122,19 @@ const listCharges = `-- name: ListCharges :many
 select
   id,
   order_id,
-  amount_cents,
+  amount,
+  currency,
   status
 from charges
 order by created_at desc limit 100
 `
 
 type ListChargesRow struct {
-	ID          pgtype.UUID `json:"id"`
-	OrderID     pgtype.UUID `json:"order_id"`
-	AmountCents int32       `json:"amount_cents"`
-	Status      string      `json:"status"`
+	ID       pgtype.UUID    `json:"id"`
+	OrderID  pgtype.UUID    `json:"order_id"`
+	Amount   pgtype.Numeric `json:"amount"`
+	Currency string         `json:"currency"`
+	Status   string         `json:"status"`
 }
 
 func (q *Queries) ListCharges(ctx context.Context) ([]ListChargesRow, error) {
@@ -135,7 +149,8 @@ func (q *Queries) ListCharges(ctx context.Context) ([]ListChargesRow, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrderID,
-			&i.AmountCents,
+			&i.Amount,
+			&i.Currency,
 			&i.Status,
 		); err != nil {
 			return nil, err

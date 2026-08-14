@@ -34,11 +34,13 @@ blocks:
       - id: email
         type: TextInput
         properties:
-          label: Email
+          label:
+            title: Email
       - id: password
         type: PasswordInput
         properties:
-          label: Password
+          label:
+            title: Password
       - id: submit
         type: Button
         properties:

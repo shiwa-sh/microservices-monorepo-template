@@ -12,8 +12,8 @@ events:
       params:
         name:
           _request: get.data.name
-        price_cents:
-          _request: get.data.price_cents
+        price:
+          _request: get.data.price
       type: SetState
 requests:
   - id: get
@@ -36,14 +36,14 @@ requests:
         _url_query: id
       name:
         _state: name
-      price_cents:
-        _state: price_cents
+      price:
+        _state: price
     properties:
       data:
         name:
           _payload: name
-        price_cents:
-          _payload: price_cents
+        price:
+          _payload: price
       method: put
       url:
         _string.concat:
@@ -82,11 +82,18 @@ blocks:
       - id: name
         type: TextInput
         properties:
-          label: Name
-      - id: price_cents
-        type: NumberInput
+          label:
+            title: Name
+      - id: price.amount
+        type: TextInput
         properties:
-          label: Price cents
+          label:
+            title: Price
+      - id: price.currency
+        type: TextInput
+        properties:
+          label:
+            title: Currency
       - id: save
         type: Button
         properties:
