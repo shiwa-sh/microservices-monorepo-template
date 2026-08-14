@@ -11,6 +11,12 @@ dbmate = "2.33.0"
 sqlc = "1.31.1"
 "github:quarylabs/sqruff" = "0.38.0"
 
+# Workflow determinism (ADR-0302). Temporal's own analyzer: a workflow function
+# that reads the clock, the map iteration order, or the network replays into a
+# different history than it recorded, and the failure surfaces as a corrupt
+# workflow rather than as a test failure.
+"go:go.temporal.io/sdk/contrib/tools/workflowcheck" = "0.5.0"
+
 # API contracts & codegen
 "go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
 vacuum = "0.29.2"
@@ -370,7 +376,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -547,6 +553,16 @@ depends = ["setup:node"]
 # where a regression is introduced. axe scans the rendered pages in e2e and catches
 # the composition mistakes this cannot see.
 run = "go run ./tools/lint-contrast"
+
+[tasks."lint:determinism"]
+# Temporal workflow determinism (ADR-0302). Not the same question as
+# lint:thin-workflows, which is about GitHub Actions YAML — this one reads the Go
+# workflow functions and reports any path reaching non-deterministic code.
+#
+# Scoped to services/: a workflow function is only ever defined there, and the
+# analyzer walks the whole call graph from each one, so pointing it at the repo
+# would re-analyse every library for no additional finding.
+run = "workflowcheck ./services/..."
 
 [tasks."lint:thin-workflows"]
 # ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task.
