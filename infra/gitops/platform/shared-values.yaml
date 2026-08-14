@@ -1,0 +1,43 @@
+# Overrides that must be supplied as a values FILE, for every platform chart and
+# every environment.
+#
+# Why this file exists at all. Helm deletes a key when its value is `null` — but
+# only in a values file passed with `-f`. A `null` in a parent chart's own
+# values.yaml does not delete a subchart's default: dependency values are coalesced,
+# and coalescing treats a nil as "not set", so the upstream value wins. So an
+# upstream default that must be REMOVED rather than replaced cannot be removed from
+# the wrapper chart that wraps it, which is where every other override lives.
+#
+# Anything environment-specific belongs in <env>/values.yaml instead. This file is
+# for deletions, and it is applied to every chart in the tier — a key here that no
+# chart declares is inert, which is what makes one shared file safe.
+kyverno:
+  # ADR-0204: a CPU limit is throttling, and these are an init container and two
+  # hook Jobs — throttling a migration or a startup task turns a slow one into a
+  # failed one. Memory limits stay; memory is the one resource where a limit is the
+  # guard rather than the brake. Caught by lint:resource-governance on every bump.
+  admissionController:
+    initContainer:
+      resources:
+        limits:
+          cpu: null
+  webhooksCleanup:
+    resources:
+      limits:
+        cpu: null
+  # NOT the CRD-migration hook (`crds.migration.podResources`). A `null` there is
+  # applied but not deleted — it renders as an explicit `cpu: null`, which the API
+  # server reads as a limit of zero and rejects the Job outright. That container is
+  # on the allow-list in tools/lint-resource-governance instead, which is the honest
+  # place for "upstream sets this and we cannot remove it".
+
+temporal-worker-controller:
+  # The same deletion, and the reason this file exists in the first place: the
+  # allow-list in tools/lint-resource-governance carried this container with the
+  # note "inherited, unremovable — a parent values.yaml cannot delete a subchart
+  # key". It is removable; it just could not be removed from where it was being
+  # tried. 500m was ~80x the measured 6m peak, so the limit was inert as a guard
+  # and live as a throttle.
+  resources:
+    limits:
+      cpu: null

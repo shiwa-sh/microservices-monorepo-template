@@ -45,6 +45,13 @@ namespaces:
       the node-level OTel collector needs hostPath and hostPorts, which `baseline`
       forbids; PSA's unit is the namespace, so nothing above `privileged` can be
       enforced until that agent moves to its own.
+  - name: kyverno
+    # Admission control lives apart from what it admits (ADR-0104, ADR-0200):
+    # Kyverno excludes its own namespace from every policy, because a webhook that
+    # gates its own controllers cannot restart them — so sharing `platform` would
+    # exempt the platform. The controllers are upstream's and set the securityContext
+    # `restricted` wants, so this one enforces it.
+    enforce: restricted
   - name: argocd
     # Argo installs itself before this chart can exist (it cannot sync itself into
     # being), so this manifest adopts the namespace `helm --create-namespace` made

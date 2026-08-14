@@ -1,0 +1,87 @@
+# Admission control for image provenance (ADR-0104).
+#
+# Kyverno gates ONE question here: is this image ours, signed by us, and pinned. It
+# is not a general policy engine for this platform — pod privilege is Pod Security
+# Admission's job (ADR-0200), because PSA is in the API server and costs no
+# component to enforce. Two engines answering overlapping questions is how a rule
+# ends up enforced in one place, exempted in the other, and understood in neither.
+kyverno:
+  # Its OWN namespace, and this is not tidiness. Kyverno's default configuration
+  # excludes the namespace it runs in from every policy — `[*/*,<namespace>,*]` in
+  # the resourceFilters — because a webhook that gates its own controllers cannot
+  # restart them. Installed into `platform`, that exclusion silently exempts the
+  # entire platform: the policies load, report Ready, and match nothing. Measured
+  # the hard way, on a policy that admitted a tag it was written to reject.
+  #
+  # It is also what ADR-0200 asks for on its own terms: a component whose needs
+  # differ gets its own namespace rather than bending the shared one.
+  namespaceOverride: kyverno
+
+  # The CRDs are the policies' API. Installed by the chart rather than separately:
+  # unlike cert-manager, nothing in this chart renders a CR at install time, so the
+  # single-pass problem that forced cert-manager's two-pass install does not arise.
+  crds:
+    install: true
+
+  # Sized for the local tier and dev (ADR-0204); a deployed environment raises the
+  # replica counts in its own values overlay. Kyverno's four controllers do
+  # different work: only the admission controller is in the request path.
+  admissionController:
+    replicas: 1
+    resources:
+      requests: { cpu: "50m", memory: "192Mi" }
+      limits: { memory: "384Mi" }
+    # The CPU limits the upstream chart puts on this init container and on its hook
+    # Jobs are removed in infra/gitops/platform/shared-values.yaml, not here: Helm
+    # only honours a `null` deletion in a values file passed with `-f`, and a
+    # wrapper chart's own values.yaml is coalesced instead — where a nil reads as
+    # "not set" and the upstream value wins.
+  backgroundController:
+    replicas: 1
+    resources:
+      requests: { cpu: "25m", memory: "96Mi" }
+      limits: { memory: "192Mi" }
+  cleanupController:
+    replicas: 1
+    resources:
+      requests: { cpu: "10m", memory: "64Mi" }
+      limits: { memory: "128Mi" }
+  reportsController:
+    replicas: 1
+    resources:
+      requests: { cpu: "25m", memory: "128Mi" }
+      limits: { memory: "256Mi" }
+
+
+# ── The policies ──────────────────────────────────────────────────────────────
+
+policies:
+  # `Enforce` rejects; `Audit` records a PolicyReport and admits. Deployed
+  # environments enforce. The local tier does not publish images and holds no
+  # signing key, so there is nothing there for a signature rule to be right about —
+  # its values set Audit, which still exercises the whole path (the webhook fires,
+  # the policy evaluates, the report is written) without turning a laptop into a
+  # place where nothing can start.
+  validationFailureAction: Enforce
+
+  # The registry prefix that identifies a FIRST-PARTY image. Both policies are
+  # scoped to it, which is what keeps them from making claims about images they
+  # know nothing about: a third-party chart's image is pinned by digest under
+  # ADR-0104's allow-list rule, not signed by us, and a signature rule that matched
+  # it would fail every upstream component in the cluster.
+  #
+  # Set per environment. Empty disables both policies, which is how an environment
+  # that has not published anything yet declines them explicitly rather than
+  # shipping a rule that matches nothing and reads as if it matches everything.
+  #
+  # It is also the first pass of an imperative install: the CRDs these policies need
+  # are subchart TEMPLATES, so one `helm install` renders both the CRD and the CR
+  # that depends on it. Install with this empty, then upgrade with it set. ArgoCD
+  # needs neither pass — the policies carry a sync-wave.
+  imagePrefix: ""
+
+  # The committed public half of the platform signing key (ADR-0104), inlined into
+  # the ClusterPolicy as a `keys` attestor. Delivered as a Helm fileParameter from
+  # infra/auth/cosign/cosign.pub by the ApplicationSet, so the policy and the key
+  # are one file in review — there is no second copy to drift.
+  publicKey: ""

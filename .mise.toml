@@ -74,7 +74,17 @@ trivy = "0.73.0"
 # Image signing and verification (ADR-0104). The key pair lives in SOPS and the
 # public half is committed; Kyverno verifies against it at admission. Pinned here
 # because CI signs with the same binary a developer verifies with.
-cosign = "3.1.2"
+#
+# 2.x, deliberately, and this is a decision rather than lag. cosign 3 makes the
+# Sigstore BUNDLE format mandatory — `--new-bundle-format=false` is deprecated and
+# refused alongside a signing config, and so is `--tlog-upload=false` — and the only
+# Kyverno path that reads a bundle initialises the public Sigstore TUF root before
+# it looks at the key. Verification would then depend on reaching
+# tuf-repo-cdn.sigstore.dev, which is exactly the third-party trust root ADR-0104
+# refused when it chose a key pair over keyless. Measured: every pod rejected with
+# "failed to download 13.root.json" behind a proxy. Revisit when Kyverno can verify
+# a bundle against a bare public key with no trust-root fetch.
+cosign = "2.6.5"
 # The SBOM half of the same rule: an SPDX bill of materials attached to each image
 # as a cosign attestation, so it travels with the image rather than beside it.
 syft = "1.51.0"

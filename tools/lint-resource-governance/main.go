@@ -55,12 +55,17 @@ var chartExtraArgs = map[string][]string{
 	"openfga": {setFlag, "image.repository=r", setFlag, "image.tag=v"},
 }
 
+// sharedValues is the repo-wide overlay every platform chart is rendered with.
+const sharedValues = "infra/gitops/platform/shared-values.yaml"
+
 // CPU limits ADR-0204 tolerates, each with the reason it survives. A container not
 // listed here may not carry one.
 var cpuLimitAllowList = map[string]string{
-	// Inherited from the subchart; a parent values.yaml cannot delete a subchart key
-	// (Helm coalescing skips parent nulls). 500m is ~80x the measured 6m peak.
-	"temporal-worker-controller/temporal-worker-controller-manager/manager": "inherited, unremovable, 80x measured peak",
+	// Upstream default that resists deletion: a `null` at
+	// crds.migration.podResources is applied but not removed, and renders as an
+	// explicit `cpu: null` the API server reads as zero. Runs once, after an
+	// upgrade, to migrate CRDs — throttling delays that and nothing else.
+	"kyverno/kyverno-migrate-resources/kyverno-cli": "upstream hook Job, undeletable default, runs once",
 	// Runs once at pod start to copy CNI binaries: throttling delays startup only.
 	"cilium/cilium/install-cni-binaries": "upstream init container, startup-only",
 }
@@ -289,7 +294,7 @@ func ensureDeps(ctx context.Context, dir, name string) error {
 }
 
 // render runs `helm template` for one chart and returns its workload containers.
-func render(ctx context.Context, dir, name string) ([]entry, error) {
+func render(ctx context.Context, root, dir, name string) ([]entry, error) {
 	depErr := ensureDeps(ctx, dir, name)
 	if depErr != nil {
 		return nil, depErr
@@ -302,7 +307,16 @@ func render(ctx context.Context, dir, name string) ([]entry, error) {
 	// = "default", so every chart stamping `namespace: {{ .Release.Namespace }}`
 	// reports the wrong namespace, matches no LimitRange, and makes the coverage
 	// check fire on every container in the repo.
-	args := append([]string{"template", name, dir, "--namespace", ns}, chartExtraArgs[name]...)
+	// The shared deletions file, because it is part of what the cluster actually
+	// gets: the ApplicationSets pass it to every platform chart, and it is the only
+	// place a subchart's default can be REMOVED rather than replaced (Helm honours a
+	// `null` deletion in a `-f` file and ignores one in a wrapper chart's own
+	// values.yaml). Rendering without it checks a chart nobody deploys.
+	extra := chartExtraArgs[name]
+	args := make([]string, 0, 7+len(extra))
+	args = append(args, "template", name, dir, "--namespace", ns)
+	args = append(args, "-f", filepath.Join(root, sharedValues))
+	args = append(args, extra...)
 	stdout, err := exec.CommandContext(ctx, "helm", args...).Output()
 	if err != nil {
 		var stderr string
@@ -393,7 +407,7 @@ func collectPlatformCharts(ctx context.Context, root string) []entry {
 		if chartErr != nil {
 			continue // not a chart (e.g. an empty placeholder directory)
 		}
-		entries, renderErr := render(ctx, d, filepath.Base(d))
+		entries, renderErr := render(ctx, root, d, filepath.Base(d))
 		if renderErr != nil {
 			dief("%v", renderErr)
 		}
@@ -423,7 +437,7 @@ func collectServices(ctx context.Context, root string) []entry {
 			continue
 		}
 		chartExtraArgs["service"] = serviceArgs(svc, hasWorker(sd))
-		entries, renderErr := render(ctx, chart, "service")
+		entries, renderErr := render(ctx, root, chart, "service")
 		if renderErr != nil {
 			dief("service chart for %s: %v", svc, renderErr)
 		}
@@ -525,7 +539,19 @@ func checkCoverage(all []entry, gov governance) int {
 func checkCPULimits(all []entry) int {
 	fail := 0
 	for _, e := range all {
-		limit := e.res.Limits["cpu"]
+		limit, present := e.res.Limits["cpu"]
+		// A PRESENT key with an empty value is `cpu: null` in the rendered YAML,
+		// which is not the same as an absent limit: the API server reads it as a
+		// limit of zero and rejects the pod ("requests … must be less than or equal
+		// to cpu limit of 0"). It is what a failed `null` deletion leaves behind, so
+		// it looks like success everywhere except the cluster.
+		if present && limit == "" {
+			outf("✗ %s sets an EMPTY cpu limit (`cpu: null`); the API server reads that as 0, not as absent", e.label)
+			outf("  a values-file `null` did not delete the upstream key here")
+			outf("  — remove the override and allow-list the container instead")
+			fail++
+			continue
+		}
 		if limit == "" {
 			continue
 		}

@@ -1,0 +1,16 @@
+apiVersion: v2
+name: kyverno
+description: |
+  Admission control for image provenance (ADR-0104): every first-party image
+  carries a signature this platform made, and every image reference is a digest.
+
+  The upstream chart is the mechanism; the policies are this chart's own templates,
+  because the policies ARE the decision and belong in the repository that made it.
+type: application
+version: 0.1.0
+appVersion: "1.18.2"
+
+dependencies:
+  - name: kyverno
+    version: "3.8.2"
+    repository: https://kyverno.github.io/kyverno

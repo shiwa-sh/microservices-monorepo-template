@@ -1,0 +1,89 @@
+{{- if and .Values.policies.imagePrefix .Values.policies.publicKey }}
+# Every first-party image carries a signature this platform made (ADR-0104).
+#
+# `verifyImages` is a MUTATING rule as well as a validating one: on success Kyverno
+# rewrites the image reference to the digest it verified. That is the property that
+# makes this the enforcement of the digest rule rather than a second opinion about
+# it — the pod runs the bytes that were verified, not whatever the tag resolves to a
+# second later.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-first-party-signatures
+  annotations:
+    # After the CRDs, which are TEMPLATES of the subchart rather than files in a
+    # crds/ directory — so a single Helm pass renders this CR against an API server
+    # that has never heard of `kyverno.io/v1`. ArgoCD orders it with this wave; an
+    # imperative `helm install` of this chart needs two passes, the first with
+    # `policies.imagePrefix=""` (see values.yaml).
+    argocd.argoproj.io/sync-wave: "1"
+    policies.kyverno.io/title: First-party images are signed
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      Every image from this platform's own registry must carry a cosign signature
+      made with the platform key pair, plus an SBOM and provenance attestation
+      (ADR-0104). Third-party images are out of scope: they are pinned by digest
+      and allow-listed instead, and a signature rule that matched them would reject
+      every upstream component in the cluster.
+spec:
+  validationFailureAction: {{ .Values.policies.validationFailureAction }}
+  background: false
+  webhookTimeoutSeconds: 30
+  # A signature check reaches the registry, so it cannot fail open: a policy that
+  # admits on timeout is one an attacker only has to make slow.
+  failurePolicy: Fail
+  rules:
+    - name: signed-by-the-platform-key
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      verifyImages:
+        # `type` is left at its default, Cosign — the classic simple-signing layout,
+        # which is what scripts/ci-sign.sh produces with `--new-bundle-format=false`.
+        #
+        # The alternative was to take cosign 3's default output (a Sigstore bundle,
+        # `application/vnd.dev.sigstore.bundle.v0.3+json`) and set
+        # `type: SigstoreBundle` here. Measured, and rejected: Kyverno's bundle path
+        # initialises Sigstore TUF before it looks at the key, so verification fails
+        # with "failed to download 13.root.json" whenever tuf-repo-cdn.sigstore.dev
+        # is unreachable. That is the public trust root ADR-0104 refused, arriving
+        # through a format choice rather than through a decision.
+        - imageReferences:
+            - {{ .Values.policies.imagePrefix | quote }}
+          # The digest Kyverno verified is written back into the pod spec.
+          mutateDigest: true
+          # …and a reference that already carries a digest is left alone rather
+          # than re-resolved.
+          required: true
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: |-
+{{ .Values.policies.publicKey | trim | indent 22 }}
+                    # The signature algorithm is pinned: cosign's default is
+                    # ECDSA-P256-SHA256 and the key above is one, but a policy that
+                    # accepts whatever the signature claims accepts a downgrade.
+                    signatureAlgorithm: sha256
+                    # No transparency log, on purpose and in both directions.
+                    #
+                    # ADR-0104 chose a key pair over keyless precisely because the
+                    # only verifier here is our own admission controller, and keyless
+                    # outsources the trust root. Kyverno still consults the PUBLIC
+                    # Sigstore TUF mirror for Rekor's keys unless told not to — so a
+                    # cluster verifying its own images with its own key fails
+                    # admission whenever tuf-repo-cdn.sigstore.dev is unreachable,
+                    # which is the dependency the decision refused. Measured: every
+                    # pod rejected with "failed to load Rekor public keys … 403".
+                    #
+                    # The other side of the same choice is `--tlog-upload=false` in
+                    # scripts/ci-sign.sh: nothing publishes to the log, so nothing may
+                    # require an entry in it. Both live under `keys`, not beside it —
+                    # the schema puts them per attestor entry type.
+                    rekor:
+                      ignoreTlog: true
+                    ctlog:
+                      ignoreSCT: true
+{{- end }}

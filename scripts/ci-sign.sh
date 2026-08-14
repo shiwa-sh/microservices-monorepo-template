@@ -47,8 +47,15 @@ COSIGN_PASSWORD="$(yq -r '.stringData.COSIGN_PASSWORD' "$work/secret.yaml")"
 export COSIGN_PASSWORD
 rm -f "$work/secret.yaml"
 
+# --tlog-upload=false: ADR-0104 chose a key pair over keyless because the only
+# verifier is our own admission controller, and a transparency-log entry is only
+# worth its dependency to a verifier who does not trust us. Publishing to the public
+# Rekor anyway would put a third party in the path of every build and in the path of
+# every admission. The Kyverno policy's `rekor.ignoreTlog` is the same decision seen
+# from the other end, and the cosign 2.x pin in .mise.toml is what keeps this flag
+# available at all.
 step "signing ${IMAGE}"
-cosign sign --yes --key "$work/cosign.key" "$IMAGE"
+cosign sign --yes --tlog-upload=false --key "$work/cosign.key" "$IMAGE"
 
 # A file, not a pipe: syft writes progress to stderr and the document to stdout, and
 # a pipeline that swallows one loses the other's failure with it.
@@ -56,7 +63,7 @@ step "generating the SPDX SBOM"
 syft "$IMAGE" -o "spdx-json=$work/sbom.spdx.json"
 
 step "attaching the SBOM and the provenance"
-cosign attest --yes --key "$work/cosign.key" \
+cosign attest --yes --tlog-upload=false --key "$work/cosign.key" \
   --type spdxjson --predicate "$work/sbom.spdx.json" "$IMAGE"
 
 # SLSA provenance: what source, what builder. The predicate is assembled here from
@@ -85,7 +92,7 @@ jq -n \
      }
    }' >"$work/provenance.json"
 
-cosign attest --yes --key "$work/cosign.key" \
+cosign attest --yes --tlog-upload=false --key "$work/cosign.key" \
   --type slsaprovenance1 --predicate "$work/provenance.json" "$IMAGE"
 
 ok "signed, SBOM and provenance attached: ${IMAGE}"

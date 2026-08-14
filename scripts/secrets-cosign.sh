@@ -37,7 +37,10 @@ KEY_DIR="infra/auth/cosign"
 PUB_KEY="${KEY_DIR}/cosign.pub"
 PRIVATE="${KEY_DIR}/signing-key.enc.yaml"
 
-if [ -f "$PUB_KEY" ] || [ -f "$PRIVATE" ]; then
+# NON-EMPTY, not merely present: the template commits an empty cosign.pub so the
+# Helm fileParameter that reads it resolves in every environment (a path that does
+# not exist fails every application in the tier, not just this one).
+if [ -s "$PUB_KEY" ] || [ -f "$PRIVATE" ]; then
   fail "${KEY_DIR} already holds a key pair. Generating a second one is a ROTATION — follow docs/guide/secrets-runbook.md, which carries both public keys through the window."
 fi
 

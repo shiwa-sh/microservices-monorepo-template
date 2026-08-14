@@ -68,6 +68,10 @@ spec:
                   # labelled after its pods are admitted governs nothing, because
                   # PSA is an admission check.
                 - { path: "infra/helm/platform/namespaces" }
+                  # Admission control (ADR-0104). In the BASE tier because a
+                  # policy that arrives after the workloads it gates has already
+                  # missed them: admission is evaluated once, at creation.
+                - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
@@ -107,6 +111,10 @@ spec:
           # Non-Ory/OpenFGA charts ignore these extra keys. The per-env file layers
           # last so its host/dsn/secret overrides win (later valueFiles precede).
           valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -117,6 +125,10 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
@@ -180,6 +192,10 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -190,6 +206,10 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
@@ -259,6 +279,10 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -269,6 +293,10 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }

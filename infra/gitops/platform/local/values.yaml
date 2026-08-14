@@ -157,3 +157,15 @@ lowdefy:
 # uses locally). Headlamp needs no local override.
 pgweb:
   databaseUrl: "postgres://dev:dev@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
+
+# Admission control (ADR-0104). The local tier publishes no images and holds no
+# signing key, so both policies are absent by construction: `imagePrefix` is empty,
+# which renders neither. Kyverno itself still installs — the webhook, the CRDs and
+# the reports controller are the part worth having locally, because a policy that
+# is only ever exercised in CI is a policy nobody can debug.
+policies:
+  imagePrefix: ""
+  # Audit rather than Enforce wherever a policy DOES get scoped here by hand: a
+  # laptop where nothing can start is a laptop nobody uses, and the report carries
+  # the same information.
+  validationFailureAction: Audit
