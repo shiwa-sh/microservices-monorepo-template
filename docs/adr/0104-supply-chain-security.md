@@ -100,9 +100,9 @@ The digest-pin rule reinforces [ADR-0103](0103-release-and-versioning.md): produ
 
 ## Rules
 
-- Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. `(CI: ci:publish)`
+- Every first-party image is cosign-signed in CI with the platform key pair, and carries an SBOM and a provenance attestation. `(CI: ci:sign)`
 - Vulnerability scanning is a merge gate in CI. Neither the registry nor the cluster scans ([ADR-0105](0105-image-registry.md)).
-- The signing private key exists only as a SOPS-encrypted secret; the public key is committed and named by the Kyverno policy. It is never held by a person and never stored unencrypted.
+- The signing private key exists only as a SOPS-encrypted secret, decrypted by CI alone; the public key is committed and named by the Kyverno policy. It is never held by a person and never stored unencrypted. There is one platform key pair, not one per environment — an image is built once and the same digest flows through every environment.
 - Kyverno rejects at admission any image lacking a valid signature or referenced by a floating tag. `(enforced: Kyverno)`
 - All images are digest-pinned. `(CI: lint:floating-tags; enforced: Kyverno)`
 - Third-party images are pinned by digest and allow-listed, with upstream signatures verified where published.

@@ -17,6 +17,10 @@ keys:
   # only — never reuse this key pair for a real environment.
   - &cluster_local   age1aapmzzzcs8qm2n9exkel8vtknqsmy9t3k9g99wpypfez8av4uaps0f9gpp
 
+  # CI's key — the only non-human recipient. Its private half is a forge secret,
+  # and it is a recipient of exactly one file: the image-signing key (ADR-0104).
+  - &ci_placeholder     age1example0ci0000000000000000000000000000000000000000000000000
+
   # Ops-recovery — private halves held offline by 2-3 seniors.
   - &ops_recovery    age1example0ops0recovery000000000000000000000000000000000000000
 
@@ -55,6 +59,17 @@ creation_rules:
     encrypted_regex: ^(data|stringData)$
     age:
       - *cluster_local
+
+  # The image-signing private key (ADR-0104). CI decrypts it to sign; no cluster
+  # ever does, because Kyverno verifies with the public half. So the recipients are
+  # the people who could have to re-issue it and the CI identity that uses it — and
+  # deliberately not a cluster key, since a secret delivered to a cluster is a
+  # secret that cluster can be made to read.
+  - path_regex: infra/auth/cosign/.*\.enc\.ya?ml$
+    age:
+      - *eng_placeholder
+      - *ci_placeholder
+      - *ops_recovery
 
   # Anything else encrypted in the repo: engineers + ops-recovery only.
   - path_regex: .*\.enc\.ya?ml$

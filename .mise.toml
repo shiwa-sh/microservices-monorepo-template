@@ -71,6 +71,13 @@ gitleaks = "8.30.1"
 # three. Its secret scanner stays off: gitleaks above owns that question, and two
 # gates answering the same one is how a finding gets triaged twice and fixed never.
 trivy = "0.73.0"
+# Image signing and verification (ADR-0104). The key pair lives in SOPS and the
+# public half is committed; Kyverno verifies against it at admission. Pinned here
+# because CI signs with the same binary a developer verifies with.
+cosign = "3.1.2"
+# The SBOM half of the same rule: an SPDX bill of materials attached to each image
+# as a cosign attestation, so it travels with the image rather than beside it.
+syft = "1.51.0"
 
 # JSON wrangling for runtime glue scripts (ops:grant). Static policy checks use
 # Go tools/ instead; this is the one reproducible binary for shell-side JSON.
@@ -651,6 +658,14 @@ depends = ["test"]
 # as forge step-output assignments (ADR-0102). The workflow step only redirects.
 run = "bash scripts/ci-affected-matrix.sh"
 
+[tasks."ci:sign"]
+# Sign a published image and attach its SBOM and provenance (ADR-0104). One task
+# for all three because they are one decision — an image is admissible when it
+# carries a signature we made, a bill of materials, and provenance — and three
+# steps is how one of them silently stops running.
+#   mise run ci:sign -- ghcr.io/org/repo/catalog-server@sha256:…
+run = "bash scripts/ci-sign.sh"
+
 [tasks."ci:e2e-gate"]
 # Whether a pull request pays for the smoke suite, as a forge step-output
 # assignment (ADR-0102, ADR-0601). The `e2e-smoke` label still forces it on; a PR
@@ -782,6 +797,15 @@ run = "bash scripts/auth-token.sh"
 # Operator onboarding (ADR-0304/0017): add/revoke a human's group:operator
 # membership by email. Usage: mise run ops:grant -- <email> [--revoke].
 run = "bash scripts/ops-grant.sh"
+
+[tasks."secrets:cosign"]
+# Generate the platform's image-signing key pair (ADR-0104): public half committed
+# where every environment's Kyverno policy reads it, private half encrypted for CI
+# alone. A task rather than a documented sequence, because the step everyone would
+# skip is the one that keeps the private half off the disk in the clear. One pair
+# for the platform — an image is built once and the same digest flows through every
+# environment, so a per-environment key would reject in prod what it admitted in dev.
+run = "bash scripts/secrets-cosign.sh"
 
 [tasks."secrets:age"]
 # Idempotent; also writes .sops.yaml (ADR-0202).
