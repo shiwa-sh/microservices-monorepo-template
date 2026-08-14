@@ -21,6 +21,7 @@ Walking a row is three steps: read the upstream source, set the *Verified* date 
 | Distroless base images | non-current tags stop receiving updates | 2026-08-11 | [ADR-0101](../adr/0101-monorepo.md) — a base image left on an old tag is a security decision made by not deciding |
 | The tool register's licence and governing-body columns | read from each project's own `LICENSE` file and, for the CNCF rows, from the [landscape data](https://github.com/cncf/landscape) | 2026-08-13 | [ADR-0002](../adr/0002-tool-adoption.md) — the columns are evidence about exit cost, and a cell nobody read is not evidence |
 | Prism's `--multiprocess` flag | defaults to `true`, and `stoplight/prism:5.15.10` crashes on startup with it — `createMultiProcessPrism` reads `cluster.isPrimary` off an undefined import | 2026-08-14 | [ADR-0600](../adr/0600-local-development-loop.md) — the mock runs with it off; the flag buys log throughput this loop does not need, so re-check only on a version bump |
+| Untitled UI's password-visibility toggle | sized to its 16px icon, under WCAG 2.2 AA's 24px minimum target — `target-size` fails on every input of `type="password"` | 2026-08-14 | [ADR-0400](../adr/0400-frontend.md) — carried as a local `size-6` patch in `input.tsx`, the one deviation from vendored-verbatim; drop it if upstream fixes the size |
 
 ## What belongs here
 

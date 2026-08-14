@@ -172,7 +172,12 @@ export const InputBase = ({
                     aria-label="Toggle password visibility"
                     onClick={() => setIsPasswordVisible(!isPasswordVisible)}
                     className={cx(
-                        "absolute flex cursor-pointer items-center justify-center text-fg-quaternary transition duration-100 ease-linear hover:text-fg-quaternary_hover focus:text-fg-quaternary_hover focus:outline-hidden",
+                        // LOCAL PATCH (ADR-0400, docs/reference/upstream-status.md): `size-6`.
+                        // Upstream sizes this button to its 16px icon, which is under WCAG
+                        // 2.2 AA's 24px minimum target — axe fails `target-size` on it, and
+                        // the a11y suite gates on serious violations. The icon stays 16px and
+                        // is still centred; only the hit area grows. Re-check on a re-sync.
+                        "absolute flex size-6 cursor-pointer items-center justify-center text-fg-quaternary transition duration-100 ease-linear hover:text-fg-quaternary_hover focus:text-fg-quaternary_hover focus:outline-hidden",
                         sizes[inputSize].iconTrailing,
                     )}
                 >
