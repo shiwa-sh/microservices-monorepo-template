@@ -1,0 +1,57 @@
+# Pod Security Admission, per namespace (ADR-0200).
+#
+# `enforceVersion` is pinned to the cluster's minor rather than left at `latest`,
+# so a Kubernetes upgrade that adds a criterion is a deliberate bump in a reviewed
+# PR — not a batch of pods that stop being admitted during a control-plane upgrade.
+# Each environment overrides it in infra/gitops/platform/<env>/values.yaml when its
+# cluster moves.
+enforceVersion: v1.35
+
+# Each entry becomes one Namespace carrying the four PSA labels.
+#
+#   enforce  the profile the API server REJECTS against. `restricted` is the
+#            target; anything lower carries a `reason`, which the template
+#            requires and renders onto the namespace as an annotation.
+#   warn     always `restricted` — a warning costs nothing and is how the gap
+#            between where a namespace is and where it should be stays visible.
+#   audit    always `restricted`, for the same reason, in the audit log.
+namespaces:
+  - name: platform
+    # Every workload the platform runs, first-party and third-party, shares this
+    # namespace. The first-party half already satisfies `restricted`: the shared
+    # service chart sets runAsNonRoot, a non-zero runAsUser, a read-only root
+    # filesystem, drops ALL capabilities and sets seccompProfile RuntimeDefault.
+    #
+    # The third-party half does not, and it is most of the namespace — Temporal's
+    # five roles, Prometheus, Loki, Tempo, Pyroscope, Alloy, MinIO, OpenFGA, the
+    # sops-operator, pgweb, headlamp, lowdefy, and the CNPG-managed Postgres. Each
+    # needs a values override or a rebuilt image before `restricted` can be
+    # enforced here.
+    #
+    # `baseline` is not available either, and for a sharper reason: the OTel
+    # collector runs as a node agent, which means hostPath (`/var/log/pods`, the
+    # container log tail) and hostPorts (the OTLP receivers every pod on the node
+    # sends to). `baseline` forbids both — measured, not predicted: with
+    # `enforce: baseline` the DaemonSet's every pod is rejected at creation and the
+    # cluster silently loses all node-level log collection.
+    #
+    # PSA's unit is the namespace, so one workload needing hostPath takes the whole
+    # namespace with it. ADR-0200's answer is that such a component runs in its own
+    # namespace; until the agent has one, this enforces nothing and warns and
+    # audits at `restricted`, which reports the exact gap for every workload on
+    # every apply.
+    enforce: privileged
+    reason: >-
+      the node-level OTel collector needs hostPath and hostPorts, which `baseline`
+      forbids; PSA's unit is the namespace, so nothing above `privileged` can be
+      enforced until that agent moves to its own.
+  - name: argocd
+    # Argo installs itself before this chart can exist (it cannot sync itself into
+    # being), so this manifest adopts the namespace `helm --create-namespace` made
+    # rather than creating it. Same profile as platform for the same reason: the
+    # upstream chart's redis and repo-server do not set the fields `restricted`
+    # requires.
+    enforce: baseline
+    reason: >-
+      the upstream ArgoCD chart's components do not set the securityContext
+      fields `restricted` requires.

@@ -63,6 +63,11 @@ spec:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
               directories:
+                  # Namespaces + their Pod Security Admission profile (ADR-0200).
+                  # First in the base tier and sync-wave -1 inside it: a namespace
+                  # labelled after its pods are admitted governs nothing, because
+                  # PSA is an admission check.
+                - { path: "infra/helm/platform/namespaces" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }

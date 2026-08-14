@@ -376,7 +376,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:activity-register", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -431,6 +431,15 @@ run = "bash scripts/lint-ports.sh"
 # service is edge-exposed (public ⇔ has an /api route). Spec-less control-plane
 # services (authz) are exempt. Prevents the finding-D omission from recurring.
 run = "go run ./tools/lint-api-audience"
+
+[tasks."lint:service-deps"]
+# The inner loop's dependency graph, checked against the code (ADR-0600, ADR-0205).
+# Each service declares what `mise run server`/`worker` must bring up; this reads
+# the entrypoint's package closure and the base-URL environment names in it, and
+# reports drift both ways. ADR-0600 names the omitted edge as the most likely way
+# to regress the local loop: a worker whose saga dials payment with no
+# `svc:payment` starts cleanly and dies on the first checkout.
+run = "go run ./tools/lint-service-deps"
 
 [tasks."lint:activity-register"]
 # Temporal registration gate (ADR-0302): every activity a workflow names as a

@@ -21,9 +21,17 @@
 # or a production-only rendering difference.
 name: frontend
 image:
-  repository: frontend
-  tag: local
-  pullPolicy: IfNotPresent
+  # The local registry, like every other service (ADR-0205): this file is what the
+  # services ApplicationSet generates the frontend's Application from, so a bare
+  # node-resident `frontend:local` means the full tier pulls from Docker Hub, gets
+  # `insufficient_scope`, and sits in ImagePullBackOff until someone runs
+  # `cluster:add -- frontend` by hand. cluster:full builds and pushes this tag.
+  #
+  # `cluster:add` still works: it overrides repository and tag with a timestamped
+  # node-resident image, which is the point of that path.
+  repository: k3d-registry.localhost:5000/frontend
+  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
+  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker: { enabled: false }
 server:
   port: 3000

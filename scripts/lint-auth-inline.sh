@@ -43,10 +43,16 @@ for f in \
 done
 
 # --- 2. No development-only auth code in the frontend (ADR-0600) -------------
-# Scope is the app's authn gate and its auth library — the two places a bypass is
-# actually reachable from. Comments are dropped so this file's own prose, and the
-# ADR pointers in the app, do not trip it.
-AUTH_PATHS=(apps/frontend/src/proxy.ts apps/frontend/src/lib/auth)
+# Scope is the WHOLE application, not just its authn gate and auth library. Those
+# two are where a bypass belongs if it exists at all, which is exactly why nobody
+# puts one there: it goes in a server action, a fetcher, or a layout, where it
+# reads like a convenience. The rule says the application carries no
+# development-only authentication code, so the linter reads the application.
+#
+# Widening is safe because the patterns below are narrow — they name a bypass
+# outright, or pair NODE_ENV with an auth word on the same line. Comments are
+# dropped so this file's own prose, and the ADR pointers in the app, do not trip it.
+AUTH_PATHS=(apps/frontend/src)
 # An environment-conditional branch is only a finding when it is conditioning the
 # SESSION — proxy.ts legitimately relaxes the CSP for `next dev`, which grants
 # nothing. So NODE_ENV counts only alongside an auth word on the same line.

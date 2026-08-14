@@ -1,0 +1,38 @@
+{{- /*
+One Namespace per entry, carrying the Pod Security Standards labels (ADR-0200).
+
+Sync-wave -1 puts these ahead of everything else in their tier: a namespace that
+appears after the pods do is labelled too late to govern them, because PSA is an
+admission check and admission has already happened.
+
+A namespace below `restricted` MUST say why. That is enforced here with `required`
+rather than left to review — an unexplained exception is indistinguishable from an
+oversight six months later, and this is the file where the explanation belongs.
+*/}}
+{{- range .Values.namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    {{- if ne .enforce "restricted" }}
+    # Rendered from values, so the reason travels with the namespace into the
+    # cluster: `kubectl get ns <name> -o yaml` answers "why is this not
+    # restricted" without anyone finding this repository first.
+    psa.platform/exception-reason: {{ required (printf "namespaces: %s enforces %s and must record a reason" .name .enforce) .reason | quote }}
+    {{- end }}
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/part-of: platform
+    pod-security.kubernetes.io/enforce: {{ .enforce }}
+    pod-security.kubernetes.io/enforce-version: {{ $.Values.enforceVersion }}
+    # Always `restricted`, whatever is enforced: the warning is how the distance
+    # between the two stays visible on every apply, and the audit annotation is how
+    # it stays visible in the audit log.
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: {{ $.Values.enforceVersion }}
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: {{ $.Values.enforceVersion }}
+{{- end }}

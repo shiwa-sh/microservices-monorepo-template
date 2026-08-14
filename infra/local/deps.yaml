@@ -1,4 +1,10 @@
 # Lightweight local dependencies for the inner dev loop (ADR-0200).
+#
+# The `platform` namespace is NOT here. It is declared by
+# infra/helm/platform/namespaces along with its Pod Security Admission profile,
+# because the profile and the namespace are one decision (ADR-0200) — and because
+# a selector that creates the namespace is a selector that DELETES it when the same
+# label list is handed to `kubectl delete`.
 # NOT the production components — these are throwaway, in-memory/ephemeral stand-ins
 # so a service (run natively on the host) has Postgres, Temporal and OpenFGA to talk to.
 # The production-grade versions (CNPG, the Temporal Helm chart, operator-backed
@@ -9,17 +15,11 @@
 # is what makes a component a SELECTION (ADR-0205): there is one manifest, and
 # nothing can drift from it.
 #
-# cluster:base takes `in (base,postgres)` — Kratos needs a store, so every base has
-# one. Everything else is opt-in, added by scripts/dep-apply.sh when a service
+# cluster:base takes `postgres` — Kratos needs a store, so every base has one.
+# Everything else is opt-in, added by scripts/dep-apply.sh when a service
 # declares it (`dep:temporal`, `dep:openfga`, `dep:db-secrets` in the service's own
 # .mise.toml). There are no named profiles: what is up is base ∪ the declared
 # dependencies of whatever you are running.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: platform
-  labels: { local.platform/component: base }
----
 # --- Postgres (plain image, ephemeral) -------------------------------------
 # `kratos` is here because cluster:base runs the real Kratos against this stand-in
 # instead of CNPG (ADR-0600). Free either way — the pod has no volume, so initdb

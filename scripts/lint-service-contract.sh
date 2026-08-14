@@ -12,9 +12,10 @@
 #   - service-deploy.sh reads dep:*/svc:* out of .mise.toml, so an undeclared
 #     dependency is an undeployed dependency.
 #
-# The contract is therefore mechanical, and so is this check. Whatever it cannot
-# check (that the declarations are TRUE — that a service listing dep:temporal
-# really uses Temporal) is documented in ADR-0205 as a reviewer's job.
+# The contract is therefore mechanical, and so is this check. Whether the
+# declarations are TRUE — that a service listing dep:temporal really uses Temporal,
+# and that one calling payment says so — is the other half, and it is now
+# lint:service-deps, which reads each entrypoint's package closure.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"

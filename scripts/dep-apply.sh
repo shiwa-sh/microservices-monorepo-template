@@ -80,7 +80,9 @@ elif k -n "$NS" get "secret/${probe}" >/dev/null 2>&1; then
 fi
 
 step "adding dep:${COMPONENT}"
-k apply -f infra/local/deps.yaml -l "local.platform/component in (base,${COMPONENT})"
+# The namespace is not in this file — it comes from the namespaces chart, with its
+# pod-security profile (ADR-0200). What is selected here is the component itself.
+k apply -f infra/local/deps.yaml -l "local.platform/component=${COMPONENT}"
 
 if [ "$kind" = deploy ]; then
   k -n "$NS" rollout status "deploy/${probe}" --timeout=180s

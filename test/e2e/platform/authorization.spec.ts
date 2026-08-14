@@ -9,7 +9,7 @@
 // the tuple) and the Temporal saga (which wrote it) — a handler test can assert the
 // call is made, and nothing below this level can assert the answer is right.
 import { expect, test, type BrowserContext, type Browser } from "@playwright/test";
-import { BASE_URL } from "../fixtures/env";
+import { BASE_URL, OPERATOR_STATE } from "../fixtures/env";
 import { passwordLogin, register } from "../fixtures/kratos";
 import { portForward } from "../fixtures/kube";
 
@@ -30,6 +30,24 @@ async function signedIn(browser: Browser, who: { email: string; password: string
   await passwordLogin(page, who.email, who.password);
   await page.close();
   return ctx;
+}
+
+// createProduct mints the one product this spec buys, as the operator — creating a
+// product is operator-gated (ADR-0304), which is why it needs the stored operator
+// session rather than either buyer's.
+//
+// The price is a Money object, not an integer of minor units (ADR-0300).
+async function createProduct(browser: Browser): Promise<string> {
+  const ops = await browser.newContext({ ignoreHTTPSErrors: true, storageState: OPERATOR_STATE });
+  try {
+    const res = await ops.request.post(`${BASE_URL}/api/products`, {
+      data: { name: `authz-e2e-${stamp}`, price: { amount: "42.00", currency: "EUR" } },
+    });
+    expect(res.status(), "the operator can create a product to buy").toBe(201);
+    return ((await res.json()) as { id: string }).id;
+  } finally {
+    await ops.close();
+  }
 }
 
 // checkout places an order as whoever this context is signed in as.
@@ -61,26 +79,37 @@ test.describe("order read authorization", () => {
   let other: BrowserContext;
   let anonymous: BrowserContext;
   let orderId = "";
+  let productId = "";
 
   test.beforeAll(async ({ browser }) => {
     anonymous = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
 
-    // The catalog is the one collection that reads without a session, which is why
-    // it can be fetched from the context that has none.
-    const products = (await (
-      await anonymous.request.get(`${BASE_URL}/api/products`)
-    ).json()) as Array<{ id: string }>;
-    expect(products.length, "the catalog has a product to buy").toBeGreaterThan(0);
+    // This spec buys its OWN product rather than the first one in the catalog. A
+    // fresh cluster has an empty catalog, so depending on someone else's fixture
+    // made the first `mise run e2e` after a bring-up fail here and pass on every
+    // run after — which reads as a flake and is a missing setup step.
+    productId = await createProduct(browser);
 
     buyer = await signedIn(browser, BUYER);
     other = await signedIn(browser, OTHER);
 
-    orderId = await checkout(buyer, products[0].id);
+    orderId = await checkout(buyer, productId);
     expect(orderId, "checkout returned an order id").toMatch(/^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$/);
   });
 
-  test.afterAll(async () => {
+  test.afterAll(async ({ browser }) => {
     await Promise.all([buyer?.close(), other?.close(), anonymous?.close()]);
+
+    // The product goes with them, for the same reason the identities do: a fixture
+    // left behind is a fixture some other spec eventually counts.
+    if (productId) {
+      const ops = await browser.newContext({ ignoreHTTPSErrors: true, storageState: OPERATOR_STATE });
+      try {
+        await ops.request.delete(`${BASE_URL}/api/products/${productId}`);
+      } finally {
+        await ops.close();
+      }
+    }
 
     // Delete both buyers. A registration per run that nobody removes is not
     // tidiness: the admin console's identity changelist paginates client-side, so

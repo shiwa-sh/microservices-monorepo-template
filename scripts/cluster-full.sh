@@ -51,7 +51,13 @@ k -n argocd rollout status deploy/argocd-applicationset-controller --timeout=300
 # 3. SOPS decryption key (the bootstrap root of trust): the committed throwaway
 #    local age key, planted as the Secret the sops-operator mounts (ADR-0202).
 echo "→ planting sops-age-key (local throwaway key)"
-k create namespace "$NS" --dry-run=client -o yaml | k apply -f -
+# The namespace comes from the same chart Argo syncs, so it exists with its
+# pod-security profile already on it (ADR-0200) rather than bare. `k create
+# namespace` here would make it unlabelled, and the label Argo adds a minute later
+# would govern only what is admitted after that — not the pods started in between.
+h template namespaces infra/helm/platform/namespaces \
+  -f infra/gitops/platform/local/values.yaml |
+  k apply -f - >/dev/null
 k -n "$NS" create secret generic sops-age-key \
   --from-file=keys.txt=infra/gitops/platform/local/age.key \
   --dry-run=client -o yaml | k apply -f -
@@ -115,6 +121,68 @@ for svc in orders orgs payment; do
     --build-arg SERVICE="${svc}" --build-arg APP_CMD=worker "${BUILD_ID[@]}"
 done
 build_push admin apps/admin/Dockerfile apps/admin
+# The frontend is a deployable service with a values file, so the services
+# ApplicationSet generates an Application for it whether or not anything built its
+# image — and a full tier without this line sits in ImagePullBackOff until someone
+# runs `cluster:add -- frontend` by hand.
+#
+# It takes one env-specific build arg the Go services do not: `output: "standalone"`
+# freezes next.config into server.js, so the server-action CSRF allowlist is decided
+# at BUILD time. It is read from the same values file the pod reads it from at
+# runtime — one origin, one source (ADR-0306).
+build_push frontend apps/frontend/Dockerfile . \
+  --build-arg "SERVICE_VERSION=${REV}" \
+  --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' infra/gitops/services/local/values/frontend.yaml)"
+
+# 3d. Hand the inner loop's stand-ins back to GitOps.
+#
+#     `cluster:base` (ADR-0600) runs a throwaway Postgres Deployment named
+#     `postgres` and writes `kratos-secrets` imperatively, with a dsn pointing at
+#     it. This tier brings CNPG (`postgres-rw`), network policies that permit only
+#     that path, and the same Secret from the SOPS bundle carrying the CNPG dsn.
+#     Left alone, the transition ends badly and silently:
+#
+#       - the sops-operator refuses to adopt a Secret it did not create
+#         ("Child secret is not owned by controller"), so the dsn stays the base one
+#       - Kratos keeps dialling `postgres`, which the policies now deny
+#       - every Kratos admin call hangs to its timeout, which surfaces as `mise run
+#         e2e` failing in the identity bootstrap with a bare 60s timeout
+#
+#     So the stand-in goes, and the imperative Secret with it. Both are deleted BY
+#     NAME. The label `cluster:base` selects on (`local.platform/component=base`)
+#     is also on the Namespace, so handing that selector to `delete` takes the whole
+#     platform down — the one thing this step must not do.
+#
+#     What is deliberately left alone: the `ory` and `cert-manager` Helm releases
+#     the base tier installs. Argo adopts their resources through ServerSideApply
+#     and reconciles them to the same charts, so the release records are inert
+#     bookkeeping. Uninstalling them would delete workloads Argo is about to
+#     recreate, for no gain.
+if k -n "$NS" get deploy postgres >/dev/null 2>&1; then
+  echo "→ removing the inner loop's Postgres stand-in (CNPG owns the data tier here)"
+  k -n "$NS" delete deploy/postgres svc/postgres cm/postgres-initdb --ignore-not-found >/dev/null
+fi
+if k -n "$NS" get secret kratos-secrets >/dev/null 2>&1 &&
+  [ -z "$(k -n "$NS" get secret kratos-secrets -o jsonpath='{.metadata.ownerReferences}')" ]; then
+  echo "→ handing kratos-secrets back to the sops-operator"
+  k -n "$NS" delete secret kratos-secrets >/dev/null
+  # The operator reconciles on SopsSecret changes, not on the disappearance of a
+  # child Secret, so a restart is what makes it look again. No-op when it is not
+  # installed yet, which is the case on a cluster that never ran the base tier.
+  k -n "$NS" rollout restart deploy/sops-operator-sops-secrets-operator >/dev/null 2>&1 || true
+
+  # Kratos reads the dsn from the Secret through the environment, which is fixed at
+  # pod start — so the running pod is still on the base dsn until it is replaced.
+  # Wait (briefly) for the operator to put the Secret back, so the new pod starts
+  # with it rather than into a CreateContainerConfigError it would retry out of.
+  if k -n "$NS" get deploy ory-kratos >/dev/null 2>&1; then
+    for _ in $(seq 1 30); do
+      k -n "$NS" get secret kratos-secrets >/dev/null 2>&1 && break
+      sleep 2
+    done
+    k -n "$NS" rollout restart deploy/ory-kratos >/dev/null
+  fi
+fi
 
 # 4. Local root App-of-Apps → Argo discovers the local appsets + apps from git.
 echo "→ applying local root application"

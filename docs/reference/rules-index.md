@@ -655,7 +655,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The inner loop's divergence from a deployed environment is node count alone. Its cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
 | Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy: in the machine config for the full tier, imperatively for the inner loop. No Cilium value differs by tier. | review |
 | Images reach the full tier through a local registry, so Argo CD pulls a tag as it does in a deployed environment. Node-resident images are the inner loop's path only. | review |
-| What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint:service-contract` in CI |
+| What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint:service-contract, lint:service-deps` in CI |
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. | `lint:ports` in CI |
 | Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. | `lint:service-contract` in CI |

@@ -1,0 +1,22 @@
+apiVersion: v2
+name: namespaces
+description: |
+  Every namespace this platform owns, and the Pod Security Standards profile it
+  enforces (ADR-0200).
+
+  Why a chart rather than ArgoCD's `managedNamespaceMetadata`: PSA's exception unit
+  is the namespace, so the profile a namespace runs at — and the REASON it is not
+  `restricted` — is a decision about that namespace, not a property of whichever
+  Application happened to create it first. ADR-0200 requires that reason to be
+  recorded in the namespace manifest; this is that manifest. It also means a
+  namespace exists, labelled, before anything is admitted into it, which
+  `CreateNamespace=true` cannot promise: that creates the namespace bare, and a
+  label applied afterwards governs only the NEXT admission.
+
+  The profile is not the same everywhere and is not meant to be. `restricted` is
+  the target; a namespace below it says why, and every namespace warns and audits
+  at `restricted` regardless, so the gap is visible in `kubectl` output and in the
+  audit log rather than only in this file.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

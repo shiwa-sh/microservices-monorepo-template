@@ -45,12 +45,22 @@ h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 bash scripts/cluster-ensure.sh
 bash scripts/cilium-install.sh
 
+# 1b. The namespaces, with their Pod Security Admission profile (ADR-0200). Before
+#     anything is admitted into them, because PSA is an admission check: a label
+#     that lands after the pods do governs the next admission and not these.
+#     Rendered from the same chart the GitOps tiers sync, so the profile and the
+#     recorded exception reason are one decision rather than two.
+step "applying the namespaces and their pod-security profile"
+h template namespaces infra/helm/platform/namespaces \
+  -f infra/gitops/platform/local/values.yaml |
+  k apply -f - >/dev/null
+
 # 2. Postgres only, out of the shared dependency manifest. Temporal and OpenFGA
 #    live in the same file and are skipped by label — they are opt-in, added by the
 #    services that declare them (`dep:temporal`, `dep:openfga`). Postgres is in the
 #    floor because Kratos needs a store, so every base has one anyway.
 step "applying the postgres dependency stand-in (Kratos's store)"
-k apply -f infra/local/deps.yaml -l 'local.platform/component in (base,postgres)'
+k apply -f infra/local/deps.yaml -l 'local.platform/component=postgres'
 k -n "$NS" rollout status deploy/postgres --timeout=180s
 
 # 3. TLS. cert-manager IS the mechanism in every environment (ADR-0205); only the
