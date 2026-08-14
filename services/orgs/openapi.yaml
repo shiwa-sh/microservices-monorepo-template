@@ -25,17 +25,14 @@ paths:
                   - { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
                   - { id: org_01kztne0k0e96sgmrw4bd27ydx, name: Contoso Rail }
         default: { $ref: "#/components/responses/Error" }
-    post:
-      operationId: createOrg
-      description: Create an organization.
-      tags: [orgs]
-      requestBody:
-        required: true
-        description: The organization to create.
-        content: { application/json: { schema: { $ref: "#/components/schemas/OrgInput" } } }
-      responses:
-        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
-        default: { $ref: "#/components/responses/Error" }
+    # There is no POST. An org is created by the registration flow — Kratos's
+    # post-registration webhook runs RegisterUser, which writes the org, the
+    # membership and the OpenFGA admin tuple as one dual write (ADR-0304). An
+    # endpoint that inserted a row without that tuple produced an org with no admin
+    # and no member: visible in the console, usable by nobody. The endpoint is not
+    # coming back until there is a second way to be in an org — invitations, which
+    # ADR-0304 gates behind its own trigger — and then it is a workflow returning a
+    # handle, like every other authz-relevant mutation here.
   /orgs/{id}:
     get:
       operationId: getOrg

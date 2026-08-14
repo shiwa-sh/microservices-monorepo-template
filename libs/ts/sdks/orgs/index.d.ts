@@ -14,8 +14,7 @@ export interface paths {
         /** @description List all organizations. */
         get: operations["listOrgs"];
         put?: never;
-        /** @description Create an organization. */
-        post: operations["createOrg"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -176,32 +175,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Org"][];
-                };
-            };
-            default: components["responses"]["Error"];
-        };
-    };
-    createOrg: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description The organization to create. */
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OrgInput"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Org"];
                 };
             };
             default: components["responses"]["Error"];

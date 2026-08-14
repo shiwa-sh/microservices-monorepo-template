@@ -97,15 +97,12 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 }
 
 // Every org write is operator-gated (ADR-0304): the gate rejects before any DB
-// access, so a nil store is fine for these cases.
+// access, so a nil store is fine for these cases. There is no create: an org comes
+// from the registration flow's dual write, never from an endpoint.
 func TestOrgWriteAuthz(t *testing.T) {
 	t.Parallel()
 
 	writes := map[string]func(context.Context, *Handlers) error{
-		"CreateOrg": func(ctx context.Context, h *Handlers) error {
-			_, err := h.CreateOrg(ctx, &orgs.OrgInput{Name: "acme"})
-			return err
-		},
 		"UpdateOrg": func(ctx context.Context, h *Handlers) error {
 			_, err := h.UpdateOrg(ctx, &orgs.OrgInput{Name: "acme"}, orgs.UpdateOrgParams{})
 			return err

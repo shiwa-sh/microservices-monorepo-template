@@ -13,15 +13,6 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
-// CreateOrg implements createOrg operation.
-//
-// Create an organization.
-//
-// POST /orgs
-func (UnimplementedHandler) CreateOrg(ctx context.Context, req *OrgInput) (r *Org, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // DeleteOrg implements deleteOrg operation.
 //
 // Delete an organization.

@@ -6,7 +6,6 @@ package orgs
 type OperationName = string
 
 const (
-	CreateOrgOperation         OperationName = "CreateOrg"
 	DeleteOrgOperation         OperationName = "DeleteOrg"
 	GetOrgOperation            OperationName = "GetOrg"
 	ListOrgsOperation          OperationName = "ListOrgs"

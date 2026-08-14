@@ -14,10 +14,7 @@ var (
 	rn5AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn1AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn3AllowedHeaders = map[string]string{
+	rn2AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 )
@@ -110,13 +107,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					switch r.Method {
 					case "GET":
 						s.handleListOrgsRequest([0]string{}, elemIsEscaped, w, r)
-					case "POST":
-						s.handleCreateOrgRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "GET,POST",
-							allowedHeaders: rn1AllowedHeaders,
-							acceptPost:     "application/json",
+							allowedMethods: "GET",
+							allowedHeaders: nil,
+							acceptPost:     "",
 							acceptPatch:    "",
 						})
 					}
@@ -159,7 +154,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "DELETE,GET,PUT",
-								allowedHeaders: rn3AllowedHeaders,
+								allowedHeaders: rn2AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -309,15 +304,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						r.name = ListOrgsOperation
 						r.summary = ""
 						r.operationID = "listOrgs"
-						r.operationGroup = ""
-						r.pathPattern = "/orgs"
-						r.args = args
-						r.count = 0
-						return r, true
-					case "POST":
-						r.name = CreateOrgOperation
-						r.summary = ""
-						r.operationID = "createOrg"
 						r.operationGroup = ""
 						r.pathPattern = "/orgs"
 						r.args = args

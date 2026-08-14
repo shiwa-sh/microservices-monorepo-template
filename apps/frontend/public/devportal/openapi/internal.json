@@ -406,39 +406,6 @@
             "$ref": "#/components/responses/Error"
           }
         }
-      },
-      "post": {
-        "operationId": "createOrg",
-        "description": "Create an organization.",
-        "tags": [
-          "orgs"
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "The organization to create.",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OrgInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Org"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
       }
     },
     "/orgs/{id}": {

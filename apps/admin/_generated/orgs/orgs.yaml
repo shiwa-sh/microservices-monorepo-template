@@ -21,20 +21,6 @@ blocks:
     properties:
       content: Orgs
       level: 3
-  - id: add
-    type: Button
-    properties:
-      title: Add org
-      type: primary
-    style:
-      marginRight: 8
-      marginTop: 16
-    events:
-      onClick:
-        - id: addLink
-          params:
-            pageId: orgs_new
-          type: Link
   - id: hint
     type: Paragraph
     properties:

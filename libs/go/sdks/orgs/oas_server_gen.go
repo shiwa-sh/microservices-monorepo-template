@@ -8,12 +8,6 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
-	// CreateOrg implements createOrg operation.
-	//
-	// Create an organization.
-	//
-	// POST /orgs
-	CreateOrg(ctx context.Context, req *OrgInput) (*Org, error)
 	// DeleteOrg implements deleteOrg operation.
 	//
 	// Delete an organization.

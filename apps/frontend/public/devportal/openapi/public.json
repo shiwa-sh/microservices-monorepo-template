@@ -185,41 +185,6 @@
         }
       }
     },
-    "/orgs": {
-      "post": {
-        "operationId": "createOrg",
-        "description": "Create an organization.",
-        "tags": [
-          "orgs"
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "The organization to create.",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OrgInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Org"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      }
-    },
     "/orgs/{id}": {
       "get": {
         "operationId": "getOrg",
@@ -577,19 +542,6 @@
         "example": {
           "id": "org_01kztn9tsrea7b1597q3yjdeav",
           "name": "Northwind Trading"
-        }
-      },
-      "OrgInput": {
-        "type": "object",
-        "description": "Request body to create an organization.",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          }
         }
       },
       "ChargeId": {

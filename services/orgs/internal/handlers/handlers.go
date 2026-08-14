@@ -48,45 +48,12 @@ func orgID(u pgtype.UUID) orgs.OrgId {
 	return orgs.OrgId(id.MustFrom("org", uuid.UUID(u.Bytes)).String())
 }
 
-// mintID is where an identifier enters the system (ADR-0003). The service holds it
-// before the insert rather than reading it back from a column default, so a write
-// that never lands still has an identifier to log and to name in the failure.
-func mintID() (pgtype.UUID, error) {
-	v, err := id.New("org")
-	if err != nil {
-		return pgtype.UUID{}, apierr.Internal(err.Error())
-	}
-	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
-}
-
 func storedID(v orgs.OrgId) (pgtype.UUID, error) {
 	parsed, err := id.Parse("org", string(v))
 	if err != nil {
 		return pgtype.UUID{}, apierr.BadRequest("malformed org id")
 	}
 	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
-}
-
-func (h *Handlers) CreateOrg(ctx context.Context, req *orgs.OrgInput) (*orgs.Org, error) {
-	// Operator-gated, like every other write here. An org created through this
-	// endpoint gets no admin tuple, so the only path that produces a usable org is
-	// still RegisterUser's personal org (ADR-0304) — see the plan's C13.
-	err := h.requireOperator(ctx, "creating orgs")
-	if err != nil {
-		return nil, err
-	}
-	if req.Name == "" {
-		return nil, apierr.BadRequest("name required")
-	}
-	key, err := mintID()
-	if err != nil {
-		return nil, err
-	}
-	row, err := h.q.CreateOrg(ctx, store.CreateOrgParams{ID: key, Name: req.Name})
-	if err != nil {
-		return nil, apierr.Internal(err.Error())
-	}
-	return &orgs.Org{ID: orgID(row.ID), Name: row.Name}, nil
 }
 
 func (h *Handlers) GetOrg(ctx context.Context, params orgs.GetOrgParams) (*orgs.Org, error) {

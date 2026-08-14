@@ -9,7 +9,6 @@
 - _ref: _generated/orders/orders.yaml
 - _ref: _generated/orders/cancelOrder.yaml
 - _ref: _generated/orgs/orgs.yaml
-- _ref: _generated/orgs/orgs_new.yaml
 - _ref: _generated/orgs/orgs_edit.yaml
 - _ref: _generated/payment/charges.yaml
 - _ref: _generated/payment/refundCharge.yaml
