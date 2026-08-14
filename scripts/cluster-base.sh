@@ -62,7 +62,15 @@ k -n "$NS" rollout status deploy/postgres --timeout=180s
 #    webhook and apply again — the retry is doing what wave 1 does, not papering
 #    over a flake.
 step "installing cert-manager + the self-signed wildcard issuer"
-h dependency build infra/helm/platform/cert-manager >/dev/null
+# `build` reads Chart.lock and needs the dependency's repository already
+# registered in the caller's helm config; `update` resolves it from the URL in
+# Chart.yaml. On a developer machine the repo is usually registered from some
+# earlier run, so `build` alone works and keeps working — and fails on a clean
+# runner with "no repository definition", which is exactly what happened the
+# first time CI ran this. Build first because it is the cheap offline path;
+# fall back to update, which is what every other script here already uses.
+h dependency build infra/helm/platform/cert-manager >/dev/null 2>&1 ||
+  h dependency update infra/helm/platform/cert-manager >/dev/null
 for attempt in 1 2 3; do
   if h upgrade --install cert-manager infra/helm/platform/cert-manager \
     -n "$NS" --create-namespace --timeout 5m --wait \
@@ -103,7 +111,9 @@ k -n "$NS" create secret generic kratos-secrets \
 #    them: the canonical infra/auth/ overlays plus the string artefacts, never
 #    inlined into the chart values (lint:auth-inline).
 step "installing kratos + oathkeeper"
-h dependency build infra/helm/platform/ory >/dev/null
+# Same fallback as cert-manager above.
+h dependency build infra/helm/platform/ory >/dev/null 2>&1 ||
+  h dependency update infra/helm/platform/ory >/dev/null
 h upgrade --install ory infra/helm/platform/ory \
   -n "$NS" --create-namespace --timeout 8m --wait \
   -f infra/auth/kratos/values.yaml \
