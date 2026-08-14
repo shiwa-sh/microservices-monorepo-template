@@ -35,6 +35,25 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: mise run ci:lint
 
+  # Affected-detection decides what publish.yml builds and promotes, so a service it
+  # fails to name is a service nothing ran against — on a pull request that goes
+  # green (ADR-0101 calls it the most load-bearing tooling in the repo). Its unit
+  # tests check the classifier against the list of paths it was written from; this
+  # perturbs each service in a scratch worktree and asserts the real command names
+  # it. Its own job because it is a different question from linting, and because a
+  # red here means "CI's selection is wrong", not "the code is".
+  affected-detection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Full history: the probe commits onto a scratch worktree and diffs against it.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Adversarially test affected-detection
+        run: mise run ci:affected-adversarial
+
   # The vulnerability merge gate (ADR-0104). A separate job, not a step of the one
   # above, because it fails for a different reason: the linters answer "is this
   # change well-formed", and this answers "does what we depend on have a published

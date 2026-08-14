@@ -693,6 +693,14 @@ run = "bash scripts/ci-affected-matrix.sh"
 #   mise run ci:sign -- ghcr.io/org/repo/catalog-server@sha256:…
 run = "bash scripts/ci-sign.sh"
 
+[tasks."ci:affected-adversarial"]
+# Test affected-detection from the other side (ADR-0101, ADR-0601): break each
+# service in a scratch worktree and assert the manifest names it. Its unit tests
+# check the classifier against a list of paths someone wrote down — the same list
+# the classifier was written from. This one perturbs real files in a real tree and
+# runs the real command, so a service CI would silently skip fails here instead.
+run = "bash scripts/ci-affected-adversarial.sh"
+
 [tasks."ci:e2e-gate"]
 # Whether a pull request pays for the smoke suite, as a forge step-output
 # assignment (ADR-0102, ADR-0601). The `e2e-smoke` label still forces it on; a PR

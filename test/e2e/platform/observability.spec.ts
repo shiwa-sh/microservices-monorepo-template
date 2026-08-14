@@ -146,7 +146,12 @@ test.describe("service observability POC (ADR-0501)", () => {
     return (((await res.json()).results?.A?.frames ?? []) as unknown[]).length > 0;
   }
 
-  test("every POC dashboard is registered with Grafana", async () => {
+  // @smoke, unlike its neighbours in this file (ADR-0601 §Cadence, ADR-0501). A
+  // day of exposure for a platform-contract regression is a defensible trade; a day
+  // of exposure for the dashboards someone opens DURING an incident is not — the
+  // moment they are needed is the moment nobody can wait for tonight's nightly to
+  // tell them the provisioning broke.
+  test("every POC dashboard is registered with Grafana @smoke", async () => {
     const res = await ctx.get(`${opsURL("grafana")}/api/search?type=dash-db`);
     expect(res.ok(), "Grafana search API answers").toBeTruthy();
     const uids = ((await res.json()) as { uid: string }[]).map((d) => d.uid);
@@ -192,7 +197,10 @@ test.describe("service observability POC (ADR-0501)", () => {
   // link in the chain — the prometheus-alerts kustomize ConfigMap, its Argo app,
   // the chart's rule_files + volume mount, and rule-file syntax (Prometheus
   // refuses to load a malformed file).
-  test("alert rules are loaded into Prometheus", async () => {
+  // @smoke for the same reason, one step earlier in the chain: a dashboard nobody
+  // can read is bad, and an alert that never fires is worse — it is the difference
+  // between a slow incident and an unnoticed one.
+  test("alert rules are loaded into Prometheus @smoke", async () => {
     const res = await ctx.get(
       `${opsURL("grafana")}/api/datasources/proxy/uid/${promUid}/api/v1/rules`,
     );
@@ -205,6 +213,9 @@ test.describe("service observability POC (ADR-0501)", () => {
         "PolicyDropsDetected",
         "DeploymentReplicasUnavailable",
         "ContainerRestartsSpiking",
+        // Admission control (ADR-0104): the rule that fires when the thing checking
+        // image provenance stops running.
+        "KyvernoAdmissionControllerAbsent",
       ]),
     );
   });
