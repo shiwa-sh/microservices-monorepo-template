@@ -60,6 +60,12 @@ age = "1.3.1"
 sops = "3.13.1"
 gitleaks = "8.30.1"
 
+# Supply chain (ADR-0104). One binary covering OS packages, language dependencies
+# and infrastructure-as-code, so one gate covers surfaces that would otherwise be
+# three. Its secret scanner stays off: gitleaks above owns that question, and two
+# gates answering the same one is how a finding gets triaged twice and fixed never.
+trivy = "0.73.0"
+
 # JSON wrangling for runtime glue scripts (ops:grant). Static policy checks use
 # Go tools/ instead; this is the one reproducible binary for shell-side JSON.
 jq = "1.8.1"
@@ -571,6 +577,17 @@ run = "bash scripts/lint-secrets.sh"
 
 [tasks."ci:lint"]
 depends = ["lint", "lint:commits", "lint:secrets-history", "lint:api-breaking"]
+
+[tasks."ci:scan"]
+# The vulnerability merge gate (ADR-0104). Neither the registry nor the cluster
+# scans, so this is the only place it can live — and it has to be before the merge,
+# which is before the push a registry-side scanner would see.
+run = "bash scripts/scan.sh"
+
+[tasks."scan:report"]
+# Triage, not a gate: every dependency finding at every severity, including the
+# ones with no fix published. `ci:scan` blocks on the actionable subset.
+run = "bash scripts/scan.sh report"
 
 [tasks."ci:test"]
 depends = ["test"]

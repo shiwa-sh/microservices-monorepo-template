@@ -34,3 +34,21 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: mise run ci:lint
+
+  # The vulnerability merge gate (ADR-0104). A separate job, not a step of the one
+  # above, because it fails for a different reason: the linters answer "is this
+  # change well-formed", and this answers "does what we depend on have a published
+  # fix today". That second question can turn a previously-green PR red with no
+  # code change — the vulnerability database moved, not the branch — so it is worth
+  # being able to read the two verdicts apart at a glance.
+  #
+  # Neither the registry nor the cluster scans (ADR-0105), and a registry-side
+  # scanner would run after the push, which is after the merge this gates. Here is
+  # the only place it can be.
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Scan dependencies
+        run: mise run ci:scan

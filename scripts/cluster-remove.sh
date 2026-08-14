@@ -27,15 +27,26 @@ k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 
 is_service=false
+is_app=false
 is_chart=false
 [ -d "services/${NAME}" ] && [ "${NAME#_}" = "${NAME}" ] && is_service=true
+# Same rule cluster-add.sh uses: an app is a deployable when it has local values.
+# The two scripts have to agree, or `cluster:add -- frontend` succeeds and
+# `cluster:remove -- frontend` refuses to undo it.
+[ -d "apps/${NAME}" ] && [ -f "infra/gitops/services/local/values/${NAME}.yaml" ] && is_app=true
 [ -d "infra/helm/platform/${NAME}" ] && is_chart=true
 
-if [ "$is_service" = true ] && [ "$is_chart" = true ]; then
-  fail "'${NAME}' is both a service and a platform chart — rename one; the two namespaces must stay disjoint"
+if [ "$is_chart" = true ] && { [ "$is_service" = true ] || [ "$is_app" = true ]; }; then
+  fail "'${NAME}' is both a platform chart and a service/app — rename one; the namespaces must stay disjoint"
 fi
-[ "$is_service" = true ] || [ "$is_chart" = true ] ||
-  fail "unknown: '${NAME}' is neither a service nor a platform chart"
+[ "$is_service" = true ] || [ "$is_app" = true ] || [ "$is_chart" = true ] ||
+  fail "unknown: '${NAME}' is not a service, an app, or a platform chart"
+
+# From here on, a service and an app are the same thing: one chart, one release,
+# one Argo application. Only the glue and port-forward reaping below is
+# service-only, because only a service has a native run mode.
+is_workload=false
+{ [ "$is_service" = true ] || [ "$is_app" = true ]; } && is_workload=true
 
 # The native edge glue (scripts/service-dev.sh) is labelled, so it comes out by
 # selector — including the case where the service was never deployed at all.
@@ -69,7 +80,7 @@ else
 fi
 
 # Hand it back to GitOps. Mirrors the pause in service-deploy.sh / platform-deploy.sh.
-if [ "$is_service" = true ]; then
+if [ "$is_workload" = true ]; then
   APP="$(argo_service_app "$NAME")"
 else
   APP="local-platform-${NAME}"
