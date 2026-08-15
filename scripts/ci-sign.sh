@@ -22,6 +22,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "$0")/lib/loki-push.sh"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -94,5 +95,33 @@ jq -n \
 
 cosign attest --yes --tlog-upload=false --key "$work/cosign.key" \
   --type slsaprovenance1 --predicate "$work/provenance.json" "$IMAGE"
+
+# The supply-chain record, filed HERE rather than as a fifth workflow step, for the
+# reason stated at the top of this file: these are one decision. The record's whole
+# claim is "this digest was signed and attested", which is only true at this line —
+# a step that files it separately can run when the signing did not, and a record of
+# a signature that does not exist is worse than no record.
+#
+# The stream is labelled by `service` and `env` only. Everything that identifies THIS
+# build — digest, commit, ref, run — is in the line body: Loki builds one stream per
+# distinct label set, so a digest-keyed label would mint a stream per build.
+#
+# `env` is where the image was published FROM, not where it runs. A promotion moves a
+# digest between environments without rebuilding (ADR-0103), so "which env is running
+# this" is the inventory stream's question, below, and not this one's.
+step "filing the supply-chain record"
+name="${IMAGE##*/}"
+name="${name%@*}"
+loki_push \
+  "$(jq -cn --arg service "$name" --arg env "${SUPPLY_CHAIN_ENV:-dev}" \
+    '{service: $service, env: $env, job: "supply-chain-build"}')" \
+  "$(jq -cn \
+    --arg image "${IMAGE%@*}" \
+    --arg digest "${IMAGE##*@}" \
+    --arg commit "${GITHUB_SHA:-unknown}" \
+    --arg ref "${GITHUB_REF:-unknown}" \
+    --arg run "${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-unknown}/actions/runs/${GITHUB_RUN_ID:-0}" \
+    --arg signed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{event: "signed", image: $image, digest: $digest, commit: $commit, ref: $ref, run: $run, signed_at: $signed_at, sbom: true, provenance: true}')"
 
 ok "signed, SBOM and provenance attached: ${IMAGE}"

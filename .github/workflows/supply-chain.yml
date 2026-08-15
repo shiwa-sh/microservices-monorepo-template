@@ -1,0 +1,55 @@
+# Nightly supply-chain inventory (ADR-0104, ADR-0501): verify the SBOM attestation
+# of every image pinned in committed values and file what is in it to Loki.
+#
+# WHY NIGHTLY AND NOT PER BUILD. The build record is filed by `ci:sign` at the
+# moment an image is signed, and it says what was BUILT. This says what each
+# environment is POINTED AT, which changes on a promotion rather than on a build —
+# and has to be re-answered anyway as new CVEs appear against images that did not
+# change at all. A fixed set of images walked once a night is a fixed cost.
+#
+# WHY IT MAY FAIL AND NOBODY IS PAGED. The job goes red when something pinned has no
+# verifiable SBOM, because a nightly that reports success while half the fleet is
+# unverifiable is one nobody reads twice. It feeds no alert and sits outside the
+# L1→L2→L3 incident funnel (ADR-0501) — this is a research surface, and nobody is
+# woken because an SBOM is a day old.
+name: supply-chain
+
+on:
+  schedule:
+    # 03:00 UTC, after the day's merges have promoted and before working hours in
+    # the westernmost timezone this is likely to be read in.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # cosign, jq and yq, pinned in .mise.toml like everything else (ADR-0101), so
+      # this verifies with the same binaries that signed.
+      - uses: ./.github/actions/setup
+      # Reading the attestations means reading the registry the images were pushed
+      # to; `packages: read` above is what makes the token sufficient.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify SBOMs and file the inventory
+        env:
+          # Unset until a project has somewhere to push to. The script says so and
+          # continues: the verification is the point, and filing it is how the result
+          # is read later, not whether it happened.
+          LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
+          LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
+          LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
+        run: mise run supply-chain:inventory

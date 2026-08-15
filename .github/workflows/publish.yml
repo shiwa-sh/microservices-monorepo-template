@@ -70,6 +70,13 @@ jobs:
       - name: Sign, SBOM, provenance
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
+          # The supply-chain record is filed by ci:sign itself, at the line where
+          # the signature and both attestations exist — see the script for why it is
+          # not a separate step. Unset until a project has a Loki to push to; the
+          # build stays signed either way.
+          LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
+          LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
+          LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
         run: mise run ci:sign -- "ghcr.io/${{ github.repository }}/${{ matrix.service }}-${{ matrix.cmd }}@${{ steps.build.outputs.digest }}"
 
   # Apps are single images (no server/worker split), so they get their own matrix
@@ -115,4 +122,11 @@ jobs:
       - name: Sign, SBOM, provenance
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
+          # The supply-chain record is filed by ci:sign itself, at the line where
+          # the signature and both attestations exist — see the script for why it is
+          # not a separate step. Unset until a project has a Loki to push to; the
+          # build stays signed either way.
+          LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
+          LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
+          LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
         run: mise run ci:sign -- "ghcr.io/${{ github.repository }}/${{ matrix.app }}@${{ steps.build.outputs.digest }}"

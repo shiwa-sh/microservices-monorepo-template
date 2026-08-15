@@ -1,0 +1,181 @@
+{
+  "uid": "supply-chain",
+  "title": "Supply chain: builds and inventory",
+  "tags": ["supply-chain", "security", "research"],
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "type": "custom",
+        "query": "dev,staging,prod",
+        "current": { "text": "dev", "value": "dev" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "What this is",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Two streams, two questions. **Builds** (`job=\"supply-chain-build\"`) is filed by `ci:sign` the moment an image is signed and both attestations are attached — it says what was *built*. **Inventory** (`job=\"supply-chain-inventory\"`) is a nightly walk of the digests pinned in committed values, verifying each SBOM off the registry — it says what an environment is *pointed at*, which is the question a CVE asks.\n\nThis is a research surface, not the incident path (ADR-0501). Nothing here alerts, and nothing here links into the Overview funnel: come when you have a question, not when a pager goes off."
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Images signed (24h)",
+      "description": "One per signed image, across every service. A day with merges and none of these is a publish pipeline that stopped signing.",
+      "datasource": "Loki",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 5 },
+      "fieldConfig": { "defaults": { "unit": "short", "noValue": "0" } },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(count_over_time({job=\"supply-chain-build\"} [24h]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Pinned images with a verifiable SBOM",
+      "description": "From the most recent nightly walk. Anything below the total is an image an environment is pinned to whose bill of materials cannot be read — which is exactly the image you cannot answer a CVE about.",
+      "datasource": "Loki",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "no walk yet",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(count_over_time({job=\"supply-chain-inventory\", env=~\"$env\"} | json | sbom_verified=\"true\" [24h]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Pinned images WITHOUT one",
+      "description": "The finding. A non-zero here does not page anyone; it means the next CVE question has a blind spot of this size.",
+      "datasource": "Loki",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(count_over_time({job=\"supply-chain-inventory\", env=~\"$env\"} | json | sbom_verified=\"false\" [24h]))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Packages in the largest pinned image",
+      "description": "Read off the verified SBOMs. Not a health number — a sense of how much surface a single image carries, and how much a base-image change moves it.",
+      "datasource": "Loki",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 5 },
+      "fieldConfig": { "defaults": { "unit": "short", "noValue": "no walk yet" } },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "max(max_over_time({job=\"supply-chain-inventory\", env=~\"$env\"} | json | unwrap packages [24h]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Signed builds by service",
+      "description": "Publish rate per service. A service that stops appearing here while its code keeps changing is a service whose images stopped being signed — which admission will notice later, at deploy time.",
+      "datasource": "Loki",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 11 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{service}}",
+          "expr": "sum by (service) (count_over_time({job=\"supply-chain-build\"} [1h]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "SBOM size by service",
+      "description": "Package count per pinned image over time. A step change is a base-image or dependency-tree change; it is the cheapest early signal that an image gained a lot of surface without anyone deciding to.",
+      "datasource": "Loki",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 11 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{service}}",
+          "expr": "max by (service) (max_over_time({job=\"supply-chain-inventory\", env=~\"$env\"} | json | unwrap packages [6h]))"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Build records",
+      "description": "One line per signed image: digest, commit, ref and the run that produced it. This is the audit trail — 'when was this digest built, and from what' — and the reason digest and commit are in the line rather than in labels.",
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 20 },
+      "datasource": "Loki",
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"supply-chain-build\"}"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Inventory: images that could not be verified",
+      "description": "Each line carries the reason cosign gave, so 'no attestation was ever attached' reads differently from 'signed with a key we no longer hold'. Empty is the expected state.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 31 },
+      "datasource": "Loki",
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"supply-chain-inventory\", env=~\"$env\"} | json | sbom_verified=\"false\""
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

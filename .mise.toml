@@ -693,6 +693,15 @@ run = "bash scripts/ci-affected-matrix.sh"
 #   mise run ci:sign -- ghcr.io/org/repo/catalog-server@sha256:…
 run = "bash scripts/ci-sign.sh"
 
+[tasks."supply-chain:inventory"]
+# Verify the SBOM attestation of every image pinned in committed values and file
+# what is in it (ADR-0104). Answers "is this CVE in anything we RUN", which the
+# build record cannot: it says what was built, not what any environment points at.
+# Runs nightly (.github/workflows/supply-chain.yml), not per build — it changes on
+# a promotion, and it has to re-answer as new CVEs appear against images that did
+# not change at all.
+run = "bash scripts/supply-chain-inventory.sh"
+
 [tasks."ci:affected-adversarial"]
 # Test affected-detection from the other side (ADR-0101, ADR-0601): break each
 # service in a scratch worktree and assert the manifest names it. Its unit tests

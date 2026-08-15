@@ -28,3 +28,4 @@ configMapGenerator:
       - service-detail.json
       - platform-components.json
       - load-test.json
+      - supply-chain.json
