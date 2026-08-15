@@ -16,15 +16,71 @@ const init = (flow: string, query = "") => `${BASE_URL}/auth/self-service/${flow
 // <button name="method" value="...">). Same shape for the totp second factor.
 const submitFor = (method: string) => `button[name="method"][value="${method}"]`;
 
+// A TOTP code Kratos will actually accept, which is not the same thing as a
+// currently-valid one.
+//
+// Kratos refuses a code it has already seen for an identity — correct replay
+// protection, and exactly what a test suite trips over: enrolment, the aal2
+// step-up in setup, and a later fresh-context operator login can all land inside
+// one 30-second window and generate the identical six digits. The second use is
+// rejected, and Kratos re-renders the flow with "Could not start sign-in. Please
+// retry." — a message about the flow, not about the code, which is why this reads
+// as a mystery rather than a replay.
+//
+// So: remember what was handed out, and if the window has not rolled since, wait
+// for the next one. A test that pauses ~30 seconds twice a run is cheaper than a
+// suite that fails once in three.
+const usedCodes = new Set<string>();
+async function freshTotp(page: Page, secret: string): Promise<string> {
+  let code = authenticator.generate(secret);
+  if (usedCodes.has(code)) {
+    await page.waitForTimeout((authenticator.timeRemaining() + 1) * 1000);
+    code = authenticator.generate(secret);
+  }
+  usedCodes.add(code);
+  return code;
+}
+
 // Navigate to a Kratos */browser init endpoint, which 303s to the UI page with
 // ?flow. That server redirect can surface as ERR_ABORTED on the goto; it is
 // benign — the caller waits for the rendered form's input next. Tolerate it.
-async function gotoFlow(page: Page, url: string): Promise<void> {
-  await page.goto(url, { waitUntil: "domcontentloaded" }).catch((err: unknown) => {
-    if (!String(err).includes("ERR_ABORTED")) {
-      throw err;
-    }
-  });
+//
+// AND retry a 429. `auth-ratelimit` (infra/gateway/middlewares.yaml) caps the
+// auth-sensitive routes at 10/min average, burst 20, keyed on source IP — and the
+// whole suite is one source IP driving far more flow inits than that. The limit is
+// a deliberate production control and lowering it for the tests would mean the
+// local edge no longer runs what a deployed one does, so the suite waits its turn
+// instead, which is also what a real browser hitting the limit would do.
+//
+// This was the suite's long-running flake, and it hid well. Nothing appears in the
+// Kratos logs, because Traefik answers before Kratos ever sees the request; the
+// browser still lands on /auth/login?flow=… with no flow to fetch, KratosFlow
+// renders "Could not start sign-in", and the test fails ~50 seconds later on a URL
+// assertion that says nothing about rate limiting.
+//
+// The unit of retry is the whole step — "initialise the flow and see its form" —
+// not the navigation, because the 429 can land on either of the two requests a flow
+// takes: the init, and the flow fetch KratosFlow makes from the browser after the
+// page loads. Retrying only the first leaves the second failing identically, and
+// gives the fixture nothing to catch. `expectVisible` is the selector that proves
+// the form actually rendered.
+const RATE_LIMIT_WAIT_MS = 7_000;
+async function gotoFlow(page: Page, url: string, expectVisible?: string): Promise<void> {
+  const navigate = async () => {
+    await page.goto(url, { waitUntil: "domcontentloaded" }).catch((err: unknown) => {
+      if (!String(err).includes("ERR_ABORTED")) {
+        throw err;
+      }
+    });
+  };
+  if (!expectVisible) {
+    await navigate();
+    return;
+  }
+  await expect(async () => {
+    await navigate();
+    await expect(page.locator(expectVisible)).toBeVisible({ timeout: 8_000 });
+  }).toPass({ timeout: 90_000, intervals: [RATE_LIMIT_WAIT_MS] });
 }
 
 async function notOnLogin(page: Page): Promise<void> {
@@ -42,15 +98,43 @@ async function waitForSession(page: Page): Promise<void> {
     .toBe(true);
 }
 
+// Wait until the post-login redirect chain has actually FINISHED.
+//
+// Neither signal above proves that. notOnLogin goes true the moment the browser
+// leaves /auth/login, which is the START of the Kratos → default_browser_return_url
+// chain; waitForSession proves the cookie landed, which happens mid-chain. A caller
+// that navigates on either signal races the redirect still in flight — and the
+// redirect wins, cancelling the goto and leaving the page on the return URL. That
+// is the whole of the intermittent "expected /Grafana/, received Platform" failure:
+// the test asked for the ops dashboard and got the product landing page, because
+// its own navigation was thrown away.
+//
+// Stability rather than a specific URL: every login here starts from a */browser
+// init with no return_to, so the chain ends at the configured default — but a caller
+// that ever passes one should not hang here waiting for a URL it deliberately
+// changed.
+async function settle(page: Page): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const before = page.url();
+        await page.waitForTimeout(200);
+        return page.url() === before;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
 // passwordLogin completes first-factor (AAL1) login through the rendered form.
 export async function passwordLogin(page: Page, email: string, password: string): Promise<void> {
-  await gotoFlow(page, init("login"));
-  await page.locator('input[name="identifier"]').waitFor({ state: "visible", timeout: 20_000 });
+  await gotoFlow(page, init("login"), 'input[name="identifier"]');
   await page.fill('input[name="identifier"]', email);
   await page.fill('input[name="password"]', password);
   await page.click(submitFor("password"));
   await notOnLogin(page);
   await waitForSession(page);
+  await settle(page);
 }
 
 // register completes a self-service registration through the rendered form. This is
@@ -67,8 +151,7 @@ export async function passwordLogin(page: Page, email: string, password: string)
 // No `session` hook is configured after registration, so this does NOT leave an
 // authenticated session; it only proves the identity was created.
 export async function register(page: Page, email: string, password: string): Promise<void> {
-  await gotoFlow(page, init("registration"));
-  await page.locator('input[name="traits.email"]').waitFor({ state: "visible", timeout: 20_000 });
+  await gotoFlow(page, init("registration"), 'input[name="traits.email"]');
   await page.fill('input[name="traits.email"]', email);
   await page.click(submitFor("profile"));
 
@@ -93,8 +176,7 @@ export async function registerExpectingRejection(
   email: string,
   password: string,
 ): Promise<string> {
-  await gotoFlow(page, init("registration"));
-  await page.locator('input[name="traits.email"]').waitFor({ state: "visible", timeout: 20_000 });
+  await gotoFlow(page, init("registration"), 'input[name="traits.email"]');
   await page.fill('input[name="traits.email"]', email);
   await page.click(submitFor("profile"));
 
@@ -128,23 +210,44 @@ export async function operatorLogin(
   password: string,
   secret: string,
 ): Promise<void> {
-  await gotoFlow(page, init("login"));
-  await page.locator('input[name="identifier"]').waitFor({ state: "visible", timeout: 20_000 });
+  await gotoFlow(page, init("login"), 'input[name="identifier"]');
   await page.fill('input[name="identifier"]', email);
   await page.fill('input[name="password"]', password);
   await page.click(submitFor("password"));
-  // required_aal=highest_available steps the flow up to the totp prompt in place.
-  const totp = page.locator('input[name="totp_code"]');
-  const prompted = await totp
-    .waitFor({ state: "visible", timeout: 15_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (prompted) {
-    await totp.fill(authenticator.generate(secret));
-    await page.click(submitFor("totp"));
-  }
   await notOnLogin(page);
   await waitForSession(page);
+  await settle(page);
+
+  // Step up in a SECOND, explicitly aal2 flow rather than expecting the first one
+  // to prompt in place.
+  //
+  // `whoami.required_aal: highest_available` (infra/auth/kratos) governs what a
+  // session must be to satisfy whoami — it does not make the login flow ask for a
+  // second factor. `selfservice.flows.login.required_aal` would, and is not set, so
+  // a plain login/browser init completes at AAL1 for an operator with TOTP enrolled
+  // and renders no totp node at all.
+  //
+  // This helper used to answer the prompt only `if (prompted)`, which turned that
+  // into the suite's long-running flake: the login quietly finished at AAL1, the ops
+  // edge then refused the dashboard and redirected to the product root, and the
+  // failure surfaced 30 seconds and two assertions later as `expected /Grafana/,
+  // received "Platform"` — which reads like a routing bug and is nothing of the
+  // kind. It passed whenever the browser happened to carry an aal2 flow id from the
+  // gate's own redirect, which is why it looked like load-dependent flakiness.
+  //
+  // The prompt is required here: the context is fresh, so there is no already-
+  // elevated session for Kratos to short-circuit against (which is the case
+  // ensureAal2 exists to handle, and why it keeps the optional shape).
+  const totp = page.locator('input[name="totp_code"]');
+  await gotoFlow(page, init("login", "?aal=aal2"), 'input[name="totp_code"]');
+  await expect(
+    totp,
+    "no TOTP prompt in the aal2 login flow — this session would stay AAL1 and the ops edge would refuse it",
+  ).toBeVisible({ timeout: 30_000 });
+  await totp.fill(await freshTotp(page, secret));
+  await page.click(submitFor("totp"));
+  await notOnLogin(page);
+  await settle(page);
 }
 
 // enrolTotp enrols a TOTP second factor via the settings flow, reading the secret
@@ -158,7 +261,7 @@ export async function enrolTotp(page: Page): Promise<string> {
     await expect(secretNode).toBeVisible({ timeout: 8_000 });
   }).toPass({ timeout: 40_000 });
   const secret = (await secretNode.innerText()).replace(/\s+/g, "");
-  await page.fill('input[name="totp_code"]', authenticator.generate(secret));
+  await page.fill('input[name="totp_code"]', await freshTotp(page, secret));
   await page.click(submitFor("totp"));
   // Settings reloads with the factor enrolled; the secret node disappears.
   await expect(secretNode).toBeHidden({ timeout: 20_000 });
@@ -177,7 +280,7 @@ export async function ensureAal2(page: Page, secret: string): Promise<void> {
     .then(() => true)
     .catch(() => false);
   if (prompted) {
-    await totp.fill(authenticator.generate(secret));
+    await totp.fill(await freshTotp(page, secret));
     await page.click(submitFor("totp"));
   }
   await notOnLogin(page);
