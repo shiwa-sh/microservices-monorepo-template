@@ -34,6 +34,7 @@ spec:
           imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
           command: ["sh", "-c", "until pg_isready -d \"$PGWEB_DATABASE_URL\"; do echo waiting for postgres; sleep 2; done"]
@@ -45,6 +46,7 @@ spec:
           imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
           # --readonly is pgweb's own session guard (ADR-0401 break-glass intent);

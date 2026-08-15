@@ -1,21 +1,23 @@
 {{/*
-The container half of the `restricted` Pod Security Standard (ADR-0200), identical
-for every first-party workload this chart renders. Written once here because four
-templates need the same four lines and a copy that drifts is a namespace that stops
-being admittable — the failure lands on whichever pod rolls next, not on the edit.
+The container security context for every first-party workload this chart renders,
+identical in all four. Written once here because a copy that drifts is a namespace
+that stops being admittable — and the failure lands on whichever pod rolls next,
+not on the edit that caused it.
 
-`readOnlyRootFilesystem` is deliberately NOT here. It is not part of `restricted`,
-and these four all write somewhere under / at runtime (Prometheus and Pyroscope to
-their data dirs, Alloy to its storage path, the collector to nothing but its own
-temp). The shared service chart sets it because first-party images are built to
-tolerate it; adding it here would be a separate, per-image change.
+`readOnlyRootFilesystem` is not part of the `restricted` Pod Security Standard, but
+it is the one thing on this list that limits what an already-compromised process can
+do, and `ci:scan`'s misconfig gate requires it (KSV-0014). It holds here because all
+four of these write only into mounts: Alloy to its storage path, Prometheus and
+Pyroscope to their data dirs, the cluster collector to nothing at all — each an
+emptyDir, which stays writable under a read-only root.
 
 The pod half — runAsNonRoot, runAsUser, seccompProfile — stays inline in each
-template, because the UID each image actually ships with differs and the reason for
-a given number belongs next to the image it applies to.
+template, because the UID each image ships with differs and the reason for a given
+number belongs next to the image it applies to.
 */}}
 {{- define "observability.containerSecurityContext" -}}
 allowPrivilegeEscalation: false
+readOnlyRootFilesystem: true
 capabilities:
   drop: ["ALL"]
 {{- end }}

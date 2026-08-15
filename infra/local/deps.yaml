@@ -132,12 +132,20 @@ spec:
           ports:
             - { name: grpc, containerPort: 7233 }
             - { name: ui,   containerPort: 8233 }
+          # readOnlyRootFilesystem holds because `start-dev` with no --db-filename
+          # keeps its SQLite in memory; the only thing it writes to disk is scratch
+          # under /tmp, which is the emptyDir below rather than the image layer.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
           readinessProbe:
             tcpSocket: { port: 7233 }
             initialDelaySeconds: 3
+      volumes:
+        - { name: tmp, emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service

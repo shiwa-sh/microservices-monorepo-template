@@ -57,5 +57,12 @@ ENV NODE_ENV=production
 COPY --from=build /app/apps/frontend/.next/standalone ./
 COPY --from=build /app/apps/frontend/.next/static    ./apps/frontend/.next/static
 COPY --from=build /app/apps/frontend/public          ./apps/frontend/public
+# The image declares its own non-root user rather than leaving it to the chart.
+# The service chart already sets runAsUser 65532, so nothing changes at runtime —
+# but an image whose only defence is the manifest that happens to deploy it is one
+# `docker run` away from root, and the scanner is right to say so (ci:scan
+# misconfig, DS-0002). `bun` is the user the oven/bun image ships (uid 1000); the
+# server serves prebuilt output and writes nothing under /app.
+USER bun
 EXPOSE 3000
 CMD ["bun", "apps/frontend/server.js"]

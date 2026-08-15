@@ -1,0 +1,22 @@
+# Findings `mise run ci:scan` will not fail on, each with the reason it cannot be
+# fixed here (ADR-0104).
+#
+# This file is the exception list, not the suppression list. A finding belongs here
+# only when the manifest is already correct and the checker cannot see why — never
+# because a fix is inconvenient or not scheduled. Anything deferred rather than
+# refused is a row in the plan, not an entry here.
+#
+# `statement` is what the next person reads instead of re-deriving the argument, so
+# it carries the reason rather than a restatement of the rule.
+
+misconfigurations:
+  - id: KSV-0014
+    paths:
+      - "infra/local/deps.yaml"
+    statement: >-
+      The inner-loop Postgres cannot take a read-only root filesystem: the official
+      entrypoint chmods PGDATA before initdb runs, and it writes its socket and
+      lockfile under /var/run/postgresql. Both destinations ARE emptyDir mounts here
+      rather than image layers — which is the property the rule is protecting — but
+      the check reads only the boolean. The container already runs as uid 70,
+      non-root, with ALL capabilities dropped and privilege escalation off.

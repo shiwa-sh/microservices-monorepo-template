@@ -55,6 +55,7 @@ spec:
         - name: headlamp
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
           image: "{{ .Values.headlamp.image.repository }}:{{ .Values.headlamp.image.tag }}"
@@ -70,6 +71,21 @@ spec:
           args: ["-in-cluster", "-unsafe-use-service-account-token"]
           ports: [{ name: http, containerPort: 4466 }]
           readinessProbe: { httpGet: { path: /, port: http } }
+          # The two directories headlamp insists on creating at startup, and the
+          # reason its root filesystem can be read-only anyway. It makes
+          # ~/.config/Headlamp for the plugin dirs and a random /tmp/.headlampNNNN
+          # to serve static assets from, and it EXITS if either mkdir fails — so
+          # readOnlyRootFilesystem alone is a crash loop, not a hardening.
+          #
+          # Both are emptyDir: no plugins are installed here (the ops surface is
+          # read-only, ADR-0401) and the static dir is rebuilt every start, so
+          # neither survives a restart and neither should.
+          volumeMounts:
+            - { name: config, mountPath: /home/headlamp/.config }
+            - { name: tmp,    mountPath: /tmp }
+      volumes:
+        - { name: config, emptyDir: {} }
+        - { name: tmp,    emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service

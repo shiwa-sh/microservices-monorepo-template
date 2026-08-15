@@ -44,6 +44,13 @@ spec:
         # old contract being served until someone noticed.
         local.platform/spec-hash: "stamped-by-mock-start"
     spec:
+      # `restricted` (ADR-0200) — this lands in `platform`, which enforces it. uid
+      # 1000 is the `node` user the Prism image inherits from its node base.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: prism
           # A vendored container: no package.json, no lockfile, no node_modules
@@ -81,11 +88,19 @@ spec:
           resources:
             requests: { cpu: "50m", memory: "128Mi" }
             limits: { memory: "256Mi" }
+          # Prism reads the document at startup and serves it from memory; the only
+          # writes are Node's scratch under /tmp, which is the emptyDir below.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
           volumeMounts:
             - { name: spec, mountPath: /spec, readOnly: true }
+            - { name: tmp,  mountPath: /tmp }
       volumes:
         - name: spec
           configMap: { name: mock-spec }
+        - { name: tmp, emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service
