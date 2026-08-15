@@ -11,6 +11,19 @@ spec:
   template:
     metadata: { labels: { app.kubernetes.io/name: pgweb } }
     spec:
+      # `restricted` (ADR-0200). Set at pod level so it covers the init container
+      # below too, which is the same image and would otherwise need its own copy.
+      #
+      # The UID is spelled out rather than left to the image, because the image
+      # declares `USER pgweb` — a NAME — and the kubelet will not start a
+      # runAsNonRoot container whose image user is non-numeric: it cannot resolve
+      # the name without running the image, so it refuses to certify the user is not
+      # root. The pod passes admission and then sits in CreateContainerConfigError.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       # pgweb exits (not retries) if the DB is unreachable at startup, so on a cold
       # bring-up it crash-loops for minutes while CNPG bootstraps. Wait for the DSN
       # to accept connections first — pg_isready ships in the pgweb image, so this
@@ -19,6 +32,10 @@ spec:
         - name: wait-for-db
           image: "{{ .Values.pgweb.image.repository }}:{{ .Values.pgweb.image.tag }}"
           imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           command: ["sh", "-c", "until pg_isready -d \"$PGWEB_DATABASE_URL\"; do echo waiting for postgres; sleep 2; done"]
           env:
             - { name: PGWEB_DATABASE_URL, value: {{ .Values.pgweb.databaseUrl | quote }} }
@@ -26,6 +43,10 @@ spec:
         - name: pgweb
           image: "{{ .Values.pgweb.image.repository }}:{{ .Values.pgweb.image.tag }}"
           imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           # --readonly is pgweb's own session guard (ADR-0401 break-glass intent);
           # --bind/--listen must be repeated when args are overridden. The DSN is
           # read from PGWEB_DATABASE_URL below.

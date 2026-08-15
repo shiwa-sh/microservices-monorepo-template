@@ -106,6 +106,17 @@ loki:
   fullnameOverride: loki
   deploymentMode: SingleBinary
   loki:
+    # The one field of `restricted` the loki chart leaves unset (ADR-0200). It
+    # already ships runAsNonRoot/runAsUser/runAsGroup 10001 at pod level and drops
+    # ALL capabilities with allowPrivilegeEscalation false per container, so this
+    # single key is the whole gap — and it goes at POD level so it also covers
+    # `loki-sc-rules`, the sidecar with no securityContext block of its own.
+    #
+    # NOTE the nesting: this is `loki.loki.podSecurityContext`. The chart's own
+    # `loki:` section is where its pod-level defaults live, and a copy one level up
+    # renders nothing at all — silently, because Helm does not reject unknown keys.
+    podSecurityContext:
+      seccompProfile: { type: RuntimeDefault }
     # Single-tenant (ADR-0500): no X-Scope-OrgID required. Without this the chart
     # defaults to multi-tenant and every header-less query (incl. Grafana's
     # datasource health check) 401s with "no org id".
@@ -169,7 +180,18 @@ tempo:
   # datasource (tempo:3200) resolve it, instead of the release-prefixed default.
   fullnameOverride: tempo
   replicas: 1
+  # `restricted` (ADR-0200). NOTE the two `securityContext` keys in this chart mean
+  # opposite things to what they are named: this top-level one renders as the POD
+  # securityContext (upstream already fills it with runAsNonRoot + 10001), while
+  # `tempo.securityContext` below is the CONTAINER one and ships empty. So the pod
+  # half needs only seccompProfile and the container half needs both of its fields.
+  securityContext:
+    seccompProfile: { type: RuntimeDefault }
   tempo:
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
     # THE HEAVIEST POD IN THE CLUSTER, and the reason this chart cannot rely on the
     # namespace LimitRange default. Measured 2026-07-26: 1858Mi working set during
     # the ADR-0601 load suite, against ~400Mi at rest — trace ingest from ~17k

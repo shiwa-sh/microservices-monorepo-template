@@ -10,10 +10,23 @@ spec:
   template:
     metadata: { labels: { app.kubernetes.io/name: lowdefy } }
     spec:
+      # `restricted` (ADR-0200). Unlike every other chart here the image is ours
+      # (apps/admin/Dockerfile), which is why the UID is named: the Dockerfile's
+      # `USER node` and this 1000 are the same decision written on both sides, and
+      # a mismatch would leave the pod unable to write .lowdefy/ at startup.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: lowdefy
           image: {{ include "lowdefy.image" . | quote }}
           imagePullPolicy: {{ .Values.lowdefy.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports: [{ name: http, containerPort: 3000 }]
           env:
             {{- range $k, $v := .Values.lowdefy.env }}

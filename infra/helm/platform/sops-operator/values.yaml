@@ -1,4 +1,23 @@
 sops-secrets-operator:
+  # `restricted` (ADR-0200). The chart ships a complete, correct security context
+  # and leaves it switched OFF; both halves are turned on here rather than
+  # hand-written. 13001 is upstream's own UID for its own image.
+  #
+  # `customContainerSecurityContext` replaces the preconfigured container block
+  # rather than extending it, and that is the point: the preconfigured one drops ALL
+  # and then ADDS NET_BIND_SERVICE. `restricted` tolerates that one capability, but
+  # this operator binds nothing below 1024 — it watches SopsSecret resources and
+  # writes Secrets — so the add is a privilege with no purpose. Setting the override
+  # also supplies allowPrivilegeEscalation, which the preconfigured block omits and
+  # `restricted` requires.
+  securityContext:
+    enabled: true
+    container:
+      enabled: true
+      customContainerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
   secretsAsFiles:
     - name: sops-age-key
       mountPath: /etc/sops/age

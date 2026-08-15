@@ -98,8 +98,22 @@ spec:
       annotations:
         checksum/config: {{ include "observability.prometheus.config" . | sha256sum }}
     spec:
+      # `restricted` (ADR-0200). 65534 is `nobody`, which is what the image already
+      # runs as — but the number has to be written out, because the image declares
+      # it by NAME and the kubelet will not start a runAsNonRoot container whose
+      # image user is non-numeric (it cannot resolve the name without running the
+      # image, so it refuses to certify the user is not root). Admission passes and
+      # the pod then sits in CreateContainerConfigError. fsGroup matches so the
+      # emptyDir TSDB below is writable.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: prometheus
+          securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $p.image }}
           args:
             - --config.file=/etc/prometheus/prometheus.yml

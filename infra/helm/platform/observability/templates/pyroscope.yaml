@@ -46,8 +46,20 @@ spec:
       annotations:
         checksum/config: {{ include "observability.pyroscope.config" . | sha256sum }}
     spec:
+      # `restricted` (ADR-0200). The pyroscope image runs as 10001 and has no shell
+      # to check that with, so the UID is named rather than assumed: if upstream
+      # ever changes it, a named UID fails loudly at start instead of silently
+      # running the process as a user the image did not prepare. fsGroup matches so
+      # the emptyDir data dir below is writable.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: pyroscope
+          securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $py.image }}
           args: ["-config.file=/etc/pyroscope/config.yaml"]
           ports:

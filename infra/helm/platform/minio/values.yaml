@@ -16,6 +16,43 @@ minio:
   resources:
     requests: { cpu: "50m", memory: "320Mi" }
     limits:   { memory: "768Mi" }
+  # `restricted` (ADR-0200). The chart already runs the server as uid/gid 1000 with
+  # a matching fsGroup for the PVC; what it never asserted was that this is a
+  # non-root user, and it sets no seccomp profile at all. The keys land in the pod
+  # securityContext verbatim (the template does `omit ... "enabled"`), so adding
+  # them here is enough — but note the whole block is gated on
+  # `persistence.enabled`, which is true above and must stay true for any of this
+  # to render.
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile: { type: RuntimeDefault }
+  # The container half. `readOnlyRootFilesystem: false` is upstream's default and is
+  # kept: MinIO writes its config under the root filesystem, and that field is not
+  # part of `restricted` anyway.
+  containerSecurityContext:
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  # The bucket-creation Job (`minio-post-job`, a Helm post-install hook) is a
+  # separate workload with its own three security-context switches, none of them
+  # covered by the server's above. It is one-shot, so a rejected Job leaves nothing
+  # Running to notice — the buckets simply never appear and Loki/Tempo fail on their
+  # first write. `containerSecurityContext` is not in the chart's defaults at all;
+  # the template reads it only when the sibling `securityContext.enabled` is true.
+  postJob:
+    securityContext:
+      enabled: true
+      runAsNonRoot: true
+      seccompProfile: { type: RuntimeDefault }
+  makeBucketJob: &minioJobContainer
+    securityContext:
+      enabled: true
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+  makeUserJob: *minioJobContainer
   rootUser: minio
   rootPassword: minio-password
   # No phone-home: the MinIO server checks dl.min.io for a newer release on

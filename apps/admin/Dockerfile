@@ -21,10 +21,21 @@ ARG LOWDEFY_VERSION
 ARG SERVICE_VERSION=dev
 LABEL org.opencontainers.image.revision="${SERVICE_VERSION}"
 WORKDIR /app
-# corepack provides the pnpm that Lowdefy requires at build and start. pnpm 10+
-# hard-fails (ERR_PNPM_IGNORED_BUILDS) when a dependency's build script is blocked;
-# the Lowdefy server's deps (sharp, @sentry/cli) need theirs, so allow them.
-RUN corepack enable && pnpm config set dangerously-allow-all-builds true
+# pnpm is required by Lowdefy at BUILD and at START — `lowdefy start` refuses to
+# run without it on PATH (its checkPnpmIsInstalled), and then spawns it.
+#
+# Installed globally rather than through `corepack enable`, which is what this line
+# used to do. corepack only installs a SHIM: the real pnpm is downloaded on first
+# use, into the invoking user's own cache. That is invisible while the container
+# runs as root during the build, and fails at start once it runs as `node`
+# (ADR-0200) — a different, unwritable cache, and a registry fetch that this
+# cluster's default-deny egress drops anyway. `npm install -g` puts the real thing
+# in /usr/local/lib/node_modules at build time, readable by every user.
+#
+# pnpm 10+ hard-fails (ERR_PNPM_IGNORED_BUILDS) when a dependency's build script is
+# blocked; the Lowdefy server's deps (sharp, @sentry/cli) need theirs, so allow them.
+ARG PNPM_VERSION=10.18.2
+RUN npm install -g pnpm@${PNPM_VERSION} && pnpm config set dangerously-allow-all-builds true
 COPY . .
 # Lowdefy's own `@lowdefy/server` fetch (a raw axios GET to registry.npmjs.org,
 # not npm's client) reliably gets "socket hang up"/400 through this project's
@@ -39,6 +50,13 @@ RUN npm install -g lowdefy@${LOWDEFY_VERSION} \
   && rm "/tmp/lowdefy-server-${LOWDEFY_VERSION}.tgz" \
   && lowdefy build
 EXPOSE 3000
+# Run as the `node` user (uid 1000, in the base image) rather than root, which is
+# what `restricted` requires of the namespace this lands in (ADR-0200). The build
+# above runs as root and leaves /app root-owned, and `lowdefy start` writes into
+# .lowdefy/ and .next/ at startup — so the tree is handed over explicitly rather
+# than relying on world-writable defaults.
+RUN chown -R node:node /app
+USER node
 # `lowdefy start` serves the built app on :3000; auth is enforced upstream at the
 # edge (ADR-0401), this process trusts the forwarded X-User-Email header.
 CMD ["lowdefy", "start"]

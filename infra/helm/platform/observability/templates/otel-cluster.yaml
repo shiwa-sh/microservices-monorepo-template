@@ -281,8 +281,17 @@ spec:
         checksum/config: {{ include "observability.otelCluster.config" . | sha256sum }}
     spec:
       serviceAccountName: otel-cluster
+      # `restricted` (ADR-0200). 10001 is the user the collector image ships with.
+      # This one reads the API server and writes nothing, so there is no fsGroup to
+      # match — the only mount is a read-only ConfigMap.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: otel-collector
+          securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $oc.image }}
           args:
             - --config=/etc/otelcol/config.yaml

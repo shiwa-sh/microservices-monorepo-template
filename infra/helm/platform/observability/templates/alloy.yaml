@@ -107,8 +107,20 @@ spec:
       labels: { app.kubernetes.io/name: alloy }
     spec:
       serviceAccountName: alloy
+      # `restricted` (ADR-0200). The alloy image ships USER root, so runAsNonRoot
+      # alone would only turn admission into a kubelet refusal at start — the UID
+      # has to be named. 473 is the `alloy` user the image creates, and the one the
+      # upstream chart uses; the storage path below is an emptyDir, so fsGroup
+      # matches it rather than a volume's ownership.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 473
+        runAsGroup: 473
+        fsGroup: 473
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: alloy
+          securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $al.image }}
           args:
             - run

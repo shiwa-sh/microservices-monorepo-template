@@ -1,5 +1,18 @@
 temporal:
+  # `restricted` (ADR-0200). This chart spreads the security context across five
+  # independent places — `server` (one pod block shared by all four roles, plus a
+  # containerSecurityContext per role), `web`, `admintools` and `schema` (which is
+  # the two Jobs) — and every one of them ships either empty or half-filled. The
+  # same four settings therefore appear five times below; there is no single key
+  # that reaches them all.
+  #
+  # 1000 is the `temporal` user in both server and admin-tools images. `server`
+  # already ran as it and simply never asserted runAsNonRoot, which is the field
+  # that turns "we set a UID" into something the API server can check.
   server:
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile: { type: RuntimeDefault }
     # No phone-home. Every Temporal server role starts a version checker that
     # resolves and dials version-info.temporal.io (CloudFront) on 443; under
     # default-deny egress that is dropped, and it is the second-largest source of
@@ -27,12 +40,21 @@ temporal:
       requests: { cpu: "100m", memory: "192Mi" }
       limits:   { memory: "512Mi" }
     frontend:
+      # The container half of `restricted`, identical for all four server roles and
+      # for web/admintools/schema below — so it is written once as a YAML anchor and
+      # aliased. Helm merges values files, not anchors, so an anchor only works
+      # WITHIN this file; that is exactly the scope needed here.
+      containerSecurityContext: &restrictedContainer
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
       # Measured: 101Mi, 375m CPU peak. Every workflow start and query enters here,
       # so the CPU is bursty and deliberately unlimited (ADR-0204).
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
     history:
+      containerSecurityContext: *restrictedContainer
       # THE HEAVIEST CPU CONSUMER IN THE CLUSTER. Measured 2121m — 2.1 cores — and
       # 647Mi during a 40-VU checkout run, against roughly 20m at rest. It owns
       # workflow mutable state and shard ownership, so every workflow transition is
@@ -47,11 +69,13 @@ temporal:
         requests: { cpu: "500m", memory: "768Mi" }
         limits:   { memory: "1536Mi" }
     matching:
+      containerSecurityContext: *restrictedContainer
       # Measured: 102Mi, 372m CPU. Task-queue dispatch — bursty like frontend.
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
     worker:
+      containerSecurityContext: *restrictedContainer
       # Temporal's OWN internal worker (archival, scanners), not our services'
       # workers. Measured: 148Mi, 40m CPU.
       resources:
@@ -156,3 +180,34 @@ temporal:
     image:
       repository: temporalio/ui
       tag: "2.51.1"
+    # The UI image runs as `temporal` (1000) and, unlike `server`, the chart sets
+    # nothing at all for it — so the pod block is written out in full here.
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile: { type: RuntimeDefault }
+    containerSecurityContext: *restrictedContainer
+
+  # admin-tools is the CLI image, run as a long-lived Deployment for break-glass
+  # `temporal` commands (ADR-0401) and reused as the image for both Jobs below.
+  admintools:
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile: { type: RuntimeDefault }
+    containerSecurityContext: *restrictedContainer
+
+  # `schema` names the two Jobs — the schema setup/update job and the
+  # create-default-namespace job — not a component. Both run the admin-tools image,
+  # so they take the same user, and both are one-shot: a Job that fails admission
+  # fails silently in the sense that matters, because nothing is left Running to
+  # look at afterwards.
+  schema:
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      seccompProfile: { type: RuntimeDefault }
+    containerSecurityContext: *restrictedContainer

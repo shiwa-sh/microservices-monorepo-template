@@ -36,8 +36,27 @@ spec:
     metadata: { labels: { app.kubernetes.io/name: headlamp } }
     spec:
       serviceAccountName: headlamp
+      # `restricted` (ADR-0200). The UID is spelled out because the image declares
+      # `USER headlamp` — a NAME — and the kubelet refuses to start a runAsNonRoot
+      # container whose image user is non-numeric: it cannot resolve the name to a
+      # UID without running the image, so it will not certify that the user is not
+      # root ("image has non-numeric user (headlamp), cannot verify user is
+      # non-root"). runAsNonRoot alone therefore turns a passing admission into a
+      # CreateContainerConfigError. 100 is what that name resolves to.
+      #
+      # Nothing here is written to disk — it reads the API server with the pod
+      # ServiceAccount — so there is no fsGroup.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: headlamp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           image: "{{ .Values.headlamp.image.repository }}:{{ .Values.headlamp.image.tag }}"
           imagePullPolicy: {{ .Values.headlamp.image.pullPolicy }}
           # -in-cluster uses the pod ServiceAccount; served at the origin root, so

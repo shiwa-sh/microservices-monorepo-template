@@ -40,6 +40,14 @@ temporal-worker-controller:
     requests: { cpu: "10m", memory: "96Mi" }
     limits:   { memory: "256Mi" }
 
+  # `restricted` (ADR-0200). The kubebuilder scaffold this chart came from already
+  # sets runAsNonRoot, drops ALL capabilities and disallows privilege escalation;
+  # the seccomp profile is the one field it leaves behind a toggle, on the theory
+  # that old clusters might not support it. This one does.
+  securityContext:
+    seccompProfile:
+      enabled: true
+
   certmanager:
     # The platform already runs cert-manager (infra/helm/platform/cert-manager,
     # wave 0), so the chart's bundled subchart stays off and only the Issuer +
