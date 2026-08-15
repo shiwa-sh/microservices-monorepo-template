@@ -57,8 +57,28 @@ k3d = "5.9.0"
 # so any other downgrade in this tree still fails the install.
 # Revisit when @yarnpkg/libzip publishes a provenance-carrying release above 3.2.2:
 # the exclude should then be deleted, not widened.
+# Reviewed 2026-08-15: the 2026-08-14 smithy release train switched publishers mid-
+# train. @smithy/core 3.33.0 and @smithy/node-http-handler 4.11.0 (both npm `latest`,
+# published 2026-08-14 by aws-sdk-bot — the established AWS automation identity
+# that publishes every @aws-sdk/* release) carry no trusted-publisher OIDC evidence,
+# where the immediately prior releases (core 3.24.6→3.32.0, node-http-handler up to
+# 4.10.0) were published by the GitHub Actions OIDC identity. The downgrade is
+# explained upstream, not tampering: smithy-lang/smithy-typescript commit
+# 6177d1483209 ("fix(release): drop publishConfig.directory", 2026-08-14) reworked
+# the release pipeline, and the publishes went out under the bot's registry token.
+# Verified: sha512 of each tarball matches the registry's declared integrity;
+# CHANGELOG and deps match the source repo at the release commit (only the standard
+# changesets `workspace:^`→range rewrite differs); no install hooks or binaries in
+# the tarballs; renovate's @aws-sdk deps (e.g. client-s3 ^3.29.8) select them
+# legitimately. Full @smithy closure of renovate 44.26.0 enumerated from the
+# registry: these two are the ONLY packages with a trust downgrade in the tree.
+# Scoped to the exact package@version so any other downgrade still fails the
+# install. Revisit when a provenance/OIDC-carrying release above these publishes:
+# the excludes should then be deleted, not widened.
 "npm:renovate" = { version = "44.26.0", trust_policy_excludes = [
   "@yarnpkg/libzip@3.2.2",
+  "@smithy/core@3.33.0",
+  "@smithy/node-http-handler@4.11.0",
 ] }
 
 # Secrets
