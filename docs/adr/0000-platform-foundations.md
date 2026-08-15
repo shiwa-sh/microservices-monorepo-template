@@ -42,7 +42,7 @@ Later ADRs cite this position rather than restating it. It changes here, in one 
 
 This follows Richards & Ford's treatment of architecture styles as **risk profiles rated against characteristics**, and refuses the numbered-ladder genre — CMMI and the maturity models after it — on the same grounds DORA/*Accelerate* refuses it: a ladder implies every rung is on the way to the next one, and these are not.
 
-**The nearest coherent position is this one with axis B lower**, and several ADRs here answer a question that position does not have.
+**The closest workable alternative is this position with axis B lower.** Several ADRs here answer questions a platform at that position would not face.
 
 ### Axis A: what forces decomposition
 
