@@ -19,7 +19,7 @@ const KRATOS_ADMIN = "http://127.0.0.1:4434";
 const ORGS_LOCAL_PORT = Number(process.env.ORGS_LOCAL_PORT ?? 18094);
 const SCHEMA_ID = "user_v1";
 const OPENFGA_PORT = 8080;
-// Local forward port for the OpenFGA HTTP API. NOT 8080: the local k3d cluster maps
+// Local forward port for the OpenFGA HTTP API. NOT 8080: the local cluster maps
 // host 8080 -> the edge loadbalancer (Traefik), so binding 8080 here would collide
 // with the edge and requests would hit Traefik (404) instead of OpenFGA.
 const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);

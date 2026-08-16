@@ -31,6 +31,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
@@ -38,12 +39,18 @@ DOMAIN="${DOMAIN:-dev.localtest.me}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 # 1. Cluster + CNI. Same bootstrap floor as every other tier.
 bash scripts/cluster-ensure.sh
 bash scripts/cilium-install.sh
+
+# 1a. The edge controller. kind ships no ingress controller (k3s bundled one), so
+#     the floor installs the committed Traefik chart every environment runs.
+#     Its CRDs must exist before any IngressRoute is applied, hence imperative.
+step "installing Traefik (edge controller)"
+bash scripts/traefik-install.sh
 
 # 1b. The namespaces, with their Pod Security Admission profile (ADR-0200). Before
 #     anything is admitted into them, because PSA is an admission check: a label
@@ -169,14 +176,11 @@ h upgrade --install ory infra/helm/platform/ory \
 #    dials the edge reaches the edge and not its own loopback. Needed by anything
 #    running in-cluster that calls through the edge — the frontend above all.
 step "rewriting ${DOMAIN} to the edge in CoreDNS"
-k apply -f infra/local/coredns-rewrite.yaml
-k -n kube-system rollout restart deploy/coredns
-k -n kube-system rollout status deploy/coredns --timeout=120s
+bash scripts/coredns-rewrite.sh
 
 # 8. Host edge glue: the catch-all `/` route to the host `next dev` and the
 #    docker-bridge EndpointSlice. cluster-ensure.sh skips it on a brand-new cluster
 #    (Traefik's CRDs are not registered yet), so stamp it now that they are.
-k apply -f infra/local/traefik-config.yaml
 bash scripts/cluster-edge-glue.sh
 
 # 9. The committed test identities (ADR-0601) — the same ones the e2e suite uses,

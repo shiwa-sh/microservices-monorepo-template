@@ -1,7 +1,7 @@
 # Local Gateway Application (ADR-0305). Same env-agnostic edge config (Traefik
 # middlewares + cross-cutting IngressRoutes from infra/gateway) the prod
 # app-gateway.yaml applies, synced locally by the local root-app. The host-specific
-# local edge glue (infra/local/traefik-config.yaml, edge-auth.yaml, and the
+# local edge glue (edge-auth.yaml, and the
 # frontend-dev EndpointSlice pointing at the docker-bridge gateway IP) is NOT here —
 # it depends on per-machine state and stays in the imperative tail of cluster:full.
 apiVersion: argoproj.io/v1alpha1

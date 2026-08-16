@@ -34,7 +34,7 @@ CHECK=false
 OUT="infra/gitops/platform/image-allowlist.yaml"
 SHARED="infra/gitops/platform/shared-values.yaml"
 # The environment the list is generated FOR. Image repositories differ by
-# environment — the local tier pulls first-party images from the k3d registry where
+# environment — the local tier pulls first-party images from the local registry where
 # a deployed one pulls them from ghcr — so the list is per-environment by nature,
 # and this is the one the template ships with.
 ENV_NAME="local"

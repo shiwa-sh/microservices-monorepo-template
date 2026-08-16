@@ -5,13 +5,13 @@
 # (infra/gitops/platform/local/secrets/platform.enc.yaml), not dev's *-db-creds.
 name: orders
 image:
-  repository: k3d-registry.localhost:5000/orders-server
+  repository: registry.localhost:5000/orders-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:
   enabled: true
   image:
-    repository: k3d-registry.localhost:5000/orders-worker
+    repository: registry.localhost:5000/orders-worker
     tag: local
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [orders] }

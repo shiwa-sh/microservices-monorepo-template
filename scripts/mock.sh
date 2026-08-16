@@ -17,6 +17,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -24,7 +25,7 @@ cd "$ROOT"
 SPEC="apps/frontend/public/devportal/openapi/internal.json"
 MANIFEST="infra/local/mock.yaml"
 
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 case "${1:-}" in
 start)

@@ -2,13 +2,13 @@
 # secret-naming note (orgs-db = local SopsSecret resource).
 name: orgs
 image:
-  repository: k3d-registry.localhost:5000/orgs-server
+  repository: registry.localhost:5000/orgs-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:
   enabled: true            # RegisterUser dual-write (ADR-0302/0010)
   image:
-    repository: k3d-registry.localhost:5000/orgs-worker
+    repository: registry.localhost:5000/orgs-worker
     tag: local
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [orgs] }

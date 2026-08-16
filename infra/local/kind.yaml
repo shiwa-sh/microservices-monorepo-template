@@ -1,0 +1,53 @@
+# Local inner-loop cluster (ADR-0600). kind, not k3d: the inner loop must run the
+# same distribution the full tier runs upstream (k3s is Ansible-era, being retired
+# by phase 7), and kind's kubeadm node is the closest local shape to it.
+#
+# Flannel/kube-proxy stay off: Cilium is the CNI (ADR-0206), and kind declines
+# kube-proxy at create time (kubeProxyMode: none) where k3s needed an override to
+# suppress it. Ports 8080/8443 map the edge: the local values run Traefik as a
+# NodePort (nodePorts 30080/30443 — the 30000+ range is what kind's node can
+# serve), and these host→node mappings are what make https://<host>:8443 reach it.
+# The 30080/30443 numbers must match infra/helm/platform/traefik/values.yaml.
+#
+# Kubelet tuning, ported from the k3s flags the old create used (registry-qps/
+# burst=0 lifts the per-registry image-pull rate limiter, which only throttles
+# cold reschedules against our OWN registry; eviction-hard pinned at 2% free keeps
+# kubelet from evicting the whole platform over a few spare GB; image-gc thresholds
+# at 98/80 stop the perpetual ImageGCFailed noise on a near-full developer disk).
+#
+# Proxied networks: kind cannot inject node environment (no k3d -e equivalent), so
+# a proxied machine preloads images on the host instead — CLUSTER_PRELOAD=1 runs
+# cluster:preload (host docker pull + kind load docker-image), and
+# cluster:unwedge rescues anything that still wedges reactively. See
+# docs/dev-loop.md ("HTTP proxies").
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            registry-qps: "0"
+            registry-burst: "0"
+            eviction-hard: "imagefs.available<2%,nodefs.available<2%"
+            image-gc-high-threshold: "98"
+            image-gc-low-threshold: "80"
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+      - containerPort: 30443
+        hostPort: 8443
+networking:
+  disableDefaultCNI: true
+  kubeProxyMode: none
+# The local registry (ADR-0205 parity): a plain registry container on the kind
+# docker network (created by scripts/cluster-ensure.sh), the node pulls
+# repo-built images from registry.localhost:5000 exactly as a deployed tier pulls
+# from ghcr. The endpoint carries an explicit http:// scheme, which is how
+# containerd marks a registry as plain-HTTP.
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.localhost:5000"]
+      endpoint = ["http://registry.localhost:5000"]

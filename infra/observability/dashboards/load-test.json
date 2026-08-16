@@ -624,7 +624,7 @@
     {
       "type": "timeseries",
       "title": "Node ceiling",
-      "description": "Whole-node CPU and memory. On the local tier the k6 generator ALSO runs on this host but outside the k3d node container, so it is not counted here — which is precisely why local numbers are a regression signal and not a capacity figure (ADR-0601).",
+      "description": "Whole-node CPU and memory. On the local tier the k6 generator ALSO runs on this host but outside the kind node container, so it is not counted here — which is precisely why local numbers are a regression signal and not a capacity figure (ADR-0601).",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
       "fieldConfig": {

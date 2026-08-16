@@ -67,6 +67,18 @@ argo-cd:
         hs.status = "Progressing"
         hs.message = "Waiting for CNPG cluster status"
         return hs
+      # Helm-rendered CRDs carry explicit empty maps (`labels: {}`,
+      # `annotations: {}`) that ArgoCD's normalizer strips from the DESIRED object
+      # but not from the LIVE one — so a chart shipping CRDs (kyverno) drifts
+      # `labels: {}` forever and sits OutOfSync. That OutOfSync then blocks the
+      # ApplicationSet health check above (it demands every generated app Synced),
+      # which freezes the root app-of-apps on its first wave. Ignore the empty-map
+      # churn on CRD metadata; the labels Kyverno applies for its own bookkeeping
+      # are unchanged.
+      resource.customizations.ignoreDifferences.apiextensions.k8s.io_CustomResourceDefinition: |
+        {
+          "jsonPointers": ["/metadata/labels", "/metadata/annotations"]
+        }
     rbac:
       # Anonymous (edge-authenticated operator, see users.anonymous above) gets
       # admin — mirroring Grafana's anonymous org_role:Admin. The edge already

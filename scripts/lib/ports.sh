@@ -24,7 +24,7 @@
 # collision, because two services quietly sharing a port is a bind race that only
 # shows up when someone runs both.
 #
-# 8080 is deliberately UNASSIGNED: k3d maps host 8080 to the edge, and leaving it
+# 8080 is deliberately UNASSIGNED: the local edge maps host 8080, and leaving it
 # free keeps "the port I bound" and "the port the edge answers on" distinct.
 
 if [[ -n "${__PORTS_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi

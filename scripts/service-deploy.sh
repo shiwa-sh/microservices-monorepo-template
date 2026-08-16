@@ -2,8 +2,8 @@
 # One-shot in-cluster deploy from the WORKING TREE (ADR-0200, ADR-0205) — the
 # occasional "I need my uncommitted code in the cluster for edge/auth/e2e testing"
 # case. No watch loop (that was Skaffold's job; the daily loop is native execution).
-# Builds the image(s), imports them into k3d, and helm-upgrades the same chart prod
-# uses with the local values overlay.
+# Builds the image(s), loads them into the kind node, and helm-upgrades the same
+# chart prod uses with the local values overlay.
 #
 #   mise run service:deploy -- <svc>
 #
@@ -24,6 +24,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/argo.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -49,8 +50,8 @@ else
   exit 1
 fi
 
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 # Bring up what this service declares it needs, before deploying it (ADR-0205,
 # ADR-0600). Without this a deploy onto a bare base silently CrashLoops: orders
@@ -135,7 +136,7 @@ else
     --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' "$VALUES")" \
     -f "${SVC_DIR}/Dockerfile" .
 fi
-k3d image import "${IMAGE}:${TAG}" -c "$CLUSTER"
+kind load docker-image "${IMAGE}:${TAG}" --name "$CLUSTER" >/dev/null
 
 # Build the worker too when this service declares one (orders, payment).
 if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
@@ -145,7 +146,7 @@ if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
     --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
     --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -f "${SVC_DIR}/Dockerfile" .
-  k3d image import "${SVC}-worker:${TAG}" -c "$CLUSTER"
+  kind load docker-image "${SVC}-worker:${TAG}" --name "$CLUSTER" >/dev/null
   SET+=(--set "worker.image.repository=${SVC}-worker" --set "worker.image.tag=${TAG}")
 fi
 

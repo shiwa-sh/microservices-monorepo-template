@@ -7,7 +7,7 @@
 #   • the catch-all `frontend` IngressRoute is not persisted by Argo, so a stop/start
 #     or reboot loses it → Traefik answers `404 page not found` at `/`;
 #   • the frontend-dev EndpointSlice points at the docker-bridge gateway IP (the only
-#     host address a pod can reach), which can change across a k3d restart → a stale
+#     host address a pod can reach), which can change across a restart → a stale
 #     address gives a 502. Re-reading it every run self-heals both.
 # Idempotent; safe to run any time the cluster is up. Called by cluster-ensure.sh
 # (start path), cluster-heal.sh (reboot recovery), cluster-full.sh (bring-up) and
@@ -18,16 +18,19 @@
 # a whole tier. This is the per-machine seam underneath it.
 set -euo pipefail
 
+source "$(dirname "$0")/lib/cluster-ctx.sh"
+
 CLUSTER="${CLUSTER:-platform}"
 NS="${NS:-platform}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
-# Traefik installs asynchronously on a fresh k3d cluster, so its IngressRoute CRD may
-# not be registered yet on the first ensure of a brand-new cluster. Skip cleanly if
-# so — the route is unusable without Traefik anyway, and cluster:full re-runs this
-# once the platform is up. On a restart the CRD is already persisted, so we apply.
+# Traefik installs asynchronously on a fresh kind cluster, so its IngressRoute CRD
+# may not be registered yet on the first ensure of a brand-new cluster. Skip cleanly
+# if so — the route is unusable without Traefik anyway, and cluster:full re-runs
+# this once the platform is up. On a restart the CRD is already persisted, so we
+# apply.
 if ! k get crd ingressroutes.traefik.io >/dev/null 2>&1; then
   echo "· traefik.io CRDs not present yet — skipping edge glue (applied later by cluster:full)"
   exit 0
@@ -41,10 +44,10 @@ k apply -f infra/local/edge-auth.yaml
 # run, so a bridge-IP change across restarts self-heals.
 bridge_gateway() {
   local gw
-  gw="$(docker inspect "k3d-${CLUSTER}-server-0" \
+  gw="$(docker inspect "${CLUSTER}-control-plane" \
     --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}')"
   [ -n "$gw" ] || {
-    echo "✗ could not determine docker-bridge gateway for k3d-${CLUSTER}-server-0" >&2
+    echo "✗ could not determine docker-bridge gateway for ${CLUSTER}-control-plane" >&2
     return 1
   }
   printf '%s' "$gw"

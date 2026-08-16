@@ -4,13 +4,13 @@
 # creds), so only payment-db is mounted — matching the old skaffold module.
 name: payment
 image:
-  repository: k3d-registry.localhost:5000/payment-server
+  repository: registry.localhost:5000/payment-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:
   enabled: true
   image:
-    repository: k3d-registry.localhost:5000/payment-worker
+    repository: registry.localhost:5000/payment-worker
     tag: local
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [charges] }

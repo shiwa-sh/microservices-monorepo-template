@@ -32,7 +32,7 @@ spec:
     # collector and the CNPG instance manager watch/patch resources.
     #
     # `host` + `remote-node` are required alongside `kube-apiserver`: when the API
-    # server runs ON a cluster node (single-node k3d locally, or any node-hosted
+    # server runs ON a cluster node (single-node kind locally, or any node-hosted
     # apiserver), Cilium classifies its address as the `host`/`remote-node` reserved
     # identity, which takes precedence over `kube-apiserver`. With only
     # `kube-apiserver` here, every pod→API SYN to the node IP is dropped as

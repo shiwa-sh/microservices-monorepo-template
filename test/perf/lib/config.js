@@ -132,7 +132,7 @@ export function options(scenario, weight, thresholds) {
 
   return {
     stages,
-    // The local edge serves the k3d wildcard cert, which is self-signed — the
+    // The local edge serves the local wildcard cert, which is self-signed — the
     // same reason playwright.config.ts sets ignoreHTTPSErrors.
     insecureSkipTLSVerify: true,
     // Thresholds set the process exit code, which is what makes a run a CI gate
@@ -162,7 +162,7 @@ export function summaryTrailer() {
     "",
     `  target:  ${BASE_URL}`,
     `  profile: ${PROFILE}`,
-    "  note:    generator runs on the host and shares CPU with the k3d node —",
+    "  note:    generator runs on the host and shares CPU with the kind node —",
     "           read these as a regression signal, not an absolute capacity figure.",
     "",
   ].join("\n");

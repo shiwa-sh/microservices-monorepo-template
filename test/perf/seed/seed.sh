@@ -25,10 +25,11 @@ cd "$(cd "$(dirname "$0")/../.." && pwd)"
 source scripts/lib/log.sh
 
 CLUSTER="${CLUSTER:-platform}"
+source scripts/lib/cluster-ctx.sh
 NS="platform"
 PREFIX="perf-"
 
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 # The CNPG primary, resolved by label rather than hardcoded: a failover renames
 # the pod (postgres-1 → postgres-2) and a hardcoded name silently seeds nothing.

@@ -18,6 +18,7 @@ policies:
     - docker.io/kiwigrid/k8s-sidecar
     - docker.io/oryd/kratos
     - docker.io/oryd/oathkeeper
+    - docker.io/traefik
     - ghcr.io/cloudnative-pg/cloudnative-pg
     - ghcr.io/cloudnative-pg/postgresql
     - ghcr.io/dexidp/dex
@@ -25,16 +26,6 @@ policies:
     - ghcr.io/kyverno/readiness-checker
     - grafana/alloy
     - grafana/pyroscope
-    - k3d-registry.localhost:5000/admin
-    - k3d-registry.localhost:5000/authz-server
-    - k3d-registry.localhost:5000/catalog-server
-    - k3d-registry.localhost:5000/frontend
-    - k3d-registry.localhost:5000/orders-server
-    - k3d-registry.localhost:5000/orders-worker
-    - k3d-registry.localhost:5000/orgs-server
-    - k3d-registry.localhost:5000/orgs-worker
-    - k3d-registry.localhost:5000/payment-server
-    - k3d-registry.localhost:5000/payment-worker
     - openfga/openfga
     - otel/opentelemetry-collector-contrib
     - prom/prometheus
@@ -53,6 +44,16 @@ policies:
     - quay.io/jetstack/cert-manager-webhook
     - quay.io/minio/mc
     - quay.io/minio/minio
+    - registry.localhost:5000/admin
+    - registry.localhost:5000/authz-server
+    - registry.localhost:5000/catalog-server
+    - registry.localhost:5000/frontend
+    - registry.localhost:5000/orders-server
+    - registry.localhost:5000/orders-worker
+    - registry.localhost:5000/orgs-server
+    - registry.localhost:5000/orgs-worker
+    - registry.localhost:5000/payment-server
+    - registry.localhost:5000/payment-worker
     - reg.kyverno.io/kyverno/background-controller
     - reg.kyverno.io/kyverno/cleanup-controller
     - reg.kyverno.io/kyverno/kyverno

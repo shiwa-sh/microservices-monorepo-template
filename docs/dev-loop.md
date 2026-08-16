@@ -72,17 +72,22 @@ Behind a proxy, `NO_PROXY` must include `.localtest.me`, `localhost` and `127.0.
 it, and the symptom is a timeout rather than a refusal. The node's containerd has
 the same problem in reverse: it needs the proxy to pull public images, and a pull
 that wedges shows up as `ImagePullBackOff` on a pod that was fine yesterday. That is
-what `mise run cluster:unwedge` is for. The full setup, including what to put in the
-Docker daemon's environment, is [guide/http-proxy.md](guide/http-proxy.md).
+what `mise run cluster:unwedge` is for. On a proxied machine a FRESH cluster cannot
+pull its bootstrap images at all — kind cannot inject the proxy into the node — so
+first bring-up is `CLUSTER_PRELOAD=1 mise run cluster:full`, which host-pulls and
+`kind load`s the images before the imperative head blocks. The full setup, including
+what to put in the Docker daemon's environment, is
+[guide/http-proxy.md](guide/http-proxy.md).
 
 ## After a reboot
 
-The inner loop routes to natively-run services through `host.k3d.internal` and an
-EndpointSlice pointing at the docker-bridge gateway. Both are stamped at bring-up
-and both are wrong after the bridge is recreated, which a reboot does — the cluster
-comes back, the pods are Ready, and every native route 502s. `mise run cluster:heal`
-re-injects the host alias and re-stamps the edge glue. It is idempotent; run it
-whenever the cluster survived something the host did.
+The inner loop routes to natively-run services through an EndpointSlice pointing at
+the docker-bridge gateway — the only host address a pod can reach. It is stamped at
+bring-up and is wrong after the bridge is recreated, which a reboot does: the
+cluster comes back, the pods are Ready, and every native route 502s. `mise run
+cluster:heal` re-starts the node (clearing a half-restored Cilium datapath) and
+re-stamps the edge glue. It is idempotent; run it whenever the cluster survived
+something the host did.
 
 ## UI work: the mock
 
@@ -140,7 +145,7 @@ relative number.
 | Symptom | Try |
 | --- | --- |
 | a pod stuck pulling, after a laptop sleep or a proxy hiccup | `mise run cluster:unwedge` |
-| `host.k3d.internal` unresolvable / native routing dead after a reboot | `mise run cluster:heal` |
+| native routing dead (502 at /) after a reboot — the bridge IP changed | `mise run cluster:heal` |
 | everything is odd and you want the time back | `mise run cluster:delete`, then bring the tier up again |
 | the edge answers 404 for a service you deployed | check Argo did not revert it: `kubectl -n argocd get app` |
 

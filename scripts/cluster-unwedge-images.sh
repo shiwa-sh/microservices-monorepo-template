@@ -2,16 +2,16 @@
 # Unwedge image pulls stalled by an HTTP proxy (OPT-IN, proxied networks only).
 #
 # The normal bring-up is proxy-free: on a clean network every image pulls fine and
-# you never need this. Behind a corporate proxy, though, the k3d node's containerd
+# you never need this. Behind a corporate proxy, though, the kind node's containerd
 # pulls public-registry images (cilium, argocd, openfga/openfga, …) THROUGH privoxy,
 # which times out on large TLS blobs and can wedge the pull indefinitely — pods sit
 # in ImagePullBackOff / ErrImagePull. See docs/dev-loop.md ("HTTP proxies").
 #
 # This does the documented manual recovery, automatically and only for what is
 # actually stuck: host `docker pull` (the host proxy handles blobs fine) → then
-# `k3d image import` into the node's containerd → then delete the stuck pod so it
-# retries against the now-local image. Nothing is hardcoded, so it tracks chart
-# image bumps and covers whatever the proxy happened to choke on this run.
+# `kind load docker-image` into the node's containerd → then delete the stuck pod
+# so it retries against the now-local image. Nothing is hardcoded, so it tracks
+# chart image bumps and covers whatever the proxy happened to choke on this run.
 #
 #   mise run cluster:unwedge          # one pass
 #   watch -n15 mise run cluster:unwedge   # or loop while a fresh cluster:full converges
@@ -21,7 +21,8 @@
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
+source "$(dirname "$0")/lib/cluster-ctx.sh"
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
 # Every image referenced by a container that is currently failing to pull, across
 # all namespaces — init and regular containers alike. `waiting.reason` is the
@@ -92,12 +93,12 @@ for img in "${stuck[@]}"; do
     failed+=("$img")
     continue
   fi
-  # k3d image import can't resolve a combined `repo:tag@sha256:…` ref (its runtime
-  # lookup only matches plain tags), so import by the plain tag. But `docker pull`
-  # of a digest-pinned ref stores the image under `repo@sha256:…` only — it does NOT
-  # create the `repo:tag` tag — so we must tag it ourselves first, else the import
-  # fails with "not a file and couldn't be found in the container runtime". The
-  # content digest is unchanged, so the digest-pinned pod still resolves it locally.
+  # kind load docker-image can't resolve a combined `repo:tag@sha256:…` ref (its
+  # runtime lookup only matches plain tags), so load by the plain tag. But
+  # `docker pull` of a digest-pinned ref stores the image under `repo@sha256:…`
+  # only — it does NOT create the `repo:tag` tag — so we must tag it ourselves
+  # first, else the load fails. The content digest is unchanged, so the
+  # digest-pinned pod still resolves it locally.
   import_ref="$img"
   if [[ "$img" == *"@sha256:"* ]]; then
     no_digest="${img%@sha256:*}"
@@ -106,7 +107,7 @@ for img in "${stuck[@]}"; do
       import_ref="$no_digest"
     fi
   fi
-  if ! k3d image import "$import_ref" -c "$CLUSTER"; then
+  if ! kind load docker-image "$import_ref" --name "$CLUSTER"; then
     echo "    ✗ could not import $import_ref — skipping"
     failed+=("$img")
   fi

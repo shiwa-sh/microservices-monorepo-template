@@ -39,6 +39,7 @@ source "$(dirname "$0")/lib/ports.sh"
 source "$(dirname "$0")/lib/preflight.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -52,9 +53,9 @@ PIDFILE="${RUNDIR}/portforward-${SVC}.pid"
 
 # Before any guard: a probe that CANNOT run must not be read as "not up", or the
 # fall-through starts building images against an unreachable cluster.
-require_cluster "$CLUSTER"
+require_cluster
 
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 # Probe the local port with bash's /dev/tcp rather than curl: it asks the only
 # question that matters (is something listening?) without caring whether the
@@ -95,7 +96,7 @@ mkdir -p "$RUNDIR"
 # Detached, because a mise task must return for the graph to continue but the
 # forward has to outlive it. This is the one piece of process management in the dev
 # loop; it is confined here, keyed by a pidfile, and torn down by cluster:remove.
-nohup kubectl --context "k3d-${CLUSTER}" -n "$NS" \
+nohup kubectl --context "$(cluster_ctx)" -n "$NS" \
   port-forward "svc/${SVC}-server" "${PORT}:80" \
   >"${RUNDIR}/portforward-${SVC}.log" 2>&1 &
 echo $! >"$PIDFILE"

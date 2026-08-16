@@ -20,10 +20,11 @@ set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 identities="$(bun --silent -e \
   'console.log(JSON.stringify((await import("./test/e2e/fixtures/identities.ts")).IDENTITIES))')"

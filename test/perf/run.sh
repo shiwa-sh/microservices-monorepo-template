@@ -30,6 +30,7 @@ script="scenarios/${scenario}.js"
 [ -f "$script" ] || fail "no such scenario: ${script}"
 
 CLUSTER="${CLUSTER:-platform}"
+source scripts/lib/cluster-ctx.sh
 # Loopback port for the collector forward. High and specific so it does not
 # collide with the e2e suite's forwards (13100/13200/19090) if both are running.
 OTLP_PORT="${PERF_OTLP_PORT:-14317}"
@@ -51,7 +52,7 @@ if [ "${PERF_OTLP:-1}" = "1" ]; then
   step "forwarding otel-collector :${OTLP_PORT} → svc/otel-collector:4317"
   # `otel-agent`, not `platform`: the collector runs in a namespace of its own
   # (ADR-0200 — hostPath and hostPorts).
-  kubectl --context "k3d-${CLUSTER}" -n otel-agent port-forward svc/otel-collector "${OTLP_PORT}:4317" >/dev/null 2>&1 &
+  kubectl --context "$(cluster_ctx)" -n otel-agent port-forward svc/otel-collector "${OTLP_PORT}:4317" >/dev/null 2>&1 &
   pf=$!
   trap 'kill "$pf" 2>/dev/null || true' EXIT
   # Wait for the forward rather than sleeping a guessed constant: a forward that

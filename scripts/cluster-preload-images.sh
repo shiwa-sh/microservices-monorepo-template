@@ -8,7 +8,7 @@
 # the node's containerd wedges pulling Cilium or ArgoCD through a slow proxy there
 # is no pod loop for unwedge to fix — the whole bring-up just hangs. This warms
 # every platform image ahead of time: host `docker pull` (the host proxy handles
-# large TLS blobs fine) → `k3d image import` into the node's containerd.
+# large TLS blobs fine) → `kind load docker-image` into the node's containerd.
 #
 #   mise run cluster:preload          # every platform chart image
 #
@@ -41,7 +41,7 @@ render() { # <chart>
   local c="$1"
   case "$c" in
   cilium) helm template cilium infra/helm/platform/cilium \
-    --set cilium.kubeProxyReplacement=false --set cilium.k8sServiceHost=127.0.0.1 2>/dev/null ;;
+    --set cilium.k8sServiceHost=127.0.0.1 2>/dev/null ;;
   *) helm template "$c" "infra/helm/platform/$c" 2>/dev/null ;;
   esac
 }
@@ -92,9 +92,9 @@ for img in "${want[@]}"; do
     failed+=("$img")
     continue
   fi
-  # k3d import can't resolve a `repo:tag@sha256:…` ref; a digest-only pull leaves no
-  # `repo:tag` local tag either. Tag it back so import (and the digest-pinned pod)
-  # resolve the same bytes locally. Same dance as cluster:unwedge.
+  # kind load docker-image can't resolve a `repo:tag@sha256:…` ref; a digest-only
+  # pull leaves no `repo:tag` local tag either. Tag it back so the load (and the
+  # digest-pinned pod) resolve the same bytes locally. Same dance as cluster:unwedge.
   import_ref="$img"
   if [[ "$img" == *"@sha256:"* ]]; then
     no_digest="${img%@sha256:*}"
@@ -102,7 +102,7 @@ for img in "${want[@]}"; do
       docker tag "$img" "$no_digest" && import_ref="$no_digest"
     fi
   fi
-  k3d image import "$import_ref" -c "$CLUSTER" >/dev/null || {
+  kind load docker-image "$import_ref" --name "$CLUSTER" >/dev/null || {
     echo "    ✗ import failed: $import_ref"
     failed+=("$img")
   }

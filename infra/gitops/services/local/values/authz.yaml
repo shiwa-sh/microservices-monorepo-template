@@ -6,7 +6,7 @@
 # chart via the SOPS-managed preshared key.
 name: authz
 image:
-  repository: k3d-registry.localhost:5000/authz-server
+  repository: registry.localhost:5000/authz-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:     { enabled: false }

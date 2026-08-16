@@ -320,7 +320,7 @@ A short enumerated set of manifests has no production analogue:
 | `infra/local/deps.yaml` | the inner-loop dependency stand-ins. The full tier does not use it |
 | `infra/local/edge-auth.yaml` | routes `/auth` and landing to a host-run `next dev` |
 | `infra/local/mock.yaml` | the mock Deployment, Service, and `/api` IngressRoute, carrying the real edge middleware chain. The spec ConfigMap is stamped from the committed projection on every run |
-| `infra/local/coredns-rewrite.yaml` | resolves the env host to Traefik from inside the cluster, since `127.0.0.1` in a pod is the pod's own loopback |
+| `scripts/coredns-rewrite.sh` | resolves the env host to Traefik from inside the cluster, since `127.0.0.1` in a pod is the pod's own loopback. A script rather than a manifest because kind runs stock CoreDNS, which has no k3s custom-import mechanism — it patches the Corefile and restarts |
 | A local CA issuing the wildcard | the same cert-manager mechanism with a local ClusterIssuer. It is a **CA**, not a self-signed leaf: a leaf cannot be a trust anchor, which would force `NODE_TLS_REJECT_UNAUTHORIZED=0` and block the frontend from running as its production image locally |
 
 ## Consequences

@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+source "$(dirname "${BASH_SOURCE[0]}")/cluster-ctx.sh"
 # Preflight assertions for scripts that probe the cluster. Source it, don't execute:
 #   source "$(dirname "$0")/lib/preflight.sh"
 #   require_cluster "$CLUSTER"
@@ -17,14 +18,14 @@
 if [[ -n "${__PREFLIGHT_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __PREFLIGHT_SH_LOADED=1
 
-# require_cluster <cluster-name> — fail unless kubectl exists and the k3d cluster
-# answers. Cheap enough to call on every guarded script.
+# require_cluster — fail unless kubectl exists and the local cluster answers. The
+# cluster name comes from CLUSTER (the same env cluster_ctx resolves); the probe
+# asserts the probe CAN run, which is what separates "not deployed" from "cannot
+# check". Cheap enough to call on every guarded script.
 require_cluster() {
-  local cluster="${1:?require_cluster: missing cluster name}"
-
   command -v kubectl >/dev/null 2>&1 ||
     fail "kubectl not found on PATH — run this through mise (\`mise run …\`), which puts the pinned toolchain there"
 
-  kubectl --context "k3d-${cluster}" cluster-info >/dev/null 2>&1 ||
-    fail "cluster k3d-${cluster} is not reachable — run 'mise run cluster:base' first"
+  kubectl --context "$(cluster_ctx)" cluster-info >/dev/null 2>&1 ||
+    fail "cluster $(cluster_ctx) is not reachable — run 'mise run cluster:base' first"
 }

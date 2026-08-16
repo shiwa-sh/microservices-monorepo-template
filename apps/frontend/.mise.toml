@@ -1,3 +1,22 @@
+# The Node island (ADR-0100 §runtime). `next`'s CLI and Turbopack's workers are
+# `#!/usr/bin/env node` binaries, and bun spawns node for them, so the host dev
+# loop needs a real node on PATH — not whatever node happens to be ambient, which
+# on some machines is a wrapper that changes the working directory and breaks
+# `next dev` with "Couldn't find any pages or app directory". Same shape as the
+# other two sanctioned consumers (test/e2e, apps/admin): pinned HERE, next to the
+# code that needs it, not in the root [tools] where every dev running lint/test
+# would install ~200MB of it for nothing.
+#
+# The version is NOT duplicated: it resolves from the root config's [env]
+# NODE_VERSION, so there is one number to bump for all three islands.
+[tools]
+node = "{{env.NODE_VERSION}}"
+
+[tasks.dev]
+# Root's dev:frontend delegates here with `mise run -C apps/frontend dev`, which
+# activates this node. Long-running — use a separate terminal.
+run = "bun run next dev -H 0.0.0.0"
+
 [tasks.run]
 run = "bun run dev"
 

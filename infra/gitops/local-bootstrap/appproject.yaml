@@ -17,7 +17,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-10"
 spec:
-  description: Local (k3d) environment — platform, services, gateway, secrets.
+  description: Local (kind) environment — platform, services, gateway, secrets.
   sourceRepos:
     - https://github.com/tabmadi/microservices-monorepo-template.git
   destinations:

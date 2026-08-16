@@ -10,7 +10,7 @@ lowdefy:
     requests: { cpu: "100m", memory: "320Mi" }
     limits:   { memory: "768Mi" }
   image:
-    repository: ""        # per-env overlay: local → k3d registry, prod → ghcr
+    repository: ""        # per-env overlay: local → local registry, prod → ghcr
     tag: ""               # local → "local"; prod → git SHA
     pullPolicy: IfNotPresent
 

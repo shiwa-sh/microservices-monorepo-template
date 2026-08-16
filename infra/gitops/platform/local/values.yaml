@@ -4,12 +4,12 @@
 # Locally the local platform ApplicationSet (infra/gitops/local-bootstrap) syncs
 # these from master; ordering/readiness is Argo's job (sync-waves).
 
-# --- Cilium (CNI): k3d keeps kube-proxy, so disable kubeProxyReplacement; one
-# operator replica (the default 2 needs 2 nodes for anti-affinity). Cilium itself
-# is installed imperatively by cluster:full before Argo runs and is excluded from
-# the local platform ApplicationSet, but these values keep parity if it is synced.
+# --- Cilium (CNI): kind declines kube-proxy at create time, so the chart default
+# kubeProxyReplacement=true applies with no override. One operator replica (the
+# default 2 needs 2 nodes for anti-affinity). Cilium itself is installed
+# imperatively by cluster:full before Argo runs and is excluded from the local
+# platform ApplicationSet, but these values keep parity if it is synced.
 cilium:
-  kubeProxyReplacement: false
   operator:
     replicas: 1
 
@@ -146,7 +146,7 @@ grafana:
 lowdefy:
   replicas: 1
   image:
-    repository: k3d-registry.localhost:5000/admin
+    repository: registry.localhost:5000/admin
     tag: local
     pullPolicy: Always
 

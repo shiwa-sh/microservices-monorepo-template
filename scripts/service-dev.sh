@@ -21,6 +21,7 @@ source "$(dirname "$0")/lib/log.sh"
 source "$(dirname "$0")/lib/ports.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -36,7 +37,7 @@ VALUES="infra/gitops/services/local/values/${SVC}.yaml"
 [ -d "$SVC_DIR" ] || fail "no such service: ${SVC_DIR}"
 [ -f "$VALUES" ] || fail "missing local values: ${VALUES}"
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
 # The deployed service and the native one would both answer for the same routes.
 # Rather than racing them on route priority, refuse — one of them is what you meant.

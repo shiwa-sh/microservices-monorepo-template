@@ -27,7 +27,7 @@ const EMAIL = `signup-${Date.now()}@e2e.localtest.me`;
 // an email there would leak PII (activities.CreatePersonalOrgActivity, ADR-0301).
 // The registrant's assertable link to their org is therefore the OpenFGA admin
 // tuple (org:<id>#admin@user:<id>), which is also dual-write leg 2 — the exact seam
-// this test guards. Local forward port 18080 (not 8080: k3d maps host 8080 to the
+// this test guards. Local forward port 18080 (not 8080: the local edge maps host 8080 to the
 // edge); the key is the cluster:full preshared key.
 const PERSONAL_ORG_NAME = "Personal workspace";
 const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);

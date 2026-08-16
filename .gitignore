@@ -60,8 +60,9 @@ test/perf/results/
 *.tfstate.*
 *.tfplan
 crash.log
+core.*
 
-# Local k3d state
+# Local cluster state (k3d era; kind keeps its nodes under docker)
 .k3d/
 
 # Mise local cache

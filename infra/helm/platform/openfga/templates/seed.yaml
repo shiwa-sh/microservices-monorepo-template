@@ -46,6 +46,16 @@ spec:
       containers:
         - name: seed
           image: "{{ .Values.seed.image }}"
+          # Restricted Pod Security Admission (ADR-0200) rejects a container with
+          # no securityContext — the Job otherwise loops FailedCreate forever and
+          # the `platform` store is never seeded. curl/jq/sh need no privileges.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
           env:
             - name: OPENFGA_KEY
               valueFrom:

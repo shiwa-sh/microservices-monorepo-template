@@ -85,7 +85,7 @@ spec:
 # argocd-server serves http on :80. Argo is installed into its own `argocd`
 # namespace (not `platform`), so the service ref is cross-namespace — the same
 # pattern as Hubble UI in kube-system. This needs Traefik allowCrossNamespace, on
-# locally via infra/local/traefik-config.yaml; prod's own Traefik must enable it.
+# locally via the committed Traefik chart (infra/helm/platform/traefik/values.yaml).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

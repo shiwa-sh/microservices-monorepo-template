@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+source "$(dirname "${BASH_SOURCE[0]}")/cluster-ctx.sh"
 # ArgoCD helpers shared by the working-tree deploy paths (ADR-0600).
 
 # argo_service_app prints the Application name that manages a service, or nothing
@@ -12,9 +13,9 @@
 # script that guesses one silently fails against the other — the failure being that
 # auto-sync is never paused and Argo reverts the deploy that just reported success.
 argo_service_app() {
-  local svc="$1" cluster="${CLUSTER:-platform}" name
+  local svc="$1" name
   for name in "local-service-${svc}" "local-service-${svc}.yaml"; do
-    if kubectl --context "k3d-${cluster}" -n argocd get application.argoproj.io "$name" >/dev/null 2>&1; then
+    if kubectl --context "$(cluster_ctx)" -n argocd get application.argoproj.io "$name" >/dev/null 2>&1; then
       echo "$name"
       return 0
     fi

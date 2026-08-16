@@ -14,6 +14,7 @@
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -25,8 +26,8 @@ CHART_DIR="infra/helm/platform/${CHART}"
   exit 1
 }
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 # The lowdefy admin console (ADR-0401) is the one platform chart whose image we
 # build: `lowdefy build` bakes the YAML pages (apps/admin, incl. _generated/) into
@@ -35,7 +36,7 @@ h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 # restart re-pulls). Same one-command story as any other platform chart, plus the
 # image step this one needs.
 if [ "$CHART" = "lowdefy" ]; then
-  REG="k3d-registry.localhost:5000"
+  REG="registry.localhost:5000"
   echo "→ regenerating admin pages + rebuilding the admin image (${REG}/admin:local)"
   bash scripts/gen-admin.sh
   docker build -t "${REG}/admin:local" -f apps/admin/Dockerfile apps/admin

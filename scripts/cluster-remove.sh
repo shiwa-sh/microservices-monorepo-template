@@ -17,14 +17,15 @@ source "$(dirname "$0")/lib/log.sh"
 source "$(dirname "$0")/lib/argo.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 NAME="${1:?usage: mise run cluster:remove -- <service|chart>}"
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 is_service=false
 is_app=false

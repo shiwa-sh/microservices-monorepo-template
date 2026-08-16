@@ -35,7 +35,7 @@ argocd = "3.4.4"
 cilium-cli = "0.19.4"
 kustomize = "5.8.1"
 terraform = "1.15.6"
-k3d = "5.9.0"
+kind = "0.32.0"
 # ansible is NOT pinned here — it is an operator-only island, scoped to
 # infra/ansible/.mise.toml so the prod bootstrap tool (and the Python it drags in)
 # never installs for a dev running lint/test/cluster:full. See that file.
@@ -159,7 +159,7 @@ run = "bun install --frozen-lockfile"
 
 # ── Local cluster & inner loop ────────────────────────────────────────────────
 [tasks."cluster:ensure"]
-# Ensure the single local k3d cluster exists and is running (create-or-start).
+# Ensure the single local kind cluster exists and is running (create-or-start).
 run = "bash scripts/cluster-ensure.sh"
 
 [tasks."cluster:cilium"]
@@ -258,23 +258,24 @@ run = "bash scripts/cluster-stop.sh"
 
 [tasks."cluster:delete"]
 # Deletes the cluster and wipes its image cache (reclaims disk, clean rebuild).
-run = "k3d cluster delete ${CLUSTER:-platform}"
+run = "kind delete cluster ${CLUSTER:-platform}"
 
 [tasks."cluster:heal"]
 # Recover a cluster wedged after a host reboot: Docker's raw restart of the node
-# skips k3d's host.k3d.internal injection, so pulls fail and Cilium/pods hang. This
-# stop+starts to re-inject it. Run it when everything is stuck ContainerCreating
-# after a reboot.
+# can leave Cilium's datapath half-restored and the docker-bridge gateway IP
+# changed (stale frontend EndpointSlice → 502 at /). Restarts the node and
+# rebuilds the datapath. Run it when pods are stuck ContainerCreating or the edge
+# answers 502 after a reboot.
 run = "bash scripts/cluster-heal.sh"
 
 [tasks."cluster:unwedge"]
-# OPT-IN, proxied networks only: host-pull + k3d-import any image the node's
+# OPT-IN, proxied networks only: host-pull + kind-load any image the node's
 # containerd is failing to pull through an HTTP proxy (ImagePullBackOff), then
 # restart the stuck pods. Not part of any bring-up — clean networks never need it.
 run = "bash scripts/cluster-unwedge-images.sh"
 
 [tasks."cluster:preload"]
-# OPT-IN, proxied networks only: PROACTIVELY host-pull + k3d-import the
+# OPT-IN, proxied networks only: PROACTIVELY host-pull + kind-load the
 # bootstrap-critical images (Cilium, ArgoCD) before cluster:full's imperative
 # `helm --wait` head can wedge on them — the gap cluster:unwedge (reactive, pods
 # only) cannot cover. Image list is derived from the charts, not hardcoded.
@@ -289,13 +290,13 @@ run = "bash scripts/cluster-preload-images.sh"
 # or NetworkPolicy fix before it lands on master). The cluster keeps running —
 # only reconciliation stops. ALWAYS pair with argo:resume; a paused controller
 # means the cluster silently stops tracking master.
-run = "kubectl --context k3d-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=0"
+run = "kubectl --context kind-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=0"
 
 [tasks."argo:resume"]
 # Close the live-patch window and hand the cluster back to GitOps. Anything patched
 # live that is not committed to master is reverted on the next sync — that is the
 # point: push first, then resume, or lose the change.
-run = "kubectl --context k3d-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=1"
+run = "kubectl --context kind-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=1"
 
 [tasks."dev:forward"]
 # Port-forward the inner-loop deps so a natively-run service can reach them.

@@ -29,10 +29,10 @@ if [ -n "$dupes" ]; then
   rc=1
 fi
 
-# 8080 must stay unassigned: k3d maps host 8080 to the edge, so a service bound
+# 8080 must stay unassigned: the local edge maps host 8080, so a service bound
 # there would shadow it.
 if all_port_entries | grep -q ':8080$'; then
-  warn "8080 is reserved for the k3d edge mapping — pick another port"
+  warn "8080 is reserved for the local edge mapping — pick another port"
   rc=1
 fi
 

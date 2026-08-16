@@ -214,39 +214,25 @@ export async function operatorLogin(
   await page.fill('input[name="identifier"]', email);
   await page.fill('input[name="password"]', password);
   await page.click(submitFor("password"));
+
+  // Kratos continues a browser login to aal=aal2 in-flow when the identity has a
+  // second factor enrolled and whoami.required_aal is highest_available
+  // (infra/auth/kratos): after the password it redirects the browser to
+  // `/auth/self-service/login/browser?aal=aal2` and renders the TOTP challenge on
+  // the same /auth/login URL. Answer it in place; a password-only identity (no
+  // second factor) redirects away instead, the locator never becomes visible, and
+  // the AAL1 session stands.
+  const totp = page.locator('input[name="totp_code"]');
+  const prompted = await totp
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (prompted) {
+    await totp.fill(await freshTotp(page, secret));
+    await page.click(submitFor("totp"));
+  }
   await notOnLogin(page);
   await waitForSession(page);
-  await settle(page);
-
-  // Step up in a SECOND, explicitly aal2 flow rather than expecting the first one
-  // to prompt in place.
-  //
-  // `whoami.required_aal: highest_available` (infra/auth/kratos) governs what a
-  // session must be to satisfy whoami — it does not make the login flow ask for a
-  // second factor. `selfservice.flows.login.required_aal` would, and is not set, so
-  // a plain login/browser init completes at AAL1 for an operator with TOTP enrolled
-  // and renders no totp node at all.
-  //
-  // This helper used to answer the prompt only `if (prompted)`, which turned that
-  // into the suite's long-running flake: the login quietly finished at AAL1, the ops
-  // edge then refused the dashboard and redirected to the product root, and the
-  // failure surfaced 30 seconds and two assertions later as `expected /Grafana/,
-  // received "Platform"` — which reads like a routing bug and is nothing of the
-  // kind. It passed whenever the browser happened to carry an aal2 flow id from the
-  // gate's own redirect, which is why it looked like load-dependent flakiness.
-  //
-  // The prompt is required here: the context is fresh, so there is no already-
-  // elevated session for Kratos to short-circuit against (which is the case
-  // ensureAal2 exists to handle, and why it keeps the optional shape).
-  const totp = page.locator('input[name="totp_code"]');
-  await gotoFlow(page, init("login", "?aal=aal2"), 'input[name="totp_code"]');
-  await expect(
-    totp,
-    "no TOTP prompt in the aal2 login flow — this session would stay AAL1 and the ops edge would refuse it",
-  ).toBeVisible({ timeout: 30_000 });
-  await totp.fill(await freshTotp(page, secret));
-  await page.click(submitFor("totp"));
-  await notOnLogin(page);
   await settle(page);
 }
 

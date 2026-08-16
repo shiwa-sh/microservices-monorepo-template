@@ -28,7 +28,7 @@ tempo:
 
 # Lowdefy admin console (ADR-0401): the one repo-built platform image. Pulled from
 # ghcr and promoted by git SHA on merge (promote-on-merge), exactly like the Go
-# services and the frontend. Local uses the k3d registry (platform/local/values.yaml).
+# services and the frontend. Local uses the local registry (platform/local/values.yaml).
 lowdefy:
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/admin

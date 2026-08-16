@@ -28,7 +28,7 @@ groups:
       # Threshold: the condition that has actually bitten this project (a full
       # host disk). 15% is chosen against the 2% eviction floor, not the stock
       # 10-15% one — there needs to be room to react, and reclaiming space on a
-      # k3d node means pruning images and build cache, not deleting a file.
+      # a kind node means pruning images and build cache, not deleting a file.
       - alert: NodeDiskSpaceLow
         expr: |
           100 * k8s_node_filesystem_available_bytes / k8s_node_filesystem_capacity_bytes < 15

@@ -30,6 +30,7 @@ source "$(dirname "$0")/lib/log.sh"
 source "$(dirname "$0")/lib/preflight.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -38,9 +39,9 @@ COMPONENT="${1:?usage: bash scripts/dep-apply.sh <component>}"
 
 # The guard below reads a failed probe as "not up". Assert the probe can actually
 # run first, so an unreachable cluster fails loudly instead of re-applying blindly.
-require_cluster "$CLUSTER"
+require_cluster
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
 # Each component names the resource whose existence-and-readiness means "already
 # up". Deployments get a rollout wait; Secrets are either there or not.

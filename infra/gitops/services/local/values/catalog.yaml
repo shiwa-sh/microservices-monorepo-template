@@ -2,7 +2,7 @@
 # the secret-naming note (catalog-db = local SopsSecret resource).
 name: catalog
 image:
-  repository: k3d-registry.localhost:5000/catalog-server
+  repository: registry.localhost:5000/catalog-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:  { enabled: false }

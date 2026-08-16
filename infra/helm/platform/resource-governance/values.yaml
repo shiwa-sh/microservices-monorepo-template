@@ -86,7 +86,7 @@ limitRanges:
     defaultCPURequest: 50m
 
 # ── ResourceQuota: aggregate namespace cap ───────────────────────────────────
-# Sized for the LOCAL single-node k3d tier (24 cores / 31Gi allocatable). Override
+# Sized for the LOCAL single-node kind tier (24 cores / 31Gi allocatable). Override
 # per environment in infra/gitops/platform/<env>/values.yaml — a prod three-node
 # set has a different budget, and these numbers must not be mistaken for it.
 #

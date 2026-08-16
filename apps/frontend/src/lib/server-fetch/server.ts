@@ -9,7 +9,7 @@ import createClient, { type Client } from "openapi-fetch";
 // Where THIS PROCESS dials the edge. Two different answers depending on where the
 // process runs, which is why the old single EDGE_ORIGIN could not work in-cluster:
 //
-//   host `next dev`  → https://dev.localtest.me:8443   (k3d maps 8443 → 443)
+//   host `next dev`  → https://dev.localtest.me:8443   (the local edge maps 8443 → 443)
 //   in-cluster pod   → https://dev.localtest.me        (Traefik's 443 directly)
 //
 // Both must still carry the env HOST: the /api IngressRoutes match on

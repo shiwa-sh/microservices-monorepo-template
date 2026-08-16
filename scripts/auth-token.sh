@@ -10,8 +10,9 @@
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 email="${1:?usage: mise run auth:token -- <email>}"
 password="${KRATOS_PASSWORD:-}"

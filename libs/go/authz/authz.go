@@ -30,10 +30,11 @@ type Granter interface {
 }
 
 type fga struct {
-	c        *client.OpenFgaClient
-	envID    string    // OPENFGA_STORE_ID if pinned; else discovered lazily
-	once     sync.Once // resolves the store ID exactly once, on first use
-	storeErr error
+	c      *client.OpenFgaClient
+	envID  string // OPENFGA_STORE_ID if pinned; else discovered lazily
+	mu     sync.Mutex
+	pinned bool // store ID successfully pinned; discovery is retried until then
+	err    error
 }
 
 // New dials the cluster OpenFGA and returns a value satisfying both Checker and Granter.
@@ -136,27 +137,32 @@ func (f *fga) Grant(ctx context.Context, subject, relation, resource string) err
 	return nil
 }
 
-// ensureStore resolves and pins the store ID on the client, once. If
-// OPENFGA_STORE_ID is set it is used directly; otherwise the platform store is
-// found by name. Deferred to first Allowed/Grant so startup never blocks on
-// OpenFGA readiness (the seed Job may still be creating the store).
+// ensureStore resolves and pins the store ID on the client. If OPENFGA_STORE_ID
+// is set it is used directly; otherwise the platform store is found by name.
+// Deferred to first Allowed/Grant so startup never blocks on OpenFGA readiness,
+// and a FAILED discovery is not cached: the seed Job may still be creating the
+// store, so the next Allowed/Grant retries until the store exists, then pins it
+// (a pinned store is never re-discovered).
 func (f *fga) ensureStore(ctx context.Context) error {
-	f.once.Do(
-		func() {
-			id := f.envID
-			if id == "" {
-				id, f.storeErr = f.discoverStore(ctx)
-				if f.storeErr != nil {
-					return
-				}
-			}
-			f.storeErr = f.c.SetStoreId(id)
-			if f.storeErr != nil {
-				f.storeErr = fmt.Errorf("set openfga store id: %w", f.storeErr)
-			}
-		},
-	)
-	return f.storeErr
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.pinned {
+		return f.err
+	}
+	id := f.envID
+	if id == "" {
+		id, f.err = f.discoverStore(ctx)
+		if f.err != nil {
+			return f.err
+		}
+	}
+	f.err = f.c.SetStoreId(id)
+	if f.err != nil {
+		f.err = fmt.Errorf("set openfga store id: %w", f.err)
+		return f.err
+	}
+	f.pinned = true
+	return nil
 }
 
 // discoverStore finds the platform store's ID by name. The seed Job creates

@@ -19,8 +19,8 @@ spec:
     prefixes:
       - /auth
 ---
-# Selector-less Service for the host `next dev`. CoreDNS has no host.k3d.internal
-# record, so cluster-full.sh attaches an EndpointSlice pointing at the docker
+# Selector-less Service for the host `next dev`. There is no host-alias record for
+# the host, so cluster-full.sh attaches an EndpointSlice pointing at the docker
 # bridge gateway (the host) on :3000 — the only host IP routable from pods.
 apiVersion: v1
 kind: Service

@@ -11,8 +11,9 @@
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 echo "→ forwarding deps: postgres 5432, temporal 7233 + 8233 (Ctrl-C to stop)"
 pids=()
@@ -25,7 +26,7 @@ k port-forward svc/temporal 7233:7233 &
 pids+=($!)
 k port-forward svc/temporal 8233:8233 &
 pids+=($!)
-# Local 18080, not 8080: k3d maps host 8080 to the edge, so the OpenFGA forward uses
+# Local 18080, not 8080: the local edge maps host 8080, so the OpenFGA forward uses
 # 18080 (matches OPENFGA_API_URL in services/*/.env.example). Services themselves
 # bind their own registered ports (scripts/lib/ports.sh) and never collide here.
 k port-forward svc/openfga 18080:8080 &
@@ -36,7 +37,7 @@ pids+=($!)
 # FARO_COLLECT_URL=http://localhost:12347/collect (apps/frontend/src/app/api/rum).
 # The collector is in its own namespace (ADR-0200 — hostPath and hostPorts), so it
 # takes its own kubectl invocation rather than the `k` helper's.
-agent() { kubectl --context "k3d-${CLUSTER}" -n otel-agent "$@"; }
+agent() { kubectl --context "$(cluster_ctx)" -n otel-agent "$@"; }
 if agent get svc otel-collector >/dev/null 2>&1; then
   echo "→ observability detected: grafana 3001, faro 12347"
   k port-forward svc/grafana 3001:80 &

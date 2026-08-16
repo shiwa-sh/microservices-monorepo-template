@@ -43,8 +43,8 @@ pkill -f 'kubectl.*port-forward svc/(ory-kratos-admin|openfga)' 2>/dev/null || t
 # 1. Resolve the Kratos identity id from the email via the admin API.
 k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
 kpf=$!
-# 2. Open the OpenFGA HTTP API with its preshared key. Local 18080, not 8080: k3d
-#    maps host 8080 to the edge loadbalancer, so binding 8080 would collide with it.
+# 2. Open the OpenFGA HTTP API with its preshared key. Local 18080, not 8080: the local edge
+#    maps host 8080, so binding 8080 would collide with it.
 API="http://localhost:18080"
 sk="$(k get secret openfga-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
 k port-forward svc/openfga 18080:8080 >/dev/null &
