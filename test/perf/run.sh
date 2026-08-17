@@ -30,7 +30,7 @@ script="scenarios/${scenario}.js"
 [ -f "$script" ] || fail "no such scenario: ${script}"
 
 CLUSTER="${CLUSTER:-platform}"
-source scripts/lib/cluster-ctx.sh
+source ../../scripts/lib/cluster-ctx.sh
 # Loopback port for the collector forward. High and specific so it does not
 # collide with the e2e suite's forwards (13100/13200/19090) if both are running.
 OTLP_PORT="${PERF_OTLP_PORT:-14317}"
