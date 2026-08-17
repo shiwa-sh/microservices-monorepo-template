@@ -5,8 +5,8 @@
 // fails non-zero if a forward-auth route is missing the strip, or applies it
 // after forwardAuth.
 //
-// It reads the rendered manifests (kubectl kustomize + helm template) from
-// stdin; the caller is scripts/lint-strip-headers.sh, which does the rendering.
+// It reads the manifests (the gateway directory + helm template) from stdin; the
+// caller is scripts/lint-strip-headers.sh, which does the rendering.
 package main
 
 import (

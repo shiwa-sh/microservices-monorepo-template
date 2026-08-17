@@ -12,7 +12,13 @@ step "checking every forward-auth route strips identity headers first"
 # Render the gateway + per-service /api route, then feed the manifests to the
 # single-binary Go gate (no ambient Python). The Go tool reads YAML from stdin.
 {
-  kubectl kustomize infra/gateway
+  # Every manifest in infra/gateway, which is what the gateway Application applies
+  # from its directory source — so the gate reads what the cluster gets. The
+  # separator is what keeps two files from parsing as one document.
+  for manifest in infra/gateway/*.yaml; do
+    echo '---'
+    cat "$manifest"
+  done
   echo '---'
   # The per-resource /api route (chart template) — render with ingress on and a
   # resource declared, as real services are configured (flat /api/<resource>, ADR-0306).

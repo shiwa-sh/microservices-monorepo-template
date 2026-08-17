@@ -5,7 +5,6 @@ argo-cd:
     params:
       server.insecure: "true"          # TLS terminates upstream at Traefik
     cm:
-      kustomize.buildOptions: "--enable-helm"
       timeout.reconciliation: "60s"
       # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator
       # holding dashboard:argocd#view, ADR-0306). Argo trusts it and serves

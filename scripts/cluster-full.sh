@@ -72,12 +72,12 @@ k -n "$NS" create secret generic sops-age-key \
   --dry-run=client -o yaml | k apply -f -
 
 # 3b. Grafana's `grafana-dashboards` ConfigMap (observability chart values
-#     dashboardsConfigMaps.default) is now GitOps-managed, not materialised here:
-#     the local root-app syncs infra/gitops/local-bootstrap/app-grafana-dashboards.yaml,
-#     a Kustomize app that generates it from infra/observability/dashboards/*.json at
+#     dashboardsConfigMaps.default) is GitOps-managed, not materialised here: the
+#     local root-app syncs infra/gitops/local-bootstrap/app-grafana-dashboards.yaml,
+#     whose chart generates it from infra/observability/dashboards/*.json at
 #     sync-wave 2 — before the core tier (wave 3) starts Grafana, which mounts it
-#     (ADR-0500). A PR that adds or edits a dashboard now reaches the cluster on the
-#     next Argo pass, instead of needing an imperative `kubectl create configmap`.
+#     (ADR-0500). A PR that adds or edits a dashboard reaches the cluster on the
+#     next Argo pass, rather than needing an imperative `kubectl create configmap`.
 
 # 3c. Build + push repo images to the local registry — the local stand-in for CI.
 #     Argo then deploys services + lowdefy from the registry exactly as prod pulls

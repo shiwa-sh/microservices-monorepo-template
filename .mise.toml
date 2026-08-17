@@ -33,7 +33,6 @@ kubectl = "1.36.2"
 # via kubeconfig, no argocd-server login).
 argocd = "3.4.4"
 cilium-cli = "0.19.4"
-kustomize = "5.8.1"
 terraform = "1.15.6"
 kind = "0.32.0"
 # ansible is NOT pinned here — it is an operator-only island, scoped to
