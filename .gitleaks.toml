@@ -44,6 +44,13 @@ paths = [
   '''^\.rumdl_cache/.*''',
   '''^\.idea/.*''',
 
+  # The local secret store: gitignored by contract (.gitignore ignores `.env` and
+  # `.env.*`), so never a "committed file". The second pattern skips `.env.<name>`
+  # only when the name does not start with `e`, which keeps the TRACKED
+  # `.env.example` templates in scope — they are not secrets and still get scanned.
+  '''(^|/)\.env$''',
+  '''(^|/)\.env\.[^e].*''',
+
   # The local tier's age private key, committed under the exemption ADR-0202 names:
   # no bootstrap step materialises a key for a cluster whose lifetime is a mise task,
   # and it decrypts throwaway local values only. .sops.yaml confines it to a single
