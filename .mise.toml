@@ -955,3 +955,8 @@ GOFLAGS= go mod tidy
 
 [tasks.act]
 run = "act pull_request --secret-file .env -e .github/act/pull_request.json"
+
+[tasks."act:local"]
+# act with a pre-baked toolchain image (scripts/act-local.sh): bakes the full mise
+# toolchain once, so the parallel jobs share it instead of each re-installing it.
+run = "bash scripts/act-local.sh"
