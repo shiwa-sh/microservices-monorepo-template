@@ -1,10 +1,11 @@
 # Local Grafana dashboards Application (ADR-0500, ADR-0205). Local counterpart to
-# bootstrap/app-grafana-dashboards.yaml: a Kustomize app that generates the
-# `grafana-dashboards` ConfigMap from infra/observability/dashboards/*.json for the
-# observability chart to mount (dashboardsConfigMaps.default). Makes dashboards-as-
-# code flow through GitOps locally too, replacing the imperative `kubectl create
-# configmap` that scripts/cluster-full.sh used to run at bootstrap. Synced by the
-# local root-app, which recurses infra/gitops/local-bootstrap.
+# bootstrap/app-grafana-dashboards.yaml: the chart at infra/observability/dashboards
+# generates the `grafana-dashboards` ConfigMap from the *.json beside it for the
+# observability chart to mount (dashboardsConfigMaps.default). Its template globs,
+# so adding a dashboard is adding the file. Makes dashboards-as-code flow through
+# GitOps locally too, rather than through an imperative `kubectl create configmap`
+# at bootstrap. Synced by the local root-app, which recurses
+# infra/gitops/local-bootstrap.
 #
 # Grouped by the `local` AppProject (appproject.yaml), like every other local app.
 #

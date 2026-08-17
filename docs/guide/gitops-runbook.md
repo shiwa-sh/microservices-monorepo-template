@@ -22,7 +22,7 @@ Both are files reconciled by their own Application ([ADR-0500](../adr/0500-obser
 | Prometheus alert rule | `infra/observability/alerts/*.yaml` | the rule carries a `severity` of `page` or `ticket` ([ADR-0502](../adr/0502-alerting-and-on-call.md)) |
 | Grafana dashboard | `infra/observability/dashboards/*.json` | the `uid` is stable, because links and the funnel depend on it ([ADR-0501](../adr/0501-operator-uis-and-dashboards.md)) |
 
-Each directory is reconciled by its own Application with a recursive directory source, so **adding the file is the whole step** — there is no index to update. Kustomize is not used anywhere ([ADR-0201](../adr/0201-gitops.md)). The failure mode this shape has instead: one malformed file fails the sync for the whole directory, and the Application's condition names the file.
+Each directory is a chart reconciled by its own Application, and its template globs the directory into the ConfigMap the consumer mounts, so **adding the file is the whole step** — there is no index to update. A chart rather than a plain directory source because neither artefact is a Kubernetes manifest: a dashboard is Grafana JSON and a rule file is native Prometheus format, so both have to be generated into a ConfigMap rather than applied. Kustomize is not used anywhere ([ADR-0201](../adr/0201-gitops.md)). The failure mode this shape has instead: one malformed file fails the render for the whole directory, and the Application's condition names the chart.
 
 A firing alert appears on the Prometheus alerts page, as the `ALERTS` series, and at whichever Alertmanager receiver its `severity` selects. A rule without a `severity` label is a defect. Nothing pages anyone: no escalation receiver is attached.
 

@@ -1,0 +1,19 @@
+{{/*
+The dashboard JSON in the chart root, as one ConfigMap.
+
+`AsConfig` renders each file as a `<basename>: <content>` entry, which is the
+shape a ConfigMap's `data` takes and the reason no per-file entry is maintained
+here. The name is fixed rather than release-derived: the Grafana chart references
+`grafana-dashboards` by name, so a name that moved with the release would leave it
+mounting nothing.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: observability
+data:
+{{ (.Files.Glob "*.json").AsConfig | indent 2 }}

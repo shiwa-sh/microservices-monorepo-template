@@ -1,0 +1,21 @@
+{{/*
+The Prometheus rule files in the chart root, as one ConfigMap.
+
+`AsConfig` renders each file as a `<basename>: <content>` entry, which is the
+shape a ConfigMap's `data` takes and the reason no per-file entry is maintained
+here. Helm keeps Chart.yaml out of `.Files`, so the glob sees rule files only.
+
+The name is fixed rather than release-derived: the observability chart mounts
+`prometheus-alerts` by name, so a name that moved with the release would leave
+Prometheus starting with no rules and no error.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: observability
+data:
+{{ (.Files.Glob "*.yaml").AsConfig | indent 2 }}

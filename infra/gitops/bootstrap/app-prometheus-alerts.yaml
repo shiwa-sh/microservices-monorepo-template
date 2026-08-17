@@ -1,7 +1,8 @@
 # Prometheus alerts Application (ADR-0500). Makes alerts-as-code actually flow
-# through GitOps: a Kustomize app that generates the `prometheus-alerts` ConfigMap
-# from infra/observability/alerts/*.yaml, which the observability Helm chart
-# mounts into Prometheus (rule_files: /etc/prometheus/rules/*.yaml). The exact
+# through GitOps: the chart at infra/observability/alerts generates the
+# `prometheus-alerts` ConfigMap from the *.yaml beside it, which the observability
+# Helm chart mounts into Prometheus (rule_files: /etc/prometheus/rules/*.yaml).
+# Its template globs, so adding a rule file is adding the file. The exact
 # counterpart of app-grafana-dashboards.yaml for the alert rules. Picked up by the
 # root app-of-apps, which recurses infra/gitops/bootstrap.
 #

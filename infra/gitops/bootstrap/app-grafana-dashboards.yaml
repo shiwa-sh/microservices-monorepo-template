@@ -1,10 +1,11 @@
 # Grafana dashboards Application (ADR-0500). Makes dashboards-as-code actually flow
-# through GitOps: a Kustomize app that generates the `grafana-dashboards` ConfigMap
-# from infra/observability/dashboards/*.json, which the observability Helm chart
-# mounts (dashboardsConfigMaps.default). Previously the ConfigMap was materialised
-# once at bootstrap and untracked by Argo, so committed dashboard changes never
-# reached the cluster — this closes that gap. Picked up by the root app-of-apps,
-# which recurses infra/gitops/bootstrap.
+# through GitOps: the chart at infra/observability/dashboards generates the
+# `grafana-dashboards` ConfigMap from the *.json beside it, which the observability
+# Helm chart mounts (dashboardsConfigMaps.default). Its template globs, so adding a
+# dashboard is adding the file. Without this Application the ConfigMap is
+# materialised once at bootstrap and untracked by Argo, and a committed dashboard
+# change never reaches the cluster. Picked up by the root app-of-apps, which
+# recurses infra/gitops/bootstrap.
 #
 # Env-agnostic (the same JSON in every env), like the shared gateway app,
 # so it has no single-env AppProject and stays in `default`.

@@ -1,0 +1,15 @@
+# Dashboards-as-code (ADR-0500). This directory is a chart so that the dashboard
+# JSON beside this file becomes the `grafana-dashboards` ConfigMap the Grafana
+# chart mounts (observability values: dashboardsConfigMaps.default).
+#
+# A chart rather than a Kustomize generator for two reasons ADR-0201 states: it is
+# the one templating system this repo uses, and the ConfigMap has to be GENERATED,
+# because a Grafana dashboard is JSON the API server has no kind for. An Argo CD
+# directory source applies manifests, so it cannot deliver these files at all.
+#
+# The template globs, so adding a dashboard is adding the file.
+apiVersion: v2
+name: grafana-dashboards
+description: Committed Grafana dashboards, delivered as the ConfigMap the Grafana chart mounts (ADR-0500).
+type: application
+version: 0.1.0

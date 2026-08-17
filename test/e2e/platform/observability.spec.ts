@@ -194,7 +194,7 @@ test.describe("service observability POC (ADR-0501)", () => {
 
   // Alerts-as-code (ADR-0500): the rule files under infra/observability/alerts/
   // must actually be LOADED by Prometheus, not just committed. This catches every
-  // link in the chain — the prometheus-alerts kustomize ConfigMap, its Argo app,
+  // link in the chain — the prometheus-alerts ConfigMap the chart renders, its Argo app,
   // the chart's rule_files + volume mount, and rule-file syntax (Prometheus
   // refuses to load a malformed file).
   // @smoke for the same reason, one step earlier in the chain: a dashboard nobody
