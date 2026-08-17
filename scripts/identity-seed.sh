@@ -98,4 +98,49 @@ else
   detail "orgs is not running in this tier — seeded identities have no org yet"
 fi
 
+# The coarse ops gate is the `operator` trait (set above, ADR-0306); group:operator
+# membership in OpenFGA feeds the optional fine gate and the admin console's write
+# checks (ADR-0304, ADR-0401). The e2e bootstrap writes the same tuples; doing it
+# here means a fresh full tier needs neither an e2e run nor a manual `ops:grant`.
+# Gated on the real platform OpenFGA: the inner-loop stand-in has no openfga-creds
+# secret and no platform store, so there is nothing to grant against there.
+if k get secret openfga-creds >/dev/null 2>&1; then
+  step "granting group:operator membership in OpenFGA"
+  k port-forward svc/openfga 18080:8080 >/dev/null 2>&1 &
+  fga_pf=$!
+  trap 'kill "$pf" "${orgs_pf:-}" "$fga_pf" 2>/dev/null || true' EXIT
+  sk="$(k get secret openfga-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
+  sleep 3
+  sid="$(curl -fsS -H "Authorization: Bearer ${sk}" "http://localhost:18080/stores" |
+    jq -r '.stores[] | select(.name=="platform") | .id' | head -n1)"
+  if [ -n "$sid" ]; then
+    for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
+      id="$(jq -c ".[$i]" <<<"$identities")"
+      [ "$(jq -r '.operator // false' <<<"$id")" = "true" ] || continue
+      email="$(jq -r .email <<<"$id")"
+      identity_id="$(curl -fsS \
+        "${admin}/admin/identities?credentials_identifier=$(jq -rn --arg e "$email" '$e|@uri')" |
+        jq -r --arg e "$email" 'map(select(.traits.email == $e)) | .[0].id // empty')"
+      [ -n "$identity_id" ] || continue
+      # Idempotent: OpenFGA rejects a duplicate write with "tuple to be written
+      # already existed", which is the already-granted case. `-sS` without `-f`
+      # keeps the error body (the 400 is expected on a re-run), so a real failure
+      # is distinguishable from the already-granted case by its message.
+      out="$(curl -sS -H "Authorization: Bearer ${sk}" -H 'Content-Type: application/json' \
+        -X POST "http://localhost:18080/stores/${sid}/write" \
+        -d "$(jq -n --arg u "user:${identity_id}" \
+          '{writes:{tuple_keys:[{user:$u,relation:"member",object:"group:operator"}]}}')")"
+      if ! grep -q "already existed" <<<"$out" && ! grep -q "already exists" <<<"$out"; then
+        echo "$out" >&2
+        exit 1
+      fi
+      detail "group:operator granted to ${email}"
+    done
+  else
+    detail "no OpenFGA store 'platform' — skipping the operator grant"
+  fi
+else
+  detail "no openfga-creds secret — skipping the operator grant"
+fi
+
 ok "test identities present (credentials: test/e2e/fixtures/identities.ts)"

@@ -176,7 +176,7 @@ Load thresholds live in the scenario files and are **budgets, not SLOs** — del
 
 ### Test data
 
-Kratos starts with an empty identity store and no seeded user, and mail goes to the non-production sink ([ADR-0307](0307-outbound-email.md)) rather than to a recipient. E2e ships a **committed deterministic test-identity bootstrap** — an AAL1 product user and an AAL2 operator — provisioned identically in CI and locally, the same throwaway-credential pattern SOPS uses for the local age key ([ADR-0205](0205-environment-parity.md)).
+Kratos starts with an empty identity store and no seeded user, and mail goes to the non-production sink ([ADR-0307](0307-outbound-email.md)) rather than to a recipient. E2e ships a **committed deterministic test-identity bootstrap** — an AAL1 product user and AAL2 operators — provisioned identically in CI and locally, the same throwaway-credential pattern SOPS uses for the local age key ([ADR-0205](0205-environment-parity.md)). The identities live at `test/e2e/fixtures/identities.ts`.
 
 No test depends on hand-created state. The same bootstrap provisions the identity the `edge` development profile logs in as ([ADR-0600](0600-local-development-loop.md)), so it is exercised daily rather than only nightly.
 

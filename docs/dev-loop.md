@@ -50,19 +50,22 @@ the cluster has silently stopped tracking `master`.
 ## Be logged in
 
 There is no bypass, and adding one is a review-blocker (`lint:auth-inline`). Both
-tiers run the real Kratos, and both seed the committed test identities:
+tiers run the real Kratos, and both seed the committed test identities on bring-up:
 
-| Identity | Is | Gets you |
-| --- | --- | --- |
-| operator | AAL2 (password + TOTP) | the ops hosts — Grafana, the admin console, Temporal, Hubble, pgweb, headlamp |
-| user | AAL1 (password) | the product surface |
+| Identity | Credentials | Is | Gets you |
+| --- | --- | --- | --- |
+| admin | `admin@localtest.me` / `1st Password!` | AAL2 (password + TOTP) | the ops hosts — the day-to-day full-tier account |
+| operator | `operator@e2e.localtest.me` / `0perator-e2e-Sessi0n!` | AAL2 (password + TOTP) | the same ops hosts — the e2e fixture, recreated per suite run |
+| user | `user@e2e.localtest.me` / `Pr0duct-e2e-Sessi0n!` | AAL1 (password) | the product surface |
 
-Their credentials are `test/e2e/fixtures/identities.ts`, which is also what the e2e
-suite logs in with. Log in at `https://dev.localtest.me:8443/auth/login`; the ops
-hosts are `https://<name>.ops.dev.localtest.me:8443` and answer `401` until you do.
+`admin` is created once and left alone; `operator` and `user` are recreated on every
+e2e run for determinism, so do not build a workflow around their session. Log in at
+`https://dev.localtest.me:8443/auth/login`; the ops hosts are
+`https://<name>.ops.dev.localtest.me:8443` and answer `401` until you do.
 
-The operator's second factor is enrolled at run time rather than imported, because
-Kratos cannot import a TOTP credential. `mise run auth:seed` re-runs the whole
+The second factor is enrolled at run time rather than imported, because Kratos
+cannot import a TOTP credential. First login with an operator account takes you to
+the settings flow once to enrol it. `mise run auth:seed` re-runs the whole
 provisioning if a login stops working.
 
 ## HTTP proxies

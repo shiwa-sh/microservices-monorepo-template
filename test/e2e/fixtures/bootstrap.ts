@@ -9,7 +9,7 @@
 //   - this bootstrap creates the Kratos identities, runs the post-registration
 //     process for each, and writes the one relation that can only exist at test
 //     time: group:operator#member@user:<operator-kratos-id>.
-import { IDENTITIES, OPERATOR, type TestIdentity } from "./identities";
+import { IDENTITIES, type TestIdentity } from "./identities";
 import { portForward } from "./kube";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
@@ -148,7 +148,12 @@ export async function provision(): Promise<Record<string, string>> {
   const ids: Record<string, string> = {};
   try {
     for (const id of IDENTITIES) {
-      ids[id.label] = await resetIdentity(id);
+      // reset identities are recreated each run for determinism; the stable ones
+      // (admin) are created-if-missing so an e2e run never wipes a human's session
+      // and enrolled TOTP.
+      ids[id.label] = id.reset
+        ? await resetIdentity(id)
+        : ((await findIdentity(id.email)) ?? (await createIdentity(id)));
     }
   } finally {
     kratosPf.stop();
@@ -163,12 +168,17 @@ export async function provision(): Promise<Record<string, string>> {
     orgsPf.stop();
   }
 
-  // Operator membership keyed by the freshly-created Kratos id (the authz subject
-  // is `user:<kratos-id>`). The write is idempotent.
+  // Operator membership keyed by each freshly-created Kratos id (the authz subject
+  // is `user:<kratos-id>`). Every operator identity gets group:operator, not just
+  // the one the suite logs in as. The write is idempotent.
   const openfgaPf = await portForward("openfga", OPENFGA_LOCAL_PORT, OPENFGA_PORT);
   try {
     const sid = await storeId();
-    await writeTuple(sid, `user:${ids[OPERATOR.label]}`, "member", "group:operator");
+    for (const id of IDENTITIES) {
+      if (id.operator) {
+        await writeTuple(sid, `user:${ids[id.label]}`, "member", "group:operator");
+      }
+    }
   } finally {
     openfgaPf.stop();
   }

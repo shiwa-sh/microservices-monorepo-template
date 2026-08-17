@@ -257,6 +257,13 @@ echo "✓ all ArgoCD applications Synced + Healthy"
 #    too — otherwise a stop/start drops the `frontend` route (404 at /).
 bash scripts/cluster-edge-glue.sh
 
+# 6b. Seed the committed test identities (ADR-0601) so a fresh full tier is usable
+#     immediately. Kratos, orgs, and OpenFGA are all up by now, so this creates the
+#     identities, runs each one's post-registration process (personal org + tuple),
+#     and grants group:operator in OpenFGA — no e2e run or manual ops:grant needed.
+#     Idempotent; safe on every bring-up.
+bash scripts/identity-seed.sh
+
 cat <<EOF
 
 ✓ cluster:full up (ArgoCD-driven from master).
@@ -270,6 +277,9 @@ cat <<EOF
     ArgoCD:           https://argocd.ops.${DOMAIN}:8443/
     Headlamp (k8s):   https://headlamp.ops.${DOMAIN}:8443/   (read-only debug UI)
     pgweb (DB):       https://pgweb.ops.${DOMAIN}:8443/    (read-only DB inspector)
+  Log in:             https://${DOMAIN}:8443/auth/login  — admin@localtest.me / 1st Password!
+                      (AAL2: enrol a TOTP second factor on first login; full credential
+                      table in docs/dev-loop.md)
   Frontend:           run it natively on :3000 (the frontend-dev EndpointSlice
                       routes /auth + landing to the host).
   Diagnose:           argocd --core --kube-context "$(cluster_ctx)" app get <app>

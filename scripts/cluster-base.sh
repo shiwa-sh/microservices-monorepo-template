@@ -189,8 +189,8 @@ bash scripts/identity-seed.sh
 
 # The credentials are committed once, in the e2e fixtures; read them rather than
 # repeating them here (bun reads the .ts directly — no Node, no e2e install).
-login_email="$(bun --silent -e \
-  "console.log((await import('${ROOT}/test/e2e/fixtures/identities.ts')).USER.email)" 2>/dev/null ||
+login_identity="$(bun --silent -e \
+  "const {ADMIN} = await import('${ROOT}/test/e2e/fixtures/identities.ts'); console.log(ADMIN.email + ' / ' + ADMIN.password)" 2>/dev/null ||
   echo '<see test/e2e/fixtures/identities.ts>')"
 
 cat <<EOF
@@ -202,8 +202,9 @@ cat <<EOF
     mise run cluster:add -- <svc>           in-cluster, from the working tree
 
   Open:          https://${DOMAIN}:8443/
-  Log in as:     ${login_email}
-                 (password: test/e2e/fixtures/identities.ts — sessions last 7 days)
+  Log in as:     ${login_identity}
+                 (committed throwaway credentials; sessions last 7 days. The full
+                 credential table is docs/dev-loop.md)
   Teardown:      mise run cluster:stop  (keep cache) / cluster:delete (delete)
 
   Base alone serves no application data: /api routes 404 until something answers
