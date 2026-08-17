@@ -73,7 +73,8 @@ needs_build() {
   [[ "$REBUILD" == 1 ]] && return 0
   local baked
   baked="$(docker image inspect --format '{{ index .Config.Labels "act-local.source-hash" }}' "$IMAGE" 2>/dev/null || true)"
-  [[ "$baked" == "$SOURCE_HASH" ]]
+  # A missing image reports an empty hash, so it takes the build path with a stale one.
+  [[ "$baked" != "$SOURCE_HASH" ]]
 }
 
 build_image() {

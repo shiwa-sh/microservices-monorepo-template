@@ -122,19 +122,25 @@ if k get secret openfga-creds >/dev/null 2>&1; then
         "${admin}/admin/identities?credentials_identifier=$(jq -rn --arg e "$email" '$e|@uri')" |
         jq -r --arg e "$email" 'map(select(.traits.email == $e)) | .[0].id // empty')"
       [ -n "$identity_id" ] || continue
-      # Idempotent: OpenFGA rejects a duplicate write with "tuple to be written
-      # already existed", which is the already-granted case. `-sS` without `-f`
-      # keeps the error body (the 400 is expected on a re-run), so a real failure
-      # is distinguishable from the already-granted case by its message.
-      out="$(curl -sS -H "Authorization: Bearer ${sk}" -H 'Content-Type: application/json' \
+      # Idempotent across three answers: 200 is the grant, and OpenFGA rejects a
+      # duplicate with a 400 saying the tuple already existed, which is the
+      # already-granted case a re-run reaches. `-sS` without `-f` keeps the error
+      # body, because the message is what separates that 400 from a real failure.
+      resp="$(curl -sS -w '\n%{http_code}' -H "Authorization: Bearer ${sk}" \
+        -H 'Content-Type: application/json' \
         -X POST "http://localhost:18080/stores/${sid}/write" \
         -d "$(jq -n --arg u "user:${identity_id}" \
           '{writes:{tuple_keys:[{user:$u,relation:"member",object:"group:operator"}]}}')")"
-      if ! grep -q "already existed" <<<"$out" && ! grep -q "already exists" <<<"$out"; then
-        echo "$out" >&2
-        exit 1
+      code="${resp##*$'\n'}"
+      body="${resp%$'\n'*}"
+      if [ "$code" = "200" ]; then
+        detail "group:operator granted to ${email}"
+      elif grep -q "already exist" <<<"$body"; then
+        detail "group:operator already granted to ${email}"
+      else
+        echo "$body" >&2
+        fail "OpenFGA write failed for ${email} (HTTP ${code})"
       fi
-      detail "group:operator granted to ${email}"
     done
   else
     detail "no OpenFGA store 'platform' — skipping the operator grant"

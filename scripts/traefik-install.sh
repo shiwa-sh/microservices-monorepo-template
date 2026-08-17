@@ -26,7 +26,9 @@ fi
 
 echo "→ installing Traefik (edge controller) from infra/helm/platform/traefik"
 helm dependency update infra/helm/platform/traefik >/dev/null
-h upgrade --install traefik infra/helm/platform/traefik -n kube-system \
-  -f infra/gitops/platform/local/values.yaml --timeout 5m
+# The chart's own values.yaml carries the local NodePort mapping. No gitops overlay
+# applies: traefik is imperative-only, absent from the platform ApplicationSet, so
+# there is no per-environment values file for it to coalesce with.
+h upgrade --install traefik infra/helm/platform/traefik -n kube-system --timeout 5m
 k -n kube-system rollout status deploy/traefik --timeout=300s
 echo "✓ Traefik installed; CRDs registered"
