@@ -62,8 +62,6 @@ test/perf/results/
 crash.log
 core.*
 
-# Local cluster state (k3d era; kind keeps its nodes under docker)
-.k3d/
 
 # Mise local cache
 .mise.local.toml

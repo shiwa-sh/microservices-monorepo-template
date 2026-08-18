@@ -1,7 +1,7 @@
 # Local full-tier values for the payment service (ADR-0205). See orders.yaml for
 # the secret-naming note (payment-db = local SopsSecret resource). Locally there is
 # no separate payment-temporal-creds secret (Temporal runs without per-service
-# creds), so only payment-db is mounted — matching the old skaffold module.
+# creds), so only payment-db is mounted.
 name: payment
 image:
   repository: registry.localhost:5000/payment-server

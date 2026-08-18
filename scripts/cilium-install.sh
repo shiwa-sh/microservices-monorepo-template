@@ -3,8 +3,7 @@
 # before any pod (including ArgoCD) can schedule, so this runs imperatively for
 # both local tiers and is excluded from the local platform ApplicationSet. kind
 # declines kube-proxy at create time (kubeProxyMode: none in infra/local/kind.yaml),
-# so the chart's default kubeProxyReplacement=true applies — the k3s-era override
-# is gone. One operator replica (the default 2 needs 2 nodes for anti-affinity).
+# so the chart's default kubeProxyReplacement=true applies. One operator replica (the default 2 needs 2 nodes for anti-affinity).
 # Idempotent (helm upgrade --install).
 set -euo pipefail
 

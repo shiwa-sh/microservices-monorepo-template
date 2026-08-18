@@ -50,8 +50,8 @@ k -n argocd rollout status deploy/argocd-server --timeout=300s
 k -n argocd rollout status deploy/argocd-repo-server --timeout=300s
 k -n argocd rollout status deploy/argocd-applicationset-controller --timeout=300s
 
-# 2b. The edge controller (ADR-0305). kind ships no ingress controller (k3s
-#     bundled one), so the tier installs the committed Traefik chart every
+# 2b. The edge controller (ADR-0305). kind ships no ingress controller, so the
+#     tier installs the committed Traefik chart every
 #     environment runs. Imperative, like Cilium: the gateway Application (wave 4)
 #     applies IngressRoutes, and their CRDs must exist before it does.
 echo "→ installing Traefik (edge controller)"

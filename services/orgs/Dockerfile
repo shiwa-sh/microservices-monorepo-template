@@ -5,7 +5,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/go/pkg/mod go mod download
 # Scoped copy: shared libs + only this service's source, so editing one service
-# doesn't invalidate the others' build/watch sets (skaffold rebuilds per artifact).
+# doesn't invalidate the others' build cache.
 COPY libs/go ./libs/go
 ARG APP_CMD=server
 ARG SERVICE=orgs

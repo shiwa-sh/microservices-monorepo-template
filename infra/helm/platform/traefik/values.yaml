@@ -1,6 +1,6 @@
 # Wrapper around the upstream traefik chart (ADR-0305) — the edge controller every
-# environment runs. k3s bundled its own Traefik (disabled by the ansible role for a
-# deployed tier); kind ships none, so both local tiers install this chart instead.
+# environment runs. kind ships no ingress controller, so both local tiers install
+# this chart.
 # One Traefik configuration in the repo, installed by scripts/traefik-install.sh
 # imperatively for the local tiers — its IngressRoute/Middleware CRDs must exist
 # before the gateway Application applies any route, which is the same reason Cilium

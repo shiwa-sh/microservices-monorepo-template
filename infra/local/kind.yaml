@@ -1,21 +1,18 @@
-# Local inner-loop cluster (ADR-0600). kind, not k3d: the inner loop must run the
-# same distribution the full tier runs upstream (k3s is Ansible-era, being retired
-# by phase 7), and kind's kubeadm node is the closest local shape to it.
+# Local inner-loop cluster (ADR-0600). kind runs upstream Kubernetes on a kubeadm
+# node, which is the closest local shape to the distribution the full tier runs.
 #
 # Flannel/kube-proxy stay off: Cilium is the CNI (ADR-0206), and kind declines
-# kube-proxy at create time (kubeProxyMode: none) where k3s needed an override to
-# suppress it. Ports 8080/8443 map the edge: the local values run Traefik as a
+# kube-proxy at create time (kubeProxyMode: none). Ports 8080/8443 map the edge: the local values run Traefik as a
 # NodePort (nodePorts 30080/30443 — the 30000+ range is what kind's node can
 # serve), and these host→node mappings are what make https://<host>:8443 reach it.
 # The 30080/30443 numbers must match infra/helm/platform/traefik/values.yaml.
 #
-# Kubelet tuning, ported from the k3s flags the old create used (registry-qps/
-# burst=0 lifts the per-registry image-pull rate limiter, which only throttles
+# Kubelet tuning (registry-qps/burst=0 lifts the per-registry image-pull rate limiter, which only throttles
 # cold reschedules against our OWN registry; eviction-hard pinned at 2% free keeps
 # kubelet from evicting the whole platform over a few spare GB; image-gc thresholds
 # at 98/80 stop the perpetual ImageGCFailed noise on a near-full developer disk).
 #
-# Proxied networks: kind cannot inject node environment (no k3d -e equivalent), so
+# Proxied networks: kind cannot inject node environment, so
 # a proxied machine preloads images on the host instead — CLUSTER_PRELOAD=1 runs
 # cluster:preload (host docker pull + kind load docker-image), and
 # cluster:unwedge rescues anything that still wedges reactively. See

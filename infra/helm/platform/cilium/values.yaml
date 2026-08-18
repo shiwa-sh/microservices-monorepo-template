@@ -1,5 +1,6 @@
 cilium:
-  # k3s runs its own API server on localhost:6443.
+  # kube-proxy is not installed (ADR-0206), so the agent addresses the API server
+  # directly rather than through a Service.
   kubeProxyReplacement: true
   k8sServiceHost: 127.0.0.1
   k8sServicePort: 6443

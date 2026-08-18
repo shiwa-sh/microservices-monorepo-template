@@ -1136,7 +1136,7 @@
     {
       "type": "stat",
       "title": "Pod slots used",
-      "description": "Running pods against the nodes' pod capacity (110 per node on k3s). The quietest of the three ceilings and the easiest to hit on a single-node cluster.",
+      "description": "Running pods against the nodes' pod capacity (110 per node, the kubelet default). The quietest of the three ceilings and the easiest to hit on a single-node cluster.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,

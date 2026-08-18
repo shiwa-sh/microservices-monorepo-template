@@ -59,7 +59,7 @@ docker exec "${CLUSTER:-platform}-control-plane" sh -c \
 reg_ip=$(docker inspect registry.localhost \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' | cut -d' ' -f1)
 docker exec "${CLUSTER:-platform}-control-plane" sh -c \
-  "echo '$reg_ip registry.localhost k3d-registry.localhost' >> /etc/hosts"
+  "echo '$reg_ip registry.localhost' >> /etc/hosts"
 kubectl --context kind-${CLUSTER:-platform} -n kube-system rollout restart deploy/coredns
 ```
 
@@ -67,7 +67,7 @@ The restart is the durable fix; the stamp survives only until the node is recrea
 
 ## Step 3 — Export the proxy before the first cluster bring-up
 
-Export it in the shell you bring a cluster up from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`. kind cannot inject the proxy into the cluster node (the k3s-era create-time flags are gone), so a proxied machine preloads images on the host instead:
+Export it in the shell you bring a cluster up from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`. kind cannot inject the proxy into the cluster node, so a proxied machine preloads images on the host instead:
 
 ```sh
 export HTTPS_PROXY=http://127.0.0.1:8118

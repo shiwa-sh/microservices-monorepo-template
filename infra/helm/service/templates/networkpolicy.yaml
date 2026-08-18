@@ -15,7 +15,7 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     {{- if .Values.networkPolicy.allowFromGateway }}
-    # Edge traffic: Traefik (k3s ships it in kube-system) → server port.
+    # Edge traffic: Traefik (installed in kube-system) → server port.
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
       ports:

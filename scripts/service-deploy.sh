@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-shot in-cluster deploy from the WORKING TREE (ADR-0200, ADR-0205) — the
 # occasional "I need my uncommitted code in the cluster for edge/auth/e2e testing"
-# case. No watch loop (that was Skaffold's job; the daily loop is native execution).
+# case. No watch loop: the daily loop is native execution.
 # Builds the image(s), loads them into the kind node, and helm-upgrades the same
 # chart prod uses with the local values overlay.
 #

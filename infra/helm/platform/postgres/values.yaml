@@ -30,7 +30,7 @@ cluster:
   priorityClassName: platform-critical
   storage:
     size: 20Gi
-    storageClass: ""    # defaults to k3s local-path (ADR-0207)
+    storageClass: ""    # defaults to the cluster's default StorageClass (ADR-0207)
   # CNPG provisions one app database (`database`/`owner`) per Cluster; the
   # platform needs one per service plus kratos/temporal/openfga, so the rest
   # are created via postInitApplicationSQL, owned by the same app role.

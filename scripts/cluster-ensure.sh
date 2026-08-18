@@ -8,7 +8,7 @@
 #
 # Cilium is the CNI (NetworkPolicy + Hubble, ADR-0200): disableDefaultCNI and no
 # kube-proxy are set at create time in infra/local/kind.yaml (kind declines
-# kube-proxy itself — no k3s-era override needed). Traefik comes from the committed
+# kube-proxy itself). Traefik comes from the committed
 # chart (ADR-0305), installed by cluster:base / cluster:full — kind ships no
 # ingress controller. Ports 8080/8443 map the edge.
 #
@@ -20,8 +20,8 @@
 # kind workload: it survives cluster delete/recreate, and this script re-attaches
 # it to the (recreated) kind network on every ensure.
 #
-# Proxied networks: kind cannot inject proxy environment into the node (k3d's
-# create-time -e is gone), so the proxied path is host-pull + load instead —
+# Proxied networks: kind cannot inject proxy environment into the node, so the
+# proxied path is host-pull + load instead —
 # CLUSTER_PRELOAD=1 / cluster:unwedge. See infra/local/kind.yaml and
 # docs/dev-loop.md ("HTTP proxies").
 set -euo pipefail

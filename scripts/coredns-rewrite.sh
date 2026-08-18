@@ -11,8 +11,8 @@
 # Host(dev.localtest.me) and the wildcard cert is issued for it, so the request must
 # genuinely carry that host and that SNI. A cluster-internal name would fail both.
 #
-# k3s imported custom CoreDNS records through a `coredns-custom` ConfigMap; kind
-# runs a stock CoreDNS Deployment, so this patches its Corefile directly instead.
+# kind runs a stock CoreDNS Deployment with no custom-record mechanism, so this
+# patches its Corefile directly.
 # The rewrite stanza is inserted once into the default `.:53` server block
 # (idempotent — it is skipped when already present) and CoreDNS restarts to load
 # it. Local-only: deployed environments resolve their real host through real DNS.

@@ -46,7 +46,7 @@ h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 bash scripts/cluster-ensure.sh
 bash scripts/cilium-install.sh
 
-# 1a. The edge controller. kind ships no ingress controller (k3s bundled one), so
+# 1a. The edge controller. kind ships no ingress controller, so
 #     the floor installs the committed Traefik chart every environment runs.
 #     Its CRDs must exist before any IngressRoute is applied, hence imperative.
 step "installing Traefik (edge controller)"

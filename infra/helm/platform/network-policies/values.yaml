@@ -11,8 +11,7 @@ externalObjectStorage: false
 # templates/40-observability.yaml. It matches `namespace` in the otel-agent chart.
 otelAgentNamespace: otel-agent
 
-# The cluster's pod CIDR (kind's kubeadm default, 10.244.0.0/16 — ADR-0206; the
-# k3s era used 10.42.0.0/16).
+# The cluster's pod CIDR (kind's kubeadm default, 10.244.0.0/16 — ADR-0206).
 #
 # Used ONLY by the "stale peer" allows (20-temporal.yaml, 40-observability.yaml),
 # where a workload keeps dialling the IP of a pod that has since been deleted.

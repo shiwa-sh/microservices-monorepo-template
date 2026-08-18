@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install Traefik — the edge controller every environment runs (ADR-0305) — from
-# the committed chart infra/helm/platform/traefik. k3s bundled its own Traefik and
-# kind ships none, so both local tiers install this chart: it is the one edge
+# the committed chart infra/helm/platform/traefik. kind ships no ingress
+# controller, so both local tiers install this chart: it is the one edge
 # configuration in the repo. The IngressRoute/Middleware CRDs it ships must exist
 # before the gateway Application applies any route, which is why this runs
 # imperatively (cluster:base, and cluster:full before the root app) rather than

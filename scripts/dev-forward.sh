@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Port-forward the inner-loop dependencies (ADR-0200, ADR-0205) so a service run
 # NATIVELY on the host (in any editor/IDE, or `go run ./services/<svc>/...`) can
-# reach them. Replaces the Skaffold `platform` module's port-forwards. Long-running
+# reach them. Long-running
 # — run it in a separate terminal (or background) and leave it up while you iterate.
 #
 #   mise run cluster:base      # once: the local floor (a service's tasks do this for you)
