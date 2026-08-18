@@ -50,5 +50,9 @@ spec:
         secretsCookie: ""
         secretsCipher: ""
         dsn: ""
+        # Non-production delivers to the sink, never to a recipient (ADR-0307):
+        #   smtp://mailpit.platform.svc.cluster.local:1025/?disable_starttls=true
+        # Leaving this empty falls back to the chart placeholder, which is a real
+        # relay host — the one outcome the Rule forbids.
         smtpConnectionURI: ""
 ```

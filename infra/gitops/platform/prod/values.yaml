@@ -3,6 +3,12 @@
 minio:
   enabled: false
 
+# Mailpit is the NON-production sink (ADR-0307). Production submits through maddy
+# on a dedicated IP, so the sink is gated off here for the same reason MinIO is —
+# and this flag drops its network policy with it (network-policies 35-mailpit).
+mailpit:
+  enabled: false
+
 # ...which is exactly why this is on. With MinIO gone, prod's object storage is a
 # real off-cluster bucket: Loki/Tempo fall back to the chart's
 # s3.eu-central-1.amazonaws.com endpoint, and postgres' backup.s3.endpointURL is

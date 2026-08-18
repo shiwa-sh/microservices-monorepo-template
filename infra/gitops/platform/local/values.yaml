@@ -74,9 +74,13 @@ kratos:
       session:
         cookie:
           domain: dev.localtest.me
+      # The sink (ADR-0307). `kratos-secrets.smtpConnectionURI` is what Kratos
+      # actually reads — the chart wires it to COURIER_SMTP_CONNECTION_URI, and an
+      # env var beats this file — so the two are kept identical rather than left to
+      # disagree about which sink is in use.
       courier:
         smtp:
-          connection_uri: "smtps://test:test@localhost:1025/?skip_ssl_verify=true"
+          connection_uri: "smtp://mailpit.platform.svc.cluster.local:1025/?disable_starttls=true"
     # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets`
     # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
     # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never

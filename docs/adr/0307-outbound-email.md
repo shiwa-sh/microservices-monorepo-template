@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0500](0500-observability.md)
 - **Decides:** maddy submits outbound mail and signs DKIM from a dedicated static IP, with no inbound listener and no mailboxes.
 
 ## Context
@@ -44,6 +44,19 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 | Managed transactional provider (Postmark, SES, Mailgun) | yes | none | deliverability becomes someone else's problem, and recipient metadata leaves our control | **The sanctioned exit**, ranked first on [ADR-0000](0000-platform-foundations.md)'s swap list. Not the default, because principle 3 is a constraint rather than a preference |
 | Do nothing — the honest baseline | n/a | none | — | Account verification and recovery have no delivery path, so identity is unusable |
 
+### The non-production sink
+
+A sink is chosen for the property the agent above is chosen against: it must not deliver.
+
+| Option | Reading a message | Runtime cost | Verdict |
+| --- | --- | --- | --- |
+| **Mailpit** | an HTTP API over the same store the UI reads | one Go binary, no datastore | **Chosen.** The API makes delivery assertable in an e2e test rather than only visible to a human *(reasoned)* |
+| MailHog | an HTTP API and a UI | one Go binary | Mailpit's unmaintained predecessor |
+| smtp4dev | an HTTP API and a UI | a .NET runtime on the floor | Rejected by [ADR-0100](0100-language-and-runtime.md), for a component that exists only below production |
+| maddy, the production agent | needs the mailbox and IMAP surface this ADR scopes out, plus an IMAP client in the test suite | one Go binary, plus a mailbox store | Rejected. Its distinguishing configuration — DKIM, `PTR`, DANE, MTA-STS — has nothing to act on without public DNS and real receivers, so it runs a configuration that ships nowhere. A correctly configured maddy also delivers, which makes the never-deliver rule a setting instead of a property |
+| A logging sink | the raw message in a log line | none | Loses the rendered message, and with it the recovery link a flow test follows |
+| No sink | nothing to read | none | Identity flows cannot be exercised below production |
+
 ## Decision
 
 | Concern | Decision |
@@ -56,10 +69,10 @@ Two constraints shape every option. Many hosting providers block outbound port 2
 | Senders | Kratos ([ADR-0304](0304-identity-and-authorization.md)) and services, both via SMTP submission. No service embeds a provider SDK. Mail a recipient did not individually trigger carries one-click [`List-Unsubscribe`](https://www.rfc-editor.org/rfc/rfc8058); transactional mail does not, and is exempt from the major receivers' bulk-sender rules |
 | Retries | delivery is a Temporal activity where it must be tracked, and the outbox where fire-and-forget is honest ([ADR-0302](0302-temporal.md)) |
 | Human mailboxes | not a platform concern, and never the same sender as platform mail. Whether bought or self-hosted, they serve the domain's `MX` from their own egress IP and `DKIM` selector, independent of maddy |
-| Local and non-prod | **Mailpit** as a sink, picked over MailHog, which is unmaintained, and over smtp4dev, which needs a .NET runtime ([ADR-0100](0100-language-and-runtime.md)). A logging sink was the alternative and loses the one thing the sink is for: reading the rendered message, including the link a recovery flow depends on. Non-production never delivers to a real recipient |
+| Local and non-prod | **Mailpit** as a sink. It carries no outbound delivery path, so non-production's never-deliver rule is a property of the component rather than a setting on it |
 | Delivery observability | every send is a Temporal activity or an outbox row, so a submission failure is a failed activity with a retry history. Post-submission rejections arrive as DMARC aggregate reports, and the agent's logs are scraped like any other component's ([ADR-0500](0500-observability.md)). The signal that matters is the identity flow's completion rate: a verification mail that never lands shows up as a drop there, before a support ticket |
 
-**Every sender speaks SMTP.** That single rule is what makes the exit below a configuration change: no service imports a provider client, so the relay target is a host, a port, and a credential.
+**Every sender speaks SMTP.** That single rule is what makes the exit below a configuration change: no service imports a provider client, so the relay target is a host, a port, and a credential. It is also where parity holds ([ADR-0205](0205-environment-parity.md)): the submission seam is identical in every environment, and only deliverability differs, which has no local analogue.
 
 ### Platform mail and human mail are never the same sender
 
@@ -128,7 +141,7 @@ Out of scope as a platform component, but the choice interacts with [ADR-0200](0
 - Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain.
 - `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production. `(ref: RFC 7208, RFC 6376, RFC 7489)`
 - Delivery honours DANE and MTA-STS where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext. `(ref: RFC 7672, RFC 8461)`
-- Non-production environments deliver to a sink, never to a real recipient.
+- Non-production environments deliver to a sink, never to a real recipient. The sink carries no outbound delivery path, so the production agent does not serve as one.
 - Mail a recipient did not individually trigger carries one-click `List-Unsubscribe`. Verification, recovery, and other transactional mail does not. `(ref: RFC 8058)`
 - Mail bodies carry links and codes, never personal data ([ADR-0301](0301-data-lifecycle-privacy.md)).
 - Delivery failure is observable as a metric: a failed submission is a failed activity, and the identity flow's completion rate is the signal a dropped verification mail moves.

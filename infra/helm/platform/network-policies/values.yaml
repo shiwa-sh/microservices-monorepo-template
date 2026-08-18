@@ -28,3 +28,10 @@ otelAgentNamespace: otel-agent
 #
 # Override per env if the cluster is not on the kind default.
 podCIDR: "10.244.0.0/16"
+
+# Mirrors the gate in the mailpit chart (infra/helm/platform/mailpit). Both charts
+# read the same per-env overlay, so `mailpit.enabled: false` drops the sink and the
+# policy admitting Kratos to it together, rather than leaving a policy naming a
+# workload that is not there.
+mailpit:
+  enabled: true

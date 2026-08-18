@@ -50,5 +50,7 @@ spec:
         secretsCookie: ""
         secretsCipher: ""
         dsn: ""
+        # Production submits through maddy (ADR-0307), so this is a real
+        # submission endpoint. Mailpit is not deployed here.
         smtpConnectionURI: ""
 ```

@@ -119,8 +119,11 @@ kratos:
         cookie:
           domain: dev.example.com
           same_site: Lax
-      # Transactional mail (recovery/verification). Prod/staging supply a real
-      # mailer via the per-env overlay (secret-sourced); local uses mailslurper.
+      # Transactional mail (recovery/verification). The value that reaches Kratos
+      # is `kratos-secrets.smtpConnectionURI`, which the chart wires to
+      # COURIER_SMTP_CONNECTION_URI; this placeholder only applies to an env whose
+      # bundle leaves the key empty. Production submits through maddy, every
+      # non-production env through the Mailpit sink (ADR-0307).
       courier:
         smtp:
           connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false"

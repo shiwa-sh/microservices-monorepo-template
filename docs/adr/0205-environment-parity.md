@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0307](0307-outbound-email.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
 - **Decides:** Every environment deploys the same charts, and the only sanctioned divergence is a per-environment values overlay.
 
 ## Context
@@ -45,6 +45,7 @@ A divergence that cannot be expressed as a value — a different chart, or a han
 | Scale | replicas, storage size, anti-affinity, HPA | which components the full tier runs |
 | Data-tier implementation | inner-loop stand-ins against the real charts | the wire contract, and the Postgres major version |
 | Object storage placement | in-cluster in non-prod, outside the cluster in prod | the implementation, and the S3 API contract |
+| Outbound mail | the agent in production against a sink below it ([ADR-0307](0307-outbound-email.md)) | SMTP submission as the contract every sender speaks |
 | TLS issuer | a local CA against Let's Encrypt | cert-manager as the mechanism, and that certificates are **verified**, never bypassed |
 | Secret plaintext | throwaway locally, real when deployed | SOPS as the decrypt mechanism |
 | Domain | `*.localtest.me` against `*.<env>.<project-domain>` | the routing and edge shape |
@@ -90,6 +91,12 @@ Expressed as values, that delta is the S3 endpoint and whether the in-cluster ch
 
 [ADR-0202](0202-secrets.md) requires one secret mechanism in every environment, and local is no exception: the same SOPS path with a committed, well-known **local** age key. It is safe precisely because the only values it decrypts are throwaway credentials. The decrypt mechanism is identical to production; only the plaintext differs.
 
+### Outbound mail
+
+**Parity here is the contract, not the implementation.** Every sender submits over SMTP in every environment ([ADR-0307](0307-outbound-email.md)). Production points that submission at the mail agent; every environment below it points the same submission at a sink that carries no outbound path.
+
+The implementation diverges because production's defining property — reaching a real recipient — is the one property a non-production environment must not hold. Object storage above takes the opposite shape: implementations diverge behind an identical S3 API, so parity there has to reach the implementation. Two SMTP submission endpoints do not diverge, because a message is accepted or refused, and what does diverge — deliverability — has no local analogue to be tested against.
+
 ## Consequences
 
 ### Positive
@@ -114,6 +121,7 @@ Expressed as values, that delta is the S3 endpoint and whether the in-cluster ch
 - Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier.
 - The Kubernetes API, service chart, service images, and env contract are identical in every tier.
 - Object storage is one implementation in every environment ([ADR-0207](0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves.
+- Outbound mail is one contract in every environment, not one implementation: production submits through the agent [ADR-0307](0307-outbound-email.md) decides, and every environment below it submits to a sink with no outbound path.
 - Backups are off-cluster and mandatory in production ([ADR-0207](0207-cluster-storage.md)). Non-prod backups are convenience and are never cited as a recovery guarantee.
 - SOPS is the secret mechanism in every environment, including local.
 - A PR preview is the full-platform tier at a pull request's images, label-gated, and destroyed with the run. Its slug derives from the pull request number.

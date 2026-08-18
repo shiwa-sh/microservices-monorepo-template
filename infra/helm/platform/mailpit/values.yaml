@@ -1,0 +1,28 @@
+# Values namespaced under `mailpit:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions. The
+# network-policies chart reads the same key, so one flag drops the sink and the
+# policy that lets Kratos reach it together.
+mailpit:
+  # On by default because the Rule binds every NON-production environment
+  # (ADR-0307). Production turns it off in its overlay and submits through maddy;
+  # an environment with neither has no delivery path at all, which is the failure
+  # this default avoids.
+  enabled: true
+
+  image:
+    repository: axllent/mailpit
+    tag: "v1.30.7"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    # Kratos's courier dials this. 1025 is Mailpit's SMTP listener, not a Service
+    # port chosen here: Cilium enforces on the containerPort, so the two match on
+    # purpose (see network-policies 35-mailpit.yaml).
+    smtpPort: 1025
+    # The message viewer. Deliberately not routed at an ops origin — ADR-0306's
+    # routed-origin table does not name Mailpit, and adding one is a decision that
+    # belongs in that ADR, not in this chart. Reached by port-forward, the way any
+    # unrouted diagnostic surface is reached.
+    httpPort: 8025

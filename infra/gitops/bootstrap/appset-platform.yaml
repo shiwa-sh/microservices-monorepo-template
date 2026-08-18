@@ -267,6 +267,10 @@ spec:
                   # (ADR-0200). Same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
+                  # The non-production mail sink Kratos's courier submits to
+                  # (ADR-0307). Beside ory because it is only useful to it, and
+                  # dropped by `mailpit.enabled: false` where a real relay exists.
+                - { path: "infra/helm/platform/mailpit" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }

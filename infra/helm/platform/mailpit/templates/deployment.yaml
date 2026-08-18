@@ -1,0 +1,67 @@
+{{- if .Values.mailpit.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+  namespace: platform
+  labels: { app.kubernetes.io/name: mailpit }
+spec:
+  replicas: {{ .Values.mailpit.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: mailpit } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: mailpit } }
+    spec:
+      # `restricted` (ADR-0200). The UID is spelled out because the image declares
+      # no USER at all: the kubelet refuses to start a runAsNonRoot container it
+      # cannot certify is not root, and the pod passes admission and then sits in
+      # CreateContainerConfigError. Mailpit binds 1025 and 8025, both above the
+      # privileged range, so it needs no root at any point.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: mailpit
+          image: "{{ .Values.mailpit.image.repository }}:{{ .Values.mailpit.image.tag }}"
+          imagePullPolicy: {{ .Values.mailpit.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            # No MP_DATABASE: messages stay in memory and die with the pod, which
+            # is the whole intent of a sink — a mail nobody read is not state worth
+            # keeping, and it keeps the component off the storage tier entirely.
+            - { name: MP_SMTP_BIND_ADDR, value: "0.0.0.0:{{ .Values.mailpit.service.smtpPort }}" }
+            - { name: MP_UI_BIND_ADDR, value: "0.0.0.0:{{ .Values.mailpit.service.httpPort }}" }
+            # The sink accepts anything. Kratos's connection_uri carries no
+            # credentials and no TLS, so requiring either here would reject every
+            # message with an error visible only in the courier's retry log.
+            - { name: MP_SMTP_AUTH_ACCEPT_ANY, value: "true" }
+            - { name: MP_SMTP_AUTH_ALLOW_INSECURE, value: "true" }
+          ports:
+            - { name: smtp, containerPort: {{ .Values.mailpit.service.smtpPort }} }
+            - { name: http, containerPort: {{ .Values.mailpit.service.httpPort }} }
+          # SMTP readiness, not HTTP: the courier is the only consumer that must
+          # work, and the viewer being up says nothing about the listener being up.
+          readinessProbe: { tcpSocket: { port: smtp } }
+          livenessProbe: { tcpSocket: { port: smtp } }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      # readOnlyRootFilesystem leaves nowhere to write; Mailpit holds messages in
+      # memory but still wants a scratch path.
+      volumes:
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: mailpit, namespace: platform }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: mailpit }
+  ports:
+    - { name: smtp, port: {{ .Values.mailpit.service.smtpPort }}, targetPort: smtp }
+    - { name: http, port: {{ .Values.mailpit.service.httpPort }}, targetPort: http }
+{{- end }}
