@@ -123,6 +123,38 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
+            # Prometheus's own TSDB metrics (ADR-0500's cardinality defence 2).
+            # Nothing observed the metrics store itself: `prometheus_*` was absent
+            # from its own TSDB, so the active-series ceiling could not be
+            # alerted on and the Mimir deferral trigger had no signal.
+            #
+            # Scraped HERE rather than by a self-scrape config, which would break
+            # the invariant that the only path into Prometheus is an OTLP push.
+            # The port is named `http` rather than `metrics`, so this job carries
+            # its own keep rather than sharing the one below.
+            #
+            # The metric allow-list is not an optimisation. Prometheus publishes
+            # hundreds of series about itself, and importing all of them to watch
+            # the cardinality ceiling would be the monitoring equivalent of
+            # burning the evidence: four series answer the questions the ADR
+            # asks — how full is the store, are rules silently failing to
+            # evaluate, and is the handoff to Alertmanager working.
+            - job_name: prometheus
+              scrape_interval: 60s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [{{ .Release.Namespace }}] }
+                  selectors:
+                    - role: pod
+                      label: "app.kubernetes.io/name=prometheus"
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: http
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  action: keep
+                  regex: "prometheus_tsdb_head_series|prometheus_rule_evaluation_failures_total|prometheus_notifications_sent_total|prometheus_notifications_errors_total"
             - job_name: temporal
               scrape_interval: 30s
               kubernetes_sd_configs:

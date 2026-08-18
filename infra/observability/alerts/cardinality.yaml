@@ -1,0 +1,74 @@
+# Cardinality and metrics-store health (ADR-0500).
+#
+# ADR-0500 layers three defences against high cardinality: allow-listed labels at
+# the API, live alerts on the series count, and a quarterly audit. This file is
+# the second. It was unwritable until the collector began scraping Prometheus's
+# own metrics and re-exporting them over OTLP — the store had no view of itself,
+# which is the one blind spot that hides every other one.
+#
+# The ceiling is a threshold, so it is stated: 250,000 active series for the
+# single-replica local-TSDB shape ADR-0500 decides, derived from the 1Gi memory
+# limit at roughly 3KB of head memory per series. Re-derive it when that limit
+# changes, and take the Mimir swap rather than raising it far.
+#
+# `prometheus_tsdb_head_series` arrives through the collector, so these alerts go
+# blind if the collector stops — which `ClusterStateMetricsAbsent` in
+# workload-health.yaml already covers for the same reason.
+groups:
+  - name: metrics.cardinality
+    rules:
+      - alert: ActiveSeriesApproachingCeiling
+        expr: |
+          prometheus_tsdb_head_series > 0.7 * 250000
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Prometheus holds {{ $value | printf \"%.0f\" }} active series — past 70% of the ceiling"
+          description: >-
+            Series growth is usually a label that became unbounded rather than a
+            service that grew. Find the offender before adding memory: the top
+            metrics by series count name it, and ADR-0500's allow-listed label
+            helpers are what should have prevented it.
+      - alert: ActiveSeriesNearCeiling
+        expr: |
+          prometheus_tsdb_head_series > 0.9 * 250000
+        for: 15m
+        labels: { severity: page }
+        annotations:
+          summary: "Prometheus holds {{ $value | printf \"%.0f\" }} active series — past 90% of the ceiling"
+          description: >-
+            The metrics store is close to the memory it was sized for, and an
+            OOM here takes every signal with it, including the ones needed to
+            diagnose the incident that follows. This is the documented trigger
+            for the Mimir swap (docs/reference/deferral-register.md).
+
+  - name: metrics.store-health
+    rules:
+      # A rule that fails to evaluate is not a rule. This is the failure that
+      # makes every alert file in this directory a fiction while reporting
+      # nothing, because the alerts that would report it are the ones failing.
+      - alert: PrometheusRuleEvaluationFailing
+        expr: |
+          increase(prometheus_rule_evaluation_failures_total[15m]) > 0
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Prometheus rule evaluations are failing"
+          description: >-
+            One or more rule groups are erroring, so the alerts they carry are
+            not being evaluated and will never fire. Check the rule files most
+            recently changed against /api/v1/rules, which reports per-rule health.
+      # The handoff from evaluation to routing. Distinct from the Watchdog: this
+      # fires while Alertmanager is reachable and rejecting, where the Watchdog's
+      # absence covers the case where nothing arrives at all.
+      - alert: PrometheusAlertmanagerNotificationsFailing
+        expr: |
+          increase(prometheus_notifications_errors_total[15m]) > 0
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Prometheus cannot deliver alerts to Alertmanager"
+          description: >-
+            Alerts are evaluating and not reaching the routing tier, so nothing
+            is notified regardless of severity. Check the Alertmanager
+            Deployment and the network policy that admits Prometheus to it.

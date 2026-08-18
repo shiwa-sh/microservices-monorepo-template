@@ -19,7 +19,7 @@ An **event** row is not a weaker deferral. Some triggers are commercial or organ
 
 | Deferred | Trigger | Watched by | Owner |
 | --- | --- | --- | --- |
-| Mimir, replacing Prometheus | active series cross the paging threshold and adding memory stops being the cheap answer, or retention exceeds one local TSDB | **uncollected** — active series is a `prometheus_*` series, and Prometheus scrapes nothing, including itself ([ADR-0500](../adr/0500-observability.md)) | [ADR-0500](../adr/0500-observability.md) |
+| Mimir, replacing Prometheus | active series cross the paging threshold and adding memory stops being the cheap answer, or retention exceeds one local TSDB | **alert** — `ActiveSeriesNearCeiling`. The series arrives through the cluster collector, which scrapes Prometheus and re-exports over OTLP, so the store's only path in is still a push | [ADR-0500](../adr/0500-observability.md) |
 | Tail sampling, via a collector gateway | a latency investigation fails because head sampling discarded the slow traces, twice | **event** | [ADR-0500](../adr/0500-observability.md) |
 | PgBouncer in session mode | a service needs `LISTEN/NOTIFY` across statements, an advisory lock, or a session-scoped `SET` | **event** | [ADR-0300](../adr/0300-data.md) |
 | Postgres row-level security | a service's tables begin carrying rows belonging to more than one organisation | **query** — a schema walk can see the tenant column arrive | [ADR-0300](../adr/0300-data.md) |
@@ -48,9 +48,9 @@ An **event** row is not a weaker deferral. Some triggers are commercial or organ
 
 ## What the column shows
 
-**Two rows are alerted**, by `VolumeExceedsHalfNodeDisk` and `LoadGeneratorDroppingIterations` in `infra/observability/alerts/deferral-triggers.yaml`. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger, so a row reaches this state only when a rule names the condition the ADR wrote down.
+**Three rows are alerted**, by `VolumeExceedsHalfNodeDisk` and `LoadGeneratorDroppingIterations` in `infra/observability/alerts/deferral-triggers.yaml`, and by `ActiveSeriesNearCeiling` in `cardinality.yaml`. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger, so a row reaches this state only when a rule names the condition the ADR wrote down.
 
-**Three rows are `uncollected`**, and each needs a collector before it can need a rule: Prometheus gathers no `prometheus_*` series about itself, no collector reads kubelet's image-pull metrics, and the analytics store that would answer the funnel-latency question is not deployed. Adding the rule without the series would produce a rule that can never fire, which is the same blindness with a green tick on it.
+**Two rows are `uncollected`**, and each needs a collector before it can need a rule: no collector reads kubelet's image-pull metrics, and the analytics store that would answer the funnel-latency question is not deployed. Adding the rule without the series would produce a rule that can never fire, which is the same blindness with a green tick on it.
 
 **Six rows are queries** — the data exists, and something has to ask. They ride the quarterly `Schedule` described in [`upstream-status.md`](upstream-status.md), which opens one tracking issue covering these rows, that document's upstream facts, and [`asvs-verification.md`](asvs-verification.md)'s concerns. A row's owner is the owner of its owning ADR, and a query row walked without its answer being recorded has not been walked.
 
