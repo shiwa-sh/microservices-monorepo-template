@@ -33,8 +33,18 @@ fi
 echo "→ healing '$CLUSTER': restart the node container"
 docker restart "$node" >/dev/null
 
-# The API server takes a while to come back after the container restarts; wait on
-# the node before touching anything.
+# The API server takes a while to come back after the container restarts. Poll
+# until it answers at all before issuing any RBAC-gated call — during the cold
+# start window the server can return Forbidden for list/watch before the RBAC
+# store is loaded, which would be fatal under set -e.
+echo "→ waiting for API server…"
+for _ in $(seq 1 60); do
+  if kubectl --context "$(cluster_ctx)" get --raw /healthz >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
 kubectl --context "$(cluster_ctx)" wait --for=condition=Ready node --all --timeout=300s
 
 # Rebuild the CNI + DNS datapath, then PROVE recovery via CoreDNS readiness —
