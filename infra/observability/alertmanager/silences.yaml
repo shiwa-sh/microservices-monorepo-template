@@ -1,0 +1,23 @@
+# Committed maintenance silences (ADR-0502, docs/guide/gitops-runbook.md).
+#
+# A top-level YAML sequence. The chart renders it to JSON so `amtool silence
+# import` reads it directly, and the sync CronJob in the alertmanager chart
+# reconciles the cluster to exactly this list — which is what makes the runbook's
+# claim true: a silence created in the UI is removed on the next reconcile.
+#
+# Every entry carries an explicit `endsAt`. A silence with no end is how an alert
+# stops existing without anyone deciding it should. Put the reason in a comment
+# above the matcher: what is suppressed, and what would make it safe to remove.
+#
+#   - comment: "orders-db migration window; remove once the migration completes"
+#     createdBy: gitops
+#     startsAt: 2026-09-01T22:00:00Z
+#     endsAt: 2026-09-01T23:30:00Z
+#     matchers:
+#       - { name: alertname, value: ServiceHigh5xx, isRegex: false }
+#       - { name: service_name, value: orders, isRegex: false }
+#
+# The list is empty because nothing is being suppressed. That is the correct
+# steady state: an expired silence is deleted from this file rather than
+# extended, and extending one twice means the rule underneath it is wrong.
+[]

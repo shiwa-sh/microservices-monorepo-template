@@ -1,0 +1,12 @@
+apiVersion: v2
+name: alertmanager-silences
+description: |
+  The committed maintenance silences (ADR-0502). A silence is configuration, so
+  it lives here rather than in Alertmanager's UI, where it would be invisible to
+  review and outlive whoever created it.
+
+  A chart rather than a plain directory source for the reason the dashboards and
+  alerts charts are: the file is not a Kubernetes manifest, so it has to be
+  generated into a ConfigMap rather than applied.
+type: application
+version: 0.1.0

@@ -1,8 +1,15 @@
 {{- if .Values.alertmanager.enabled }}
-## Alertmanager — the routing tier (ADR-0502). Prometheus pushes evaluated alerts
-## in; nothing else reaches it, because it carries no operator origin of its own
-## (ADR-0306 routes no alertmanager host — a firing alert is read in Grafana and
-## on Prometheus's /alerts).
+## Alertmanager — the routing tier (ADR-0502). Three workloads reach it and
+## nothing else does, because it carries no operator origin of its own (ADR-0306
+## routes no alertmanager host — a firing alert is read in Grafana and on
+## Prometheus's /alerts): Prometheus pushes evaluated alerts in, and the two
+## CronJobs in this chart talk to its API.
+##
+## The jobs are easy to leave out, and leaving them out is worse than blocking
+## them outright: the watchdog check fails on a dial timeout, reports the
+## Watchdog missing, and looks exactly like the alerting outage it exists to
+## detect. A monitor that cannot reach its subject must not be able to say
+## anything about it.
 ##
 ## Egress is the notification path and is granted explicitly rather than left to
 ## the baseline's intra-namespace allow, so what a receiver may reach is legible
@@ -21,6 +28,8 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: prometheus }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager-silence-sync }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager-watchdog-check }
       toPorts:
         - ports: [{ port: "9093", protocol: TCP }]
   egress:

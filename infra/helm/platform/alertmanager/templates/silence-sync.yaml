@@ -1,0 +1,74 @@
+{{- if .Values.alertmanager.enabled }}
+## Reconcile Alertmanager's silences to the committed file (ADR-0502).
+##
+## Alertmanager has no config-file form for silences — they are API objects with
+## their own lifecycle, which is exactly why one created in the UI outlives the
+## incident it was made for and suppresses an alert nobody remembers suppressing.
+## The runbook says a UI silence vanishes on the next reconcile; this is the thing
+## that makes that true.
+##
+## Full reconcile, not a diff: expire everything, then import the file. A
+## silence's identity is its entry in git rather than the ID Alertmanager minted,
+## so re-creating one with the same matchers and window suppresses the same
+## alerts. The cost is a gap of a few seconds per run during which a silenced
+## alert can notify, which is the right trade against a diff that has to model
+## silence equality and gets it subtly wrong.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: alertmanager-silence-sync
+  namespace: platform
+  labels: { app.kubernetes.io/name: alertmanager-silence-sync }
+spec:
+  schedule: {{ .Values.alertmanager.silenceSync.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: alertmanager-silence-sync }
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: sync
+              image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
+              imagePullPolicy: {{ .Values.alertmanager.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  AM="http://alertmanager.platform.svc.cluster.local:{{ .Values.alertmanager.httpPort }}"
+                  echo "→ reconciling silences against the committed file"
+                  active="$(amtool --alertmanager.url="$AM" silence query -q || true)"
+                  if [ -n "$active" ]; then
+                    # shellcheck disable=SC2086
+                    amtool --alertmanager.url="$AM" silence expire $active
+                    echo "  expired $(echo "$active" | wc -l | tr -d ' ') existing silence(s)"
+                  fi
+                  if [ "$(tr -d ' \n' < /etc/silences/silences.json)" = "[]" ]; then
+                    echo "✓ no committed silences — nothing is suppressed"
+                  else
+                    amtool --alertmanager.url="$AM" silence import /etc/silences/silences.json
+                    echo "✓ imported the committed silences"
+                  fi
+              volumeMounts:
+                - { name: silences, mountPath: /etc/silences, readOnly: true }
+              resources:
+                requests: { cpu: "10m", memory: "32Mi" }
+                limits:   { memory: "64Mi" }
+          volumes:
+            - name: silences
+              configMap: { name: alertmanager-silences }
+{{- end }}

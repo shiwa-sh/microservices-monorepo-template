@@ -1,0 +1,37 @@
+# Local Alertmanager silences Application (ADR-0502, ADR-0205). Local counterpart
+# to bootstrap/app-alertmanager-silences.yaml: the chart at
+# infra/observability/alertmanager renders silences.yaml into the
+# `alertmanager-silences` ConfigMap, which the silence-sync CronJob in the
+# alertmanager chart reconciles the live silences against. A silence is
+# configuration, so it arrives the way every other file does.
+#
+# Grouped by the `local` AppProject (appproject.yaml), like every other local app.
+#
+# Sync-wave 2 (the data-tier slot): the ConfigMap must exist before the core tier
+# (wave 3) starts the CronJob that mounts it. A plain ConfigMap is Healthy the
+# moment it applies, so wave 3 is not delayed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-alertmanager-silences
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    env: local
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    targetRevision: master
+    path: infra/observability/alertmanager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry:
+      limit: 20
+      backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

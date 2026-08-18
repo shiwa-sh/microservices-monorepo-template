@@ -28,7 +28,7 @@ A firing alert appears on the Prometheus alerts page, as the `ALERTS` series, an
 
 ## Silence an alert
 
-Silences are configuration, so they live in the repository like everything else ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). A silence created in the Alertmanager UI is invisible to review and vanishes on the next reconcile.
+Silences are configuration, so they live in the repository like everything else ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). A silence created in the Alertmanager UI is invisible to review and vanishes on the next reconcile. The `alertmanager-silence-sync` CronJob is what makes that last clause true: it reconciles the live silences to the committed file every ten minutes, so a UI silence lasts until the next run and no longer.
 
 1. Add the matcher to `infra/observability/alertmanager/silences.yaml`.
 2. **Set `endsAt` to an explicit timestamp.** A silence with no end is how an alert stops existing without anyone deciding it should.

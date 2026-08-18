@@ -1,0 +1,60 @@
+# Deferral triggers, as rules (ADR-0000, docs/reference/deferral-register.md).
+#
+# The register records a growth trigger per deferred component: the condition
+# under which the deferral stops being correct. A trigger nobody evaluates is
+# indistinguishable from no trigger, so the ones whose signal this platform
+# already collects are rules here.
+#
+# These are all `ticket`. A deferral trigger says a decision needs revisiting,
+# never that a user is affected right now — the symptom rule (ADR-0502) puts
+# every one of them on the ticket side, and a page would be a claim about a
+# human that none of them can support.
+#
+# Only two triggers are here because only two have a collected signal. The
+# register's other alertable rows name metrics this platform does not gather;
+# see the note in that document rather than assuming a rule was forgotten.
+groups:
+  - name: deferral.storage
+    rules:
+      # ADR-0207's Longhorn trigger: any volume exceeding 50% of node disk. At
+      # that point one volume can fill the node that hosts every other workload,
+      # which is the failure local-path cannot isolate and a real CSI can.
+      #
+      # Both series come from the kubeletstats receiver. On a kind node the
+      # per-claim identifying attributes are absent (see capacity.yaml), so this
+      # names the ratio rather than the claim; on a real storage class the
+      # claim-level labels appear and the same expression identifies the volume.
+      - alert: VolumeExceedsHalfNodeDisk
+        expr: |
+          max(k8s_volume_capacity_bytes) / max(k8s_node_filesystem_capacity_bytes) > 0.5
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "A volume exceeds 50% of node disk — ADR-0207's Longhorn trigger"
+          description: >-
+            A single volume is now more than half the node's disk, so it can fill
+            the node the rest of the platform runs on. This is the documented
+            trigger for replicated block storage; read the Longhorn row in
+            docs/reference/deferral-register.md before adding disk instead.
+
+  - name: deferral.load
+    rules:
+      # ADR-0601's k6-operator trigger: dropped_iterations above 0 means the load
+      # generator could not keep up, so the run measured the generator rather
+      # than the platform and its numbers are not a capacity result.
+      #
+      # The series exists only while a load run is in flight, which is correct:
+      # outside a run there is nothing to say, and `increase()` over an absent
+      # series yields no samples rather than a false zero.
+      - alert: LoadGeneratorDroppingIterations
+        expr: |
+          increase(k6_dropped_iterations_total[5m]) > 0
+        for: 5m
+        labels: { severity: ticket }
+        annotations:
+          summary: "k6 dropped iterations — the load run measured the generator"
+          description: >-
+            The generator could not schedule its target rate, so this run's
+            numbers describe the generator's limit rather than the platform's.
+            This is the documented trigger for moving load generation in-cluster
+            with k6-operator (docs/reference/deferral-register.md).

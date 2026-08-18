@@ -1,0 +1,25 @@
+{{/*
+The committed silences, as JSON.
+
+Converted at render time rather than in the job: `amtool silence import` reads
+JSON, and the sync job runs in the Alertmanager image, which carries amtool and
+busybox and no YAML parser. Helm already has both halves, so the conversion
+happens where a parser exists.
+
+`fromYamlArray` on an empty file yields an empty list, which is a meaningful
+desired state rather than an error — it means "no silences", and the job expires
+whatever it finds.
+
+The name is fixed rather than release-derived: the sync job mounts it by name.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-silences
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: observability
+data:
+  silences.json: |
+    {{ .Files.Get "silences.yaml" | fromYamlArray | toJson }}

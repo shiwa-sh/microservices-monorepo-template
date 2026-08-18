@@ -34,6 +34,18 @@ alertmanager:
   webhook:
     url: ""
 
+  # Reconciles live silences to infra/observability/alertmanager/silences.yaml.
+  # Ten minutes bounds how long a silence created in the UI survives, which is
+  # what makes the runbook's "vanishes on the next reconcile" true.
+  silenceSync:
+    schedule: "*/10 * * * *"
+
+  # Asserts the Watchdog is still arriving. Five minutes matches the routing
+  # tree's repeat interval for it, so a missed heartbeat is caught in one cycle
+  # rather than averaged away.
+  watchdogCheck:
+    schedule: "*/5 * * * *"
+
   # How long Alertmanager waits to batch an alert group, and how long before it
   # re-notifies about a group that is still firing.
   groupWait: 30s

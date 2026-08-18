@@ -1,0 +1,76 @@
+{{- if .Values.alertmanager.enabled }}
+## Assert the Watchdog is still arriving (ADR-0502, docs/reference/detection-latency.md).
+##
+## The Watchdog alert always fires, so its ABSENCE is the only signal it carries,
+## and nothing consumes an absence on its own. This job is the consumer: it asks
+## Alertmanager whether it currently holds a Watchdog and fails loudly when it
+## does not.
+##
+## What it covers and what it does not, stated because the difference is the
+## whole value of the row it closes:
+##
+##   - Covered: Prometheus stops evaluating, the rule file goes missing, routing
+##     breaks, or Alertmanager is down or wedged while the cluster still runs.
+##     That is the common shape of an alerting failure and it was undetectable.
+##   - NOT covered: the cluster is down. This job shares the failure domain of
+##     the thing it watches, so it goes quiet with it. Only something outside the
+##     cluster closes that, and ADR-0502 defers it to the paging concession.
+##
+## It signals by failing. A failed CronJob is visible in Argo CD, in Headlamp, and
+## as a k8s_job failure series, which is deliberately NOT the alerting pipeline —
+## reporting the pipeline's death through the pipeline is the circularity this
+## exists to avoid.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: alertmanager-watchdog-check
+  namespace: platform
+  labels: { app.kubernetes.io/name: alertmanager-watchdog-check }
+spec:
+  schedule: {{ .Values.alertmanager.watchdogCheck.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # No retries. A retry would paper over exactly the transient-then-recovered
+      # case that a heartbeat check exists to record.
+      backoffLimit: 0
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: alertmanager-watchdog-check }
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: check
+              image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
+              imagePullPolicy: {{ .Values.alertmanager.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  AM="http://alertmanager.platform.svc.cluster.local:{{ .Values.alertmanager.httpPort }}"
+                  echo "→ checking that Alertmanager holds a firing Watchdog"
+                  if amtool --alertmanager.url="$AM" alert query alertname=Watchdog \
+                       | grep -q Watchdog; then
+                    echo "✓ Watchdog present — alerts are evaluating and routing"
+                  else
+                    echo "✗ no Watchdog in Alertmanager: alerts are not being evaluated" >&2
+                    echo "  or not being routed, and every other alert is silently" >&2
+                    echo "  unreliable. Check Prometheus rule loading and the" >&2
+                    echo "  Alertmanager Deployment before trusting any alert." >&2
+                    exit 1
+                  fi
+              resources:
+                requests: { cpu: "10m", memory: "32Mi" }
+                limits:   { memory: "64Mi" }
+{{- end }}
