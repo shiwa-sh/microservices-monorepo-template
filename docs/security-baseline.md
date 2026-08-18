@@ -187,7 +187,7 @@ The security controls every project built from this template inherits, each one 
 | Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain. | review |
 | `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production. | standard: RFC 7208, RFC 6376, RFC 7489 |
 | Delivery honours DANE and MTA-STS where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext. | standard: RFC 7672, RFC 8461 |
-| Non-production environments deliver to a sink, never to a real recipient. | review |
+| Non-production environments deliver to a sink, never to a real recipient. The sink carries no outbound delivery path, so the production agent does not serve as one. | review |
 | Mail a recipient did not individually trigger carries one-click `List-Unsubscribe`. Verification, recovery, and other transactional mail does not. | standard: RFC 8058 |
 | Mail bodies carry links and codes, never personal data ([ADR-0301](adr/0301-data-lifecycle-privacy.md)). | review |
 | Delivery failure is observable as a metric: a failed submission is a failed activity, and the identity flow's completion rate is the signal a dropped verification mail moves. | review |

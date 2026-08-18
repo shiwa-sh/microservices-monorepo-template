@@ -9,9 +9,10 @@
 ## courier that cannot connect retries on its own schedule and the flow it serves
 ## has already returned success to the user.
 ##
-## The viewer (8025) gets no ingress rule: ADR-0306's routed-origin table does not
-## name Mailpit, so nothing in-cluster reaches the UI and a port-forward does not
-## traverse this policy.
+## The viewer (8025) is an ops origin (ADR-0306), so the edge reaches it and
+## nothing else does. Traefik terminates in kube-system and Oathkeeper gates the
+## request before it arrives, so this rule grants the namespace rather than a
+## session — the authorization decision is not a network one.
 ##
 ## Egress is absent on purpose. A sink that never delivers has nowhere to go, and
 ## the baseline (00-baseline.yaml) already grants the DNS every pod needs.
@@ -30,4 +31,10 @@ spec:
             app.kubernetes.io/name: ory-kratos-courier
       toPorts:
         - ports: [{ port: "1025", protocol: TCP }]
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        # Enforced on the pod's real containerPort 8025, which the Service fronts
+        # on the same number.
+        - ports: [{ port: "8025", protocol: TCP }]
 {{- end }}

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md)
 - **Decides:** maddy submits outbound mail and signs DKIM from a dedicated static IP, with no inbound listener and no mailboxes.
 
 ## Context
@@ -69,7 +69,7 @@ A sink is chosen for the property the agent above is chosen against: it must not
 | Senders | Kratos ([ADR-0304](0304-identity-and-authorization.md)) and services, both via SMTP submission. No service embeds a provider SDK. Mail a recipient did not individually trigger carries one-click [`List-Unsubscribe`](https://www.rfc-editor.org/rfc/rfc8058); transactional mail does not, and is exempt from the major receivers' bulk-sender rules |
 | Retries | delivery is a Temporal activity where it must be tracked, and the outbox where fire-and-forget is honest ([ADR-0302](0302-temporal.md)) |
 | Human mailboxes | not a platform concern, and never the same sender as platform mail. Whether bought or self-hosted, they serve the domain's `MX` from their own egress IP and `DKIM` selector, independent of maddy |
-| Local and non-prod | **Mailpit** as a sink. It carries no outbound delivery path, so non-production's never-deliver rule is a property of the component rather than a setting on it |
+| Local and non-prod | **Mailpit** as a sink. It carries no outbound delivery path, so non-production's never-deliver rule is a property of the component rather than a setting on it. Its viewer is an ops origin ([ADR-0306](0306-trust-tiers-and-urls.md)), gated on the same operator session as every other |
 | Delivery observability | every send is a Temporal activity or an outbox row, so a submission failure is a failed activity with a retry history. Post-submission rejections arrive as DMARC aggregate reports, and the agent's logs are scraped like any other component's ([ADR-0500](0500-observability.md)). The signal that matters is the identity flow's completion rate: a verification mail that never lands shows up as a drop there, before a support ticket |
 
 **Every sender speaks SMTP.** That single rule is what makes the exit below a configuration change: no service imports a provider client, so the relay target is a host, a port, and a credential. It is also where parity holds ([ADR-0205](0205-environment-parity.md)): the submission seam is identical in every environment, and only deliverability differs, which has no local analogue.

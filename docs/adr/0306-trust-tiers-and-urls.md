@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0307](0307-outbound-email.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
 - **Decides:** Product is served from the apex and operator tooling from one origin per tool under `*.ops.<host>`.
 
 ## Context
@@ -13,7 +13,7 @@ Every environment exposes two kinds of HTTP surface behind one Traefik edge:
 | Surface | Contents | Code ownership |
 | --- | --- | --- |
 | **Product** | the Next.js app, the service APIs, browser telemetry ingest | first-party |
-| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the SeaweedFS admin UI | **third-party — deployed, not authored** |
+| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the Mailpit viewer, the SeaweedFS admin UI | **third-party — deployed, not authored** |
 
 This ADR fixes where each lives, how one operator login covers the ops tier, and what the API path looks like.
 
@@ -83,6 +83,7 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Lowdefy admin | `lowdefy.ops.<host>` | the sole admin surface ([ADR-0401](0401-internal-admin.md)) |
 | Headlamp | `headlamp.ops.<host>` | read-only by default ([ADR-0501](0501-operator-uis-and-dashboards.md)) |
 | pgweb | `pgweb.ops.<host>` | read-only break-glass |
+| Mailpit | `mailpit.ops.<host>` | **non-prod only** — the mail sink's viewer ([ADR-0307](0307-outbound-email.md)) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the sole exposed surface of that component |
 
 **A component exposing several UIs gets one origin, not several.** SeaweedFS ships a master UI, a filer UI, and an admin UI; only the admin UI is routed. The others are diagnostic surfaces reached the way any unrouted surface is reached, because an origin per internal view multiplies CSP, rate-limit, and session surface for no operator capability that the admin UI lacks. The production instance runs outside the cluster ([ADR-0200](0200-cluster-topology.md)), so it has no `ops.<host>` origin at all and its administration is not an edge concern.

@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 154 |
-| Review-enforced | 299 |
-| **Total** | **453** |
+| Review-enforced | 300 |
+| **Total** | **454** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -321,6 +321,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier. | review |
 | The Kubernetes API, service chart, service images, and env contract are identical in every tier. | review |
 | Object storage is one implementation in every environment ([ADR-0207](../adr/0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves. | review |
+| Outbound mail is one contract in every environment, not one implementation: production submits through the agent [ADR-0307](../adr/0307-outbound-email.md) decides, and every environment below it submits to a sink with no outbound path. | review |
 | Backups are off-cluster and mandatory in production ([ADR-0207](../adr/0207-cluster-storage.md)). Non-prod backups are convenience and are never cited as a recovery guarantee. | review |
 | SOPS is the secret mechanism in every environment, including local. | review |
 | A PR preview is the full-platform tier at a pull request's images, label-gated, and destroyed with the run. Its slug derives from the pull request number. | review |
@@ -521,7 +522,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain. | review |
 | `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production. | standard: RFC 7208, RFC 6376, RFC 7489 |
 | Delivery honours DANE and MTA-STS where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext. | standard: RFC 7672, RFC 8461 |
-| Non-production environments deliver to a sink, never to a real recipient. | review |
+| Non-production environments deliver to a sink, never to a real recipient. The sink carries no outbound delivery path, so the production agent does not serve as one. | review |
 | Mail a recipient did not individually trigger carries one-click `List-Unsubscribe`. Verification, recovery, and other transactional mail does not. | standard: RFC 8058 |
 | Mail bodies carry links and codes, never personal data ([ADR-0301](../adr/0301-data-lifecycle-privacy.md)). | review |
 | Delivery failure is observable as a metric: a failed submission is a failed activity, and the identity flow's completion rate is the signal a dropped verification mail moves. | review |

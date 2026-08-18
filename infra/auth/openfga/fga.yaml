@@ -4,7 +4,7 @@
 #
 # Dashboard names are the ops-tool names Oathkeeper sends to the authz service
 # (infra/auth/oathkeeper/access-rules.json → dashboard:<tool>#view): lowdefy,
-# hubble, grafana, argocd, temporal, minio, headlamp, and pgweb. They match the
+# hubble, grafana, argocd, temporal, minio, headlamp, pgweb, and mailpit. They match the
 # ops hostnames one-for-one (ADR-0306 names origins after the tool) and must match
 # the seed grants in the chart values.
 name: platform-authz
@@ -29,6 +29,7 @@ tuples:
   - { user: group:operator#member, relation: viewer, object: dashboard:minio }
   - { user: group:operator#member, relation: viewer, object: dashboard:headlamp }
   - { user: group:operator#member, relation: viewer, object: dashboard:pgweb }
+  - { user: group:operator#member, relation: viewer, object: dashboard:mailpit }
 
 tests:
   - name: business-and-ops-authz
@@ -78,6 +79,9 @@ tests:
         assertions: { view: true }
       - user: user:alice
         object: dashboard:pgweb
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:mailpit
         assertions: { view: true }
       # bob is not an operator → reaches no ops dashboard.
       - user: user:bob
