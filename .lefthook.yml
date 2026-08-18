@@ -88,9 +88,12 @@ pre-commit:
       glob: "infra/auth/openfga/**"
       run: bash scripts/validate-openfga.sh
     authorizer:
-      # Ops dashboards authorize via remote_json, never `allow` (part of lint:authz).
+      # Ops dashboards authorize via remote_json, never `allow`, and the product
+      # /api rule enumerates resources rather than wildcarding (part of lint:authz).
       glob: "infra/auth/oathkeeper/access-rules.json"
-      run: bash scripts/lint-authorizer.sh
+      run: |
+        go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
+        go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
     strip-headers:
       # Forward-auth routes strip client identity headers first (part of lint:authz).
       glob: "infra/{gateway/**,helm/service/**}"
