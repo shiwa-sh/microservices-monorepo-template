@@ -45,15 +45,34 @@ test.describe("mailpit ops dashboard", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("the code in the body matches the code in the subject", async ({ page, browser }) => {
+      // Three waits stack here and the 60s default covers none of them: gotoFlow
+      // retries for up to 90s because the auth routes are rate-limited (10/min,
+      // and the suite is one source IP), then the courier drains its queue on its
+      // own schedule before anything reaches the sink.
+      test.setTimeout(240_000);
+
       const recipient = ADMIN.email;
       // Only messages newer than this count. The sink is shared with whoever is
       // using the cluster, so the run neither clears it nor reads a message an
       // earlier run left behind.
       const since = Date.now();
 
-      // Recovery is unauthenticated, so it is driven in its own context; the
-      // operator session on `page` is for reading the sink.
-      const anon = await browser.newContext();
+      // Recovery refuses to start for an identity that already has a session —
+      // Kratos 302s the init straight to the return URL — so it is driven in a
+      // context with no session, while the operator session on `page` reads the
+      // sink. Both context options are load-bearing and neither is inherited the
+      // way it first appears:
+      //
+      //   - storageState is emptied explicitly. A bare browser.newContext() under
+      //     this describe's `test.use` still arrives holding ory_kratos_session,
+      //     and the symptom is the landing page instead of the form.
+      //   - ignoreHTTPSErrors is restated because the project's `use` block does
+      //     not reach a hand-made context, and the local wildcard cert is
+      //     self-signed. Without it the page renders blank.
+      const anon = await browser.newContext({
+        ignoreHTTPSErrors: true,
+        storageState: { cookies: [], origins: [] },
+      });
       try {
         await startRecovery(await anon.newPage(), recipient);
       } finally {
