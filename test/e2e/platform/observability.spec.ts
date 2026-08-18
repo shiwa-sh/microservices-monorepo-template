@@ -254,6 +254,55 @@ test.describe("service observability POC (ADR-0501)", () => {
       expect.arrayContaining(["postgres", "temporal", "lowdefy", "observability", "otel-cluster"]),
     );
   });
+
+  // The standing analytics assertion (ADR-0700). Marketing events are emitted
+  // through Faro under a reserved `marketing.*` namespace and a routing connector
+  // diverts them out of the logs pipeline before they reach Loki. Routing
+  // identity-bearing events into the log store would breach ADR-0500's PII rule,
+  // and ADR-0700 states outright that review vigilance is not sufficient to
+  // prevent it — which is why this is a test rather than a convention.
+  //
+  // It asserts a negative, and it is worth having while the connector is still
+  // unbuilt: it fails the day someone starts emitting marketing events without
+  // the split, which is exactly the day the breach would otherwise ship
+  // unnoticed. A passing run today means "no marketing event is in the log
+  // store", which is the same claim it will make once the connector exists.
+  test("no marketing.* event reaches the log store @smoke", async () => {
+    const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
+    expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
+    const { uid } = await ds.json();
+    const start = `${(Date.now() - 24 * 3600 * 1000) * 1e6}`;
+    // Two defences, and both exist because the obvious form of this test breaks
+    // itself. Searching Loki for the literal `marketing.` matches its own audit
+    // trail: Loki logs every query it serves and Oathkeeper logs every request
+    // URL, filelog ships both back into Loki, and the next run finds them. The
+    // naive assertion passes exactly once and then accuses the platform of a PII
+    // leak that is really its own search term. Measured: the literal form
+    // returned 5 matching streams on the second run, from `observability` and
+    // `ory`.
+    //
+    // 1. A regex whose source text cannot match itself. `marke[t]ing\.` matches
+    //    the string "marketing." while the query text — brackets and all — does
+    //    not match the regex, so logging this query cannot create a hit.
+    // 2. The components whose job is to log request URLs and queries are
+    //    excluded. A marketing event arrives under a product service's name; the
+    //    log store and the edge auth tier are never its source.
+    //
+    // Loki also rejects a selector with only negative matchers, which is why the
+    // positive `.+` stays.
+    const query = encodeURIComponent(
+      '{service_name=~".+", service_name!~"observability|otel-cluster|ory"} |~ "marke[t]ing\\\\."',
+    );
+    const res = await ctx.get(
+      `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/query_range?query=${query}&start=${start}&limit=5`,
+    );
+    expect(res.ok(), "Loki query API answers via the Grafana proxy").toBeTruthy();
+    const streams = (await res.json()).data?.result ?? [];
+    expect(
+      streams,
+      "a marketing.* event in Loki means the routing connector is missing or bypassed (ADR-0700)",
+    ).toHaveLength(0);
+  });
 });
 
 // A checkout drives every signal at once. Rather than the browser, this layer hits
