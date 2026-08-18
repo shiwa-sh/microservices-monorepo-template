@@ -44,6 +44,7 @@ deploy_ready platform ory-kratos
 deploy_ready platform authz-server
 deploy_ready platform openfga
 deploy_ready platform grafana
+deploy_ready platform alertmanager
 deploy_ready platform temporal-web
 deploy_ready platform lowdefy
 deploy_ready platform headlamp

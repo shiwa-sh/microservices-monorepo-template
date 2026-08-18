@@ -1,0 +1,76 @@
+{{- if .Values.alertmanager.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: platform
+  labels: { app.kubernetes.io/name: alertmanager }
+  annotations:
+    # The config is a ConfigMap mount, and a mounted ConfigMap changing does not
+    # restart the pod — Alertmanager would serve the old routing tree until
+    # something else evicted it. Roll on a config change, the same way the
+    # Prometheus Deployment does for its rule files.
+    #
+    # Rendered through `include`, not `.Files.Get`: .Files cannot read anything
+    # under templates/, so the Get form returns the empty string and the checksum
+    # is a constant — an annotation that looks like a roll trigger and is not.
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+spec:
+  replicas: {{ .Values.alertmanager.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: alertmanager } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: alertmanager }
+    spec:
+      # `restricted` (ADR-0200). The upstream image runs as nobody (65534) but
+      # declares it only in the manifest, so the UID is spelled out: the kubelet
+      # refuses to start a runAsNonRoot container it cannot certify.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: alertmanager
+          image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
+          imagePullPolicy: {{ .Values.alertmanager.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+            - --web.listen-address=:{{ .Values.alertmanager.httpPort }}
+          ports:
+            - { name: http, containerPort: {{ .Values.alertmanager.httpPort }} }
+          volumeMounts:
+            - { name: config, mountPath: /etc/alertmanager, readOnly: true }
+            - { name: data, mountPath: /alertmanager }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: http }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /-/healthy, port: http }
+            initialDelaySeconds: 15
+          resources: {{ toYaml .Values.alertmanager.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap: { name: alertmanager-config }
+        # Notification state is a de-duplication cache (see values.yaml): losing
+        # it re-notifies rather than drops an alert, so it needs no PVC.
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: platform
+  labels: { app.kubernetes.io/name: alertmanager }
+spec:
+  selector: { app.kubernetes.io/name: alertmanager }
+  ports:
+    - { name: http, port: {{ .Values.alertmanager.httpPort }}, targetPort: http }
+{{- end }}

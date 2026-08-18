@@ -1,0 +1,41 @@
+# Values namespaced under `alertmanager:` so this chart shares the platform
+# overlay with its siblings (ADR-0205).
+alertmanager:
+  enabled: true
+  image:
+    repository: prom/alertmanager
+    tag: v0.28.1
+    pullPolicy: IfNotPresent
+  replicas: 1
+  httpPort: 9093
+
+  # Alertmanager holds notification state (what has fired, what is silenced) on
+  # disk. One replica on an emptyDir: the state is a de-duplication cache, and
+  # losing it re-notifies rather than loses an alert. HA is a three-peer gossip
+  # cluster, which is a scale decision this platform has not taken.
+  resources:
+    requests: { cpu: "20m", memory: "64Mi" }
+    limits:   { memory: "256Mi" }
+
+  # The `ticket` path. ADR-0307 makes every sender speak SMTP, so this is a host,
+  # a port, and a credential like any other relay target — mailpit below the
+  # production tier, maddy in it.
+  email:
+    to: platform-alerts@localtest.me
+    from: alertmanager@localtest.me
+    smarthost: mailpit.platform.svc.cluster.local:1025
+    # The sink speaks plaintext and authenticates nobody. A deployed environment
+    # sets this true and points smarthost at maddy.
+    requireTLS: false
+
+  # The `page` path, and the seam ADR-0502 defers on-call rotation behind. It
+  # resolves to nothing until a paging service is attached, which is a URL and a
+  # credential — no rule and no severity changes when it is.
+  webhook:
+    url: ""
+
+  # How long Alertmanager waits to batch an alert group, and how long before it
+  # re-notifies about a group that is still firing.
+  groupWait: 30s
+  groupInterval: 5m
+  repeatInterval: 12h

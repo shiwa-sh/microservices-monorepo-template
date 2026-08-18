@@ -236,6 +236,10 @@ prometheus:
   httpPort: 9090
   # Local-TSDB retention. A project needing long retention takes the Mimir swap.
   retention: 15d
+  # Where evaluated alerts are sent for routing (ADR-0502). Named here rather
+  # than read from the alertmanager chart's values: a chart renders from its own
+  # values alone, so a cross-chart address is a value this chart owns.
+  alertmanagerTarget: alertmanager.platform.svc.cluster.local:9093
   # Measured 2026-07-26 under the ADR-0601 load suite: 230Mi working set, 37m CPU.
   # No cpu limit (ADR-0204) — a TSDB compaction is exactly the bursty, latency-
   # sensitive work CFS throttling ruins.

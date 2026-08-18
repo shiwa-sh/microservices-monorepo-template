@@ -1,6 +1,8 @@
 {{- if .Values.mailpit.enabled }}
-## Mailpit — the non-production mail sink (ADR-0307). Only the Kratos COURIER
-## submits to it, so 1025 is granted to that pod and to nothing else.
+## Mailpit — the non-production mail sink (ADR-0307). Two senders submit to it and
+## 1025 is granted to those two and to nothing else: the Kratos COURIER, and
+## Alertmanager's ticket receiver (ADR-0502), which relays through the same mail
+## path every sender uses.
 ##
 ## The courier is a StatefulSet of its own (`ory-kratos-courier`), not the Kratos
 ## server: the server queues a message and the courier drains the queue, so the
@@ -31,6 +33,14 @@ spec:
             app.kubernetes.io/name: ory-kratos-courier
       toPorts:
         - ports: [{ port: "1025", protocol: TCP }]
+{{- if .Values.alertmanager.enabled }}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: platform
+            app.kubernetes.io/name: alertmanager
+      toPorts:
+        - ports: [{ port: "1025", protocol: TCP }]
+{{- end }}
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:

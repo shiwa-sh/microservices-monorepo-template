@@ -64,11 +64,18 @@
     # Alerts-as-code (ADR-0500): rule files from infra/observability/alerts/,
     # delivered as the `prometheus-alerts` ConfigMap by the prometheus-alerts
     # ArgoCD Application (same pattern as the Grafana dashboards ConfigMap) and
-    # mounted below. No Alertmanager in the default stack: firing alerts are
-    # visible on /alerts and as the ALERTS series (which dashboards and e2e can
-    # query); routing/paging is a per-project add-on.
+    # mounted below.
     rule_files:
       - /etc/prometheus/rules/*.yaml
+    # Alertmanager routes every alert (ADR-0502). Evaluation stays here and
+    # routing happens there — one primitive per concern. A firing alert remains
+    # visible on /alerts and as the ALERTS series regardless, which is what
+    # dashboards and the e2e suite query.
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - {{ .Values.prometheus.alertmanagerTarget }}
 {{- end }}
 apiVersion: v1
 kind: ConfigMap

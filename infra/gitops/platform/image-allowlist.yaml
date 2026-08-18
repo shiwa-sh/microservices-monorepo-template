@@ -29,6 +29,7 @@ policies:
     - grafana/pyroscope
     - openfga/openfga
     - otel/opentelemetry-collector-contrib
+    - prom/alertmanager
     - prom/prometheus
     - public.ecr.aws/docker/library/redis
     - quay.io/argoproj/argocd

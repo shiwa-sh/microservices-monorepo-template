@@ -1,0 +1,69 @@
+{{- if .Values.alertmanager.enabled }}
+## The routing tree (ADR-0502). Committed, never UI state.
+##
+## Two severities and two receivers, and the mapping is the whole tree: `page`
+## asserts a human acts within minutes and goes to the webhook; everything else
+## is a ticket and goes to email.
+##
+## The mail route comes FIRST and is deliberate. ADR-0502's last Rule forbids
+## routing an alert about the outbound-mail path through email, because a mail
+## path that is down cannot carry the notice that it is down — the alert would be
+## queued by the thing it is reporting on. Matching on the component label sends
+## those to the webhook at any severity, which is the one receiver that does not
+## depend on mail. The contract that makes it work: an alert about the mail path
+## carries `component: mail`, and a rule that omits it routes to email like any
+## other, which is the failure this route exists to prevent.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: platform
+  labels: { app.kubernetes.io/name: alertmanager }
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      smtp_from: {{ .Values.alertmanager.email.from | quote }}
+      smtp_smarthost: {{ .Values.alertmanager.email.smarthost | quote }}
+      smtp_require_tls: {{ .Values.alertmanager.email.requireTLS }}
+
+    route:
+      # Group by the alert and the workload it names, so one failing deployment is
+      # one notification rather than one per pod.
+      group_by: ['alertname', 'service_name', 'k8s_deployment_name']
+      group_wait: {{ .Values.alertmanager.groupWait }}
+      group_interval: {{ .Values.alertmanager.groupInterval }}
+      repeat_interval: {{ .Values.alertmanager.repeatInterval }}
+      receiver: ticket-email
+      routes:
+        - matchers: ['component =~ "mail|smtp|courier"']
+          receiver: page-webhook
+          continue: false
+        - matchers: ['severity = "page"']
+          receiver: page-webhook
+
+    # A firing `page` suppresses the `ticket` alerts for the same workload: the
+    # symptom is already in someone's hands, and the explanations underneath it
+    # are noise until it is resolved.
+    inhibit_rules:
+      - source_matchers: ['severity = "page"']
+        target_matchers: ['severity = "ticket"']
+        equal: ['alertname', 'service_name']
+
+    receivers:
+      - name: ticket-email
+        email_configs:
+          - to: {{ .Values.alertmanager.email.to | quote }}
+            send_resolved: true
+      - name: page-webhook
+        {{- if .Values.alertmanager.webhook.url }}
+        webhook_configs:
+          - url: {{ .Values.alertmanager.webhook.url | quote }}
+            send_resolved: true
+        {{- else }}
+        # No escalation layer is shipped (ADR-0502), so this receiver exists and
+        # delivers nowhere. A `page` is visible on /alerts and as the ALERTS
+        # series either way; what is absent is the phone call, which the ADR
+        # states rather than papers over.
+        {{- end }}
+{{- end }}

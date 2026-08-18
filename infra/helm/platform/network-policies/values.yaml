@@ -34,3 +34,7 @@ podCIDR: "10.244.0.0/16"
 # workload that is not there.
 mailpit:
   enabled: true
+
+# Alertmanager's policy (45-alertmanager.yaml) renders only where it runs.
+alertmanager:
+  enabled: true

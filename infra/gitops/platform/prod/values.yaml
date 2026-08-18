@@ -9,6 +9,17 @@ minio:
 mailpit:
   enabled: false
 
+# Alertmanager routes `ticket` to email (ADR-0502), and production's relay is
+# maddy rather than the sink (ADR-0307). maddy is not deployed yet, so this names
+# the address it will answer on rather than leaving prod pointed at a sink that
+# is switched off above.
+alertmanager:
+  email:
+    to: platform-alerts@example.com
+    from: alertmanager@mail.example.com
+    smarthost: maddy.platform.svc.cluster.local:587
+    requireTLS: true
+
 # ...which is exactly why this is on. With MinIO gone, prod's object storage is a
 # real off-cluster bucket: Loki/Tempo fall back to the chart's
 # s3.eu-central-1.amazonaws.com endpoint, and postgres' backup.s3.endpointURL is

@@ -233,6 +233,7 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.

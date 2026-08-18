@@ -1,0 +1,14 @@
+apiVersion: v2
+name: alertmanager
+description: |
+  Alertmanager, the routing tier for the rule files Prometheus evaluates
+  (ADR-0502). Its routing tree, receivers, and inhibitions are committed here and
+  reconciled by Argo — never UI state.
+
+  Two receivers ship. `ticket` routes to email through the mail path ADR-0307
+  decides; `page` routes to a generic webhook that is wired to nothing, because
+  no escalation layer is shipped. Attaching a paging service is that receiver's
+  URL and a credential, and no rule is re-authored when it arrives.
+type: application
+version: 0.1.0
+appVersion: "0.28.1"

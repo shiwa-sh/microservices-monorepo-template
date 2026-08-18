@@ -1,0 +1,39 @@
+{{- if .Values.alertmanager.enabled }}
+## Alertmanager — the routing tier (ADR-0502). Prometheus pushes evaluated alerts
+## in; nothing else reaches it, because it carries no operator origin of its own
+## (ADR-0306 routes no alertmanager host — a firing alert is read in Grafana and
+## on Prometheus's /alerts).
+##
+## Egress is the notification path and is granted explicitly rather than left to
+## the baseline's intra-namespace allow, so what a receiver may reach is legible
+## here: SMTP to the mail path (ADR-0307), and nothing else. The webhook receiver
+## ships wired to nothing, so it needs no rule until a paging service is attached
+## — at which point that egress is a deliberate edit rather than a rule already
+## open.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: alertmanager
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: prometheus }
+      toPorts:
+        - ports: [{ port: "9093", protocol: TCP }]
+  egress:
+{{- if .Values.mailpit.enabled }}
+    - toEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: mailpit }
+      toPorts:
+        - ports: [{ port: "1025", protocol: TCP }]
+{{- else }}
+    # Production submits through maddy, which is not deployed. Until it is, the
+    # ticket receiver has no reachable relay here and an emailed alert is queued
+    # rather than delivered. Stated as an empty egress set rather than a rule
+    # naming a workload that does not exist.
+    []
+{{- end }}
+{{- end }}
