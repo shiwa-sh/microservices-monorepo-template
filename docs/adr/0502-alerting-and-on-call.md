@@ -110,7 +110,7 @@ This is a **deferral, not a bet**: the seam exists, and it is the receiver inter
 
 - Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used.
 - Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state ([ADR-0000](0000-platform-foundations.md), principle 1).
-- Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes.
+- Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes. `(CI: lint:alert-severity)`
 - Error-budget burn rules are authored against the SLIs in [ADR-0500](0500-observability.md) and carry `severity: ticket` while no paging receiver is attached.
 - Maintenance silences are committed, time-bounded, and expire on their own.
 - No on-call rotation is claimed until a paging receiver is attached to the webhook.

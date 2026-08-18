@@ -36,6 +36,18 @@ data:
       repeat_interval: {{ .Values.alertmanager.repeatInterval }}
       receiver: ticket-email
       routes:
+        # The Watchdog is a heartbeat, not a condition (infra/observability/alerts/
+        # watchdog.yaml). It is matched by name ahead of everything else and sent
+        # to the webhook: routing it by severity would put a message in the email
+        # box on every repeat interval forever, and a receiver that does that is
+        # muted by its recipient. The short repeat is the point — absence is the
+        # signal, so it has to be detectable in minutes rather than half a day.
+        - matchers: ['alertname = "Watchdog"']
+          receiver: page-webhook
+          group_wait: 0s
+          group_interval: 5m
+          repeat_interval: 5m
+          continue: false
         - matchers: ['component =~ "mail|smtp|courier"']
           receiver: page-webhook
           continue: false

@@ -8,8 +8,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 154 |
-| Review-enforced | 300 |
+| Machine-enforced | 155 |
+| Review-enforced | 299 |
 | **Total** | **454** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
@@ -626,7 +626,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used. | review |
 | Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). | review |
-| Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes. | review |
+| Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes. | `lint:alert-severity` in CI |
 | Error-budget burn rules are authored against the SLIs in [ADR-0500](../adr/0500-observability.md) and carry `severity: ticket` while no paging receiver is attached. | review |
 | Maintenance silences are committed, time-bounded, and expire on their own. | review |
 | No on-call rotation is claimed until a paging receiver is attached to the webhook. | review |

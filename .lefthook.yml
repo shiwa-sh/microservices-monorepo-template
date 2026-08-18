@@ -94,6 +94,10 @@ pre-commit:
       run: |
         go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
         go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
+    alert-severity:
+      # Alert rules carry `page` or `ticket`, and the Watchdog exists (ADR-0502).
+      glob: "infra/observability/alerts/**"
+      run: go run ./tools/lint-alert-severity
     strip-headers:
       # Forward-auth routes strip client identity headers first (part of lint:authz).
       glob: "infra/{gateway/**,helm/service/**}"

@@ -413,7 +413,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -492,6 +492,14 @@ run = "go run ./tools/lint-activity-register"
 # is what makes "the row exists and the tuple exists" eventually true — a handler
 # that does both leaves a resource that exists and nobody can read.
 run = "go run ./tools/lint-authz-dual-write"
+
+[tasks."lint:alert-severity"]
+# The alert-severity gate (ADR-0502). Alertmanager's routing tree matches `page`
+# and `ticket` and nothing else, so a rule carrying a third value reaches a
+# receiver by falling through rather than by decision — routed by accident and
+# indistinguishable from routed on purpose. Also asserts the Watchdog exists,
+# because a repo without one cannot detect a dead alerting pipeline.
+run = "go run ./tools/lint-alert-severity"
 
 [tasks."lint:money"]
 # The monetary-value gate (ADR-0100, ADR-0300): a money-ish OpenAPI property is the

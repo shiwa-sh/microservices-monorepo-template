@@ -1,0 +1,31 @@
+# Watchdog — the dead man's switch for the alerting pipeline itself (ADR-0502).
+#
+# Every other rule here reports on the platform. This one reports on the path the
+# others travel: evaluation in Prometheus, routing in Alertmanager, delivery to a
+# receiver. That path fails silently by construction — a broken rule file, a
+# crash-looping Alertmanager, and a cluster where nothing is wrong produce the
+# same observation, which is no alerts at all.
+#
+# So it always fires. `vector(1)` has no condition and no `for`, and its ARRIVAL
+# carries no information; only its ABSENCE does. Whatever watches for that
+# absence lives outside this cluster, because a monitor sharing the failure
+# domain of the thing it monitors goes quiet with it.
+#
+# It carries `ticket` because ADR-0502 admits two severities and this is not a
+# page: nobody acts within minutes on a heartbeat that is working. The routing
+# tree matches it by name ahead of severity and sends it to the webhook, so it
+# never reaches the email box it would otherwise fill — a receiver that fires on
+# a schedule forever is muted by its recipient within a week, which is the
+# failure ADR-0502 names.
+groups:
+  - name: alerting.watchdog
+    rules:
+      - alert: Watchdog
+        expr: vector(1)
+        labels: { severity: ticket }
+        annotations:
+          summary: "Alerting pipeline is alive"
+          description: >-
+            This alert always fires. Its absence means alerts are not being
+            evaluated or not being routed, and nothing else in this cluster can
+            tell you that. Silencing it disables the only check on the check.
