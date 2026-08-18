@@ -1,0 +1,89 @@
+{{- if .Values.alertmanager.enabled }}
+## The page/ticket hygiene report (ADR-0502).
+##
+## ADR-0502 names alert fatigue as the failure mode that makes the routing tree
+## decoration: "a receiver that fires forty times a night is muted by its
+## recipient within a week". It gives the discipline — `page` only when a human
+## must act within minutes — and no mechanism for noticing the discipline has
+## slipped. This is that mechanism.
+##
+## It measures FIRING TIME, not fires-without-acknowledgement. The ADR's test is
+## about human action and nothing here can observe one: no paging receiver is
+## attached, so there is no acknowledgement to count. Total time firing is the
+## honest proxy available — a `page` that spent hours firing over a month either
+## describes a condition nobody acts on within minutes, or a condition that is
+## chronic. Both are demotion candidates, which is what the report proposes
+## rather than decides.
+##
+## It reports and never fails. A gate here would page about paging.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: alertmanager-hygiene-report
+  namespace: platform
+  labels: { app.kubernetes.io/name: alertmanager-hygiene-report }
+spec:
+  schedule: {{ .Values.alertmanager.hygieneReport.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: alertmanager-hygiene-report }
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            # The Prometheus image for promtool, whose `query instant` prints a
+            # line-oriented result. The alternative is parsing the HTTP API's
+            # JSON in a shell that has no JSON parser.
+            - name: report
+              image: "{{ .Values.prometheusImage }}"
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  PROM="{{ .Values.alertmanager.hygieneReport.prometheusURL }}"
+                  LIMIT={{ .Values.alertmanager.hygieneReport.firingMinutesThreshold }}
+                  echo "→ page-severity alert hygiene over the last 30 days"
+                  # ALERTS carries one sample per evaluation while firing, and the
+                  # evaluation interval is Prometheus's 1m default, so the sample
+                  # count is minutes spent firing.
+                  out="$(promtool query instant "$PROM" \
+                    'sum by (alertname) (count_over_time(ALERTS{alertstate="firing", severity="page"}[30d]))' \
+                    2>/dev/null || true)"
+                  if [ -z "$out" ]; then
+                    echo "✓ no page-severity alert fired in the window"
+                    exit 0
+                  fi
+                  flagged=0
+                  echo "$out" | while IFS= read -r line; do
+                    name="$(echo "$line" | sed -n 's/.*alertname="\([^"]*\)".*/\1/p')"
+                    mins="$(echo "$line" | sed -n 's/.*=> \([0-9.]*\) @.*/\1/p' | cut -d. -f1)"
+                    [ -n "$name" ] && [ -n "$mins" ] || continue
+                    if [ "$mins" -gt "$LIMIT" ]; then
+                      echo "⚠ $name fired for ${mins}m of the last 30d (limit ${LIMIT}m)"
+                      echo "  propose: demote to ticket, or fix the condition it reports"
+                      flagged=1
+                    else
+                      echo "  $name: ${mins}m — within budget"
+                    fi
+                  done
+                  [ "$flagged" -eq 0 ] && echo "✓ every page-severity alert is within its firing budget"
+                  exit 0
+              resources:
+                requests: { cpu: "10m", memory: "32Mi" }
+                limits:   { memory: "128Mi" }
+{{- end }}

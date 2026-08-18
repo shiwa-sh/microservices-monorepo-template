@@ -53,6 +53,10 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: {{ .Values.otelAgentNamespace }}, app.kubernetes.io/name: opentelemetry-collector }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: grafana }
+        # The alert-hygiene report reads the ALERTS series (ADR-0502). Named here
+        # rather than left to the baseline: what may query the metrics store is a
+        # list, and a reader absent from it is a reader nobody decided on.
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager-hygiene-report }
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
 ---

@@ -234,8 +234,12 @@ prometheus:
   image: prom/prometheus:v3.1.0
   replicas: 1
   httpPort: 9090
-  # Local-TSDB retention. A project needing long retention takes the Mimir swap.
-  retention: 15d
+  # Local-TSDB retention. Must cover the SLO window ADR-0500 declares — 30 days,
+  # rolling — with a day of margin, or the burn-rate rules and the SLO tiles ask
+  # for a range the store cannot answer and quietly return less than they claim.
+  # A project needing longer retention than one local TSDB holds takes the Mimir
+  # swap rather than raising this.
+  retention: 31d
   # Where evaluated alerts are sent for routing (ADR-0502). Named here rather
   # than read from the alertmanager chart's values: a chart renders from its own
   # values alone, so a cross-chart address is a value this chart owns.

@@ -1,5 +1,11 @@
 # Values namespaced under `alertmanager:` so this chart shares the platform
 # overlay with its siblings (ADR-0205).
+
+# The hygiene report runs promtool, which ships in the Prometheus image. Pinned
+# here rather than read from the observability chart: a chart renders from its
+# own values alone.
+prometheusImage: prom/prometheus:v3.1.0
+
 alertmanager:
   enabled: true
   image:
@@ -45,6 +51,16 @@ alertmanager:
   # rather than averaged away.
   watchdogCheck:
     schedule: "*/5 * * * *"
+
+  # The page/ticket hygiene report. Weekly, because it is a trend rather than an
+  # event and a daily copy of the same list is itself alert fatigue.
+  hygieneReport:
+    schedule: "0 6 * * 1"
+    prometheusURL: http://prometheus.platform.svc.cluster.local:9090
+    # Minutes a `page` rule may spend firing in 30 days before it is proposed for
+    # demotion. Six hours: a severity asserting a human acts within minutes has
+    # no business firing for a working day a month.
+    firingMinutesThreshold: 360
 
   # How long Alertmanager waits to batch an alert group, and how long before it
   # re-notifies about a group that is still firing.

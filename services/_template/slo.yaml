@@ -1,0 +1,41 @@
+# Service level objectives for this service (ADR-0500).
+#
+# Copied with the service. Both SLIs are computed from the RED histogram the
+# service already emits, so declaring an objective adds no instrumentation and
+# creates no second source of truth for what "up" means.
+#
+# THE OBJECTIVE IS DELIBERATELY UNSET. The template ships the mechanism and the
+# default thresholds and refuses to ship the number, because a target inherited
+# from a template is a target nobody chose, and an error budget nobody chose is
+# not spent — it is ignored. Setting one is a decision about response, so it is
+# bounded by how long a fault takes to notice: see
+# docs/reference/detection-latency.md before writing a figure here.
+
+window: 30d # rolling (ADR-0500). Prometheus retention must cover it.
+
+availability:
+  # Good event: a response that is not 5xx. A 4xx is the caller's fault and does
+  # not spend the budget.
+  objective: null # e.g. 0.995 — set it, or this service has no budget
+  # Publishing the objective is what turns the burn-rate rules on. They read a
+  # series, not this file, so a project adds one recording rule per service:
+  #
+  #   - record: service:slo_availability_target:ratio
+  #     expr: 0.995
+  #     labels: { service_name: <this service> }
+  #
+  # With no such series the rules evaluate over nothing and never fire, which is
+  # the honest state for a service whose owner has not chosen a target.
+
+latency:
+  # Good event: a request completing under the threshold. The threshold is a
+  # default the template CAN ship, because it is a property of the request class
+  # rather than a promise to anyone.
+  threshold: 0.5 # seconds
+  objective: null # e.g. 0.99 of requests under the threshold
+
+# Excluded from both SLIs: anything with no live caller.
+exclude:
+  - /livez
+  - /readyz
+  - admin-port

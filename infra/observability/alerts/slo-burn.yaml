@@ -1,0 +1,112 @@
+# Error-budget burn rules (ADR-0500 defines the SLIs, ADR-0502 routes them).
+#
+# Multiwindow, multi-burn-rate: a long window says the budget is genuinely being
+# spent, and a short window says it is still being spent right now. Requiring
+# both is what separates a real burn from a spike that has already stopped, and
+# it is why each alert is a conjunction rather than a single ratio.
+#
+# Every rule here is `ticket`, and that is a property of the platform rather than
+# of the rule. `page` asserts a human acts within minutes, and no receiver
+# reaches one (ADR-0502) — a fast-burn rule that pages nothing is a rule that
+# lies about itself. When a paging receiver is attached, the fast-burn rule is
+# promoted and nothing else about it changes.
+#
+# THE ALERTS READ AN OBJECTIVE THEY DO NOT DEFINE. Each compares the measured
+# error ratio against `service:slo_availability_target:ratio`, a series a project
+# publishes per service from its slo.yaml (services/_template/slo.yaml shows the
+# recording rule). Nothing publishes it here, so these evaluate over an empty set
+# and never fire — which is correct: the template ships the mechanism and refuses
+# to ship the number, because a target inherited from a template is a target
+# nobody chose.
+groups:
+  - name: slo.recording
+    # Ratios rather than raw counts, at the four windows the burn alerts pair.
+    # Recorded rather than inlined because each is evaluated by two alerts and by
+    # the SLO dashboard tiles (ADR-0501), and three copies of one expression is
+    # three places for the definition of "good event" to drift.
+    #
+    # The `or 0 * <total>` term is load-bearing and looks redundant. Without it a
+    # service with no 5xx has an empty numerator, the division matches nothing,
+    # and the service DISAPPEARS from the result instead of reporting a zero
+    # error ratio. A healthy service would be missing from every SLO tile, which
+    # reads as "no data" rather than "no errors" — the two states a reliability
+    # view most needs to tell apart.
+    #
+    # The `> 0` on the denominator handles the other end. A service with no
+    # traffic has no error ratio — 0/0 is NaN, and a NaN propagates into every
+    # comparison as "not greater than", which is the right answer for the wrong
+    # reason and renders as a broken tile. Filtering the denominator drops the
+    # service from the result instead, which is what "no requests, no SLI" means.
+    rules:
+      - record: service:request_errors:ratio_rate5m
+        expr: |
+          (
+            sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            or 0 * sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))
+          )
+            / (sum by (service_name) (rate(http_server_request_duration_seconds_count[5m])) > 0)
+      - record: service:request_errors:ratio_rate30m
+        expr: |
+          (
+            sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[30m]))
+            or 0 * sum by (service_name) (rate(http_server_request_duration_seconds_count[30m]))
+          )
+            / (sum by (service_name) (rate(http_server_request_duration_seconds_count[30m])) > 0)
+      - record: service:request_errors:ratio_rate1h
+        expr: |
+          (
+            sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[1h]))
+            or 0 * sum by (service_name) (rate(http_server_request_duration_seconds_count[1h]))
+          )
+            / (sum by (service_name) (rate(http_server_request_duration_seconds_count[1h])) > 0)
+      - record: service:request_errors:ratio_rate6h
+        expr: |
+          (
+            sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[6h]))
+            or 0 * sum by (service_name) (rate(http_server_request_duration_seconds_count[6h]))
+          )
+            / (sum by (service_name) (rate(http_server_request_duration_seconds_count[6h])) > 0)
+
+  - name: slo.burn
+    rules:
+      # 14.4x burn spends a 30-day budget in about two days. Paired 1h/5m.
+      - alert: SLOErrorBudgetFastBurn
+        expr: |
+          (
+            service:request_errors:ratio_rate1h
+              > on (service_name) group_left () (14.4 * (1 - service:slo_availability_target:ratio))
+          )
+          and on (service_name)
+          (
+            service:request_errors:ratio_rate5m
+              > on (service_name) group_left () (14.4 * (1 - service:slo_availability_target:ratio))
+          )
+        for: 2m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} is burning its error budget 14.4x"
+          description: >-
+            At this rate the 30-day budget is gone in about two days. This is the
+            rule that becomes a page the moment a paging receiver exists
+            (ADR-0502); until then it is a ticket because nothing reaches a human
+            within minutes.
+      # 6x burn spends the budget in about five days. Paired 6h/30m.
+      - alert: SLOErrorBudgetSlowBurn
+        expr: |
+          (
+            service:request_errors:ratio_rate6h
+              > on (service_name) group_left () (6 * (1 - service:slo_availability_target:ratio))
+          )
+          and on (service_name)
+          (
+            service:request_errors:ratio_rate30m
+              > on (service_name) group_left () (6 * (1 - service:slo_availability_target:ratio))
+          )
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} is burning its error budget 6x"
+          description: >-
+            Slower than the fast-burn rule and still ahead of budget: at this
+            rate the 30-day window ends spent. Read it as a trend rather than an
+            incident.
