@@ -271,3 +271,20 @@ export async function ensureAal2(page: Page, secret: string): Promise<void> {
   }
   await notOnLogin(page);
 }
+
+// startRecovery drives the real recovery form, which is what makes the Kratos
+// COURIER submit a message — the server only queues it (ADR-0307).
+//
+// `use: code` (infra/auth/kratos/values.yaml) means the mail carries a six-digit
+// code rather than a magic link, and the flow stays open until that code is
+// entered, so starting recovery does not change the account it names.
+export async function startRecovery(page: Page, email: string): Promise<void> {
+  await gotoFlow(page, init("recovery"), 'input[name="email"]');
+  await page.fill('input[name="email"]', email);
+  await page.click(submitFor("code"));
+  // Kratos advances the same flow to the code form. Enumeration protection makes
+  // it render identically for an address that has no account, so this proves the
+  // flow moved and NOT that anything was sent — the sink is the only evidence of
+  // that, which is the whole reason a sink exists.
+  await page.locator('input[name="code"]').waitFor({ state: "visible", timeout: 30_000 });
+}

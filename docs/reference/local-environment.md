@@ -61,11 +61,14 @@ The **Auth** column is the always-on coarse gate: the `operator` claim plus an A
 | `lowdefy.ops.dev.localtest.me:8443` | Lowdefy admin console | none |
 | `headlamp.ops.dev.localtest.me:8443` | Headlamp — Kubernetes debug UI, read-only | none |
 | `pgweb.ops.dev.localtest.me:8443` | pgweb — read-only database inspector | none |
+| `mailpit.ops.dev.localtest.me:8443` | Mailpit — the mail sink's viewer, non-prod only | none |
 | `seaweedfs.ops.dev.localtest.me:8443` | SeaweedFS admin UI, non-prod only | **yes** — see below |
 
 Grafana and Argo CD trust the edge and serve anonymously, so an operator who clears the gate lands straight on the tool. **The SeaweedFS admin UI is the exception**: it carries its own credential rather than trusting the edge, so it prompts for the pre-seeded local one after the edge gate. Its master and filer UIs are not routed ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)); reach them by port-forward.
 
-Without the edge, Grafana is still reachable by `kubectl -n platform port-forward svc/grafana 3000:80`.
+Mailpit holds every message the Kratos courier submits, so it is where a verification or recovery mail is read; production keeps no such store ([ADR-0307](../adr/0307-outbound-email.md)).
+
+Without the edge, Grafana is still reachable by `kubectl -n platform port-forward svc/grafana 3000:80`. Mailpit likewise by `kubectl -n platform port-forward svc/mailpit 8025:8025`.
 
 ## Frontend environment contract
 
