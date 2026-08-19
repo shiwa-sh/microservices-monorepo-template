@@ -234,6 +234,36 @@ export async function operatorLogin(
   await notOnLogin(page);
   await waitForSession(page);
   await settle(page);
+
+  // An operator HAS a second factor, so anything short of aal2 is a failed
+  // step-up, not a password-only identity. The step-up can be lost without ever
+  // failing loudly: a 429 from `auth-ratelimit` on the aal2 continuation renders
+  // "Could not start sign-in" instead of the TOTP form, so the prompt never
+  // appears, the branch above is skipped, and the flow ends on an AAL1 session
+  // that the edge then refuses — surfacing much later as a dashboard title
+  // assertion reading "Platform". Ask Kratos what the session actually is and
+  // re-run the step-up until it says aal2.
+  await expect(async () => {
+    if ((await sessionAal(page)) !== "aal2") {
+      await ensureAal2(page, secret);
+      await settle(page);
+    }
+    expect(await sessionAal(page)).toBe("aal2");
+  }).toPass({ timeout: 90_000, intervals: [RATE_LIMIT_WAIT_MS] });
+}
+
+// sessionAal reads the AAL Kratos itself records for the browser session, which is
+// the only authority on whether a step-up landed — the URL after a login says
+// nothing about it. Returns null when there is no session at all.
+async function sessionAal(page: Page): Promise<string | null> {
+  const res = await page.request.get(`${BASE_URL}/auth/sessions/whoami`, {
+    failOnStatusCode: false,
+  });
+  if (!res.ok()) {
+    return null;
+  }
+  const body = (await res.json()) as { authenticator_assurance_level?: string };
+  return body.authenticator_assurance_level ?? null;
 }
 
 // enrolTotp enrols a TOTP second factor via the settings flow, reading the secret

@@ -29,7 +29,7 @@ Every decision below is defensible on its own, and no ADR composes them. This do
 | Certificate approaching expiry | cert-manager renewal failure alert | minutes to hours | next working day, and the renewal window is weeks — the slowest failure to become urgent |
 | Backup failing | the backup job's own alert, and the quarterly restore rehearsal for a backup that *runs* and cannot be restored | minutes for a failed job; **up to a quarter** for an unrestorable one | same |
 | Silent data corruption | nothing systematic. It surfaces as an application fault or at a restore | **unbounded** | **unbounded** |
-| Alertmanager itself down, cluster up | the `alertmanager-watchdog-check` CronJob asks Alertmanager for a firing `Watchdog` every five minutes and fails when there is none ([ADR-0502](../adr/0502-alerting-and-on-call.md)) | within five minutes | until the failed job is noticed — next working day |
+| Alertmanager itself down, cluster up | the `alertmanager-watchdog-check` CronJob asks Alertmanager for a firing `Watchdog` every five minutes and fails when there is none ([ADR-0502](../adr/0502-alerting-and-on-call.md)). It exits 1 for a missing `Watchdog` and 2 when Alertmanager could not be reached at all — read the log, since only the first means alerting is broken | within five minutes | until the failed job is noticed — next working day |
 | Alertmanager down with the cluster | nothing. The check runs in the cluster it watches, so it stops with it | **unbounded** | **unbounded** |
 | A `marketing.*` event reaching the log store | the standing routing assertion in the e2e suite ([ADR-0700](../adr/0700-analytics.md)) | at the next suite run | same |
 | Recovery objectives missed | the quarterly restore rehearsal measures RTO and RPO against [ADR-0200](../adr/0200-cluster-topology.md)'s stated values | **up to a quarter** | same |
@@ -39,6 +39,15 @@ Every decision below is defensible on its own, and no ADR composes them. This do
 **Two rows are unbounded, and they are the ones to change first.** An unbounded row is not a long detection time; it is the absence of detection, and the fault is found by its consequence rather than by a signal. Silent data corruption has no systematic detector at any budget this platform accepts.
 
 Alertmanager's own failure splits in two, and the split is the honest part. The common shape — routing broken while the cluster runs — is now detected, because the `Watchdog` has a consumer that does not travel through the pipeline it checks. The other shape is not, because that consumer runs in the cluster it watches and goes quiet with it. Closing it needs something outside the cluster, which is the paging concession [ADR-0502](../adr/0502-alerting-and-on-call.md) defers.
+
+**A failed check is not the same as a broken pipeline.** The Watchdog check shares a
+namespace with the thing it queries, so it also fails when Alertmanager is merely
+unreachable — starting, rescheduled, or cut off by a NetworkPolicy. That is a real
+observation and it is deliberately not retried, but it reaches no verdict about routing,
+so it is reported as exit 2 with its own message rather than as a missing `Watchdog`.
+On a cluster whose node restarts with its host, exit 2 within a few minutes of a node
+coming back is the expected reading and not a defect. A run of exit 1 is the one that
+means what the row says.
 
 **This table is also the RTO bound.** [ADR-0200](../adr/0200-cluster-topology.md) states recovery in under 30 minutes measured from the start of recovery. Out of hours, the row that detects the failure is added to that figure before a user sees service restored, which is why the recovery objective and the detection objective are stated separately rather than summed into one number that would be wrong half the day.
 

@@ -55,6 +55,9 @@ test/perf/results/
 # repo-server renders them offline (no `helm dependency build` / network, which
 # wedges behind the local privoxy edge). See observability/Chart.yaml.
 !infra/helm/platform/observability/charts/*.tgz
+# `helm dependency update` unpacks into `tmpcharts-<pid>/` beside the chart and
+# leaves the directory behind when the download fails. Scratch, never content.
+**/tmpcharts-*/
 .terraform/
 *.tfstate
 *.tfstate.*

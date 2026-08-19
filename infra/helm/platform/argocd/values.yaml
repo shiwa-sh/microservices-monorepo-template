@@ -78,6 +78,23 @@ argo-cd:
         {
           "jsonPointers": ["/metadata/labels", "/metadata/annotations"]
         }
+      # Kyverno's CRD schema defaults four fields the chart never sets
+      # (`spec.admission`, `spec.emitWarning`, and per rule
+      # `skipBackgroundRequests` and `validate.allowExistingViolations`). Under
+      # ServerSideApply the controller owns only the fields it sent, so a
+      # defaulted field belongs to no manager and the client-side diff reads it
+      # as drift that no sync can remove — the policy app sits OutOfSync forever,
+      # which closes the ApplicationSet health gate above and freezes the root
+      # app-of-apps. Ignore the defaults; every field the chart states is still
+      # compared.
+      resource.customizations.ignoreDifferences.kyverno.io_ClusterPolicy: |
+        {
+          "jsonPointers": ["/spec/admission", "/spec/emitWarning"],
+          "jqPathExpressions": [
+            ".spec.rules[].skipBackgroundRequests",
+            ".spec.rules[].validate.allowExistingViolations"
+          ]
+        }
     rbac:
       # Anonymous (edge-authenticated operator, see users.anonymous above) gets
       # admin — mirroring Grafana's anonymous org_role:Admin. The edge already

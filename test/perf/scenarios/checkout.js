@@ -27,7 +27,7 @@ import {
   PERF_USER,
   summaryTrailer,
 } from "../lib/config.js";
-import { authHeaders, login } from "../lib/session.js";
+import { authHeaders, login, requireOrg } from "../lib/session.js";
 
 // Wall time from "checkout accepted" to "order reached a terminal status". This
 // is the saga's real latency and the metric a capacity decision reads.
@@ -65,6 +65,8 @@ export const options = buildOptions("checkout", 0.25, {
 // write-path lock problem would show up if there were one.
 export function setup() {
   const session = login(BASE_URL, PERF_USER.email, PERF_USER.password);
+  // A session alone is not enough to buy anything — see requireOrg.
+  requireOrg(BASE_URL, session, PERF_USER.email);
 
   const res = http.get(`${API}/products`, { tags: { endpoint: "list_products" } });
   if (res.status !== 200) {

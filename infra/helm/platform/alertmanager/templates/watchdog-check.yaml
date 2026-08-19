@@ -20,6 +20,16 @@
 ## as a k8s_job failure series, which is deliberately NOT the alerting pipeline —
 ## reporting the pipeline's death through the pipeline is the circularity this
 ## exists to avoid.
+##
+## Two ways to fail, kept apart by exit code, because they have different first
+## suspects and only one of them is about alerting at all:
+##
+##   - exit 1 — Alertmanager answered and holds no Watchdog. Alerting is broken.
+##   - exit 2 — Alertmanager could not be reached, so the check reached NO verdict
+##     and implies nothing about routing. On a cluster whose node restarts (a
+##     laptop suspending, a Docker restart) this is the one you will see: the job
+##     fires every five minutes regardless, so it lands in the window before
+##     Alertmanager is serving. Read the log, not just the red job.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -60,8 +70,26 @@ spec:
                   set -eu
                   AM="http://alertmanager.platform.svc.cluster.local:{{ .Values.alertmanager.httpPort }}"
                   echo "→ checking that Alertmanager holds a firing Watchdog"
-                  if amtool --alertmanager.url="$AM" alert query alertname=Watchdog \
-                       | grep -q Watchdog; then
+                  # Keep amtool's own exit status. "I could not reach Alertmanager"
+                  # and "Alertmanager holds no Watchdog" are different faults with
+                  # different first suspects, and only the second one means alerting
+                  # is broken. Piping straight into grep conflates them: amtool
+                  # errors, grep reads empty input and returns 1, and a connect
+                  # failure is reported as a missing Watchdog — which sends whoever
+                  # reads it to Prometheus rule loading while the real fault is the
+                  # transport. `set -e` does not catch it either, since errexit is
+                  # suppressed in an `if` condition and pipefail is not set.
+                  if ! found=$(amtool --alertmanager.url="$AM" \
+                                 alert query alertname=Watchdog 2>&1); then
+                    echo "✗ cannot reach Alertmanager at $AM — this check reached no" >&2
+                    echo "  verdict, so it says nothing about whether alerts are" >&2
+                    echo "  routing. Alertmanager is down, starting, or unreachable" >&2
+                    echo "  from this namespace; check the Deployment and the" >&2
+                    echo "  NetworkPolicy before reading anything else into it." >&2
+                    echo "  amtool said: $found" >&2
+                    exit 2
+                  fi
+                  if printf '%s' "$found" | grep -q Watchdog; then
                     echo "✓ Watchdog present — alerts are evaluating and routing"
                   else
                     echo "✗ no Watchdog in Alertmanager: alerts are not being evaluated" >&2

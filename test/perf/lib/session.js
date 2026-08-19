@@ -57,6 +57,36 @@ export function login(baseURL, email, password) {
   return cookie[0];
 }
 
+// requireOrg asserts the signed-in identity actually carries an organization.
+//
+// An order belongs to the org its buyer acts through (ADR-0304), and the edge
+// builds X-Org-Id out of the identity's `metadata_public.org_id` — which is
+// written asynchronously by the orgs RegisterUser workflow, not by the identity's
+// creation. A buyer whose registration process has not landed is therefore a
+// perfectly valid session that every single checkout refuses with 403, and the
+// run reports "0% — 0 / N" on a status check with no hint of why.
+//
+// Same stance as `login` throwing: fail in setup, where the message can name the
+// cause, rather than producing a full run of numbers for work the platform never
+// did.
+export function requireOrg(baseURL, session, email) {
+  const res = http.get(`${baseURL}/auth/sessions/whoami`, {
+    headers: { Accept: "application/json", Cookie: `ory_kratos_session=${session}` },
+  });
+  if (res.status !== 200) {
+    throw new Error(`whoami for ${email} returned HTTP ${res.status} — is the session valid?`);
+  }
+  const orgID = res.json()?.identity?.metadata_public?.org_id;
+  if (!orgID) {
+    throw new Error(
+      `${email} carries no organization — every checkout would 403. The orgs ` +
+        "RegisterUser workflow has not set metadata_public.org_id for this identity; " +
+        "re-provision it (`mise run e2e` setup, or POST /identity-created on orgs) and retry.",
+    );
+  }
+  return orgID;
+}
+
 // authHeaders is what a scenario adds to every request it makes as the buyer.
 // Each VU has its own cookie jar and setup's jar is not shared with them, so the
 // value is passed through setup's return and sent explicitly.
