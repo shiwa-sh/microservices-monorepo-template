@@ -55,6 +55,13 @@
       "name": "@libs/money",
       "version": "0.0.0",
     },
+    "libs/ts/schemas": {
+      "name": "@libs/schemas",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "4.4.3",
+      },
+    },
   },
   "overrides": {
     "nanoid": "3.3.18",
@@ -212,6 +219,8 @@
     "@libs/id": ["@libs/id@workspace:libs/ts/id"],
 
     "@libs/money": ["@libs/money@workspace:libs/ts/money"],
+
+    "@libs/schemas": ["@libs/schemas@workspace:libs/ts/schemas"],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.3", "", {}, "sha512-FY+MKLBoTsLNJF/eLWaOsXGdz6uh3Iu1axjPf6TUq92IYumcTcXWHoS747JARLkcdlJ/Waiaxc5wQfFO8jC6NA=="],
 

@@ -360,13 +360,24 @@ run = "bash scripts/identity-seed.sh"
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
 # OpenAPI spec (ADR-0305). Generators: ogen + openapi-typescript (SDKs), sqlc
 # (queries), and the devportal spec projections rendered by Scalar (ADR-0303).
-depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:image-allowlist"]
+depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:zod", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:image-allowlist"]
 
 [tasks."gen:adr-rules"]
 # Two documents are views over the ADR set's Rules sections: the rules index and the
 # security baseline (ADR-0203). Both were hand-maintained copies of facts owned by the
 # ADRs, so both are generated and drift-checked like any other generated artefact.
 run = "go run ./tools/adr-rules"
+
+[tasks."gen:zod"]
+depends = ["gen:shared-components"]
+# Zod schemas for every request body in every spec (ADR-0400). Forms validate with
+# these, so the rule enforced in the browser is the rule the spec states rather
+# than a hand-written second copy of it — and the copy is what drifts.
+#
+# Request bodies only: response shapes are already TypeScript types from
+# openapi-typescript, which is the right tool for something you read. A zod schema
+# is for something you must validate, and in a browser that is what a form sends.
+run = "go run ./tools/zod-gen"
 
 [tasks."gen:shared-components"]
 # Writes the canonical error envelope, money, and timestamp components into every

@@ -1,0 +1,13 @@
+{
+  "name": "@libs/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generated zod schemas for spec request bodies (ADR-0400).",
+  "type": "module",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}
