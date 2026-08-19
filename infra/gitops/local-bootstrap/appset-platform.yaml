@@ -246,6 +246,9 @@ spec:
                   # (ADR-0307). Beside ory because it is only useful to it, and
                   # dropped by `mailpit.enabled: false` where a real relay exists.
                 - { path: "infra/helm/platform/mailpit" }
+                # Production mail (ADR-0307). Renders nothing unless the
+                # environment enables it, which only production does.
+                - { path: "infra/helm/platform/maddy" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }

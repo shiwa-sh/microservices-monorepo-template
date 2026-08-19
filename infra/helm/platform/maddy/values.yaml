@@ -1,0 +1,62 @@
+# Values namespaced under `maddy:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions. A
+# top-level key here would be read by every OTHER chart's render of the same
+# file — and, worse, this chart would ignore the per-environment override that
+# names it, which is how a production-disabled component stays enabled.
+maddy:
+  # maddy — the outbound mail submission endpoint (ADR-0307).
+  #
+  # `enabled` is off by default, which is the opposite of most charts here and is
+  # deliberate: every non-production environment sinks mail to Mailpit, and an agent
+  # that can deliver is an agent that can deliver to a real person from a test. Only
+  # production turns this on.
+  enabled: false
+
+  image:
+    repository: foxcpp/maddy
+    tag: "0.9.5"
+    pullPolicy: IfNotPresent
+
+  # The identity platform mail authenticates as. It is a SUBDOMAIN, and that is the
+  # decision rather than a default: platform mail and human mailboxes are never the
+  # same sender, so this subdomain carries maddy's SPF and DKIM selector and leaves
+  # the organisation domain's records to whatever serves human mail.
+  #
+  # It must also match the `PTR` record of the dedicated egress IP. A mismatch
+  # between HELO name and reverse DNS is a strong negative signal at every major
+  # receiver, and it fails at first send rather than at deploy.
+  hostname: mail.example.com
+
+  dkim:
+    # The selector published at `<selector>._domainkey.<hostname>`.
+    selector: default
+    # The Secret holding the DKIM private key (ADR-0202). Its `private.key` entry is
+    # mounted read-only at the path maddy signs with.
+    #
+    # This mount is load-bearing in a way that fails quietly if it is wrong: maddy
+    # GENERATES a keypair when the path is absent (observed on 0.9.5, which logs it
+    # and carries on). A pod that came up with an empty mount would sign with a key
+    # no DNS record matches, every message would fail DKIM, and nothing would be
+    # unhealthy — so the deployment treats a missing secret as a failure to start.
+    secretName: maddy-dkim
+
+  submission:
+    port: 587
+    # The credential Kratos and the services authenticate with. One account, because
+    # every sender is first-party and the sender identity that matters is the
+    # envelope's, not the SMTP user's.
+    secretName: maddy-submission
+    username: platform
+
+  persistence:
+    # Undelivered mail lives here, and so does the MTA-STS policy cache. A queue on
+    # an emptyDir is a queue that loses the messages a receiver asked us to retry.
+    size: 2Gi
+    storageClassName: ""
+
+  # ADR-0204. Not measured: no environment runs this yet, so these are sized from
+  # maddy's own documented footprint for a small deployment rather than derived, and
+  # they are the first numbers to re-derive once one does.
+  resources:
+    requests: { cpu: "25m", memory: "64Mi" }
+    limits: { memory: "256Mi" }

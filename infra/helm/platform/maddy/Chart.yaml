@@ -1,0 +1,13 @@
+apiVersion: v2
+name: maddy
+description: |
+  Outbound mail submission and DKIM signing (ADR-0307). Production only: non-production
+  environments deliver to Mailpit, which carries no outbound path at all, so the
+  never-deliver rule there is a property of the component rather than a setting on it.
+
+  Submission and signing, and nothing else. No inbound listener, no mailbox store, no
+  IMAP surface — the platform sends mail and does not receive it, and a mailbox system
+  is separate infrastructure with its own egress IP and its own DKIM selector.
+type: application
+version: 0.1.0
+appVersion: "0.9.5"

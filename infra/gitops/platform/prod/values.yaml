@@ -20,7 +20,17 @@ alertmanager:
     to: platform-alerts@example.com
     from: alertmanager@mail.example.com
     smarthost: maddy.platform.svc.cluster.local:587
-    requireTLS: true
+    # False, and it is the same posture as every other east-west hop here rather
+    # than an exception: Postgres, OpenFGA and Temporal are all reached in the
+    # clear inside the namespace, because ADR-0305 defers per-workload certificate
+    # identity and the network policy is what admits a caller. maddy's submission
+    # listener follows that, and the four senders its policy names are the only
+    # things that can reach it.
+    #
+    # It was `true` against a maddy that did not exist, so it had never been true
+    # of anything. When ADR-0305's deferred trigger fires, this and maddy's `tls`
+    # line move together.
+    requireTLS: false
 
 # ...which is exactly why this is on. With no store in the cluster, every write
 # leaves it: Loki, Tempo and postgres' `backup.s3.endpointURL` address the
@@ -31,6 +41,22 @@ alertmanager:
 # turning this on is the failure mode — Postgres keeps serving while WAL archiving
 # silently fails in the background, and nothing pages until a restore is needed.
 externalObjectStorage: true
+
+# maddy is the production mail path (ADR-0307), and production is the only
+# environment that has one: every other sinks to Mailpit, which cannot deliver.
+# Read as a pair with `mailpit.enabled: false` above — an environment with neither
+# has no delivery path at all, which is identity verification silently failing.
+maddy:
+  enabled: true
+  hostname: mail.example.com
+
+# The policy follows the chart. network-policies renders maddy's rules only when
+# the workload exists, and its egress is this platform's only allow to an
+# arbitrary host on port 25.
+maddyEnabled: true
+
+# Alertmanager's `ticket` receiver relays through maddy rather than the sink
+# (ADR-0502), which the smarthost above already names.
 
 # Top-level `cluster:` — the postgres chart's own values schema has no
 # `postgres:` namespace wrapper (unlike the dependency subcharts below).

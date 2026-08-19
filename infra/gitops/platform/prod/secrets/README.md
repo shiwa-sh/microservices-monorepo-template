@@ -29,6 +29,14 @@ spec:
       stringData:
         username: ""
         password: ""
+    # The read-only inspector role (ADR-0401). CNPG reconciles this password onto
+    # the `readonly` role the cluster creates at bootstrap; pgweb connects as it,
+    # so the inspector cannot write even if its own flag is lost.
+    - name: postgres-readonly
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: readonly
+        password: ""
     - name: temporal-db-creds
       stringData:
         password: ""
@@ -53,4 +61,29 @@ spec:
         # Production submits through maddy (ADR-0307), so this is a real
         # submission endpoint. Mailpit is not deployed here.
         smtpConnectionURI: ""
+    # The registry's push and pull credentials, and the store credential it reads
+    # and writes S3 with (ADR-0105). `htpasswd` holds one BCRYPT line per identity
+    # — an apr1 file loads without complaint and then refuses every password.
+    #
+    #   htpasswd -nbB ci <push-password>
+    #   htpasswd -nbB cluster <pull-password>
+    - name: zot-credentials
+      stringData:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        htpasswd: ""
+    # maddy's DKIM private key (ADR-0307). Its public half goes in the TXT record
+    # at `<selector>._domainkey.mail.example.com`, and the two must be generated
+    # together: maddy MINTS a key when this is absent, which yields an agent that
+    # signs every message with a key no DNS record matches.
+    - name: maddy-dkim
+      stringData:
+        private.key: ""
+    # The submission credential Kratos, the services and Alertmanager authenticate
+    # with. The hash, not the password — this value reaches maddy's config file.
+    #
+    #   maddy hash --password <submission-password>
+    - name: maddy-submission
+      stringData:
+        password_hash: ""
 ```

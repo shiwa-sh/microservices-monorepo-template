@@ -1,0 +1,54 @@
+{{- if .Values.maddyEnabled }}
+{{- /*
+maddy — outbound mail submission (ADR-0307). Gated on the same flag the chart is,
+because a policy for a workload that does not exist is a policy nobody reads.
+
+The egress half is what makes this different from every other component here. Mail
+delivery is a connection to a stranger's server on port 25, chosen by an MX lookup
+at send time — so this is the one workload whose egress cannot be an allow-list of
+known peers, and `toEntities: [world]` on 25 is the honest expression of that.
+
+Port 25 outbound and NOT 587: 587 is submission, which is what senders use to reach
+maddy; delivery between mail servers is 25. A policy that opened 587 outbound would
+admit no mail and look correct.
+*/}}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: maddy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: maddy
+  ingress:
+    # Kratos sends verification and recovery mail; the services send whatever they
+    # send. Both speak SMTP submission — no sender embeds a provider SDK, which is
+    # what keeps the relay target a configuration value.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: kratos }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: ory-kratos-courier }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/part-of: service }
+        # Alertmanager's `ticket` receiver relays through here (ADR-0502).
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager }
+      toPorts:
+        - ports: [{ port: "587", protocol: TCP }]
+  egress:
+    - toEntities: [world]
+      toPorts:
+        - ports: [{ port: "25", protocol: TCP }]
+    # MX, DANE `TLSA`, and MTA-STS records are all DNS lookups, and delivery cannot
+    # start without them. The baseline's DNS allow covers kube-dns; this is the
+    # rule that says so out loud, because a mail agent that cannot resolve fails as
+    # a queue that never drains.
+    - toEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
+      toPorts:
+        - ports: [{ port: "53", protocol: UDP }, { port: "53", protocol: TCP }]
+    # MTA-STS policies are fetched over HTTPS from the receiver's `mta-sts`
+    # subdomain (RFC 8461). Without this, every MTA-STS receiver falls back to the
+    # `local_policy` floor, which defers rather than downgrades — so the symptom is
+    # mail that stops moving rather than mail sent in the clear.
+    - toEntities: [world]
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+{{- end }}

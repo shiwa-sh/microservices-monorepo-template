@@ -1,0 +1,74 @@
+# Mail delivery, watched from both ends (ADR-0307, routed by ADR-0502).
+#
+# ADR-0307 names the signal that matters and it is not the agent's: "the identity
+# flow's completion rate — a verification mail that never lands shows up as a drop
+# there, before a support ticket". The agent's own metrics say a message was
+# accepted for delivery, which is exactly what a message that is later dropped
+# also looks like.
+#
+# So there are two rules here and they answer different questions. The submission
+# rule asks whether this platform managed to hand mail over. The completion rule
+# asks whether mail arrived, and it is the one that catches a correctly signed
+# message rejected by a receiver for a reason nothing on this side logs.
+#
+# Both are `ticket`. Mail failing is not a minutes-matter outage — it is hours of
+# users unable to verify — and no receiver reaches a human within minutes anyway
+# (ADR-0502).
+groups:
+  - name: mail.submission
+    rules:
+      # maddy refusing or failing submissions. The senders are Kratos, the services
+      # and Alertmanager; a submission failure means the message never entered the
+      # queue, so no retry is pending and nothing will deliver it later.
+      - alert: MailSubmissionFailing
+        expr: |
+          sum(rate(errors_total{kind="dependency", service_name="kratos"}[10m])) > 0
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Mail submission is failing"
+          description: >-
+            The courier cannot hand messages to the submission endpoint. Verification
+            and recovery mail is not being sent at all — this is upstream of
+            deliverability, so DNS and DKIM are not the place to look first.
+      # The queue draining is what says delivery is working. A queue that grows
+      # without bound is a receiver deferring us, which is what a reputation problem
+      # looks like from this side.
+      - alert: MailQueueGrowing
+        expr: |
+          increase(maddy_queue_length[1h]) > 0 and maddy_queue_length > 50
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "The outbound mail queue is growing"
+          description: >-
+            Messages are entering the queue faster than they leave it. A receiver is
+            deferring: check the DMARC aggregate reports and whether the egress IP is
+            listed anywhere before changing configuration.
+
+  - name: mail.identity-flow
+    rules:
+      # ADR-0307's named signal, and the one that survives a correctly configured
+      # agent. A verification mail that is accepted by maddy, signed, and then
+      # silently discarded by the receiver produces no error anywhere on this
+      # platform — the only trace is that identities stop completing verification.
+      #
+      # It reads the ratio of verifications completed to registrations started. The
+      # windows are hours rather than minutes because that is how long a person
+      # takes to open an email, and a shorter window would alert on lunch.
+      - alert: IdentityVerificationCompletionDropped
+        expr: |
+          (
+            sum(increase(http_server_request_duration_seconds_count{http_route="/self-service/verification", http_response_status_code=~"2.."}[6h]))
+            / (sum(increase(http_server_request_duration_seconds_count{http_route="/self-service/registration", http_response_status_code=~"2.."}[6h])) > 10)
+          ) < 0.5
+        for: 1h
+        labels: { severity: ticket }
+        annotations:
+          summary: "Fewer than half of new identities are completing verification"
+          description: >-
+            The signal ADR-0307 names for a dropped verification mail. The mail path
+            can be entirely healthy from this side — accepted, signed, queued, sent —
+            and still land nowhere, so check the receiver's authentication results
+            and the DMARC reports rather than the agent's logs. The denominator guard
+            keeps a quiet period from firing this.

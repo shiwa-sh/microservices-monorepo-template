@@ -1,0 +1,99 @@
+{{- if .Values.maddy.enabled }}
+{{- /*
+A StatefulSet, because the queue is the point. An outbound agent holds messages a
+receiver asked it to retry, sometimes for days, and a queue on an emptyDir is a
+queue that loses exactly the messages that were hardest to deliver. The MTA-STS
+policy cache lives on the same volume, where losing it costs a re-fetch rather
+than a message.
+
+One replica, and not a value. Two maddy instances sharing one submission Service
+would deliver from one egress IP with two queues and two DKIM signers reading one
+key — the reputation argument in ADR-0307 assumes one sender, and scale-out is a
+different decision than this chart's.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: maddy
+  labels: &labels
+    app: maddy
+    app.kubernetes.io/name: maddy
+    app.kubernetes.io/part-of: platform
+spec:
+  serviceName: maddy
+  replicas: 1
+  selector:
+    matchLabels:
+      app: maddy
+  template:
+    metadata:
+      labels: *labels
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: maddy
+          image: "{{ .Values.maddy.image.repository }}:{{ .Values.maddy.image.tag }}"
+          imagePullPolicy: {{ .Values.maddy.image.pullPolicy }}
+          args: ["-config", "/etc/maddy/maddy.conf", "run"]
+          env:
+            # The submission password, as the hash maddy's pass_table compares
+            # against. A hash rather than the password: this value reaches the
+            # config file, and a config file is not a secret store.
+            - name: MADDY_SUBMISSION_HASH
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.maddy.submission.secretName }}, key: password_hash }
+          ports:
+            - { name: submission, containerPort: {{ .Values.maddy.submission.port }} }
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - { name: config, mountPath: /etc/maddy, readOnly: true }
+            # The DKIM key, read-only and REQUIRED. `optional` is deliberately
+            # absent: maddy generates a keypair when this path is missing, so an
+            # optional mount would produce a running agent signing with a key no
+            # DNS record matches — every message failing DKIM, and nothing
+            # unhealthy to notice. A missing Secret must stop the pod instead.
+            - { name: dkim, mountPath: /run/secrets/dkim, readOnly: true }
+            - { name: state, mountPath: /data }
+          livenessProbe:
+            tcpSocket: { port: submission }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          # The submission port answering IS readiness here: there is no health
+          # endpoint on an SMTP agent, and a socket that accepts is one a sender
+          # can hand a message to.
+          readinessProbe:
+            tcpSocket: { port: submission }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{ toYaml .Values.maddy.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap: { name: maddy }
+        - name: dkim
+          secret:
+            secretName: {{ .Values.maddy.dkim.secretName }}
+            items:
+              - { key: private.key, path: private.key }
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.maddy.persistence.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.maddy.persistence.size }}
+{{- end }}

@@ -1,0 +1,21 @@
+; Mail authentication records for the prod environment (ADR-0307).
+; Placeholders are marked <…> and every one of them is environment-specific.
+
+; The submission agent's own name. It must match maddy's HELO name and the PTR
+; record of the dedicated egress IP; receivers check all three against each other.
+mail.example.com.                     IN  A     <egress-ip>
+
+; SPF authorises exactly one sender for this subdomain: the egress IP maddy sends
+; from. `-all` and not `~all` — a soft fail asks receivers to accept mail this
+; platform did not send, which is the opposite of what the record is for.
+mail.example.com.                     IN  TXT   "v=spf1 ip4:<egress-ip> -all"
+
+; The DKIM public half. Its private half is in the environment's SopsSecret as
+; `maddy-dkim`; the two are generated together and neither is useful alone.
+default._domainkey.mail.example.com.  IN  TXT   "v=DKIM1; k=rsa; p=<dkim-public-key>"
+
+; DMARC is published ONCE at the organisation domain and governs the mail
+; subdomain through `sp=`, so platform mail and human mail report into one place.
+; `p=none` until the aggregate reports are clean; an environment is not treated as
+; production until this reads `p=reject`.
+_dmarc.example.com.                   IN  TXT   "v=DMARC1; p=none; sp=none; fo=1; rua=mailto:dmarc@example.com"

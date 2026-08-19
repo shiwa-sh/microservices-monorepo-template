@@ -1,0 +1,75 @@
+{{- if .Values.maddy.enabled }}
+{{- /*
+maddy's configuration, which is the whole component (ADR-0307). It is a submission
+endpoint and a DKIM signer, and the things it does NOT contain are as decided as
+the things it does: no `smtp` endpoint on 25, no `storage.imapsql`, no local
+mailboxes, no alias table. The platform sends mail and does not receive it, so an
+inbound listener would be a surface with nothing behind it.
+
+Two blocks carry the transport-security rule, and both are required for it:
+`mx_auth` opts into DANE and MTA-STS where a receiver publishes either, and
+`local_policy`'s `min_tls_level encrypted` is what makes a failed policy validation
+a DEFERRED message rather than a cleartext one. Removing either turns the rule into
+best-effort silently.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maddy
+  labels: &labels
+    app: maddy
+    app.kubernetes.io/name: maddy
+    app.kubernetes.io/part-of: platform
+data:
+  maddy.conf: |
+    $(hostname) = {{ .Values.maddy.hostname }}
+    $(primary_domain) = {{ .Values.maddy.hostname }}
+
+    # Submission arrives over the pod network from Kratos and the services, which
+    # the network policy admits and nothing else reaches. Per-workload certificate
+    # identity is a deferred decision (ADR-0305); when it lands, this is where the
+    # submission listener gains its certificate.
+    tls off
+    hostname $(hostname)
+
+    auth.pass_table submission_auth {
+        table static {
+            entry {{ .Values.maddy.submission.username }} "{env:MADDY_SUBMISSION_HASH}"
+        }
+    }
+
+    submission tcp://0.0.0.0:{{ .Values.maddy.submission.port }} {
+        limits {
+            all rate 50 1s
+        }
+        auth &submission_auth
+        default_source {
+            default_destination {
+                modify {
+                    dkim $(primary_domain) $(primary_domain) {{ .Values.maddy.dkim.selector }} {
+                        key_path /run/secrets/dkim/private.key
+                    }
+                }
+                deliver_to &outbound_delivery
+            }
+        }
+    }
+
+    target.remote outbound_delivery {
+        limits {
+            destination rate 20 1s
+            destination concurrency 10
+        }
+        mx_auth {
+            dane
+            mtasts {
+                cache fs
+                fs_dir /data/mtasts_cache/
+            }
+            local_policy {
+                min_tls_level encrypted
+                min_mx_level none
+            }
+        }
+    }
+{{- end }}

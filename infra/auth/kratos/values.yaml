@@ -127,6 +127,17 @@ kratos:
       courier:
         smtp:
           connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false"
+          # The platform's sender identity, and it is a decision rather than a
+          # default (ADR-0307). Kratos configures none, so it sends as its own
+          # upstream default — `no-reply@ory.kratos.sh`, confirmed on a live
+          # message in the sink.
+          #
+          # It must be on the subdomain maddy signs for. SPF and DKIM authenticate
+          # `mail.example.com`; a `From:` outside that domain fails DMARC
+          # ALIGNMENT even though the message is signed correctly, so the mail is
+          # rejected for a reason no log on this side reports.
+          from_address: no-reply@mail.example.com
+          from_name: Platform
   # Cookie/cipher/system secrets + dsn come from a SOPS-managed Secret, never
   # inline values (ADR-0202, Phase 5). `secret` is a top-level kratos-subchart key
   # (sibling of the `kratos:` config block above), so it sits one level up. Every

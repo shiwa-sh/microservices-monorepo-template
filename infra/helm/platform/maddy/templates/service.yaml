@@ -1,0 +1,15 @@
+{{- if .Values.maddy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: maddy
+  labels:
+    app: maddy
+    app.kubernetes.io/name: maddy
+    app.kubernetes.io/part-of: platform
+spec:
+  selector:
+    app: maddy
+  ports:
+    - { name: submission, port: {{ .Values.maddy.submission.port }}, targetPort: submission }
+{{- end }}

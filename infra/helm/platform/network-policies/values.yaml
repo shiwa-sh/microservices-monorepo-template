@@ -38,3 +38,8 @@ mailpit:
 # Alertmanager's policy (45-alertmanager.yaml) renders only where it runs.
 alertmanager:
   enabled: true
+
+# maddy is production-only (ADR-0307), and its policy follows the chart. A rule
+# selecting a workload that does not exist is inert, and inert rules are how a
+# policy file stops being read.
+maddyEnabled: false
