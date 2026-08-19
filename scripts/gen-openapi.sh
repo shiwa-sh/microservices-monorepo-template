@@ -52,3 +52,11 @@ for spec in services/*/openapi.yaml; do
 }
 JSON
 done
+
+# The lockfile, because the block above just wrote workspace manifests. Each
+# generated SDK is a workspace package (`libs/ts/sdks/*` is in the root
+# `workspaces` glob), so adding a service adds a package — and CI installs with
+# `--frozen-lockfile`, which rejects a lockfile that does not already know about
+# it. Without this, generating a spec produces a tree that builds locally and
+# fails on the first clean install.
+bun install >/dev/null 2>&1 || true
