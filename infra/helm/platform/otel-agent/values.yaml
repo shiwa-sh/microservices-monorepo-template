@@ -83,6 +83,12 @@ opentelemetry-collector:
       - apiGroups: [""]
         resources: ["nodes/stats", "nodes/proxy"]
         verbs: ["get", "list", "watch"]
+      # kubelet's own /metrics endpoint authorizes against a THIRD subresource,
+      # separate from the two above: without it the scrape below gets a 403 and
+      # the collector reports a target down rather than a permission problem.
+      - apiGroups: [""]
+        resources: ["nodes/metrics"]
+        verbs: ["get"]
       # PVC/PV reads for the kubeletstats `volume` metric group's k8s_api_config,
       # which turns per-volume series keyed by the in-pod name ("data", shared by
       # every StatefulSet) into series keyed by the actual claim.
@@ -133,6 +139,40 @@ opentelemetry-collector:
               scrape_interval: 30s
               static_configs:
                 - targets: ["${env:K8S_NODE_IP}:9965"]
+      # Image-pull outcomes from the local kubelet's own /metrics endpoint. This is
+      # the collector the deferral register recorded as missing for ADR-0105's
+      # registry-mirroring trigger: an image-pull failure is a kubelet metric, and
+      # nothing here was reading one — so the trigger read as watched while no
+      # series behind it existed.
+      #
+      # Node-local and unauthenticated to no one: same pattern as the hubble scrape
+      # and kubeletstats above, reading only this pod's own node.
+      #
+      # `keep` on two metric families and nothing else. The kubelet exposes several
+      # thousand series and this stack has a cardinality budget (ADR-0500), so a
+      # scrape of the whole endpoint would buy one signal and pay for all of them.
+      #
+      # Both families are [ALPHA] in kubelet's own stability marking (checked
+      # against v1.36.1), which means the names may change across a minor version.
+      # A rename shows up as the rule below going quiet rather than as an error,
+      # so it belongs with the cluster-upgrade checks rather than in review.
+      prometheus/kubelet:
+        config:
+          scrape_configs:
+            - job_name: kubelet
+              scrape_interval: 60s
+              scheme: https
+              tls_config:
+                insecure_skip_verify: true
+              authorization:
+                type: Bearer
+                credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              static_configs:
+                - targets: ["${env:K8S_NODE_IP}:10250"]
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: "kubelet_image_pull_duration_seconds.*|kubelet_runtime_operations_errors_total"
+                  action: keep
       # Per-pod/container/node CPU & memory from the local kubelet's Summary API
       # (ADR-0501 POC — the resource panels on the service-detail dashboard). Same
       # node-local pattern as the hubble scrape: this DaemonSet pod reads ONLY its
@@ -188,5 +228,5 @@ opentelemetry-collector:
     service:
       pipelines:
         traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
-        metrics: { receivers: [otlp, prometheus/hubble, kubeletstats], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
+        metrics: { receivers: [otlp, prometheus/hubble, prometheus/kubelet, kubeletstats], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
         logs:    { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }

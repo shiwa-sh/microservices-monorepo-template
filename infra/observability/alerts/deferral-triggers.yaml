@@ -10,9 +10,9 @@
 # every one of them on the ticket side, and a page would be a claim about a
 # human that none of them can support.
 #
-# Only two triggers are here because only two have a collected signal. The
-# register's other alertable rows name metrics this platform does not gather;
-# see the note in that document rather than assuming a rule was forgotten.
+# A trigger appears here only once something collects its signal. The register's
+# remaining rows name metrics this platform does not gather; see the note in that
+# document rather than assuming a rule was forgotten.
 groups:
   - name: deferral.storage
     rules:
@@ -58,3 +58,34 @@ groups:
             numbers describe the generator's limit rather than the platform's.
             This is the documented trigger for moving load generation in-cluster
             with k6-operator (docs/reference/deferral-register.md).
+
+  - name: deferral.registry
+    rules:
+      # ADR-0105's mirroring trigger: an upstream registry rate-limits or removes
+      # a pinned digest the cluster depends on. Both arrive as the same thing the
+      # node can see — the kubelet failing to pull — so the rule watches pull
+      # errors rather than trying to tell the two causes apart.
+      #
+      # The series comes from the kubelet's own /metrics endpoint, scraped by the
+      # node agent. It did not exist until that scrape was added: this row was
+      # `uncollected` in the register precisely because a rule without it would
+      # have been a rule that can never fire.
+      #
+      # `increase() > 0` over an hour rather than a rate threshold. A pull failure
+      # is not a volume problem — one is a signal, and a registry that has started
+      # refusing produces a handful, not a flood. `for: 15m` is what keeps a single
+      # transient retry from opening a ticket.
+      - alert: ImagePullsFailing
+        expr: |
+          increase(kubelet_runtime_operations_errors_total{operation_type="pull_image"}[1h]) > 0
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "The kubelet is failing to pull images — ADR-0105's mirroring trigger"
+          description: >-
+            Image pulls are failing on at least one node. If the cause is an
+            upstream registry rate-limiting or having removed a pinned digest,
+            this is the documented trigger for enabling pull-through mirroring in
+            the registry's config (docs/reference/deferral-register.md). Check
+            which image before reaching for the seam: a failing pull of a
+            first-party image is a different problem entirely.
