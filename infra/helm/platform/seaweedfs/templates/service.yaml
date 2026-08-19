@@ -1,4 +1,4 @@
-{{- if .Values.enabled }}
+{{- if .Values.seaweedfs.enabled }}
 {{- /*
 A stable `seaweedfs` name regardless of the release name. Under ArgoCD the release
 is `<env>-platform-seaweedfs`, and the consumers address the store by DNS from
@@ -17,6 +17,6 @@ spec:
   selector:
     app: seaweedfs
   ports:
-    - { name: s3, port: {{ .Values.service.s3Port }}, targetPort: s3 }
-    - { name: admin, port: {{ .Values.service.adminPort }}, targetPort: admin }
+    - { name: s3, port: {{ .Values.seaweedfs.service.s3Port }}, targetPort: s3 }
+    - { name: admin, port: {{ .Values.seaweedfs.service.adminPort }}, targetPort: admin }
 {{- end }}

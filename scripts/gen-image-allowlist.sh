@@ -33,12 +33,20 @@ CHECK=false
 
 OUT="infra/gitops/platform/image-allowlist.yaml"
 SHARED="infra/gitops/platform/shared-values.yaml"
-# The environment the list is generated FOR. Image repositories differ by
-# environment — the local tier pulls first-party images from the local registry where
-# a deployed one pulls them from ghcr — so the list is per-environment by nature,
-# and this is the one the template ships with.
+# The environment whose FIRST-PARTY image repositories the list carries. Those
+# differ by environment — the local tier pulls them from the local registry where a
+# deployed one pulls them from ghcr — so the list is per-environment by nature, and
+# this is the one the template ships with.
 ENV_NAME="local"
-ENV_VALUES="infra/gitops/platform/${ENV_NAME}/values.yaml"
+
+# Third-party images, though, are collected across EVERY environment's values, and
+# that is not a refinement. A chart gated off in the local tier renders nothing
+# here, so its image never reached the list — and the list is what Kyverno admits
+# against, in the environment where the chart IS enabled. maddy is the case that
+# showed it: production-only by decision (ADR-0307), and therefore invisible to a
+# generator that reads one environment. The failure would have been an admission
+# rejection in production for an image the platform ships on purpose.
+ALL_ENVS="local dev staging prod"
 
 # collect_images reads rendered YAML on stdin and prints one image reference per
 # line, from two places.
@@ -109,12 +117,16 @@ for dir in infra/helm/platform/*/; do
   #
   # The paths are relative to the chart, as they are in the appsets. A chart that
   # does not declare the value ignores it.
-  helm template "$name" "$dir" -f "$SHARED" -f "$ENV_VALUES" \
-    --set-file "seed.model=infra/auth/openfga/model.json" \
-    --set-file "policies.publicKey=infra/auth/cosign/cosign.pub" \
-    --set-file 'kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json' \
-    --set-file "oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json" \
-    2>/dev/null | collect_images >>"$images" || true
+  for env in $ALL_ENVS; do
+    env_values="infra/gitops/platform/${env}/values.yaml"
+    [ -f "$env_values" ] || continue
+    helm template "$name" "$dir" -f "$SHARED" -f "$env_values" \
+      --set-file "seed.model=infra/auth/openfga/model.json" \
+      --set-file "policies.publicKey=infra/auth/cosign/cosign.pub" \
+      --set-file 'kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json' \
+      --set-file "oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json" \
+      2>/dev/null | collect_images >>"$images" || true
+  done
 done
 
 # The service chart, once PER SERVICE with that service's values — the same way the

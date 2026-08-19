@@ -1,4 +1,4 @@
-{{- if .Values.enabled }}
+{{- if .Values.seaweedfs.enabled }}
 {{- /*
 `weed mini` — master, volume, filer, S3 gateway and admin UI in one process
 (ADR-0207). A StatefulSet rather than a Deployment because the identity and the
@@ -40,13 +40,13 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: seaweedfs
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.seaweedfs.image.repository }}:{{ .Values.seaweedfs.image.tag }}"
+          imagePullPolicy: {{ .Values.seaweedfs.image.pullPolicy }}
           args:
             - mini
             - -dir=/data
-            - -master.telemetry={{ .Values.telemetry }}
-            - -bucket={{ join "," .Values.buckets }}
+            - -master.telemetry={{ .Values.seaweedfs.telemetry }}
+            - -bucket={{ join "," .Values.seaweedfs.buckets }}
             # Kubernetes expands `$(VAR)` in args from the container's own env, so
             # the password reaches the flag without appearing in the pod spec.
             # `weed` takes it as a flag and nothing else — there is no environment
@@ -59,16 +59,16 @@ spec:
             # fails closed rather than opening the store.
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
-                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_ACCESS_KEY_ID }
+                secretKeyRef: { name: {{ .Values.seaweedfs.credentialsSecret }}, key: AWS_ACCESS_KEY_ID }
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
-                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_SECRET_ACCESS_KEY }
+                secretKeyRef: { name: {{ .Values.seaweedfs.credentialsSecret }}, key: AWS_SECRET_ACCESS_KEY }
             - name: ADMIN_PASSWORD
               valueFrom:
-                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: ADMIN_PASSWORD }
+                secretKeyRef: { name: {{ .Values.seaweedfs.credentialsSecret }}, key: ADMIN_PASSWORD }
           ports:
-            - { name: s3, containerPort: {{ .Values.service.s3Port }} }
-            - { name: admin, containerPort: {{ .Values.service.adminPort }} }
+            - { name: s3, containerPort: {{ .Values.seaweedfs.service.s3Port }} }
+            - { name: admin, containerPort: {{ .Values.seaweedfs.service.adminPort }} }
           # `restricted` (ADR-0200). The root filesystem is read-only, which the
           # process tolerates only because /tmp is writable below: it opens unix
           # sockets at /tmp/seaweedfs-<component>-<port>.sock for the in-process
@@ -92,7 +92,7 @@ spec:
             httpGet: { path: /status, port: s3 }
             initialDelaySeconds: 30
             periodSeconds: 30
-          resources: {{ toYaml .Values.resources | nindent 12 }}
+          resources: {{ toYaml .Values.seaweedfs.resources | nindent 12 }}
       volumes:
         - name: tmp
           emptyDir: {}
@@ -101,10 +101,10 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
-        {{- with .Values.persistence.storageClassName }}
+        {{- with .Values.seaweedfs.persistence.storageClassName }}
         storageClassName: {{ . }}
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.persistence.size }}
+            storage: {{ .Values.seaweedfs.persistence.size }}
 {{- end }}

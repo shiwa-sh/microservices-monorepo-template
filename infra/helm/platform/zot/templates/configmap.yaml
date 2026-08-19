@@ -1,4 +1,4 @@
-{{- if .Values.enabled }}
+{{- if .Values.zot.enabled }}
 {{- /*
 The registry's configuration, which ADR-0105 makes a committed file rather than
 API state. It is rendered from values so the per-environment deltas (bucket,
@@ -37,28 +37,28 @@ data:
       "storage": {
         "rootDirectory": "/var/lib/zot",
         "dedupe": false,
-        "gc": {{ .Values.storage.gc }},
-        "gcDelay": "{{ .Values.storage.gcDelay }}",
-        "gcInterval": "{{ .Values.storage.gcInterval }}",
+        "gc": {{ .Values.zot.storage.gc }},
+        "gcDelay": "{{ .Values.zot.storage.gcDelay }}",
+        "gcInterval": "{{ .Values.zot.storage.gcInterval }}",
         "storageDriver": {
           "name": "s3",
-          "region": "{{ .Values.storage.region }}",
-          "bucket": "{{ .Values.storage.bucket }}",
-          "regionendpoint": "{{ .Values.storage.endpoint }}",
-          "secure": {{ .Values.storage.secure }},
+          "region": "{{ .Values.zot.storage.region }}",
+          "bucket": "{{ .Values.zot.storage.bucket }}",
+          "regionendpoint": "{{ .Values.zot.storage.endpoint }}",
+          "secure": {{ .Values.zot.storage.secure }},
           "forcepathstyle": true
         }
       },
       "http": {
         "address": "0.0.0.0",
-        "port": "{{ .Values.service.port }}",
+        "port": "{{ .Values.zot.service.port }}",
         "auth": { "htpasswd": { "path": "/etc/zot-auth/htpasswd" } },
         "accessControl": {
           "repositories": {
             "**": {
               "policies": [
-                { "users": ["{{ .Values.auth.pushUser }}"], "actions": ["read", "create", "update"] },
-                { "users": ["{{ .Values.auth.pullUser }}"], "actions": ["read"] }
+                { "users": ["{{ .Values.zot.auth.pushUser }}"], "actions": ["read", "create", "update"] },
+                { "users": ["{{ .Values.zot.auth.pullUser }}"], "actions": ["read"] }
               ],
               "defaultPolicy": [],
               "anonymousPolicy": []

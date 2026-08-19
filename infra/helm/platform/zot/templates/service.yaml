@@ -1,4 +1,4 @@
-{{- if .Values.enabled }}
+{{- if .Values.zot.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -11,5 +11,5 @@ spec:
   selector:
     app: zot
   ports:
-    - { name: http, port: {{ .Values.service.port }}, targetPort: http }
+    - { name: http, port: {{ .Values.zot.service.port }}, targetPort: http }
 {{- end }}

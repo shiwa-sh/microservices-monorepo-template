@@ -1,56 +1,62 @@
-# zot — the image registry (ADR-0105).
-#
-# `enabled` is the umbrella gate. The local tier sets it false: the inner loop
-# pushes to the shared local registry at `registry.localhost:5000`, which exists
-# so a working-tree image never needs a registry the cluster has to authenticate
-# to (ADR-0600).
-enabled: true
+# Values namespaced under `zot:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions. A
+# top-level key here would be read by every OTHER chart's render of the same
+# file — and, worse, this chart would ignore the per-environment override that
+# names it, which is how a production-disabled component stays enabled.
+zot:
+  # zot — the image registry (ADR-0105).
+  #
+  # `enabled` is the umbrella gate. The local tier sets it false: the inner loop
+  # pushes to the shared local registry at `registry.localhost:5000`, which exists
+  # so a working-tree image never needs a registry the cluster has to authenticate
+  # to (ADR-0600).
+  enabled: true
 
-image:
-  repository: ghcr.io/project-zot/zot-linux-amd64
-  tag: "v2.1.20"
-  pullPolicy: IfNotPresent
+  image:
+    repository: ghcr.io/project-zot/zot-linux-amd64
+    tag: "v2.1.20"
+    pullPolicy: IfNotPresent
 
-# The S3 bucket zot stores images and their referrers in, on the platform's own
-# object store. Image data is never on a node volume (ADR-0105).
-storage:
-  bucket: zot-images
-  endpoint: seaweedfs.platform.svc.cluster.local:8333
-  region: us-east-1
-  # http, not https: the store is in-cluster and the hop does not leave it. The
-  # off-cluster production store is reached over TLS, which is why this is a value
-  # rather than a constant.
-  secure: false
-  # Untagged manifests unreferenced by a signature or an environment's values are
-  # collected on a schedule (ADR-0105). `gcDelay` is the grace an in-flight push
-  # gets before its blobs count as garbage — shorter than a slow push and the
-  # push collects its own layers.
-  gc: true
-  gcDelay: 1h
-  gcInterval: 24h
+  # The S3 bucket zot stores images and their referrers in, on the platform's own
+  # object store. Image data is never on a node volume (ADR-0105).
+  storage:
+    bucket: zot-images
+    endpoint: seaweedfs.platform.svc.cluster.local:8333
+    region: us-east-1
+    # http, not https: the store is in-cluster and the hop does not leave it. The
+    # off-cluster production store is reached over TLS, which is why this is a value
+    # rather than a constant.
+    secure: false
+    # Untagged manifests unreferenced by a signature or an environment's values are
+    # collected on a schedule (ADR-0105). `gcDelay` is the grace an in-flight push
+    # gets before its blobs count as garbage — shorter than a slow push and the
+    # push collects its own layers.
+    gc: true
+    gcDelay: 1h
+    gcInterval: 24h
 
-# Credentials, both halves, from one SOPS-encrypted Secret (ADR-0105, ADR-0202):
-#
-#   htpasswd                 bcrypt lines for the two identities below
-#   AWS_ACCESS_KEY_ID        the store credential zot reads and writes S3 with
-#   AWS_SECRET_ACCESS_KEY
-#
-# bcrypt specifically: zot loads an apr1 file without complaint, reports the right
-# number of users, and then refuses every password (observed 2026-08-19 on 2.1.20).
-credentialsSecret: zot-credentials
+  # Credentials, both halves, from one SOPS-encrypted Secret (ADR-0105, ADR-0202):
+  #
+  #   htpasswd                 bcrypt lines for the two identities below
+  #   AWS_ACCESS_KEY_ID        the store credential zot reads and writes S3 with
+  #   AWS_SECRET_ACCESS_KEY
+  #
+  # bcrypt specifically: zot loads an apr1 file without complaint, reports the right
+  # number of users, and then refuses every password (observed 2026-08-19 on 2.1.20).
+  credentialsSecret: zot-credentials
 
-# The two identities ADR-0105 names. Anonymous gets nothing — no policy, so a
-# request without credentials is refused before any repository rule is consulted.
-auth:
-  pushUser: ci
-  pullUser: cluster
+  # The two identities ADR-0105 names. Anonymous gets nothing — no policy, so a
+  # request without credentials is refused before any repository rule is consulted.
+  auth:
+    pushUser: ci
+    pullUser: cluster
 
-service:
-  port: 5000
+  service:
+    port: 5000
 
-# ADR-0204. The registry is on the critical path for pod starts, so the limit is
-# the one that decides whether a scale-up succeeds; it is set for a concurrent
-# multi-layer pull rather than for the idle case.
-resources:
-  requests: { cpu: "50m", memory: "256Mi" }
-  limits: { memory: "1Gi" }
+  # ADR-0204. The registry is on the critical path for pod starts, so the limit is
+  # the one that decides whether a scale-up succeeds; it is set for a concurrent
+  # multi-layer pull rather than for the idle case.
+  resources:
+    requests: { cpu: "50m", memory: "256Mi" }
+    limits: { memory: "1Gi" }

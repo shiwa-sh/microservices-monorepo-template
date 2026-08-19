@@ -1,4 +1,4 @@
-{{- if .Values.enabled }}
+{{- if .Values.zot.enabled }}
 {{- /*
 A Deployment, not a StatefulSet: every byte that matters is in the object store,
 and `/var/lib/zot` holds only the metadata cache zot rebuilds by reading the
@@ -40,19 +40,19 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: zot
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.zot.image.repository }}:{{ .Values.zot.image.tag }}"
+          imagePullPolicy: {{ .Values.zot.image.pullPolicy }}
           env:
             # The store credential. zot reads it the way every AWS SDK does, so
             # there is nothing registry-specific about this pair.
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
-                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_ACCESS_KEY_ID }
+                secretKeyRef: { name: {{ .Values.zot.credentialsSecret }}, key: AWS_ACCESS_KEY_ID }
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
-                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_SECRET_ACCESS_KEY }
+                secretKeyRef: { name: {{ .Values.zot.credentialsSecret }}, key: AWS_SECRET_ACCESS_KEY }
           ports:
-            - { name: http, containerPort: {{ .Values.service.port }} }
+            - { name: http, containerPort: {{ .Values.zot.service.port }} }
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -84,13 +84,13 @@ spec:
             tcpSocket: { port: http }
             initialDelaySeconds: 30
             periodSeconds: 30
-          resources: {{ toYaml .Values.resources | nindent 12 }}
+          resources: {{ toYaml .Values.zot.resources | nindent 12 }}
       volumes:
         - name: config
           configMap: { name: zot }
         - name: auth
           secret:
-            secretName: {{ .Values.credentialsSecret }}
+            secretName: {{ .Values.zot.credentialsSecret }}
             items:
               - { key: htpasswd, path: htpasswd }
         - name: cache
