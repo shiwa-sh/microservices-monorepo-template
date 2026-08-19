@@ -254,6 +254,7 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - **Deferring i18n risks a painful retrofit.** Mitigated by the one-file-per-route-group string layout.
 - **A green axe run is not WCAG conformance.** Automated scanning catches only the machine-checkable subset of the success criteria; the rest — meaningful alt text, sensible reading order, whether a flow is completable by keyboard — is not detectable by a tool. The AA claim rests on the primitives being right and on the keyboard pass, and the gate only prevents regressions in the part a machine can see.
 - **AA is claimed for first-party surfaces and refused for vendored ones.** A user who needs it meets an accessible product panel and an inaccessible Grafana. This is honest rather than good, and it is the direct cost of not building operator tooling.
+- **The Lighthouse thresholds move with the speed of the machine that runs them.** A before/after is a comparison only when both sides were measured in one session; `environment.benchmarkIndex` in each report is what says whether they were.
 - **A Server Action is an implicit endpoint.** Its surface is defined by what the function accepts rather than by a spec, so it is limited to single-service mutations and never becomes an ad-hoc API for another consumer.
 
 ## Rules
@@ -284,6 +285,10 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - The frontend contains no development-only authentication code. `(CI: lint:auth-inline)`
 - Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector. Faro's session id is in-memory and per-page; the ops path writes nothing to client-side storage ([ADR-0700](0700-analytics.md)).
 - Server logs are structured JSON to stdout. `(CI: ci:lint)`
+- A client provider mounts at the route group that consumes it. Only providers that must wrap every route belong in the root layout.
+- A browser SDK not needed for first paint is loaded with a dynamic `import()`. A static import decides when a bundle is downloaded and parsed, which deferring the call does not change — so nothing in the initial graph may statically import one.
+- A redirect that can be decided before rendering is issued from the proxy, not from a page. Behind a `loading.tsx` boundary a page-level redirect ships as a rendered 200.
+- Server components do not call the identity provider. Browser flows reach it through the edge ([ADR-0304](0304-identity-and-authorization.md)), which is the only path the network policy allows.
 - Bundle budgets and the Lighthouse thresholds are merge gates.
 - Images go through `next/image` and fonts through `next/font`. `(CI: ci:lint)`
 - No i18n library is adopted; strings live in one file per route group.
