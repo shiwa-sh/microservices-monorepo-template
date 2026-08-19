@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 155 |
-| Review-enforced | 299 |
-| **Total** | **454** |
+| Machine-enforced | 157 |
+| Review-enforced | 304 |
+| **Total** | **461** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -552,6 +552,9 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Forms use react-hook-form and zod through the shared `<Form>` primitive. | review |
 | URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. | `ci:lint` in CI |
 | The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. | `lint:auth-inline` in CI |
+| An access denial is answered by its kind. No session redirects to the login flow carrying the current path and query; a session without permission renders in place, at the denied URL. | standard: RFC 9110 §15.5 |
+| Denials are raised once, in the fetch clients, and rendered by the framework's `unauthorized.tsx` and `forbidden.tsx`. A route carries no auth branch of its own, and the frontend computes no permission — the service decides ([ADR-0304](../adr/0304-identity-and-authorization.md)). | standard: OWASP ASVS V4.1.1 |
+| Browser calls to the API go through TanStack Query. A React boundary does not catch what an event handler throws, so a denial raised outside a render reaches no one. | review |
 | CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin. | standard: CSP Level 3 |
 | CSRF rests on the SameSite cookie, Kratos's built-in protection, and the Server Actions Origin check. Hand-rolled CSRF tokens are not added. | review |
 | Biome is the only lint and format tool. ESLint is not installed. | `ci:lint` in CI |
@@ -559,6 +562,10 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The frontend contains no development-only authentication code. | `lint:auth-inline` in CI |
 | Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector. Faro's session id is in-memory and per-page; the ops path writes nothing to client-side storage ([ADR-0700](../adr/0700-analytics.md)). | review |
 | Server logs are structured JSON to stdout. | `ci:lint` in CI |
+| A client provider mounts at the route group that consumes it. Only providers that must wrap every route belong in the root layout. | review |
+| A browser SDK not needed for first paint is loaded with a dynamic `import()`. A static import decides when a bundle is downloaded and parsed, which deferring the call does not change — so nothing in the initial graph may statically import one. | review |
+| A redirect that can be decided before rendering is issued from the proxy, not from a page. Behind a `loading.tsx` boundary a page-level redirect ships as a rendered 200. | review |
+| Server components do not call the identity provider. Browser flows reach it through the edge ([ADR-0304](../adr/0304-identity-and-authorization.md)), which is the only path the network policy allows. | review |
 | Bundle budgets and the Lighthouse thresholds are merge gates. | review |
 | Images go through `next/image` and fonts through `next/font`. | `ci:lint` in CI |
 | No i18n library is adopted; strings live in one file per route group. | review |

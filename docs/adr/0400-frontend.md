@@ -75,6 +75,7 @@ Tier 1 by exit cost ([ADR-0002](0002-tool-adoption.md)), because it is the desig
 | Lint and format | **Biome only** | Biome plus a minimal ESLint for the Next plugin is second-best. One tool wins; the Next-specific rules that matter are caught by `next build`, Lighthouse-CI, and the typed `next/image` and `next/font` APIs |
 | Unit test runner | **`bun test`** | Vitest and Jest duplicate a Jest-compatible runner the only JS runtime already ships |
 | Spec renderer | **Scalar** | Redoc's request console is paywalled, which negates the same-origin "try it" the URL layout was built for. A docs platform (Fern, Mintlify) is a separate stateful service duplicating the SDK codegen. **Stoplight Elements** is the equivalent-capability alternative, and the two are interchangeable because both render the same committed spec |
+| Access-denial UI | **the framework's `unauthorized.js` and `forbidden.js` interrupts** | An error boundary carries no status, misses a Server Action's return path, and renders every denial as a crash. A per-page check is the same branch written once per route, and the one that is forgotten fails silently |
 | Feature flags | **OpenFeature SDK, noop provider** | Vercel `flags` is runtime-specific and wrong for an in-cluster Bun runtime |
 | Component catalogue | **an in-repo kitchen-sink route** | Storybook is useful and not load-bearing with one app, where Figma is already the isolated visual catalogue. The deferral below carries the condition |
 | i18n | **deferred behind a trigger** | `next-intl` on day one is premature without a locale on the roadmap |
@@ -180,6 +181,23 @@ The **public docs portal** is anonymous with no login, the norm for public API d
 | Session | the Next.js proxy checks the Kratos session on `(panel)` and `(devportal)`; `(landing)` is public except its auth subtree. The proxy forwards a session-id header to server components, which never call Kratos directly |
 | Tokens | the frontend never mints, decodes, or validates JWTs. Server-component calls attach the user's cookie, and Oathkeeper validates it at the edge |
 
+### Access denials
+
+[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.2) splits the two failures, and the split decides the UI.
+
+| Failure | Means | Answer |
+| --- | --- | --- |
+| 401 | the request carries no usable session | redirect to the login flow, carrying path and query — signing in is the remedy |
+| 403 | the session is valid and the resource is refused | render at the denied address — signing in is no remedy, and the address is what the user gives to whoever grants access |
+
+The denial is raised in the fetch clients rather than by each caller: to a generated client a 403 is an empty result rather than an exception, and a page that renders it reads as a service returning no data. That is [CWE-280](https://cwe.mitre.org/data/definitions/280.html), which the [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html) names.
+
+The decision itself stays server-side, at the edge and in the service ([ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md)) — [ASVS](https://owasp.org/www-project-application-security-verification-standard/) V1.4.1 and V4.1.1. The frontend renders the answer and computes no permission.
+
+**A streamed response cannot carry the status.** The status line precedes the body, so a denial raised after the first `await` beneath a Suspense boundary arrives inside a `200` ([Next.js `loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading#status-codes)). `notFound()` behaves the same, so the property belongs to interrupts rather than to authorization.
+
+The status is therefore set where it can be set before a render — the proxy's session check — and conceded where it cannot.
+
 ### Content Security Policy
 
 CSP is a frontend responsibility because a strong policy needs a per-request nonce. The policy is written to [CSP Level 3](https://www.w3.org/TR/CSP3/); `strict-dynamic` and nonce sources are that level's, and host-allowlist policies are not used.
@@ -255,6 +273,7 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - **A green axe run is not WCAG conformance.** Automated scanning catches only the machine-checkable subset of the success criteria; the rest — meaningful alt text, sensible reading order, whether a flow is completable by keyboard — is not detectable by a tool. The AA claim rests on the primitives being right and on the keyboard pass, and the gate only prevents regressions in the part a machine can see.
 - **AA is claimed for first-party surfaces and refused for vendored ones.** A user who needs it meets an accessible product panel and an inaccessible Grafana. This is honest rather than good, and it is the direct cost of not building operator tooling.
 - **The Lighthouse thresholds move with the speed of the machine that runs them.** A before/after is a comparison only when both sides were measured in one session; `environment.benchmarkIndex` in each report is what says whether they were.
+- **The 401 page carries no `WWW-Authenticate` header**, which [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.2) requires of a 401. No registered scheme names a login form, and a `Basic` challenge opens the browser's own credential dialog instead of it. Mitigated by the header having no consumer on this surface: the page is reached by a browser holding a cookie, not by a client that could act on a challenge. The form that carries information is [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750#section-3) `Bearer error="invalid_token"`, and it belongs to `/api`, where a client holds a refreshable token.
 - **A Server Action is an implicit endpoint.** Its surface is defined by what the function accepts rather than by a spec, so it is limited to single-service mutations and never becomes an ad-hoc API for another consumer.
 
 ## Rules
@@ -278,6 +297,9 @@ Locally, the dev server runs against `cluster:base` and is reached through the e
 - Forms use react-hook-form and zod through the shared `<Form>` primitive.
 - URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. `(CI: ci:lint)`
 - The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. `(CI: lint:auth-inline)`
+- An access denial is answered by its kind. No session redirects to the login flow carrying the current path and query; a session without permission renders in place, at the denied URL. `(ref: RFC 9110 §15.5)`
+- Denials are raised once, in the fetch clients, and rendered by the framework's `unauthorized.tsx` and `forbidden.tsx`. A route carries no auth branch of its own, and the frontend computes no permission — the service decides ([ADR-0304](0304-identity-and-authorization.md)). `(ref: OWASP ASVS V4.1.1)`
+- Browser calls to the API go through TanStack Query. A React boundary does not catch what an event handler throws, so a denial raised outside a render reaches no one.
 - CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin. `(ref: CSP Level 3)`
 - CSRF rests on the SameSite cookie, Kratos's built-in protection, and the Server Actions Origin check. Hand-rolled CSRF tokens are not added.
 - Biome is the only lint and format tool. ESLint is not installed. `(CI: ci:lint)`

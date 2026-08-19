@@ -35,6 +35,21 @@ const nextConfig = {
     serverActions: {
       allowedOrigins,
     },
+    // Enables `unauthorized()` and `forbidden()` from next/navigation, and the
+    // `unauthorized.tsx` / `forbidden.tsx` file conventions they render (ADR-0400).
+    // They are how a permission denial reaches the user WITHOUT a redirect: the
+    // framework renders the fallback at the URL that was denied, so the address bar
+    // still names the resource and the back button still works. An error boundary
+    // reaches neither: it carries no status, misses a Server Action's return path,
+    // and renders every denial as a crash. (What the status ends up being on a
+    // streamed route is settled in src/app/forbidden.tsx.)
+    //
+    // The APIs are experimental and the flag defaults off, so this line is what
+    // makes them exist. What the app depends on is one thrown error carrying
+    // `digest: "NEXT_HTTP_ERROR_FALLBACK;<status>"` — see src/lib/auth/denial.ts,
+    // which is the single place that shape is named, so a rename upstream is one
+    // edit rather than a hunt.
+    authInterrupts: true,
   },
   env: {
     NEXT_PUBLIC_SERVICE_VERSION: process.env.SERVICE_VERSION ?? "dev",

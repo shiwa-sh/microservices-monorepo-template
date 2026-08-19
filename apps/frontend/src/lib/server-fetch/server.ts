@@ -5,6 +5,7 @@ import "server-only";
 
 import { headers } from "next/headers";
 import createClient, { type Client } from "openapi-fetch";
+import { denialMiddleware } from "@/lib/auth/denial";
 
 // Where THIS PROCESS dials the edge. Two different answers depending on where the
 // process runs, which is why the old single EDGE_ORIGIN could not work in-cluster:
@@ -53,11 +54,23 @@ export async function createServerClient<Paths extends object>(): Promise<Client
   const cookie = h.get("cookie") ?? "";
   const traceparent = h.get("traceparent") ?? "";
 
-  return createClient<Paths>({
+  const client = createClient<Paths>({
     baseUrl: `${API_BASE}/api`,
     headers: {
       ...(cookie && { cookie }),
       ...(traceparent && { traceparent }),
     },
   });
+
+  // A 401 or 403 from the edge stops this render and shows the user the right
+  // thing (lib/auth/denial.ts) — a rendered 403 at the same URL, or the login
+  // flow. Attached to the CLIENT, not left to each caller: openapi-fetch reports a
+  // denial as a `{ error }` value like any other, so a page that only checks `data`
+  // renders an empty table where it should have said "you do not have access to
+  // this". That failure is silent and looks like missing data.
+  //
+  // A route that needs to handle a denial itself (a partial view rather than a
+  // whole-page interrupt) can `eject` it — deliberately, and visibly in review.
+  client.use(denialMiddleware);
+  return client;
 }

@@ -5,6 +5,7 @@ import { isId } from "@libs/id";
 // Cross-service mutation (ADR-0302, ADR-0400). The orders service returns
 // 202 + a workflow handle; we poll it with the shared helper instead of
 // hand-rolling fetch loops.
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   Controller,
@@ -67,43 +68,56 @@ export default function Checkout() {
   const [status, setStatus] = useState<Status>({ text: panel.checkout.idle, tone: "gray" });
   const orders = createBrowserClient<OrdersPaths>();
 
-  const { control, handleSubmit, formState } = useForm<FormValues>({
+  const { control, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { product_id: "", quantity: 1 },
   });
 
-  const onSubmit = handleSubmit(async (values) => {
-    setStatus({ text: panel.checkout.starting, tone: "blue" });
-    // One key per submit, so the browser retrying a request that already reached
-    // the service gets the order it created rather than a second one (ADR-0003).
-    const { data, error } = await orders.POST("/orders", {
-      body: values,
-      headers: { "Idempotency-Key": crypto.randomUUID() },
-    });
-    if (error || !data) {
-      setStatus({ text: panel.checkout.error, tone: "error" });
-      return;
-    }
-    setStatus({ text: panel.checkout.running(data.id), tone: "blue" });
-    try {
+  // A mutation rather than an awaited call in the submit handler, and not for the
+  // caching: a 401/403 raises an interrupt (lib/auth/denial.ts) that only reaches
+  // unauthorized.tsx / forbidden.tsx if it is thrown during a render. React
+  // boundaries never see what an event handler throws, so the same denial raised
+  // straight out of `onSubmit` would be an unhandled rejection and the user would
+  // watch the badge sit on "starting". `throwOnError` in the panel providers does
+  // the re-throw, for denials only — everything else still lands in onError below.
+  const placeOrder = useMutation({
+    async mutationFn(values: FormValues) {
+      // One key per submit, so the browser retrying a request that already reached
+      // the service gets the order it created rather than a second one (ADR-0003).
+      const { data, error } = await orders.POST("/orders", {
+        body: values,
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      });
+      if (error || !data) {
+        throw new Error("could not place the order");
+      }
+      setStatus({ text: panel.checkout.running(data.id), tone: "blue" });
       // Poll the order (handle.result_url) until it reaches a terminal status; the
       // saga confirms it once catalog + payment succeed (ADR-0302).
-      const order = await pollWorkflow<{ id: string; status: string }>(data);
+      return await pollWorkflow<{ id: string; status: string }>(data);
+    },
+    onMutate() {
+      setStatus({ text: panel.checkout.starting, tone: "blue" });
+    },
+    onSuccess(order) {
       setStatus({
         text: order.status,
         tone: order.status === "confirmed" ? "success" : "error",
       });
-    } catch {
+    },
+    onError() {
       setStatus({ text: panel.checkout.error, tone: "error" });
-    }
+    },
   });
+
+  const onSubmit = handleSubmit((values) => placeOrder.mutate(values));
 
   return (
     <main className="mx-auto max-w-md p-6">
       <h1 className="text-2xl font-semibold">{panel.checkout.title}</h1>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <Controller control={control} name="product_id" render={renderProductId} />
-        <Button type="submit" isLoading={formState.isSubmitting}>
+        <Button type="submit" isLoading={placeOrder.isPending}>
           {panel.checkout.buy}
         </Button>
       </form>

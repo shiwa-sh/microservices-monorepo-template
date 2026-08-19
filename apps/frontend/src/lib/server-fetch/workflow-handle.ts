@@ -14,6 +14,8 @@ export type WorkflowHandle = {
   result_url?: string;
 };
 
+import { raiseForAuthDenial } from "@/lib/auth/denial";
+
 // The terminal-state shape shared by the resources a workflow settles (orders,
 // charges): a domain status string. "pending"/"running" are non-terminal.
 export type TerminalResource = { status: string };
@@ -45,6 +47,11 @@ export async function pollWorkflow<T extends TerminalResource>(
     }
     // biome-ignore lint/performance/noAwaitInLoops: workflow polling is intentionally sequential
     const res = await fetch(handle.result_url, { cache: "no-store", signal });
+    // A denial is terminal for this poll, and the loop cannot see that on its own:
+    // every non-ok status is treated as "not settled yet", so a session that
+    // expires mid-workflow spins silently until the timeout and then reports the
+    // workflow as slow. This raises the same interrupt the fetch clients do.
+    raiseForAuthDenial(res.status);
     if (res.ok) {
       const body = (await res.json()) as T;
       if (TERMINAL.has(body.status)) {
