@@ -1,10 +1,12 @@
-# MinIO is non-prod only (ADR-0205); gate the whole chart off here, the same
-# values-only way every other per-env delta is expressed.
-minio:
+# The in-cluster object store is non-prod only (ADR-0207): production runs the
+# same implementation OUTSIDE the cluster, because a store that runs on the
+# cluster it backs shares the failure domain it exists to survive. Gated off here,
+# the same values-only way every other per-env delta is expressed.
+seaweedfs:
   enabled: false
 
 # Mailpit is the NON-production sink (ADR-0307). Production submits through maddy
-# on a dedicated IP, so the sink is gated off here for the same reason MinIO is —
+# on a dedicated IP, so the sink is gated off here for the same reason the store is —
 # and this flag drops its network policy with it (network-policies 35-mailpit).
 mailpit:
   enabled: false
@@ -20,13 +22,12 @@ alertmanager:
     smarthost: maddy.platform.svc.cluster.local:587
     requireTLS: true
 
-# ...which is exactly why this is on. With MinIO gone, prod's object storage is a
-# real off-cluster bucket: Loki/Tempo fall back to the chart's
-# s3.eu-central-1.amazonaws.com endpoint, and postgres' backup.s3.endpointURL is
-# empty, meaning real AWS S3. Default-deny egress (network-policies 00-baseline)
-# drops all of that unless this flag opens it (network-policies 70-*).
+# ...which is exactly why this is on. With no store in the cluster, every write
+# leaves it: Loki, Tempo and postgres' `backup.s3.endpointURL` address the
+# off-cluster store. Default-deny egress (network-policies 00-baseline) drops all
+# of that unless this flag opens it (network-policies 70-*).
 #
-# Read as a pair with `minio.enabled: false`: turning MinIO off in an env without
+# Read as a pair with `seaweedfs.enabled: false`: turning the store off in an env without
 # turning this on is the failure mode — Postgres keeps serving while WAL archiving
 # silently fails in the background, and nothing pages until a restore is needed.
 externalObjectStorage: true

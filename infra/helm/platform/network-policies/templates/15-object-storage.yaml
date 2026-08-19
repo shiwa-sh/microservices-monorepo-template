@@ -1,6 +1,6 @@
 {{- /*
 SeaweedFS — the platform's object store (ADR-0207). Its own file rather than a
-block inside 40-observability.yaml, where the MinIO rule sits: logs and traces are
+block inside 40-observability.yaml, where the MinIO rule sat: logs and traces are
 two of its consumers, not the reason it exists. Postgres backups are the consumer
 whose silent failure is unrecoverable.
 

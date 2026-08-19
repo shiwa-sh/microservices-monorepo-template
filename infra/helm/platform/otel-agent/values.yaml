@@ -146,7 +146,7 @@ opentelemetry-collector:
         endpoint: "https://${env:K8S_NODE_IP}:10250"
         insecure_skip_verify: true
         # `volume` is the one that protects the data tier. Postgres, Loki, Tempo,
-        # Prometheus and MinIO all write to PVCs, and a full PVC does not evict a
+        # Prometheus and the object store all write to PVCs, and a full PVC does not evict a
         # pod or fail a probe — Postgres simply starts refusing writes. Nothing
         # else in this stack reports PVC free space: kubelet knows it, and this is
         # the only receiver that asks.

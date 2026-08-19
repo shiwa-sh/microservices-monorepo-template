@@ -45,8 +45,6 @@ policies:
     - quay.io/jetstack/cert-manager-controller
     - quay.io/jetstack/cert-manager-startupapicheck
     - quay.io/jetstack/cert-manager-webhook
-    - quay.io/minio/mc
-    - quay.io/minio/minio
     - reg.kyverno.io/kyverno/background-controller
     - reg.kyverno.io/kyverno/cleanup-controller
     - reg.kyverno.io/kyverno/kyverno

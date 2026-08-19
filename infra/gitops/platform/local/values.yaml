@@ -101,7 +101,7 @@ oathkeeper:
             config:
               to: https://dev.localtest.me:8443/auth/login
 
-# --- Observability: point Loki/Tempo at in-cluster MinIO, single replica ---
+# --- Observability: point Loki/Tempo at in-cluster SeaweedFS, single replica ---
 # Only the endpoint + http (insecure) differ from prod; the S3 credentials come
 # from the observability-bucket Secret via extraEnvFrom (wired in the chart values
 # for every env), so no inline keys here — same mechanism as dev/staging/prod.
@@ -109,7 +109,7 @@ loki:
   loki:
     storage:
       s3:
-        endpoint: "minio.platform.svc.cluster.local:9000"
+        endpoint: "seaweedfs.platform.svc.cluster.local:8333"
         s3ForcePathStyle: true
         insecure: true
 
@@ -118,7 +118,7 @@ tempo:
     storage:
       trace:
         s3:
-          endpoint: "minio.platform.svc.cluster.local:9000"
+          endpoint: "seaweedfs.platform.svc.cluster.local:8333"
           insecure: true
 
 # Keep every healthy trace locally. Prod/dev head-sample at 5% in the chart default

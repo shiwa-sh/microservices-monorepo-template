@@ -1,6 +1,6 @@
 # When true, allow the log/trace backends (loki/tempo) egress to external
 # HTTPS — needed in prod, where object storage is a real off-cluster S3 bucket
-# (ADR-0206). Local runs against in-cluster MinIO (covered by intra-namespace
+# (ADR-0206). Local runs against the in-cluster store (covered by intra-namespace
 # egress), so it stays false and no pod reaches the internet at all.
 externalObjectStorage: false
 

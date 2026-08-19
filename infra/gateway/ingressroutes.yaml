@@ -203,7 +203,7 @@ spec:
 ---
 # Mailpit viewer (ADR-0307, ADR-0306) — non-prod only, the sink's UI at root on
 # :8025. Production sets mailpit.enabled=false, so the Service is absent there and
-# the route resolves to no endpoints, as the MinIO console route does.
+# the route resolves to no endpoints, as the SeaweedFS admin route does in prod.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

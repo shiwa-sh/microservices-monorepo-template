@@ -42,7 +42,7 @@ type charge
 
 # Ops-tier authorization (ADR-0306). A `group` models coarse cohorts; the
 # `operator` group (group:operator) gates the whole ops tier. Each operator
-# dashboard (Hubble UI, Grafana, Argo, Temporal, console, MinIO, OpenFGA) is a
+# dashboard (Hubble UI, Grafana, Argo, Temporal, console, SeaweedFS, OpenFGA) is a
 # `dashboard` resource; the ops-tier Oathkeeper checks `dashboard:<tool>#view`
 # via the remote_json authorizer. Coarse-then-fine: the authz endpoint requires
 # group:operator membership AND the per-tool view grant, so a non-operator gets

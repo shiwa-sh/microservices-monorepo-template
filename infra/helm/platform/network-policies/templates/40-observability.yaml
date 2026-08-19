@@ -105,30 +105,6 @@ spec:
       toPorts:
         - ports: [{ port: "3200", protocol: TCP }]
 ---
-## MinIO — object storage for Loki/Tempo (9000). Console (9001) is edge-only.
-## The minio-post-job (app: minio-job) provisions the buckets + users Loki/Tempo
-## need, so it must reach 9000 too — without it every backend crashloops
-## on "bucket does not exist".
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: minio
-spec:
-  endpointSelector:
-    matchLabels:
-      app: minio
-  ingress:
-    - fromEndpoints:
-        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: loki }
-        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: tempo }
-        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app: minio-job }
-      toPorts:
-        - ports: [{ port: "9000", protocol: TCP }]
-    - fromEndpoints:
-        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
-      toPorts:
-        - ports: [{ port: "9001", protocol: TCP }]
----
 ## Pyroscope — profile pushes from the Alloy agent, queries from Grafana (4040).
 ## The scrape path (Alloy → service admin ports) needs no rule here: services grant
 ## platform-namespace ingress to their admin port, and the baseline policy grants

@@ -4,11 +4,11 @@
 #   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance, cilium, argocd
 #                    Foundational, dependency-free. sops-operator must run before
 #                    any SopsSecret CR can be decrypted into Secrets (ADR-0202).
-#   data (wave 2)  — postgres, minio. The storage layer everything else sits on;
+#   data (wave 2)  — postgres, seaweedfs. The storage layer everything else sits on;
 #                    needs the Secrets produced by the base + secrets tiers.
 #   core (wave 3)  — observability, ory, temporal, temporal-worker-controller,
 #                    openfga, pgweb, headlamp, lowdefy. Consumers of the data
-#                    layer (Postgres DSNs, the MinIO trace/log buckets).
+#                    layer (Postgres DSNs, the trace/log buckets).
 #
 # WHY THREE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
 # single ApplicationSet generates are INERT — those Applications are created by
@@ -178,7 +178,6 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/postgres" }
-                - { path: "infra/helm/platform/minio" }
                 - { path: "infra/helm/platform/seaweedfs" }
   template:
     metadata:
@@ -234,7 +233,7 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find MinIO + their
+    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
     # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
     argocd.argoproj.io/sync-wave: "3"
 spec:

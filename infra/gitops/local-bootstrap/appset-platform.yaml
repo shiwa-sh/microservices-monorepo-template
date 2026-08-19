@@ -150,7 +150,6 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/postgres" }
-                - { path: "infra/helm/platform/minio" }
                 - { path: "infra/helm/platform/seaweedfs" }
   template:
     metadata:
@@ -207,7 +206,7 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find MinIO + their
+    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
     # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
     argocd.argoproj.io/sync-wave: "3"
 spec:

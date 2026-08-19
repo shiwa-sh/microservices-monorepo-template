@@ -1,5 +1,5 @@
 ## Edge gateway (Traefik, in kube-system) → the remaining ops UIs it fronts.
-## Grafana, MinIO console, Kratos and Oathkeeper get their gateway ingress in
+## Grafana, the SeaweedFS admin UI, Kratos and Oathkeeper get their gateway ingress in
 ## their own templates; the demo app services get theirs from the service chart.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

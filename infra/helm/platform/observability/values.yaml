@@ -170,7 +170,7 @@ loki:
   # NOTE: the loki chart also bundles minio, rollout-operator and
   # grafana-agent-operator as *grandchild* subcharts, which Helm renders even
   # when their conditions are set false (nested-condition limitation). They are
-  # all dead weight here — loki uses the shared platform MinIO, runs one replica,
+  # all dead weight here — loki uses the shared platform object store, runs one replica,
   # and self-telemetry goes through the OTel collector — so they are physically
   # stripped from the vendored charts/loki-7.0.0.tgz (see observability/Chart.yaml).
 

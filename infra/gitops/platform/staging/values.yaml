@@ -5,15 +5,15 @@ cluster:
   storage: { size: 100Gi }
   backup:
     retentionPolicy: "7d"
-    s3: { endpointURL: "http://minio.platform.svc.cluster.local:9000", destinationPath: "s3://platform-backups/postgres" }
+    s3: { endpointURL: "http://seaweedfs.platform.svc.cluster.local:8333", destinationPath: "s3://platform-backups/postgres" }
 
-# Non-prod object storage is in-cluster MinIO (ADR-0205); prod keeps the
+# Non-prod object storage is in-cluster SeaweedFS (ADR-0205); prod keeps the
 # chart defaults (the off-cluster bucket) and disables this chart entirely.
 loki:
   loki:
     storage:
       s3:
-        endpoint: minio.platform.svc.cluster.local:9000
+        endpoint: seaweedfs.platform.svc.cluster.local:8333
         s3ForcePathStyle: true
         insecure: true
 tempo:
@@ -21,7 +21,7 @@ tempo:
     storage:
       trace:
         s3:
-          endpoint: minio.platform.svc.cluster.local:9000
+          endpoint: seaweedfs.platform.svc.cluster.local:8333
           insecure: true
 
 # Lowdefy admin console (ADR-0401): the one repo-built platform image, promoted by

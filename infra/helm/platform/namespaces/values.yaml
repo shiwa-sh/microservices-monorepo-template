@@ -25,7 +25,7 @@ namespaces:
     # runAsNonRoot, a non-zero runAsUser, a read-only root filesystem, drops ALL
     # capabilities and sets seccompProfile RuntimeDefault). Getting the third-party
     # half there took a values override per chart — Temporal in five separate
-    # places, MinIO, the sops-operator, Loki, Tempo, the worker controller — plus a
+    # places, the sops-operator, Loki, Tempo, the worker controller — plus a
     # securityContext in each first-party platform template, and one rebuilt image:
     # apps/admin ran as root until it was given `USER node`.
     #

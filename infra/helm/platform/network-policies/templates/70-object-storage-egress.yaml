@@ -2,7 +2,7 @@
 ## `externalObjectStorage` gates every allow in this file: it means "the buckets
 ## this platform writes to live OUTSIDE the cluster". Set it in the per-env values
 ## for any env whose storage is a real S3 bucket (prod), and leave it off wherever
-## storage is the in-cluster MinIO (local, dev, staging) — there the writes stay
+## storage is the in-cluster SeaweedFS (local, dev, staging) — there the writes stay
 ## intra-namespace and the baseline already covers them. It is off by default, so
 ## forgetting it in a new env fails CLOSED: backups and chunk pushes are dropped.
 ##
@@ -34,7 +34,7 @@ spec:
 ## (barman-cloud inside the instance manager), not from a separate Job, so the
 ## allow belongs on the same endpoints 10-datastores.yaml admits traffic TO.
 ## `backup.enabled` is true in the chart default: dev/staging point endpointURL at
-## in-cluster MinIO (covered by the baseline's intra-namespace egress), and prod
+## in-cluster SeaweedFS (covered by the baseline's intra-namespace egress), and prod
 ## leaves it empty, which means real AWS S3 — reachable only through this rule.
 ##
 ## Without it the failure is silent in the worst possible way: Postgres keeps
