@@ -48,10 +48,10 @@
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-minio",
-    "match": { "url": "<{http,https}>://minio.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-seaweedfs",
+    "match": { "url": "<{http,https}>://seaweedfs.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"minio\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"seaweedfs\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },

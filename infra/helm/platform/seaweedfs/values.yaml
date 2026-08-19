@@ -30,7 +30,9 @@ buckets:
   - tempo-traces
 
 # The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a
-# Secret this chart only names. `weed mini` reads that pair on first start and
+# Secret this chart only names. The same Secret carries `ADMIN_PASSWORD` for the
+# admin UI, which is a second credential rather than the same one: the UI
+# administers the store and the S3 key reads and writes objects in it. `weed mini` reads that pair on first start and
 # creates the identity from it; until an identity exists the S3 endpoint answers
 # every anonymous request with 403 (verified 2026-08-19 against 4.41).
 #
@@ -60,7 +62,9 @@ telemetry: false
 
 service:
   s3Port: 8333
-  # The admin UI, and the only surface ADR-0306 routes. The master and filer UIs
+  # The admin UI, and the only surface ADR-0306 routes. It authenticates on its
+  # own — `-admin.password` empty would disable that, and the edge gate would be
+  # the only thing between an operator session and the store's administration. The master and filer UIs
   # are diagnostic and are reached by port-forward, so they get no Service port:
   # an origin per internal view multiplies edge surface for no capability the
   # admin UI lacks.

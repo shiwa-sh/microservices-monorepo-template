@@ -272,7 +272,7 @@ cat <<EOF
     Grafana:          https://grafana.ops.${DOMAIN}:8443/
     Hubble UI (map):  https://hubble.ops.${DOMAIN}:8443/
     Temporal UI:      https://temporal.ops.${DOMAIN}:8443/
-    MinIO console:    https://minio.ops.${DOMAIN}:8443/  (login: minio / minio-password)
+    SeaweedFS admin:  https://seaweedfs.ops.${DOMAIN}:8443/  (then: admin / seaweedfs-admin-password)
     Lowdefy console:  https://lowdefy.ops.${DOMAIN}:8443/
     ArgoCD:           https://argocd.ops.${DOMAIN}:8443/
     Headlamp (k8s):   https://headlamp.ops.${DOMAIN}:8443/   (read-only debug UI)

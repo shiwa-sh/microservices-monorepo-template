@@ -128,24 +128,31 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# MinIO console (ADR-0500, ADR-0205) — non-prod only, console at root on :9001.
+# SeaweedFS admin (ADR-0306, ADR-0207) — non-prod only, admin UI at root on
+# :23646, and the sole exposed surface of the store. The master and filer UIs are
+# diagnostic and are reached by port-forward: an origin per internal view
+# multiplies CSP, rate-limit and session surface for no capability this one lacks.
+#
+# The UI carries its own credential behind this gate, so an operator meets two
+# checks rather than one. The network policy admits :23646 from the gateway's
+# namespace alone, so the second check cannot be walked around from inside.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-minio
+  name: ops-seaweedfs
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^minio\.ops\..+`)
+      match: HostRegexp(`^seaweedfs\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
         - name: security-headers
       services:
-        - name: minio-console
-          port: 9001
+        - name: seaweedfs
+          port: 23646
   tls:
     secretName: wildcard-ops-tls
 ---

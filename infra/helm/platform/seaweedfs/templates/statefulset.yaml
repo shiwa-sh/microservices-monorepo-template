@@ -47,6 +47,11 @@ spec:
             - -dir=/data
             - -master.telemetry={{ .Values.telemetry }}
             - -bucket={{ join "," .Values.buckets }}
+            # Kubernetes expands `$(VAR)` in args from the container's own env, so
+            # the password reaches the flag without appearing in the pod spec.
+            # `weed` takes it as a flag and nothing else — there is no environment
+            # variable for it, and an empty value disables the UI's auth entirely.
+            - -admin.password=$(ADMIN_PASSWORD)
           env:
             # `weed mini` turns this pair into the S3 identity on first start. It
             # is the whole authentication story of the endpoint: with no identity
@@ -58,6 +63,9 @@ spec:
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_SECRET_ACCESS_KEY }
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: ADMIN_PASSWORD }
           ports:
             - { name: s3, containerPort: {{ .Values.service.s3Port }} }
             - { name: admin, containerPort: {{ .Values.service.adminPort }} }
