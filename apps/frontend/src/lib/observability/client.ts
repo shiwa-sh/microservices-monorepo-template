@@ -24,13 +24,27 @@ export function initBrowserObservability(): void {
   }
   initialized = true;
 
-  initializeFaro({
+  const faro = initializeFaro({
     url: INGEST,
     app: {
       name: "frontend",
       version: process.env.NEXT_PUBLIC_SERVICE_VERSION ?? "dev",
       environment: process.env.NEXT_PUBLIC_DEPLOY_ENV ?? "dev",
     },
+    // OFF, and this is a legal position rather than a tuning choice (ADR-0400).
+    //
+    // Faro's default is `{ enabled: true, persistent: false }`, and `persistent:
+    // false` does not mean "in memory" — it selects VolatileSessionsManager, which
+    // writes `com.grafana.faro.session` into sessionStorage and resumes it for up
+    // to four hours (read off the SDK's own source at 2.7.1). That is storage in
+    // the user's terminal equipment, which puts the ops path inside ePrivacy Art.
+    // 5(3) and therefore behind the consent gate ADR-0700 builds for analytics —
+    // for a signal that exists to tell us the app is broken.
+    //
+    // With this off, the SDK touches no web storage at all: the branch that calls
+    // `storeUserSession` is the one this flag guards. The session id below replaces
+    // it, in memory, for the life of the page.
+    sessionTracking: { enabled: false },
     instrumentations: [
       ...getWebInstrumentations(),
       new TracingInstrumentation({
@@ -40,4 +54,11 @@ export function initBrowserObservability(): void {
       }),
     ],
   });
+
+  // A per-page correlation id, held in a closure and nowhere else. It survives
+  // exactly as long as the page does: a reload is a new id, which is the property
+  // that keeps it out of Art. 5(3) — nothing is stored, so nothing is read back.
+  // It is enough to stitch one visit's errors and Web Vitals together, which is
+  // what the RUM path is for.
+  faro.api.setSession({ id: crypto.randomUUID() });
 }
