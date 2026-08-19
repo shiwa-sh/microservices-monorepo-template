@@ -1,0 +1,67 @@
+# SeaweedFS, the platform's object store (ADR-0207).
+#
+# `enabled` is the umbrella gate, read by this chart's own templates rather than a
+# Chart.yaml condition: the chart has no subchart to condition on. Production sets
+# it false — ADR-0207 puts the production store outside the cluster, and a store
+# that runs on the cluster it backs shares the failure domain it exists to survive.
+enabled: true
+
+image:
+  repository: chrislusf/seaweedfs
+  # One minor behind the head release. A store is the conservative slot under
+  # ADR-0000 principle 4, and the newest tag has had days rather than weeks of
+  # field exposure.
+  tag: "4.41"
+  pullPolicy: IfNotPresent
+
+# Buckets are created by the server at startup from `-bucket`, so there is no
+# provisioning Job to schedule, to secure, or to notice the failure of. MinIO
+# needed one (`minio-post-job`), and it was one-shot: a rejected Job left nothing
+# Running, the buckets simply never appeared, and Loki and Tempo crashlooped on
+# "bucket does not exist".
+#
+# One bucket per backend consumer, matching the names each chart's own values
+# expect. Creation is idempotent — an existing bucket is left alone.
+buckets:
+  - platform-backups
+  - loki-chunks
+  - loki-ruler
+  - loki-admin
+  - tempo-traces
+
+# The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a
+# Secret this chart only names. `weed mini` reads that pair on first start and
+# creates the identity from it; until an identity exists the S3 endpoint answers
+# every anonymous request with 403 (verified 2026-08-19 against 4.41).
+#
+# The pair is delivered by the per-environment SopsSecret (ADR-0202), which is the
+# same secret the consumers read, so the store and its clients cannot drift apart.
+credentialsSecret: object-storage-root
+
+persistence:
+  size: 5Gi
+  # Unset means the cluster's default StorageClass, which is what every tier
+  # running this chart has (ADR-0207: volumes are node-local).
+  storageClassName: ""
+
+# ADR-0204. Measured 2026-08-19 in a container running these exact flags: 73 MiB
+# resident and 0.3% of one core at idle, with the five buckets created. Idle is all
+# that measurement covers — dev-tier load on this component is a handful of Loki
+# chunk pushes a minute — so the limit is set for headroom rather than derived.
+resources:
+  requests: { cpu: "50m", memory: "128Mi" }
+  limits: { memory: "512Mi" }
+
+# No phone-home: the master reports anonymous cluster statistics to
+# telemetry.seaweedfs.com by default, which default-deny egress would drop anyway.
+# Turning it off at the source means the platform is not relying on a network
+# policy to keep a promise the workload can keep itself.
+telemetry: false
+
+service:
+  s3Port: 8333
+  # The admin UI, and the only surface ADR-0306 routes. The master and filer UIs
+  # are diagnostic and are reached by port-forward, so they get no Service port:
+  # an origin per internal view multiplies edge surface for no capability the
+  # admin UI lacks.
+  adminPort: 23646

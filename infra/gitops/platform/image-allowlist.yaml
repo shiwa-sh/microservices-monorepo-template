@@ -11,6 +11,7 @@ policies:
   allowedImageSources:
     - alpine/k8s
     - axllent/mailpit
+    - chrislusf/seaweedfs
     - docker.io/bats/bats
     - docker.io/busybox
     - docker.io/grafana/grafana

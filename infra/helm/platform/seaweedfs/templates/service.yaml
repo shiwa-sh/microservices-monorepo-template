@@ -1,0 +1,22 @@
+{{- if .Values.enabled }}
+{{- /*
+A stable `seaweedfs` name regardless of the release name. Under ArgoCD the release
+is `<env>-platform-seaweedfs`, and the consumers address the store by DNS from
+their own values (`seaweedfs.platform.svc.cluster.local:8333`) — a Service named
+after the release would resolve for nobody.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs
+  labels:
+    app: seaweedfs
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: platform
+spec:
+  selector:
+    app: seaweedfs
+  ports:
+    - { name: s3, port: {{ .Values.service.s3Port }}, targetPort: s3 }
+    - { name: admin, port: {{ .Values.service.adminPort }}, targetPort: admin }
+{{- end }}

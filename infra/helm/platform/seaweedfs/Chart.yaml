@@ -1,0 +1,16 @@
+apiVersion: v2
+name: seaweedfs
+description: |
+  Object storage for the in-cluster environments (ADR-0207). Production runs the
+  same implementation outside the cluster, so this chart is never the production
+  store and carries no shape for one.
+
+  Why first-party templates rather than the upstream chart: ADR-0207 chooses
+  `weed mini`, one process holding master, volume, filer, S3 and the admin UI, and
+  the upstream chart has no such shape — it deploys the four components as separate
+  workloads. Rendering four StatefulSets to serve a single-node dev tier is the
+  parity the ADR explicitly does not ask for: what has to match production is the
+  S3 dialect, which is the same binary either way.
+type: application
+version: 0.1.0
+appVersion: "4.41"

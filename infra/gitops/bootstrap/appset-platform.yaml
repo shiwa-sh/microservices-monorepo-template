@@ -179,6 +179,7 @@ spec:
               directories:
                 - { path: "infra/helm/platform/postgres" }
                 - { path: "infra/helm/platform/minio" }
+                - { path: "infra/helm/platform/seaweedfs" }
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"

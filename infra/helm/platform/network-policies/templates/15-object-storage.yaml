@@ -1,0 +1,38 @@
+{{- /*
+SeaweedFS — the platform's object store (ADR-0207). Its own file rather than a
+block inside 40-observability.yaml, where the MinIO rule sits: logs and traces are
+two of its consumers, not the reason it exists. Postgres backups are the consumer
+whose silent failure is unrecoverable.
+
+Selecting an endpoint puts it in default-deny for that direction, so this list is
+the complete set of callers. A consumer added later and not added here fails as a
+store that is reachable from everywhere it was tested and from nowhere else.
+*/}}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: seaweedfs
+spec:
+  endpointSelector:
+    matchLabels:
+      app: seaweedfs
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: loki }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: tempo }
+        # CNPG archives WAL and runs base backups from the instance pods themselves
+        # (barman-cloud inside the instance manager), so the allow belongs on the
+        # database endpoints rather than on a backup Job that does not exist.
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: platform
+            app.kubernetes.io/name: postgresql
+            app.kubernetes.io/component: database
+      toPorts:
+        - ports: [{ port: "8333", protocol: TCP }]
+    # The admin UI, reached only through the edge (ADR-0306): Traefik terminates
+    # the `seaweedfs.ops.<host>` origin and Oathkeeper decides it. The UI does not
+    # authenticate on its own, so this rule is what makes the edge the only way in.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "23646", protocol: TCP }]
