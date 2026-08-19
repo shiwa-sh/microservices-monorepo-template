@@ -11,6 +11,28 @@ const SESSION_COOKIE = "ory_kratos_session";
 // Route groups that require an authenticated Kratos session.
 const PROTECTED = ["/panel", "/devportal"];
 
+// The /auth/* pages and the Kratos flow each one starts. A Kratos browser flow
+// cannot begin on our side: Kratos has to set its CSRF cookie on the user's
+// browser and hand back a flow id, so the browser must visit it.
+//
+// Issuing that redirect HERE, rather than from the page, is a measured LCP fix
+// (ADR-0400). Middleware runs before rendering, so it answers with a real 307 and
+// no HTML. From the page it cannot: `loading.tsx` puts the route behind a Suspense
+// boundary, Next flushes the shell before the redirect is known, and the response
+// is a 200 carrying an in-stream redirect — a full document render, a paint of the
+// loading fallback, and only then the navigation. That fallback was measuring as
+// the LCP element of /auth/login.
+//
+// The path segment is not always the flow name: /auth/register starts Kratos's
+// `registration` flow.
+const AUTH_FLOWS: Record<string, string> = {
+  login: "login",
+  register: "registration",
+  recovery: "recovery",
+  verification: "verification",
+  settings: "settings",
+};
+
 // Telemetry ingest origin for connect-src. Same-origin (/api/rum via Traefik)
 // by default; override when RUM ships to a distinct host.
 const INGEST_ORIGIN = process.env.NEXT_PUBLIC_OTEL_INGEST_ORIGIN ?? "";
@@ -49,6 +71,19 @@ function contentSecurityPolicy(nonce: string): string {
 export function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const isProtected = PROTECTED.some((p) => path === p || path.startsWith(`${p}/`));
+
+  // An /auth/* page with no flow id yet: send the browser to Kratos to start one.
+  // With a flow id, fall through — the page renders it server-side.
+  const authSegment = path.startsWith("/auth/") ? path.slice("/auth/".length) : "";
+  const flowKind = AUTH_FLOWS[authSegment];
+  if (flowKind && !req.nextUrl.searchParams.get("flow")) {
+    const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
+    const returnTo = req.nextUrl.searchParams.get("return_to");
+    if (returnTo) {
+      start.searchParams.set("return_to", returnTo);
+    }
+    return NextResponse.redirect(start);
+  }
 
   let session: string | undefined;
   if (isProtected) {

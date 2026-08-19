@@ -3,6 +3,11 @@
 // for RUM, errors, and Web Vitals. Both ship to the cluster's OTel Collector
 // via a Traefik-fronted ingest route at /api/rum (a vendor-neutral path — the
 // agent behind it can change without breaking the URL).
+//
+// This module is loaded through a dynamic import from observability-init.tsx, so
+// nothing in the initial graph may import it statically — see log.ts, which holds
+// the `obsLog` helpers precisely so `error.tsx` can reach them without dragging
+// the SDK onto the critical path.
 "use client";
 
 import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
@@ -35,27 +40,4 @@ export function initBrowserObservability(): void {
       }),
     ],
   });
-}
-
-type Loggable = string | number | boolean | null | undefined | object;
-
-export const obsLog = {
-  info: (msg: string, ctx?: Record<string, Loggable>) =>
-    window.faro?.api.pushLog([msg], { context: ctx }),
-  warn: (msg: string, ctx?: Record<string, Loggable>) =>
-    window.faro?.api.pushLog([msg], { context: ctx, level: "warn" }),
-  error: (err: Error, ctx?: Record<string, Loggable>) =>
-    window.faro?.api.pushError(err, { context: ctx }),
-};
-
-declare global {
-  // biome-ignore lint/style/useConsistentTypeDefinitions: global augmentation must use `interface`
-  interface Window {
-    faro?: {
-      api: {
-        pushLog: (args: unknown[], opts?: { context?: object; level?: string }) => void;
-        pushError: (err: Error, opts?: { context?: object }) => void;
-      };
-    };
-  }
 }
