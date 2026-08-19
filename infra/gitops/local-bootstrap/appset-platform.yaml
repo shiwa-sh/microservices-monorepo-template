@@ -232,6 +232,9 @@ spec:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
               directories:
+                # The registry (ADR-0105). Wave 3 rather than beside the store: it
+                # reads the bucket, so it starts after the data tier is Healthy.
+                - { path: "infra/helm/platform/zot" }
                 - { path: "infra/helm/platform/observability" }
                 - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it

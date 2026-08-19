@@ -36,3 +36,32 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
         - ports: [{ port: "23646", protocol: TCP }]
+---
+{{- /*
+zot — the image registry (ADR-0105). In this file because its whole storage layer
+is the object store above: everything it serves is a read from that bucket, and
+its only egress of consequence is back to it, which the baseline's intra-namespace
+allow already covers.
+
+Ingress is the interesting half. A pull is made by the KUBELET, not by a pod, so
+it arrives from the node rather than from an endpoint the selector could name —
+`host` and `remote-node` are what admit it, and without them every image pull in
+the cluster is denied while every in-cluster probe of the registry succeeds.
+*/}}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: zot
+spec:
+  endpointSelector:
+    matchLabels:
+      app: zot
+  ingress:
+    - fromEntities: [host, remote-node]
+      toPorts:
+        - ports: [{ port: "5000", protocol: TCP }]
+    # The gateway, for the push route an environment exposes to its pipeline.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "5000", protocol: TCP }]

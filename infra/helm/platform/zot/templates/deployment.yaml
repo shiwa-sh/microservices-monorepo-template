@@ -1,0 +1,98 @@
+{{- if .Values.enabled }}
+{{- /*
+A Deployment, not a StatefulSet: every byte that matters is in the object store,
+and `/var/lib/zot` holds only the metadata cache zot rebuilds by reading the
+bucket. ADR-0105 states the consequence — registry durability is object-storage
+durability, and a registry rebuild is a redeploy rather than a restore.
+
+That cache is why the pod needs a writable directory at all. zot refuses to start
+without one even when every image lives on S3 (`mkdir /var/lib/zot: read-only
+file system`), so a read-only root filesystem needs the emptyDir below, not
+instead of it.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot
+  labels: &labels
+    app: zot
+    app.kubernetes.io/name: zot
+    app.kubernetes.io/part-of: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zot
+  template:
+    metadata:
+      labels: *labels
+      annotations:
+        # Roll the pod when the configuration changes. Without this a config edit
+        # is a ConfigMap update that the running registry never reads, and the
+        # cluster reports Synced while serving the old rules.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: zot
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            # The store credential. zot reads it the way every AWS SDK does, so
+            # there is nothing registry-specific about this pair.
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_ACCESS_KEY_ID }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.credentialsSecret }}, key: AWS_SECRET_ACCESS_KEY }
+          ports:
+            - { name: http, containerPort: {{ .Values.service.port }} }
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - { name: config, mountPath: /etc/zot }
+            # Its own directory rather than a second file in /etc/zot: two
+            # sources mounted over one path need subPath, and a subPath mount
+            # never sees an update to the object behind it.
+            - { name: auth, mountPath: /etc/zot-auth }
+            - { name: cache, mountPath: /var/lib/zot }
+          # A TCP probe, and deliberately not an HTTP one. With authentication on
+          # this build serves 401 at `/v2/` and 404 everywhere else — there is no
+          # unauthenticated health endpoint (checked against 2.1.20: `/metrics`,
+          # `/health` and `/v2/_zot/ping` are all 404, the last two because this
+          # binary is built without the mgmt extension). `httpGet` treats 401 as a
+          # failure, so an HTTP probe here produces a registry that serves every
+          # pull and never becomes Ready.
+          #
+          # A credentialed probe is not the fix either: probe headers are literal
+          # values in the pod spec, and putting the pull password there is the one
+          # place ADR-0202 keeps it out of.
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap: { name: zot }
+        - name: auth
+          secret:
+            secretName: {{ .Values.credentialsSecret }}
+            items:
+              - { key: htpasswd, path: htpasswd }
+        - name: cache
+          emptyDir: {}
+{{- end }}

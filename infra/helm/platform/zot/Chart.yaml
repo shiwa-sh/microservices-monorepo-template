@@ -1,0 +1,14 @@
+apiVersion: v2
+name: zot
+description: |
+  The image registry (ADR-0105), one instance per environment, backed by the
+  platform's object storage (ADR-0207).
+
+  First-party templates because ADR-0105 decides the registry IS a committed
+  configuration file: projects, quotas and retention are never set through an API
+  call or a UI. A wrapper around an upstream chart would put that file behind a
+  values schema that renders it, which is the same file with a translation layer
+  in front of it.
+type: application
+version: 0.1.0
+appVersion: "v2.1.20"

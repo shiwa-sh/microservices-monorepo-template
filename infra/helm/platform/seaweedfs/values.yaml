@@ -28,6 +28,9 @@ buckets:
   - loki-ruler
   - loki-admin
   - tempo-traces
+  # The registry's own store (ADR-0105): images and the signatures, SBOMs and
+  # provenance attached to them as OCI referrers.
+  - zot-images
 
 # The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a
 # Secret this chart only names. The same Secret carries `ADMIN_PASSWORD` for the

@@ -1,0 +1,73 @@
+{{- if .Values.enabled }}
+{{- /*
+The registry's configuration, which ADR-0105 makes a committed file rather than
+API state. It is rendered from values so the per-environment deltas (bucket,
+endpoint) stay in the environment's values file, and everything that is NOT a
+per-environment delta is written literally here where it can be read.
+
+Three settings in the JSON below are not obvious, and each was measured against
+2.1.20 rather than taken from the documentation:
+
+  - `compat: ["docker2s2"]` accepts Docker's manifest media types. Without it a
+    push uploads every blob successfully and the registry then rejects the
+    manifest with `manifest invalid` — a failure that arrives at the last step of
+    a long upload and reads as a registry defect. `docker buildx` emits those
+    media types unless told otherwise, so this is the default path, not a legacy
+    one.
+  - `defaultPolicy` and `anonymousPolicy` are both empty. An empty list is not
+    "unset": it is the absence of any permission, which is what makes an
+    unauthenticated request fail at authentication rather than at a repository
+    rule. Deleting either line opens the registry.
+  - `dedupe` is off. It rewrites blobs as hard links, which an object store does
+    not have; on S3 it costs a full scan of the bucket at startup and buys
+    nothing.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot
+  labels: &labels
+    app: zot
+    app.kubernetes.io/name: zot
+    app.kubernetes.io/part-of: platform
+data:
+  config.json: |
+    {
+      "distSpecVersion": "1.1.1",
+      "storage": {
+        "rootDirectory": "/var/lib/zot",
+        "dedupe": false,
+        "gc": {{ .Values.storage.gc }},
+        "gcDelay": "{{ .Values.storage.gcDelay }}",
+        "gcInterval": "{{ .Values.storage.gcInterval }}",
+        "storageDriver": {
+          "name": "s3",
+          "region": "{{ .Values.storage.region }}",
+          "bucket": "{{ .Values.storage.bucket }}",
+          "regionendpoint": "{{ .Values.storage.endpoint }}",
+          "secure": {{ .Values.storage.secure }},
+          "forcepathstyle": true
+        }
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "{{ .Values.service.port }}",
+        "auth": { "htpasswd": { "path": "/etc/zot-auth/htpasswd" } },
+        "accessControl": {
+          "repositories": {
+            "**": {
+              "policies": [
+                { "users": ["{{ .Values.auth.pushUser }}"], "actions": ["read", "create", "update"] },
+                { "users": ["{{ .Values.auth.pullUser }}"], "actions": ["read"] }
+              ],
+              "defaultPolicy": [],
+              "anonymousPolicy": []
+            }
+          },
+          "adminPolicy": { "users": [], "actions": [] }
+        },
+        "compat": ["docker2s2"]
+      },
+      "log": { "level": "info" }
+    }
+{{- end }}

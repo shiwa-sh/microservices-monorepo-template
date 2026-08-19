@@ -26,6 +26,7 @@ policies:
     - ghcr.io/dexidp/dex
     - ghcr.io/headlamp-k8s/headlamp
     - ghcr.io/kyverno/readiness-checker
+    - ghcr.io/project-zot/zot-linux-amd64
     - grafana/alloy
     - grafana/pyroscope
     - openfga/openfga
