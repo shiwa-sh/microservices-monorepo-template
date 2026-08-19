@@ -1,0 +1,63 @@
+# Error-rate alerts (ADR-0503 owns the signal, ADR-0502 routes it).
+#
+# These read `errors_total{service_name, kind}` and nothing else. The fingerprint
+# that says WHICH fault is deliberately absent here: it is high-cardinality and is
+# structured metadata on the log, never a metric label (ADR-0500). An alert says
+# how much is failing; the dashboard says what.
+#
+# Both are `ticket`. `page` asserts a human acts within minutes and no receiver
+# reaches one (ADR-0502), so a paging error alert would lie about itself. When a
+# paging receiver exists, the burst rule is the one that gets promoted — it is the
+# one that means "this started just now".
+groups:
+  - name: errors
+    rules:
+      # A sustained rate, relative to the service's own traffic. An absolute
+      # threshold cannot work across services whose request rates differ by orders
+      # of magnitude: it is either noise for the busiest or silence for the
+      # quietest.
+      #
+      # The `> 0` denominator guard is the same one the SLO rules carry, for the
+      # same reason: a service with no traffic has no error ratio, and 0/0 is a NaN
+      # that compares false everywhere and renders as a broken panel.
+      - alert: ServiceErrorRateHigh
+        expr: |
+          sum by (service_name) (rate(errors_total[5m]))
+            / (sum by (service_name) (rate(http_server_request_duration_seconds_count[5m])) > 0)
+            > 0.05
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} is failing more than 5% of requests"
+          description: >-
+            Sustained over ten minutes, so this is not a spike that has already
+            stopped. The Errors dashboard groups the same window by fingerprint,
+            which is where the specific fault is.
+      # A burst, in absolute terms and over a short window. This is the shape a
+      # deploy-induced fault has: a service that was quiet is suddenly not, and the
+      # ratio rule above has not had ten minutes to notice.
+      - alert: ServiceErrorBurst
+        expr: |
+          sum by (service_name, kind) (increase(errors_total[2m])) > 20
+        for: 2m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} produced a burst of {{ $labels.kind }} errors"
+          description: >-
+            More than twenty errors of one kind in two minutes. `kind` is on the
+            alert because it changes the first question: `dependency` points away
+            from this service, `internal` points at it.
+      # Dependency errors specifically, because they are the class that is somebody
+      # else's fault and still this service's outage. Split out so it is not
+      # averaged away by a healthy internal rate.
+      - alert: ServiceDependencyErrorsSustained
+        expr: |
+          sum by (service_name) (rate(errors_total{kind="dependency"}[15m])) > 0.1
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} keeps failing to reach a dependency"
+          description: >-
+            Fifteen minutes of dependency failures. Check what this service calls
+            before checking the service itself — the fault is usually at the other
+            end, or in the policy between them.

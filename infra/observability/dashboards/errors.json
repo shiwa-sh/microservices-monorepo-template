@@ -1,0 +1,155 @@
+{
+  "uid": "errors",
+  "title": "Errors: what is failing, and which fault",
+  "tags": ["errors", "adr-0503"],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "custom",
+        "query": "authz,catalog,orders,orgs,payment,frontend",
+        "current": {
+          "text": "orders",
+          "value": "orders"
+        }
+      }
+    ]
+  },
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "type": "text",
+      "title": "What this is",
+      "options": {
+        "mode": "markdown",
+        "content": "Two questions, and they are answered by different signals on purpose (ADR-0503).\n\n**How much** is `errors_total{service, kind}` \u2014 a bounded metric, five `kind` values, and the only thing here that alerts. **Which fault** is `error.fingerprint`, which is log structured metadata and a span attribute and is *never* a metric or stream label \u2014 so it is queried out of the log store below rather than aggregated in Prometheus (ADR-0500's cardinality discipline).\n\nThere is no persistent fingerprint store on this floor, so \"is this fault new?\" is a comparison of two windows rather than a lookup. That catches a new fault within the window and misses one that appeared and stopped inside it \u2014 a narrower guarantee than a tracker's, not an equivalent one."
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "row",
+      "title": "How much",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "title": "Error rate by kind",
+      "description": "The bounded metric. A shift between kinds is often the story: dependency rising while internal is flat is something else failing, not this service.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (rate(errors_total{service_name=~\"$service\"}[5m]))",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      }
+    },
+    {
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "title": "Error rate by service",
+      "description": "Unfiltered by the variable above, deliberately: this is the panel that says whether one service is failing or the platform is.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service_name) (rate(errors_total[5m]))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      }
+    },
+    {
+      "type": "row",
+      "title": "Which fault",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      }
+    },
+    {
+      "type": "table",
+      "datasource": "Loki",
+      "title": "Faults in the last hour, by fingerprint",
+      "description": "Grouped by the computed fingerprint, so one row is one fault however many times it happened. The count is the occurrences; open a row to reach the trace.",
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (fingerprint) (count_over_time({service_name=~\"$service\"} | json | fingerprint != \"\" [1h]))"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      }
+    },
+    {
+      "type": "table",
+      "datasource": "Loki",
+      "title": "Fingerprints seen this hour and not the hour before",
+      "description": "The new-fault check, as a query rather than as state (ADR-0503). A row here is a fault whose first occurrence is inside this window. It is a set difference over two windows, so a fault that appeared and stopped within the previous hour does not show up \u2014 that is the accepted gap, not a bug.",
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (fingerprint) (count_over_time({service_name=~\"$service\"} | json | fingerprint != \"\" [1h])) unless sum by (fingerprint) (count_over_time({service_name=~\"$service\"} | json | fingerprint != \"\" [1h] offset 1h))"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      }
+    },
+    {
+      "type": "logs",
+      "datasource": "Loki",
+      "title": "Recent error logs",
+      "description": "The raw stream behind the tables. `fingerprint` is structured metadata here, never a stream label \u2014 filtering by it is a line filter, which is why these queries parse rather than select.",
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=~\"$service\"} | json | level = \"ERROR\""
+        }
+      ],
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      }
+    }
+  ]
+}
