@@ -12,11 +12,44 @@
 
 import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
 import { TracingInstrumentation } from "@grafana/faro-web-tracing";
+import { fingerprint } from "@libs/observability";
 
 const INGEST = "/api/rum";
 const FIRST_PARTY_API = /\/api\//;
 
 let initialized = false;
+
+type ExceptionPayload = {
+  type?: string;
+  value?: string;
+  stacktrace?: { frames?: Array<{ filename?: string; function?: string }> };
+  context?: Record<string, string>;
+};
+
+// Attaches the fault identifier to every exception on its way out (ADR-0503).
+//
+// A `beforeSend` hook rather than a call at each `pushError` site: an error
+// reaches Faro from the window handler, from an unhandled rejection, and from
+// `obsLog` — three paths, and a fingerprint added at two of them is a dashboard
+// that quietly under-reports the third. This is the one place every item passes.
+//
+// It goes in `context`, which Faro carries as attributes. Never a label: the value
+// is high-cardinality by construction and must not reach a metric or a Loki stream
+// label (ADR-0500).
+function withFingerprint<T extends { type: string; payload: unknown }>(item: T): T {
+  if (item.type !== "exception") {
+    return item;
+  }
+  const payload = item.payload as ExceptionPayload;
+  const stack = (payload.stacktrace?.frames ?? [])
+    .map((frame) => `    at ${frame.function ?? "?"} (${frame.filename ?? "?"})`)
+    .join("\n");
+  payload.context = {
+    ...payload.context,
+    "error.fingerprint": fingerprint({ name: payload.type, message: payload.value, stack }),
+  };
+  return item;
+}
 
 export function initBrowserObservability(): void {
   if (initialized || typeof window === "undefined") {
@@ -31,6 +64,17 @@ export function initBrowserObservability(): void {
       version: process.env.NEXT_PUBLIC_SERVICE_VERSION ?? "dev",
       environment: process.env.NEXT_PUBLIC_DEPLOY_ENV ?? "dev",
     },
+    // Attach the fault identifier to every exception on its way out (ADR-0503).
+    //
+    // Here rather than at each `pushError` call site: an error reaches Faro from
+    // the window handler, from an unhandled rejection, and from `obsLog` — three
+    // paths, and a fingerprint added at two of them is a dashboard that quietly
+    // under-reports one. `beforeSend` is the single place every item passes.
+    //
+    // It is `context`, which Faro carries as attributes, not a label: the value is
+    // high-cardinality by construction and must never become a metric or stream
+    // label (ADR-0500).
+    beforeSend: withFingerprint,
     // OFF, and this is a legal position rather than a tuning choice (ADR-0400).
     //
     // Faro's default is `{ enabled: true, persistent: false }`, and `persistent:

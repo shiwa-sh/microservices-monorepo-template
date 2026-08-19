@@ -17,6 +17,7 @@
         "@hookform/resolvers": "5.4.0",
         "@libs/id": "workspace:*",
         "@libs/money": "workspace:*",
+        "@libs/observability": "workspace:*",
         "@openfeature/web-sdk": "1.9.0",
         "@scalar/api-reference-react": "0.9.54",
         "@tanstack/react-query": "5.101.0",
@@ -53,6 +54,10 @@
     },
     "libs/ts/money": {
       "name": "@libs/money",
+      "version": "0.0.0",
+    },
+    "libs/ts/observability": {
+      "name": "@libs/observability",
       "version": "0.0.0",
     },
     "libs/ts/schemas": {
@@ -219,6 +224,8 @@
     "@libs/id": ["@libs/id@workspace:libs/ts/id"],
 
     "@libs/money": ["@libs/money@workspace:libs/ts/money"],
+
+    "@libs/observability": ["@libs/observability@workspace:libs/ts/observability"],
 
     "@libs/schemas": ["@libs/schemas@workspace:libs/ts/schemas"],
 

@@ -5,6 +5,7 @@
     "apps/frontend",
     "libs/ts/id",
     "libs/ts/money",
+    "libs/ts/observability",
     "libs/ts/schemas",
     "libs/ts/sdks/*"
   ],

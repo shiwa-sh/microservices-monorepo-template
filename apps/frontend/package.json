@@ -14,6 +14,7 @@
     "@hookform/resolvers": "5.4.0",
     "@libs/id": "workspace:*",
     "@libs/money": "workspace:*",
+    "@libs/observability": "workspace:*",
     "@openfeature/web-sdk": "1.9.0",
     "@scalar/api-reference-react": "0.9.54",
     "@tanstack/react-query": "5.101.0",
