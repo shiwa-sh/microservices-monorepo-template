@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
+	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/kratos"
 )
 
 const (
@@ -66,7 +67,7 @@ func decideStatus(t *testing.T, h *Handlers, r *authzsdk.AuthorizeRequest) int {
 func TestCoarseClaimGate(t *testing.T) {
 	t.Parallel()
 	checker := &fakeChecker{}
-	h := New(checker, nil, false, nil) // coarse-only (fine layer off)
+	h := New(checker, nil, false, nil, nil) // coarse-only (fine layer off)
 
 	cases := []struct {
 		name string
@@ -102,7 +103,7 @@ func TestCoarseClaimGate(t *testing.T) {
 func TestFineGrainedGate(t *testing.T) {
 	t.Parallel()
 	// alice holds o11y but not map.
-	h := New(&fakeChecker{answers: map[string]bool{"view dashboard:grafana": true}}, nil, true, nil)
+	h := New(&fakeChecker{answers: map[string]bool{"view dashboard:grafana": true}}, nil, true, nil, nil)
 
 	granted := decideStatus(t, h, req(subjectAlice, toolGrafana, aalLevel2, operatorTraitTrue))
 	if granted != 200 {
@@ -126,7 +127,7 @@ func TestFineGrainedGate(t *testing.T) {
 func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 	t.Helper()
 	full := map[string]any{
-		"id": "id-1", "schema_id": schemaUserV1, "state": stateValue,
+		"id": "id-1", "schema_id": kratos.SchemaUserV1, "state": stateValue,
 		"traits": map[string]any{traitEmail: opEmail, traitName: "Op One", traitOperator: true},
 	}
 	writeJSON := func(w http.ResponseWriter, v any) {
@@ -140,7 +141,7 @@ func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/admin/identities":
 			user := map[string]any{
-				"id": "id-2", "schema_id": schemaUserV1, "state": stateValue,
+				"id": "id-2", "schema_id": kratos.SchemaUserV1, "state": stateValue,
 				"traits": map[string]any{traitEmail: "user@example.com", traitName: "User Two"},
 			}
 			writeJSON(w, []any{full, user})
@@ -159,8 +160,8 @@ func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 }
 
 func newKratosHandlers(url string) *Handlers {
-	h := New(nil, nil, false, nil)
-	h.kratosAdmin = url
+	h := New(nil, nil, false, nil, nil)
+	h.identities = kratos.NewAt(url, nil)
 	return h
 }
 
@@ -201,7 +202,7 @@ func TestUpdateIdentityPreservesRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateIdentity: %v", err)
 	}
-	if got["schema_id"] != schemaUserV1 || got["state"] != stateValue {
+	if got["schema_id"] != kratos.SchemaUserV1 || got["state"] != stateValue {
 		t.Errorf("PUT dropped schema_id/state: %+v", got)
 	}
 	traits, _ := got["traits"].(map[string]any)

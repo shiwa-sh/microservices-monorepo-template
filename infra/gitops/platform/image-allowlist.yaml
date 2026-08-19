@@ -54,6 +54,7 @@ policies:
     - reg.kyverno.io/kyverno/reports-controller
     - registry.localhost:5000/admin
     - registry.localhost:5000/authz-server
+    - registry.localhost:5000/authz-worker
     - registry.localhost:5000/catalog-server
     - registry.localhost:5000/frontend
     - registry.localhost:5000/orders-server

@@ -18,8 +18,15 @@ run = "bash ../../scripts/env-ensure.sh"
 # and a named profile never can. mise resolves the graph: the shared cluster:base
 # edge is deduped, independent components come up in parallel, and each one
 # fast-exits when already Ready.
-depends = ["env", "dep:openfga"]
+depends = ["env", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/server"
+
+[tasks.worker]
+# Serves the authz-queue: the operator-registration dual write (ADR-0304). No
+# postgres — this service owns no schema, so the worker's dependencies are the
+# two systems the dual write spans.
+depends = ["env", "dep:openfga", "dep:temporal"]
+run = "go run ./cmd/worker"
 
 [tasks.test]
 run = "go test ./..."

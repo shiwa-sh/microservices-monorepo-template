@@ -36,9 +36,9 @@ func encodeAuthorizeResponse(response AuthorizeRes, w http.ResponseWriter, span 
 	}
 }
 
-func encodeCreateOperatorResponse(response *Operator, w http.ResponseWriter, span trace.Span) error {
+func encodeCreateOperatorResponse(response *WorkflowHandle, w http.ResponseWriter, span trace.Span) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(202)
 
 	e := new(jx.Encoder)
 	response.Encode(e)

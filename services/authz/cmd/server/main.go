@@ -19,6 +19,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
 	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/handlers"
 )
 
@@ -56,11 +57,21 @@ func run() error {
 	// OpenFGA dependency.
 	fineGrained := os.Getenv("OPS_FINE_GRAINED") == "true"
 
+	// The Temporal client, for the one mutation this service owns. It is a hard
+	// dependency of startup rather than a lazy dial: `createOperator` cannot be
+	// served at all without it, and a service that accepts the request and then
+	// discovers it has nowhere to send it has already told the caller yes.
+	tc, err := temporalmw.NewClient(serviceName)
+	if err != nil {
+		return fmt.Errorf("temporal: %w", err)
+	}
+	defer tc.Close()
+
 	// authz is spec-first like every HTTP service (ADR-0303): the ogen server routes
 	// and validates; the handlers implement the generated interface. No authmw — the
 	// caller is Oathkeeper (remote_json), not a user session.
 	api, err := authzsdk.NewServer(
-		handlers.New(checker, granter, fineGrained, slog.Default()),
+		handlers.New(checker, granter, fineGrained, tc, slog.Default()),
 		// A request the generated server rejects before a handler runs — a malformed
 		// body, a bad parameter, a missing required header — still gets an RFC 9457
 		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).

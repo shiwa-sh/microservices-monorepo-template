@@ -10,7 +10,16 @@ pre-commit:
   # runs when a file it cares about is staged. Keep this in step with the lint/
   # format umbrellas in .mise.toml — a check that lives only in CI is a gate a
   # commit can slip past locally (that is how a lint:gostyle break reached CI).
-  parallel: true
+  #
+  # SEQUENTIAL, and it costs almost nothing. Every analyser here finishes in under
+  # two seconds; `gen-drift` takes minutes and dominates the wall clock either way.
+  # What parallel bought was a race: gen-drift REGENERATES the tree while the
+  # analysers are reading it, and the failures name the wrong thing entirely —
+  # Biome reporting `No such file or directory` on a file that exists, and
+  # golangci-lint reporting `no go files to analyze` in a repository full of them.
+  # Both are real and neither is reproducible on demand, which is the worst kind of
+  # gate: one that fails for reasons the developer cannot act on.
+  piped: true
   commands:
     go-fmt:
       glob: "*.go"
@@ -55,7 +64,18 @@ pre-commit:
       # a misformatted infra/ file slip past this hook and fail CI's repo-wide
       # `biome ci .` (lint.yml) and the `mise run format` drift check (ci-drift.yml) —
       # exactly the "gate a commit can slip past locally" this file warns about.
+      #
+      # `exclude` mirrors biome.jsonc's negated includes, and it is not redundant.
+      # Naming a file on the command line overrides the config's include list, so
+      # without this the hook hands Biome exactly the generated files the config
+      # excludes — checking, and potentially rewriting, output that is drift-checked
+      # rather than reviewed.
       glob: "**/*.{ts,tsx,js,jsx,json,jsonc,css}"
+      exclude:
+        - "libs/ts/sdks/**"
+        - "apps/admin/_generated/**"
+        - "apps/frontend/public/devportal/**"
+        - "test/e2e/**"
       run: biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
     rumdl:

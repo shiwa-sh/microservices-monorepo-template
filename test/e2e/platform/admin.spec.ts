@@ -153,23 +153,34 @@ test.describe("lowdefy ops dashboard", () => {
     });
   });
 
-  // Operator management: the generated createOperator page creates a Kratos
-  // identity and grants group:operator membership in OpenFGA via server-side API
-  // calls (authz POST /operators).
+  // Operator management: the generated createOperator page starts the
+  // RegisterOperator workflow (authz POST /operators), which creates the Kratos
+  // identity and grants group:operator membership in OpenFGA as two activities
+  // (ADR-0304).
   test.describe("create operator", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test.afterAll(async () => {
       const pf = await portForward("ory-kratos-admin", 4434, 80);
       try {
-        const res = await fetch(
-          `http://127.0.0.1:4434/admin/identities?credentials_identifier=${encodeURIComponent(TEST_OPERATOR_EMAIL)}`,
-        );
-        if (!res.ok) return;
-        const list = (await res.json()) as Array<{ id: string; traits?: { email?: string } }>;
-        const hit = list.find((i) => i.traits?.email === TEST_OPERATOR_EMAIL);
-        if (hit) {
-          await fetch(`http://127.0.0.1:4434/admin/identities/${hit.id}`, { method: "DELETE" });
+        // Poll rather than read once. The endpoint returns 202 the moment the
+        // workflow starts, so the identity does not exist yet when the assertion
+        // above passes — a single read here would usually find nothing and leave
+        // the identity behind for whatever runs next to trip over.
+        const deadline = Date.now() + 30_000;
+        while (Date.now() < deadline) {
+          const res = await fetch(
+            `http://127.0.0.1:4434/admin/identities?credentials_identifier=${encodeURIComponent(TEST_OPERATOR_EMAIL)}`,
+          );
+          if (res.ok) {
+            const list = (await res.json()) as Array<{ id: string; traits?: { email?: string } }>;
+            const hit = list.find((i) => i.traits?.email === TEST_OPERATOR_EMAIL);
+            if (hit) {
+              await fetch(`http://127.0.0.1:4434/admin/identities/${hit.id}`, { method: "DELETE" });
+              return;
+            }
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1_000));
         }
       } finally {
         pf.stop();

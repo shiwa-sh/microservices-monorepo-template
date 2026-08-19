@@ -27,7 +27,7 @@ func (UnimplementedHandler) Authorize(ctx context.Context, req *AuthorizeRequest
 // Create an operator identity and grant the operator role.
 //
 // POST /operators
-func (UnimplementedHandler) CreateOperator(ctx context.Context, req *OperatorInput) (r *Operator, _ error) {
+func (UnimplementedHandler) CreateOperator(ctx context.Context, req *OperatorInput) (r *WorkflowHandle, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

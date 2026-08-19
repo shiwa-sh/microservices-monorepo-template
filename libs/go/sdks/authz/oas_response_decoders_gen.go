@@ -117,10 +117,10 @@ func decodeAuthorizeResponse(resp *http.Response) (res AuthorizeRes, _ error) {
 	return res, errors.Wrap(defRes, "error")
 }
 
-func decodeCreateOperatorResponse(resp *http.Response) (res *Operator, _ error) {
+func decodeCreateOperatorResponse(resp *http.Response) (res *WorkflowHandle, _ error) {
 	switch resp.StatusCode {
-	case 200:
-		// Code 200.
+	case 202:
+		// Code 202.
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -133,7 +133,7 @@ func decodeCreateOperatorResponse(resp *http.Response) (res *Operator, _ error) 
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response Operator
+			var response WorkflowHandle
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -149,6 +149,15 @@ func decodeCreateOperatorResponse(resp *http.Response) (res *Operator, _ error) 
 					Err:         err,
 				}
 				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
 			}
 			return &response, nil
 		default:

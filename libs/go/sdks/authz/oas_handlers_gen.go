@@ -281,7 +281,7 @@ func (s *Server) handleCreateOperatorRequest(args [0]string, argsEscaped bool, w
 		}
 	}()
 
-	var response *Operator
+	var response *WorkflowHandle
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -297,7 +297,7 @@ func (s *Server) handleCreateOperatorRequest(args [0]string, argsEscaped bool, w
 		type (
 			Request  = *OperatorInput
 			Params   = struct{}
-			Response = *Operator
+			Response = *WorkflowHandle
 		)
 		response, err = middleware.HookMiddleware[
 			Request,

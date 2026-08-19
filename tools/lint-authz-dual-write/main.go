@@ -51,14 +51,11 @@ const activitiesDir = "internal/activities"
 // exempt lists the call sites that are known violations, each with the reason it is
 // still here. An exemption is a debt with a name — the alternative is a gate that
 // does not exist because the first violation was reason enough to delete it.
-var exempt = map[string]string{
-	// The authz service has no Temporal worker at all, so there is no workflow to
-	// move this into: `CreateOperator` writes a Kratos identity and then a
-	// `group:operator` tuple, and a failure between them leaves an operator who
-	// cannot use the ops tier. Closing it means giving authz a worker, which is a
-	// service change rather than a lint fix. See the plan's F-row.
-	"services/authz/internal/handlers/handlers.go": "authz has no worker yet; CreateOperator's dual write is tracked",
-}
+//
+// It is empty, and that is the point it is kept for: the map stays so the next
+// violation has somewhere to be written down with its reason, rather than being
+// argued about at the gate.
+var exempt = map[string]string{}
 
 type finding struct {
 	file string
@@ -118,7 +115,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, _ = fmt.Fprintf(os.Stdout, "✓ authz tuples are written from activities (%d exemption(s) recorded)\n", len(exempt))
+	if len(exempt) > 0 {
+		_, _ = fmt.Fprintf(os.Stdout, "✓ authz tuples are written from activities (%d exemption(s) recorded)\n", len(exempt))
+		return
+	}
+	_, _ = fmt.Fprintf(os.Stdout, "✓ authz tuples are written from activities, with no exemptions\n")
 }
 
 // grantCalls returns every granter mutation called in a file.

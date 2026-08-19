@@ -18,6 +18,7 @@ jobs:
     outputs:
       services: ${{ steps.affected.outputs.services }}
       apps: ${{ steps.affected.outputs.apps }}
+      images: ${{ steps.affected.outputs.images }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -31,10 +32,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cmd: [server, worker]
-        # The list of services is materialised from the affected job, which
-        # emits the services array as a JSON-encoded output.
-        service: ${{ fromJSON(needs.affected.outputs.services) }}
+        # Explicit {service, cmd} pairs from the affected job, not a cross product
+        # of services and commands. Not every service owns a worker process, and a
+        # cross product asks the builder for a `cmd/worker` directory that does not
+        # exist — one red cell per workerless service, on every run, while every
+        # image the workflow was meant to produce is published anyway.
+        include: ${{ fromJSON(needs.affected.outputs.images) }}
     steps:
       - uses: actions/checkout@v4
       # The toolchain, for the signing step: cosign, syft, sops and yq are pinned

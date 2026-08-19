@@ -19,7 +19,7 @@ type Handler interface {
 	// Create an operator identity and grant the operator role.
 	//
 	// POST /operators
-	CreateOperator(ctx context.Context, req *OperatorInput) (*Operator, error)
+	CreateOperator(ctx context.Context, req *OperatorInput) (*WorkflowHandle, error)
 	// GetIdentity implements getIdentity operation.
 	//
 	// Fetch one identity by id.

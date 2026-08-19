@@ -93,7 +93,14 @@ paths:
         description: The operator to create.
         content: { application/json: { schema: { $ref: "#/components/schemas/OperatorInput" } } }
       responses:
-        "200": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Operator" } } } }
+        # 202 and a handle, not 200 and the operator. Creating one is a dual write —
+        # a Kratos identity and an OpenFGA grant — and ADR-0304 puts an
+        # authz-relevant pair in a workflow, so the identity does not exist yet when
+        # this returns. Every other authz-relevant mutation on this platform answers
+        # the same way (orders, payment).
+        "202":
+          description: The operator registration was accepted and is running.
+          content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowHandle" } } }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -187,14 +194,15 @@ components:
       properties:
         email:    { type: string, minLength: 1 }
         password: { type: string, minLength: 1 }
-    Operator:
+    WorkflowHandle:
       type: object
-      description: A created operator.
-      required: [id, email]
+      description: Handle to an async Temporal workflow run.
+      required: [id, run_id, status]
       properties:
-        id:    { type: string }
-        email: { type: string }
-      example: { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b001, email: operator@e2e.localtest.me }
+        id:     { type: string }
+        run_id: { type: string }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
+      example: { id: register-operator-ops-example.com, run_id: 01kztn9tsrea7b1597q3yjdeav, status: running }
     Identity:
       type: object
       description: A Kratos identity, flattened from its traits for the admin changelist.

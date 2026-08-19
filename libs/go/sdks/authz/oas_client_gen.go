@@ -39,7 +39,7 @@ type Invoker interface {
 	// Create an operator identity and grant the operator role.
 	//
 	// POST /operators
-	CreateOperator(ctx context.Context, request *OperatorInput) (*Operator, error)
+	CreateOperator(ctx context.Context, request *OperatorInput) (*WorkflowHandle, error)
 	// GetIdentity invokes getIdentity operation.
 	//
 	// Fetch one identity by id.
@@ -187,12 +187,12 @@ func (c *Client) sendAuthorize(ctx context.Context, request *AuthorizeRequest) (
 // Create an operator identity and grant the operator role.
 //
 // POST /operators
-func (c *Client) CreateOperator(ctx context.Context, request *OperatorInput) (*Operator, error) {
+func (c *Client) CreateOperator(ctx context.Context, request *OperatorInput) (*WorkflowHandle, error) {
 	res, err := c.sendCreateOperator(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendCreateOperator(ctx context.Context, request *OperatorInput) (res *Operator, err error) {
+func (c *Client) sendCreateOperator(ctx context.Context, request *OperatorInput) (res *WorkflowHandle, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createOperator"),
 		semconv.HTTPRequestMethodKey.String("POST"),

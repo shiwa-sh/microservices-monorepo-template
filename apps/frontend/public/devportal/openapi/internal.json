@@ -796,6 +796,43 @@
           "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
         }
       },
+      "WorkflowHandle": {
+        "type": "object",
+        "description": "Handle to an async Temporal workflow run.",
+        "required": [
+          "id",
+          "run_id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "result_url": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "GET to fetch terminal status + result"
+          }
+        },
+        "example": {
+          "id": "charge-charge_01kztnyqr0f13shqqnx8028xx5",
+          "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e002",
+          "status": "running",
+          "result_url": "/api/charges/charge_01kztnyqr0f13shqqnx8028xx5"
+        }
+      },
       "Money": {
         "type": "object",
         "description": "A monetary amount. The amount is a decimal STRING — a JSON number becomes a\ndouble in the TypeScript client, and a double cannot hold a decimal amount\nexactly. Currency travels with the amount, because an amount without one is\nnot a quantity of anything.\n",
@@ -878,43 +915,6 @@
         "description": "An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
         "pattern": "^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
         "example": "order_01kztnj6c8e0jt7vzw0cn1wxvd"
-      },
-      "WorkflowHandle": {
-        "type": "object",
-        "description": "Handle to an async Temporal workflow run.",
-        "required": [
-          "id",
-          "run_id",
-          "status"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "run_id": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "running",
-              "completed",
-              "failed",
-              "cancelled"
-            ]
-          },
-          "result_url": {
-            "type": "string",
-            "format": "uri-reference",
-            "description": "GET to fetch terminal status + result"
-          }
-        },
-        "example": {
-          "id": "charge-charge_01kztnyqr0f13shqqnx8028xx5",
-          "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e002",
-          "status": "running",
-          "result_url": "/api/charges/charge_01kztnyqr0f13shqqnx8028xx5"
-        }
       },
       "CheckoutInput": {
         "type": "object",

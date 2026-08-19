@@ -1,7 +1,9 @@
 ## Kratos — identity APIs. Public (4433) is reached by Oathkeeper (session
 ## checks) and the edge gateway (login/registration flows); admin (4434) by the
-## authz service, which provisions operator identities for the Lowdefy admin
-## console (ADR-0401, services/authz operator handler). Cilium enforces on the pod
+## authz service — its server reads and updates identities for the Lowdefy admin
+## console, and its worker creates them in the operator-registration workflow
+## (ADR-0401, ADR-0304). One rule covers both: the selector names the service, not
+## a component, because both halves are the same trust decision. Cilium enforces on the pod
 ## containerPort, not the Service port (ory-kratos-admin:80 → 4434). The orgs
 ## worker reaches admin too: it owns the post-registration process (ADR-0304) and
 ## writes the new personal org back onto the identity, which is where the edge
