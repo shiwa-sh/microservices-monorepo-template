@@ -16,6 +16,7 @@ pgweb:
     port: 80
 
   # Postgres DSN pgweb connects to. Empty by default; each env's overlay supplies
-  # it (local points at the in-cluster CNPG dev role). A dedicated read-only DB
-  # role is the documented intent but not enforced here.
+  # it, and it MUST name the `readonly` role rather than a schema owner (ADR-0401).
+  # The role is created by the postgres chart and granted SELECT by each service's
+  # migrations; pgweb's own `--readonly` flag is the second layer, not the first.
   databaseUrl: ""

@@ -168,7 +168,11 @@ lowdefy:
 # it points read-only at the in-cluster CNPG dev role (same dev:dev creds Kratos
 # uses locally). Headlamp needs no local override.
 pgweb:
-  databaseUrl: "postgres://dev:dev@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
+  # The read-only role, not `dev` (ADR-0401). `dev` OWNS these tables, so pointing
+  # the inspector at it left pgweb's `--readonly` flag as the only thing between an
+  # operator and a write — one layer where the ADR states two, and the flag is the
+  # layer that does not apply to anyone who reaches the same database with psql.
+  databaseUrl: "postgres://readonly:readonly@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
 
 # Admission control (ADR-0104). The local tier publishes no images and holds no
 # signing key, so both policies are absent by construction: `imagePrefix` is empty,

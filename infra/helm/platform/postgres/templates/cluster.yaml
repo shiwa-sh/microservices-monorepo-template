@@ -29,10 +29,27 @@ spec:
       owner: {{ .Values.cluster.initdb.owner }}
       secret:
         name: {{ .Values.cluster.initdb.secretName }}
+      {{- with .Values.cluster.initdb.postInitSQL }}
+      postInitSQL:
+        {{- range . }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- end }}
       postInitApplicationSQL:
         {{- range .Values.cluster.initdb.postInitApplicationSQL }}
         - {{ . | quote }}
         {{- end }}
+  {{- with .Values.cluster.managedRoles }}
+  managed:
+    roles:
+      {{- range . }}
+      - name: {{ .name }}
+        ensure: {{ .ensure }}
+        login: {{ .login }}
+        passwordSecret:
+          name: {{ .passwordSecretName }}
+      {{- end }}
+  {{- end }}
   {{- if .Values.cluster.backup.enabled }}
   backup:
     barmanObjectStore:

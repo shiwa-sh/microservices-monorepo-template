@@ -38,6 +38,13 @@ cluster:
     database: orders
     owner: dev
     secretName: postgres-superuser
+    # Cluster-global, so it belongs at bootstrap rather than in any one service's
+    # migrations: the read-only inspector role ADR-0401 requires, created without a
+    # login. `managed.roles` below attaches the password and the login right, so no
+    # credential appears in committed SQL. What the role may READ is granted per
+    # database by each service's migrations, because that changes with the schema.
+    postInitSQL:
+      - "CREATE ROLE readonly NOLOGIN"
     postInitApplicationSQL:
       - "CREATE DATABASE catalog OWNER dev"
       - "CREATE DATABASE orgs OWNER dev"
@@ -46,6 +53,14 @@ cluster:
       - "CREATE DATABASE temporal OWNER dev"
       - "CREATE DATABASE temporal_visibility OWNER dev"
       - "CREATE DATABASE openfga OWNER dev"
+  # The read-only role's login half (ADR-0401, ADR-0202). CNPG reconciles the
+  # password from the Secret rather than from a values field, so rotating it is
+  # re-encrypting one SopsSecret entry.
+  managedRoles:
+    - name: readonly
+      ensure: present
+      login: true
+      passwordSecretName: postgres-readonly
   pooler:
     instances: 2
     poolMode: transaction      # ADR-0300: transaction mode is the default
