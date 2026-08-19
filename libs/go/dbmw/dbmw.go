@@ -21,7 +21,20 @@ func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	if err != nil {
 		panic(err)
 	}
-	// PgBouncer transaction-mode compatibility (ADR-0300).
+	// PgBouncer transaction-mode compatibility (ADR-0300). `DescribeExec` describes
+	// a statement without creating a server-side prepared statement, which is what
+	// makes a transaction-mode pooler safe.
+	//
+	// Still required, and the version number is not the reason to stop. PgBouncer
+	// has supported prepared statements in transaction mode since 1.21 and the
+	// deployed pooler is well past that — but only when `max_prepared_statements`
+	// is greater than zero, and it defaults to zero. The CNPG `Pooler` in
+	// infra/helm/platform/postgres sets `max_client_conn` and `default_pool_size`
+	// and not that one, so the capability is off however new the binary is.
+	//
+	// Turning it on is an ADR-0300 amendment rather than a values edit: that rule
+	// forbids server-side prepared statements "without compatibility flags", and
+	// the flag has a per-connection cache to size.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
