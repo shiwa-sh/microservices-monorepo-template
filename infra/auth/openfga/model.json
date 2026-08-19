@@ -253,6 +253,35 @@
         }
       },
       "type": "dashboard"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "view": {},
+          "viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "relation": "member",
+                "type": "group"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "view": {
+          "computedUserset": {
+            "relation": "viewer"
+          }
+        },
+        "viewer": {
+          "this": {}
+        }
+      },
+      "type": "analytics_panel"
     }
   ]
 }

@@ -30,6 +30,11 @@ tuples:
   - { user: group:operator#member, relation: viewer, object: dashboard:headlamp }
   - { user: group:operator#member, relation: viewer, object: dashboard:pgweb }
   - { user: group:operator#member, relation: viewer, object: dashboard:mailpit }
+  # The analytics panel is granted to the MARKETING group, not to operators
+  # (ADR-0700). That is the whole point of the separate type: marketing reads
+  # funnels without an ops-tier account, and an operator does not gain the panel by
+  # being an operator.
+  - { user: group:marketing#member, relation: viewer, object: analytics_panel:funnels }
 
 tests:
   - name: business-and-ops-authz

@@ -217,8 +217,31 @@ opentelemetry-collector:
       # per-project flag — not deployed here.
       probabilistic_sampler:
         sampling_percentage: 5
+    connectors:
+      # The marketing split (ADR-0700). `marketing.*` events arrive on the Faro
+      # receiver like every other browser signal, and this diverts them out of the
+      # logs pipeline before they reach Loki.
+      #
+      # Here rather than in the browser, and that placement does three things at
+      # once: marketing events NEVER reach the log store, so ADR-0500's PII rule
+      # holds there; marketing data gets its own retention class instead of
+      # inheriting the ops-log one; and the browser stays ignorant of the topology,
+      # so the backend can be replaced without a frontend release.
+      #
+      # `default_pipelines` is what keeps ops signals untouched: a log that matches
+      # no condition below continues to Loki exactly as before.
+      routing:
+        default_pipelines: [logs/ops]
+        error_mode: ignore
+        table:
+          - context: log
+            condition: 'IsMatch(attributes["faro.name"], "^marketing[.]")'
+            pipelines: [logs/marketing]
     exporters:
       otlphttp/tempo:      { endpoint: http://tempo.platform.svc.cluster.local:4318 }
+      # The analytics service (ADR-0700). A first-party service rather than a
+      # platform component, so this is an ordinary in-cluster endpoint.
+      otlphttp/analytics:  { endpoint: http://analytics-server.platform.svc.cluster.local/api/analytics/events }
       # Prometheus native OTLP receiver (--web.enable-otlp-receiver). The otlphttp
       # exporter appends /v1/metrics to this base path.
       otlphttp/prometheus: { endpoint: http://prometheus.platform.svc.cluster.local:9090/api/v1/otlp }
@@ -229,4 +252,8 @@ opentelemetry-collector:
       pipelines:
         traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
         metrics: { receivers: [otlp, prometheus/hubble, prometheus/kubelet, kubeletstats], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
-        logs:    { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
+        # Every log and browser signal enters here and is split by the routing
+        # connector below; nothing else changes about the ops path.
+        logs:            { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [routing] }
+        logs/ops:        { receivers: [routing], exporters: [otlphttp/loki] }
+        logs/marketing:  { receivers: [routing], exporters: [otlphttp/analytics] }

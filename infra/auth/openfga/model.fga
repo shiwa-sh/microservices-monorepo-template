@@ -55,3 +55,16 @@ type dashboard
   relations
     define viewer: [user, group#member]
     define view: viewer
+
+# The analytics panel (ADR-0700). One type mirroring `dashboard` above, rather than
+# a second pattern: the panel is a route group on the product origin, and it is
+# page-gated by the same Checker the ops tier uses.
+#
+# It is a separate type from `dashboard` because it is granted through a marketing
+# group, and that separation is what resolves the placement problem — marketing
+# never receives an ops-tier account, never needs operator MFA, and never touches
+# Grafana, while the ops tier's least-authority rule stays intact.
+type analytics_panel
+  relations
+    define viewer: [user, group#member]
+    define view: viewer

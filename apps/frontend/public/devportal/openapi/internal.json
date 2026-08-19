@@ -796,6 +796,28 @@
           "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
         }
       },
+      "Event": {
+        "type": "object",
+        "description": "One marketing event. The name carries no `marketing.` prefix — that is how the collector routed it, not what it is.",
+        "required": [
+          "name",
+          "occurred_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
       "WorkflowHandle": {
         "type": "object",
         "description": "Handle to an async Temporal workflow run.",

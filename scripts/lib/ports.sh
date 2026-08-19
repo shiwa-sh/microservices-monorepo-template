@@ -32,6 +32,7 @@ __PORTS_SH_LOADED=1
 
 # service:port — the registry itself.
 __LOCAL_PORTS="
+analytics:8086
 authz:8085
 catalog:8081
 orders:8082

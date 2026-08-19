@@ -1,0 +1,33 @@
+[env]
+# The registered local port for this service (scripts/lib/ports.sh).
+PORT = "8086"
+_.file = ".env"
+
+[tasks.env]
+# Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why
+# it stops rather than continuing). Hidden: it runs as a dependency.
+hide = true
+run = "bash ../../scripts/env-ensure.sh"
+
+[tasks.server]
+# No OpenFGA and no Temporal. The panel that reads this store is authorised in the
+# render layer (ADR-0700), not here; the rollup `Schedule` that would need a worker
+# is not built, because nothing owns platform-periodic work yet.
+depends = ["env", "dep:postgres"]
+run = "go run ./cmd/server"
+
+[tasks.test]
+run = "go test ./..."
+
+[tasks.lint]
+run = "golangci-lint run ./..."
+
+[tasks.migrate]
+depends = ["env", "dep:postgres"]
+run = "dbmate --no-dump-schema up"
+
+[tasks.generate]
+run = "sqlc generate && bash ../../scripts/gen-openapi.sh"
+
+[tasks.build]
+run = "go build ./..."

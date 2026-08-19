@@ -1,0 +1,199 @@
+openapi: 3.1.0
+info: { title: analytics, version: 0.1.0, description: Marketing event store and consent record., x-audience: cluster }
+servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
+#
+# `x-audience: cluster` — east-west only, and therefore NO /api edge route at all
+# (ADR-0303). Nothing in a browser reaches this service: marketing events arrive
+# from the collector's routing connector, and the consent control writes through
+# the frontend's server-side fetcher, which is a call from the Next pod rather than
+# from the page. That is what keeps the event store off the public edge entirely —
+# a public write path to it would be an unauthenticated way to fill the table.
+# No `x-admin` marker anywhere. ADR-0700 puts the analytics panel on the product
+# origin as a route group behind the marketing group's own grant, not in the
+# operator console — marketing never receives an ops-tier account.
+tags: [{ name: analytics }, { name: consent }]
+paths:
+  /analytics/events:
+    post:
+      operationId: recordEvents
+      # Written by the collector's routing connector, never by a browser (ADR-0700).
+      # The browser emits through Faro; the collector splits `marketing.*` out of the
+      # logs pipeline and delivers here, which is what keeps marketing events out of
+      # Loki and lets the backend change without a frontend release.
+      description: Record a batch of marketing events.
+      tags: [analytics]
+      requestBody:
+        required: true
+        description: The events to record.
+        content: { application/json: { schema: { $ref: "#/components/schemas/EventBatch" } } }
+      responses:
+        "202":
+          description: |
+            Accepted. The count that was STORED, which is not necessarily the count
+            that was sent: an event whose session has no recorded consent is dropped
+            here (ADR-0700's second enforcement point), because the first one runs on
+            a client this platform does not control.
+          content: { application/json: { schema: { $ref: "#/components/schemas/RecordResult" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /analytics/consent:
+    put:
+      operationId: recordConsent
+      description: Record or withdraw consent for a session.
+      tags: [consent]
+      requestBody:
+        required: true
+        description: The consent decision.
+        content: { application/json: { schema: { $ref: "#/components/schemas/ConsentInput" } } }
+      responses:
+        "200":
+          description: The decision as recorded.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Consent" } } }
+        default: { $ref: "#/components/responses/Error" }
+    get:
+      operationId: getConsent
+      description: Read the recorded decision for a session.
+      tags: [consent]
+      parameters:
+        - { name: session_id, in: query, required: true, description: The session to read., schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: The decision on file for that session.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Consent" } } }
+        default: { $ref: "#/components/responses/Error" }
+components:
+  responses:
+    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
+    Error:
+      description: An error, as RFC 9457 problem details.
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    # <<< shared-components
+  schemas:
+    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
+    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
+    # identifies the occurrence, and it reaches the trace where an instance URL
+    # reaches nothing.
+    Problem:
+      type: object
+      description: |
+        RFC 9457 problem details. Served as `application/problem+json` by services and
+        by the edge alike, so a generated client has one error branch rather than two.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: |
+            `about:blank`, except where two errors share a status code and a client
+            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+            URN — never a dereferenceable URL, which would put an error taxonomy into
+            the flat public URL namespace.
+          default: "about:blank"
+          example: "about:blank"
+        title:
+          type: string
+          description: A stable, human-readable summary. Does not vary with the instance.
+          example: Not Found
+        status:
+          type: integer
+          description: The HTTP status, duplicated in the body.
+          minimum: 100
+          maximum: 599
+          example: 404
+        detail:
+          type: string
+          description: |
+            Instance-specific and safe to show a user. Never a stack trace, a query, or
+            an internal hostname.
+          example: No product with that identifier.
+        trace_id:
+          type: string
+          description: |
+            The W3C Trace Context trace-id of the failing request, so a user-reported
+            error reaches its trace. Supplied from the active span, not by the handler.
+          pattern: "^[0-9a-f]{32}$"
+          example: 4bf92f3577b34da6a3ce929d0e0e4736
+        errors:
+          type: array
+          description: |
+            Field-level validation failures, populated from the generated validator.
+            Absent when the failure is not a validation failure.
+          items:
+            type: object
+            required: [pointer, message]
+            properties:
+              pointer:
+                type: string
+                description: RFC 6901 JSON Pointer to the offending member.
+                example: /price/amount
+              message:
+                type: string
+                example: must be a decimal amount
+      example:
+        type: "about:blank"
+        title: Not Found
+        status: 404
+        detail: No product with that identifier.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # <<< shared-components
+    EventBatch:
+      type: object
+      description: A batch of marketing events from one session.
+      required: [session_id, events]
+      properties:
+        session_id: { type: string, minLength: 1 }
+        identity_id: { type: string }
+        device_class: { type: string, enum: [mobile, tablet, desktop, unknown] }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/Event" }
+    Event:
+      type: object
+      description: One marketing event. The name carries no `marketing.` prefix — that is how the collector routed it, not what it is.
+      required: [name, occurred_at]
+      properties:
+        name: { type: string, minLength: 1 }
+        occurred_at: { type: string, format: date-time }
+        properties: { type: object, additionalProperties: true }
+    RecordResult:
+      type: object
+      description: How many events of the batch were stored.
+      required: [stored, dropped]
+      properties:
+        stored: { type: integer }
+        dropped:
+          type: integer
+          description: Events discarded for want of a recorded grant. A non-zero value here is a client emitting without consent, which is worth seeing.
+      # Served verbatim by the API mock (ADR-0600).
+      example: { stored: 3, dropped: 0 }
+    ConsentInput:
+      type: object
+      description: A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)).
+      required: [session_id, state, purpose_version, source]
+      properties:
+        session_id: { type: string, minLength: 1 }
+        identity_id: { type: string }
+        state: { type: string, enum: [granted, withdrawn, refused] }
+        purpose_version:
+          type: string
+          minLength: 1
+          description: The version of the purpose text shown. Consent is to a stated purpose, so a changed purpose is a new consent rather than a continuing one.
+        source:
+          type: string
+          enum: [control, gpc]
+          description: "`gpc` is a Global Privacy Control signal — a refusal nobody was prompted for."
+    Consent:
+      type: object
+      description: A recorded consent decision.
+      required: [session_id, state, purpose_version, source, decided_at]
+      properties:
+        session_id: { type: string }
+        identity_id: { type: string }
+        state: { type: string, enum: [granted, withdrawn, refused] }
+        purpose_version: { type: string }
+        source: { type: string, enum: [control, gpc] }
+        decided_at: { type: string, format: date-time }
+      # A `gpc` refusal is the honest example: the visitor was never prompted, which
+      # is the point of honouring the signal (ADR-0700).
+      example:
+        { session_id: 4f3b9c22, state: refused, purpose_version: "2026-08-01", source: gpc, decided_at: "2026-08-19T10:00:00Z" }

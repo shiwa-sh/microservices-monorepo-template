@@ -1,0 +1,30 @@
+# Per-service build-context filter (ADR-0101, ADR-0200). BuildKit reads this file
+# (next to the Dockerfile) in preference to any root .dockerignore, so each build
+# states its own context rules — there is no hidden repo-wide default. A Go service
+# image compiles ONLY Go sources (go.mod/go.sum, libs/go, services/*); everything
+# else is kept out of the build context. The frontend, which needs apps/ + libs/ts,
+# has its own filter (apps/frontend/Dockerfile.dockerignore).
+**/.git
+**/.DS_Store
+**/node_modules
+
+# Non-Go workspaces and assets.
+apps/
+libs/ts/
+
+# Repo plumbing not needed to compile a service.
+docs/
+infra/
+scripts/
+tools/
+.github/
+
+# Root tooling/config not needed to compile a service.
+biome.jsonc
+package.json
+cog.toml
+.golangci.yml
+.rumdl.toml
+
+# Markdown anywhere (incl. per-service READMEs).
+**/*.md

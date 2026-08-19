@@ -1,0 +1,18 @@
+# Dev values for the analytics service (ADR-0700, ADR-0205).
+name: analytics
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/analytics-server
+  tag: "0000000000000000000000000000000000000000"
+worker: { enabled: false }
+server:  { replicas: 1 }
+# No /api edge route. Nothing in a browser calls this service: the browser emits
+# through Faro, and the collector's routing connector delivers here east-west
+# (ADR-0700). An edge route would be a public surface for an internal write path.
+ingress: { enabled: false }
+otel:    { deployEnv: dev }
+secrets: { envFrom: [analytics-db-creds] }
+networkPolicy:
+  allowFromGateway: false
+  # The node-level OTel collector is the only caller — it is what splits
+  # `marketing.*` out of the logs pipeline and delivers the batch here.
+  allowFrom: [otel-agent]
