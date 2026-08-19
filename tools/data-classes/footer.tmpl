@@ -1,0 +1,6 @@
+
+## What this does not cover
+
+Telemetry retention belongs to [ADR-0500](../adr/0500-observability.md) and backup retention to [ADR-0200](../adr/0200-cluster-topology.md). This registry owns application data, which is the part an erasure request reaches.
+
+A column tagged `pii:none` appears here too, and that is the point: the tag distinguishes "someone considered this and it holds no personal data" from "nobody looked".

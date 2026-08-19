@@ -1,0 +1,55 @@
+# Retention per data class (ADR-0301).
+#
+# The classes are `tools/lint-pii`'s vocabulary, which is also the vocabulary the
+# `pii:<class>` tags in every migration use. This file adds the two things a tag
+# cannot carry, because both are decisions rather than facts about a column:
+#
+#   period    how long data of this class is kept.
+#   disposal  what happens at the end of it — `delete` or `anonymise`. ADR-0301
+#             makes this a per-CATEGORY decision recorded here, never a per-request
+#             one, because a request that could choose would be a request that can
+#             erase an audit obligation.
+#
+# `docs/reference/data-classes.md` is generated from this plus the tags themselves,
+# so the registry is a view over two sources rather than a third copy of either.
+classes:
+  none:
+    period: n/a
+    disposal: n/a
+    note: Considered and carries no personal data. The tag exists so that "nobody looked" and "someone decided" are distinguishable.
+  contact:
+    period: life of the account, then 30 days
+    disposal: delete
+    note: Email, phone, postal address. Directly identifying, so an erasure request removes it rather than anonymising it.
+  name:
+    period: life of the account, then 30 days
+    disposal: delete
+    note: A person's name.
+  identifier:
+    period: life of the account, then 30 days
+    disposal: anonymise
+    note: A pseudonymous subject or account identifier. Anonymised rather than deleted because rows keyed by it — orders, charges — carry their own retention obligation that outlives the account.
+  government_id:
+    period: only while a legal obligation requires it
+    disposal: delete
+    note: National identifier, passport, tax number. The shortest period of any class, because holding one without a live obligation is the risk.
+  financial:
+    period: 7 years
+    disposal: anonymise
+    note: Payment instrument details. The period is a bookkeeping obligation rather than a product decision, and it overrides an erasure request for the row's financial fields.
+  location:
+    period: 90 days
+    disposal: delete
+    note: Coordinates and precise geolocation.
+  device:
+    period: 90 days
+    disposal: delete
+    note: IP address, user agent, device identifier. Raw IP addresses are not stored at all (ADR-0700); what falls under this class is what survives reduction.
+  special_category:
+    period: only while a legal obligation requires it
+    disposal: delete
+    note: GDPR Art. 9 — health, biometrics, and the rest. The platform stores none today, and the class exists so that adding one is a deliberate act against a stated rule.
+  free_text:
+    period: life of the account, then 30 days
+    disposal: delete
+    note: A field a user types into, which may hold anything. Treated at the strictest plausible class because its contents cannot be predicted.
