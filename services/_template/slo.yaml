@@ -33,6 +33,33 @@ latency:
   # rather than a promise to anyone.
   threshold: 0.5 # seconds
   objective: null # e.g. 0.99 of requests under the threshold
+  # Latency needs TWO recording rules per service, where availability needs one,
+  # and the reason is a limit of PromQL rather than a choice: the threshold above
+  # is an `le` label selector on the histogram, and no query can take a label
+  # selector from a series. So the ratio itself is per-service here, and only the
+  # burn alerts are shared (infra/observability/alerts/slo-burn.yaml).
+  #
+  # Publish one ratio per window — 5m, 30m, 1h and 6h, the four the burn alerts
+  # pair — with `le` set to this threshold and `service_name` to this service:
+  #
+  #   - record: service:request_latency_errors:ratio_rate5m
+  #     expr: |
+  #       1 - (
+  #         sum(rate(http_server_request_duration_seconds_bucket{service_name="<this service>",le="0.5"}[5m]))
+  #           / (sum(rate(http_server_request_duration_seconds_count{service_name="<this service>"}[5m])) > 0)
+  #       )
+  #     labels: { service_name: <this service> }
+  #
+  # and the objective, once chosen:
+  #
+  #   - record: service:slo_latency_target:ratio
+  #     expr: 0.99
+  #     labels: { service_name: <this service> }
+  #
+  # `le` must match a bucket boundary the histogram actually has. A value between
+  # boundaries selects the next bucket up, so the SLI silently measures a looser
+  # threshold than this file states — the one failure here that produces a green
+  # dashboard rather than an empty one.
 
 # Excluded from both SLIs: anything with no live caller.
 exclude:

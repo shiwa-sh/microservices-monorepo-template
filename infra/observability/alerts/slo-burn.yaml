@@ -11,13 +11,19 @@
 # lies about itself. When a paging receiver is attached, the fast-burn rule is
 # promoted and nothing else about it changes.
 #
-# THE ALERTS READ AN OBJECTIVE THEY DO NOT DEFINE. Each compares the measured
-# error ratio against `service:slo_availability_target:ratio`, a series a project
-# publishes per service from its slo.yaml (services/_template/slo.yaml shows the
-# recording rule). Nothing publishes it here, so these evaluate over an empty set
-# and never fire — which is correct: the template ships the mechanism and refuses
-# to ship the number, because a target inherited from a template is a target
-# nobody chose.
+# THE ALERTS READ AN OBJECTIVE THEY DO NOT DEFINE. Each compares a measured ratio
+# against a target series a project publishes per service from its slo.yaml
+# (services/_template/slo.yaml shows both recording rules). Nothing publishes them
+# here, so these evaluate over an empty set and never fire — which is correct: the
+# template ships the mechanism and refuses to ship the number, because a target
+# inherited from a template is a target nobody chose.
+#
+# The two SLIs are not symmetric, and the asymmetry decides what can live in this
+# file. Availability needs only the target per service, so the ratio rules below
+# are generic. Latency needs the service's own threshold INSIDE the query, as an
+# `le` label selector on the histogram — and PromQL cannot take a label selector
+# from a series, so no generic rule can compute it. The latency ratio is therefore
+# the per-service recording rule, and only its burn alerts are here.
 groups:
   - name: slo.recording
     # Ratios rather than raw counts, at the four windows the burn alerts pair.
@@ -110,3 +116,52 @@ groups:
             Slower than the fast-burn rule and still ahead of budget: at this
             rate the 30-day window ends spent. Read it as a trend rather than an
             incident.
+
+  - name: slo.burn.latency
+    # The latency half of the SLI pair ADR-0500 declares. Same two burn rates and
+    # the same window pairs as availability above — a burn is a burn, and having
+    # the two SLIs alert on different arithmetic would make the pair harder to
+    # read for no gain.
+    #
+    # These read `service:request_latency_errors:ratio_rate*`, which a project
+    # records per service because the threshold is in the query. Until it does,
+    # these match nothing, exactly as the availability rules do without a target.
+    rules:
+      - alert: SLOLatencyBudgetFastBurn
+        expr: |
+          (
+            service:request_latency_errors:ratio_rate1h
+              > on (service_name) group_left () (14.4 * (1 - service:slo_latency_target:ratio))
+          )
+          and on (service_name)
+          (
+            service:request_latency_errors:ratio_rate5m
+              > on (service_name) group_left () (14.4 * (1 - service:slo_latency_target:ratio))
+          )
+        for: 2m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} is burning its latency budget 14.4x"
+          description: >-
+            Requests are exceeding the service's latency threshold fast enough to
+            spend the 30-day budget in about two days. `ticket` for the same
+            reason as every other burn rule here: no receiver reaches a human
+            within minutes (ADR-0502).
+      - alert: SLOLatencyBudgetSlowBurn
+        expr: |
+          (
+            service:request_latency_errors:ratio_rate6h
+              > on (service_name) group_left () (6 * (1 - service:slo_latency_target:ratio))
+          )
+          and on (service_name)
+          (
+            service:request_latency_errors:ratio_rate30m
+              > on (service_name) group_left () (6 * (1 - service:slo_latency_target:ratio))
+          )
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $labels.service_name }} is burning its latency budget 6x"
+          description: >-
+            Slower than the fast-burn rule and still ahead of budget. Read it as a
+            trend rather than an incident.
