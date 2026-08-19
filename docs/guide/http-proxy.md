@@ -2,7 +2,20 @@
 
 Proxy configuration is a property of **your machine**, not of this template. The repo carries no proxy values and no proxy logic, and the `cluster:*` tasks work unchanged once the three one-time steps below are done. On a clean network, none of this applies.
 
-The steps assume a **loopback** proxy on your host, for example `http://127.0.0.1:8118`. Each step is read from a different place — the host, a build container, the cluster node — so the address differs per step. That is the only subtlety. A **routable** proxy address works from everywhere: use it verbatim in every step and ignore the per-step address notes.
+The steps assume a **loopback** proxy on your host, for example `http://127.0.0.1:8118`. Each step is read from a different place — the host, a build container, the cluster node, a cluster pod — so the address differs per step. That is the only subtlety. A **routable** proxy address works from everywhere: use it verbatim in every step and ignore the per-step address notes.
+
+## Start here
+
+```sh
+mise run proxy:doctor            # what is configured, what is missing, and the exact fix
+mise run proxy:doctor -- --fix   # apply everything that does not need root
+```
+
+It checks the live state rather than the intent — what the docker daemon reports, what is in your `~/.docker/config.json`, whether the cluster node can resolve, whether the repo-server carries the proxy — does the per-step address arithmetic for you, and names the step that is wrong. On a direct network it exits 0 and tells you none of this applies.
+
+Only step 1 needs root, because it edits a systemd unit. `--fix` writes that file for you and prints the two `sudo` lines to paste; everything else it applies itself.
+
+Read the rest of this page when you want to know *why* a step exists, or when the doctor reports something it cannot fix. The steps below are the reference; the command above is the path.
 
 ## Step 1 — Proxy the Docker daemon, for image pulls
 

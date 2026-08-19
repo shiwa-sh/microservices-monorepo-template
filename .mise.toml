@@ -273,6 +273,18 @@ run = "bash scripts/cluster-heal.sh"
 # restart the stuck pods. Not part of any bring-up — clean networks never need it.
 run = "bash scripts/cluster-unwedge-images.sh"
 
+[tasks."proxy:doctor"]
+# Check this machine's proxy setup against docs/guide/http-proxy.md, and apply what
+# can be applied without root (ADR-0600). The guide's four steps are read from four
+# different places — host, build container, cluster node, cluster pod — and a
+# loopback proxy has a different address in each; this does that arithmetic and
+# names the step that is wrong, instead of leaving it to surface as a hung pull or
+# an Argo app stuck at `Unknown`.
+#   mise run proxy:doctor            # diagnose
+#   mise run proxy:doctor -- --fix   # apply the non-root fixes
+# Exits 0 and says so on a direct network.
+run = "bash scripts/proxy-doctor.sh"
+
 [tasks."cluster:preload"]
 # OPT-IN, proxied networks only: PROACTIVELY host-pull + kind-load the
 # bootstrap-critical images (Cilium, ArgoCD) before cluster:full's imperative
