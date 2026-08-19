@@ -156,8 +156,6 @@ func main() {
 	_, _ = fmt.Fprintln(os.Stdout, "✓ every monetary value is the shared money type")
 }
 
-// ── OpenAPI ───────────────────────────────────────────────────────────────────
-
 // checkSpec walks every schema's `properties` mapping and reports a monetary
 // property that is not the shared component.
 func checkSpec(path string) ([]finding, error) {
@@ -250,8 +248,6 @@ func walkYAML(n *yaml.Node, fn func(key string, value *yaml.Node)) {
 	}
 }
 
-// ── Go ────────────────────────────────────────────────────────────────────────
-
 // goSkip are the trees this cannot say anything useful about: the money package
 // implements the type (its own fields are `big.Int`, and FromMinorUnits exists
 // precisely to read a legacy cents column), generated SDKs and stores mirror a spec
@@ -331,8 +327,6 @@ func checkGoName(name string, typ ast.Expr, pos token.Pos, report func(token.Pos
 	}
 }
 
-// ── TypeScript ────────────────────────────────────────────────────────────────
-
 // tsSkip mirrors goSkip: generated clients restate a spec that is checked at its
 // source, and build output is not source at all.
 var tsSkip = []string{
@@ -392,8 +386,6 @@ func checkTypeScriptFile(path, source string) []finding {
 	}
 	return found
 }
-
-// ── shared ────────────────────────────────────────────────────────────────────
 
 // sourceFiles lists the committed files with one of these extensions, outside the
 // skipped trees. Paths are collected before anything is read, so no file operation

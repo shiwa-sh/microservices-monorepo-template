@@ -16,7 +16,7 @@ import "github.com/quasilyte/go-ruleguard/dsl"
 // has no wildcard for an else clause. Inits inside a branch are still caught
 // independently — the AST walker visits nested `if`s on their own — so the only
 // thing this misses is an *outer* init followed by a multi-branch else-if chain,
-// which is essentially never written (and is exactly the unreadable shape the
+// which is never written (and is the unreadable shape the
 // ban discourages).
 func noIfInitAssign(m dsl.Matcher) {
 	m.Match(

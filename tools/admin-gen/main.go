@@ -477,8 +477,6 @@ func (d *doc) writeActionPage(svc string, o op) (string, error) {
 	return writePage(svc, o.OperationID, pg)
 }
 
-// ── block builders ──────────────────────────────────────────────────────────────
-
 func heading(text string) block {
 	return block{ID: "header", Type: typeTitle, Properties: map[string]any{keyContent: text, "level": 3}}
 }
@@ -612,8 +610,6 @@ func input(state, label, typ string) block {
 	}
 	return b
 }
-
-// ── spec model ────────────────────────────────────────────────────────────────
 
 type doc struct {
 	Tags       []tagDef                        `yaml:"tags"`
@@ -792,8 +788,6 @@ func orderedProps(node yaml.Node) []prop {
 	return out
 }
 
-// ── Lowdefy page model ────────────────────────────────────────────────────────
-
 type page struct {
 	ID         string         `yaml:"id"`
 	Type       string         `yaml:"type"`
@@ -918,8 +912,6 @@ func marshalFile(p string, v any) error {
 	}
 	return nil
 }
-
-// ── helpers ───────────────────────────────────────────────────────────────────
 
 // pathToURL turns a spec path into a Lowdefy url: a plain string, or a
 // _string.concat that splices path params from the request payload.

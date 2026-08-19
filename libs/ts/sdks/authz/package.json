@@ -1,0 +1,11 @@
+{
+  "name": "@sdks/authz",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generated TypeScript client types for authz (ADR-0303). Do not edit.",
+  "type": "module",
+  "exports": {
+    ".": "./index.d.ts"
+  },
+  "types": "./index.d.ts"
+}

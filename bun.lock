@@ -20,6 +20,7 @@
         "@libs/observability": "workspace:*",
         "@openfeature/web-sdk": "1.9.0",
         "@scalar/api-reference-react": "0.9.54",
+        "@sdks/catalog": "workspace:*",
         "@tanstack/react-query": "5.101.0",
         "@untitledui/icons": "0.0.22",
         "next": "16.2.11",
@@ -66,6 +67,30 @@
       "dependencies": {
         "zod": "4.4.3",
       },
+    },
+    "libs/ts/sdks/_template": {
+      "name": "@sdks/_template",
+      "version": "0.0.0",
+    },
+    "libs/ts/sdks/authz": {
+      "name": "@sdks/authz",
+      "version": "0.0.0",
+    },
+    "libs/ts/sdks/catalog": {
+      "name": "@sdks/catalog",
+      "version": "0.0.0",
+    },
+    "libs/ts/sdks/orders": {
+      "name": "@sdks/orders",
+      "version": "0.0.0",
+    },
+    "libs/ts/sdks/orgs": {
+      "name": "@sdks/orgs",
+      "version": "0.0.0",
+    },
+    "libs/ts/sdks/payment": {
+      "name": "@sdks/payment",
+      "version": "0.0.0",
     },
   },
   "overrides": {
@@ -340,6 +365,18 @@
     "@scalar/validation": ["@scalar/validation@0.6.0", "", {}, "sha512-tpmmG+/xRE2Kn9RpflU3AIyZv08v10+E1ZrJCx7z6+/91zHVxy0M73kC1LT4/8PbYNt85ywyC8+n+D99JdMcGA=="],
 
     "@scalar/workspace-store": ["@scalar/workspace-store@0.55.3", "", { "dependencies": { "@scalar/asyncapi-upgrader": "0.1.2", "@scalar/helpers": "0.9.0", "@scalar/json-magic": "0.12.17", "@scalar/openapi-upgrader": "0.2.9", "@scalar/schemas": "0.7.2", "@scalar/snippetz": "0.9.21", "@scalar/typebox": "0.1.3", "@scalar/types": "0.16.2", "@scalar/validation": "0.6.0", "js-base64": "^3.7.8", "type-fest": "^5.3.1", "vue": "^3.5.30", "yaml": "^2.8.3" } }, "sha512-qqSSq8OSxx582h/DSgMYH68iqzp+M8c9B+YGB7/qi5ZQK3TzazeCM1BVakkSbFYvD+X4FanV4V4x/aAhjv6MfQ=="],
+
+    "@sdks/_template": ["@sdks/_template@workspace:libs/ts/sdks/_template"],
+
+    "@sdks/authz": ["@sdks/authz@workspace:libs/ts/sdks/authz"],
+
+    "@sdks/catalog": ["@sdks/catalog@workspace:libs/ts/sdks/catalog"],
+
+    "@sdks/orders": ["@sdks/orders@workspace:libs/ts/sdks/orders"],
+
+    "@sdks/orgs": ["@sdks/orgs@workspace:libs/ts/sdks/orgs"],
+
+    "@sdks/payment": ["@sdks/payment@workspace:libs/ts/sdks/payment"],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.0.0", "", {}, "sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA=="],
 

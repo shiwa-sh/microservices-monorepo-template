@@ -31,4 +31,24 @@ for spec in services/*/openapi.yaml; do
   mkdir -p "$ts_out"
 
   bun x openapi-typescript@7.13.0 "$spec" --output "$ts_out/index.d.ts"
+
+  # A package.json beside it, so the generated SDK is a real workspace package
+  # rather than a bare .d.ts reachable only through a tsconfig path alias. The
+  # alias alone made every import of it an UNDECLARED dependency — which Biome
+  # rejects, so callers hand-wrote a second copy of the response type instead of
+  # importing the generated one. A copy of a contract is the thing this whole
+  # generator exists to remove.
+  cat >"$ts_out/package.json" <<JSON
+{
+  "name": "@sdks/${service}",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generated TypeScript client types for ${service} (ADR-0303). Do not edit.",
+  "type": "module",
+  "exports": {
+    ".": "./index.d.ts"
+  },
+  "types": "./index.d.ts"
+}
+JSON
 done

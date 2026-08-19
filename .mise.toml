@@ -436,7 +436,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -562,6 +562,17 @@ run = "bash scripts/image-digest.sh"
 # ADR-0001's banned-constructs table, enforced. The table is deliberately grep-shaped;
 # a house style that only review enforces is a house style that drifts.
 run = "go run ./tools/lint-prose"
+
+[tasks."lint:comments"]
+# The half of ADR-0001's comment table a machine can read, over the Go and
+# TypeScript this repository owns. `lint:prose` covers Markdown; ADR-0001 states
+# that the same rules apply unchanged to comments, so without this the rule that
+# governs every comment in the tree rests on review alone.
+#
+# It checks what is mechanically detectable and stops there: "comments explain why,
+# not what" is a judgement, and a linter that guessed at it would train everyone to
+# ignore the ones it gets right.
+run = "go run ./tools/lint-comments"
 
 [tasks."lint:adr-xref"]
 # The ADR set's internal wiring: references resolve, Related names documents that exist,

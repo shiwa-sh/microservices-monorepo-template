@@ -91,6 +91,10 @@ pre-commit:
       # Shell lint (lint:shell). Runs the repo-wide script; catches cross-file too.
       glob: "*.sh"
       run: bash scripts/lint-shell.sh
+    comments:
+      # ADR-0001's comment table (lint:comments), over the staged Go/TS.
+      glob: "*.{go,ts,tsx}"
+      run: go run ./tools/lint-comments
     log-vocab:
       # Human-output vocabulary gate (lint:log-vocab).
       glob: "scripts/**/*.sh"
