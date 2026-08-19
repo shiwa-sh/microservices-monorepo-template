@@ -244,6 +244,21 @@ prometheus:
   # than read from the alertmanager chart's values: a chart renders from its own
   # values alone, so a cross-chart address is a value this chart owns.
   alertmanagerTarget: alertmanager.platform.svc.cluster.local:9093
+  # The TSDB volume. Sizing is derived, not measured, and the derivation is here so
+  # the next person can redo it rather than trust it: Prometheus stores roughly two
+  # bytes per sample after compaction, this stack pushes through the OTel collector
+  # rather than scraping (`scrape_configs` is empty), and 31 days at one sample per
+  # series per 15 seconds is about 350 MiB per 1,000 active series. 20Gi therefore
+  # covers roughly 55,000 active series for the full window.
+  #
+  # It is a real capacity choice against node disk (ADR-0207), so an environment
+  # whose series count is known overrides it rather than inheriting this. The
+  # failure mode when it is too small is not an alert: Prometheus drops the oldest
+  # blocks and the window silently becomes shorter than `retention` claims.
+  storage:
+    size: 20Gi
+    # Unset means the cluster's default StorageClass.
+    storageClassName: ""
   # Measured 2026-07-26 under the ADR-0601 load suite: 230Mi working set, 37m CPU.
   # No cpu limit (ADR-0204) — a TSDB compaction is exactly the bursty, latency-
   # sensitive work CFS throttling ruins.

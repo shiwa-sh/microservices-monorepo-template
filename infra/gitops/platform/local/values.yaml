@@ -121,6 +121,14 @@ tempo:
           endpoint: "seaweedfs.platform.svc.cluster.local:8333"
           insecure: true
 
+# Prometheus' TSDB on a laptop. The default is sized for a deployed tier's series
+# count; the local tier runs one of everything and is torn down often, so it takes
+# the smallest volume that still holds a meaningful window rather than 20Gi of
+# node-local disk that never fills.
+prometheus:
+  storage:
+    size: 5Gi
+
 # Keep every healthy trace locally. Prod/dev head-sample at 5% in the chart default
 # to cap volume, but on a laptop a developer needs to see the exact request they
 # just made stitch end-to-end (frontend → orders → catalog → payment) in Tempo — a

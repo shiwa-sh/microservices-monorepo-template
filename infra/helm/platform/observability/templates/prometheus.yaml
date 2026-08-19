@@ -87,11 +87,15 @@ data:
     {{- include "observability.prometheus.config" . }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: prometheus
   labels: { app.kubernetes.io/name: prometheus, app.kubernetes.io/part-of: observability }
 spec:
+  # A StatefulSet, because the TSDB below is a ReadWriteOnce volume. A Deployment
+  # carrying one deadlocks its own rolling update: the replacement pod waits for a
+  # volume the outgoing pod still holds, and the rollout never completes.
+  serviceName: prometheus
   replicas: {{ $p.replicas }}
   selector:
     matchLabels: { app.kubernetes.io/name: prometheus }
@@ -146,9 +150,22 @@ spec:
         # the next pod restart/config reload.
         - name: rules
           configMap: { name: prometheus-alerts }
-        # Local TSDB. Metrics live here until a project takes the Mimir Scale swap.
-        - name: data
-          emptyDir: {}
+  # The TSDB. It was an emptyDir, which made every stated retention a statement
+  # about permission rather than about data: a rollout, an eviction or a node
+  # restart emptied it, and the 30-day SLO window, the burn-rate rules and the
+  # alert-hygiene report's 30-day lookback all read a history the platform did not
+  # keep (ADR-0500, ADR-0207).
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with $p.storage.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $p.storage.size }}
 ---
 apiVersion: v1
 kind: Service
