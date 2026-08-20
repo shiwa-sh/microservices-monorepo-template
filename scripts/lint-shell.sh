@@ -5,16 +5,20 @@
 # is a lint only — formatting lives in `format:shell` (shfmt).
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "$0")/lib/sh-files.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 step "shellcheck: linting shell scripts"
 
-# NUL-delimited so paths with spaces survive; git ls-files is the source of truth
-# for what is tracked, mapfile keeps it to the exact set.
-mapfile -d '' -t files < <(git ls-files -z '*.sh')
+# Shared with format:shell (scripts/lib/sh-files.sh), so the linter and the
+# formatter cannot act on different sets.
+#
+# An empty result is a FAILURE, not a clean run. It used to be `ok "no shell
+# scripts to lint"`, which is how `act` — running outside a git work tree — passed
+# this gate having checked none of the scripts in it.
+mapfile -d '' -t files < <(sh_files)
 if [[ ${#files[@]} -eq 0 ]]; then
-  ok "no shell scripts to lint"
-  exit 0
+  fail "no shell scripts found via $(sh_source) — this repository has dozens, so the enumeration is broken rather than the tree empty"
 fi
 
 # --severity=warning gates on bugs (unquoted expansions, bad tests, unset vars)

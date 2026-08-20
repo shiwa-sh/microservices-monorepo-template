@@ -437,9 +437,10 @@ run = "biome format --write ."
 run = "rumdl fmt ."
 
 [tasks."format:shell"]
-# shfmt (mvdan/sh) is the shell formatter. -i 2 matches the repo's 2-space scripts;
-# no arg list = format every tracked *.sh in place.
-run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
+# shfmt (mvdan/sh) is the shell formatter, over the same file set lint:shell reads
+# (scripts/lib/sh-files.sh). A formatter and a linter that enumerate differently
+# leave a repository formatted and unlinted, and say nothing about it.
+run = "bash scripts/format-shell.sh"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
