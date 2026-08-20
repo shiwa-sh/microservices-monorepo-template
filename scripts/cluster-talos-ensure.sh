@@ -52,6 +52,28 @@ if other_tier_running; then
   then re-run this."
 fi
 
+# HOST DISK. The nodes are containers, so they share this filesystem and each
+# kubelet measures ITS OWN image filesystem as the host's. Cross the eviction
+# threshold and every node takes a `disk-pressure` taint at once.
+#
+# What makes that worth a preflight rather than a surprise is the failure
+# signature, which looks nothing like the cause: the Cilium OPERATOR cannot
+# schedule (it does not tolerate disk-pressure), so it never registers the Cilium
+# CRDs, so every agent waits five minutes and then fatals with "Unable to find all
+# Cilium CRDs". Nothing in that chain mentions disk. Measured on this machine at
+# 89% full.
+#
+# The threshold is the kubelet's default of 10% free, with headroom: the platform's
+# images are several GB and are pulled after this check passes.
+avail_pct="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
+if [ "$avail_pct" -ge 85 ]; then
+  fail "the host filesystem is ${avail_pct}% full; Talos nodes share it and will take
+  disk-pressure taints, which stops the Cilium operator scheduling and makes every
+  agent fatal on missing CRDs. Free space first:
+    docker image prune -af && docker volume prune -af
+    mise run cluster:delete          # the inner-loop cluster, if it is not in use"
+fi
+
 # The registry container is host-level and shared with the inner loop: it survives
 # either cluster being deleted, which is what makes `cluster:delete` cheap.
 if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
