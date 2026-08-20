@@ -914,6 +914,17 @@ run = "bash scripts/secrets-cosign.sh"
 # Idempotent; also writes .sops.yaml (ADR-0202).
 run = "bash scripts/secrets-age.sh"
 
+[tasks."secrets:age:local"]
+# Mint this project's own LOCAL-tier age key and re-encrypt the local bundle to it
+# (ADR-0202, ADR-0205). The template ships one committed local key, so without this
+# every generated project shares it — a default credential whose safety rests on
+# each project remembering the key is throwaway.
+#
+# `cluster:base` runs this before it decrypts anything, so the rotation is not
+# something anyone has to remember. Idempotent: a project that has already rotated
+# is left alone. Pass `--force` to rotate again.
+run = "bash scripts/rotate-local-age-key.sh"
+
 # ── End-to-end tests ──────────────────────────────────────────────────────────
 # Thin delegates into the Node island. The real tasks (and the node pin) live in
 # test/e2e/.mise.toml, because mise tools flow down a config tree and never up: a task

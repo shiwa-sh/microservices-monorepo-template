@@ -143,6 +143,16 @@ k apply -n "$NS" -f infra/gateway/middlewares.yaml
 #    cluster:full decrypts through the sops-operator), with one substitution: the
 #    dsn points at the stand-in Postgres above instead of CNPG, which this profile
 #    does not run.
+# The local age key is committed (ADR-0202's one exemption), and the template ships
+# ONE of them — so every project generated from it would share a key until someone
+# thought to change it. This mints a per-project key on first use and re-encrypts
+# the local bundle to it; a project that already has its own is left alone.
+#
+# Ahead of the decrypt below, because after it the bundle is closed to a key this
+# repository no longer holds.
+step "checking the local age key belongs to this project"
+bash scripts/rotate-local-age-key.sh
+
 step "materialising kratos-secrets from the committed local SOPS bundle"
 secrets="$(SOPS_AGE_KEY_FILE=infra/gitops/platform/local/age.key \
   sops -d infra/gitops/platform/local/secrets/platform.enc.yaml |
