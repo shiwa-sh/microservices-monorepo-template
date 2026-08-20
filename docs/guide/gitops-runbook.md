@@ -53,6 +53,32 @@ This is the mechanism the deployed clusters use ([ADR-0600](../adr/0600-local-de
 - Every Application carries a `retry` policy, so a transient error self-heals. A manual `argocd app sync` is the break-glass once retries exhaust; a cluster rebuild is never the remedy.
 - If a node's containerd wedges on a large image pull, recover with `mise run cluster:heal` ([dev-loop](../dev-loop.md)) rather than by restarting the node.
 
+## When the symptom names the wrong layer
+
+Cluster faults in this platform have a habit of announcing themselves as something
+unrelated, because the component that *reports* the error is rarely the one that is
+broken. Each of these was diagnosed the long way at least once.
+
+| What you see | What it usually is |
+| --- | --- |
+| Cilium agents fatal on `Unable to find all Cilium CRDs` | The **operator cannot schedule**. Check node taints — `disk-pressure` is the common one, and on a laptop the node's "image filesystem" is your whole disk |
+| Helm hangs in pre-install, Events list empty | **Nothing can schedule at all.** An all-control-plane cluster taints every node; `allowSchedulingOnControlPlanes` is the fix |
+| Pods time out on `10.96.0.1:443`, Cilium reports healthy | **RBAC or the dataplane**, not the API server. `cilium-dbg` reports the agent's own view and will say `KubeProxyReplacement: True` and `Cluster health: 3/3` while no pod can reach a Service |
+| etcd stuck `Preparing`, waiting on a service that is Running | The **etcd spec is missing**. The waiting list is static and names every precondition, not the unmet one. A bootstrap issued before a post-apply reboot writes a spec that dies with the old instance |
+| Pod `ContainerCreating` with **no pull events at all** | A **volume**, not an image. A missing secret or a hostPath the kubelet was never given mounts forever without an error |
+| `403 Forbidden` pulling `registry.k8s.io/etcd`, cluster never bootstraps | A **proxy**, and the machine config does not carry it ([`http-proxy`](http-proxy.md)) |
+
+**The habit that saves the most time: verify the dataplane with a pod.**
+
+```sh
+kubectl run t --rm -i --restart=Never --image=busybox -- \
+  sh -c 'wget -T10 -O/dev/null https://10.96.0.1:443/version; nslookup kubernetes.default'
+```
+
+A 401 from the API means the connection worked — that is success, not failure.
+Resolution failing is the signal that Service routing is dead, whatever every
+component's own health endpoint claims.
+
 ## Break-glass
 
 When the auth plane gating the Argo UI is down, reach it by `kubectl port-forward` ([break-glass](break-glass.md)).
