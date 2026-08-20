@@ -57,3 +57,9 @@ edgeErrors:
 # claim about the platform that is not true.
 forgejo:
   enabled: false
+
+# Whether zot mirrors the upstream registries (ADR-0105), which decides whether it
+# is allowed to reach them. On, because the zot chart enables its sync extension by
+# default; an environment that turns that extension off should turn this off with
+# it, so the registry keeps no egress it does not use.
+registryMirror: true

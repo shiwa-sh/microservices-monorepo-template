@@ -29,6 +29,15 @@ Locally the key is a throwaway planted at bootstrap ([ADR-0205](../adr/0205-envi
 3. Roll the consuming workloads so they pick up the new Kubernetes Secret.
 4. Rotate the age key too if the private key itself may be exposed.
 
+**Step 1 is a real step for the object store.** SeaweedFS mints its S3 identity from
+`object-storage-root` on FIRST START and then owns it: a re-encrypted Secret changes
+what the consumers present, never what the store accepts. Nothing fails at rotation
+time — every running consumer holds the old key in an environment variable and keeps
+working — and the break arrives later, one workload at a time, as each is restarted
+for unrelated reasons and gets `SignatureDoesNotMatch` from a store its neighbours
+are still using happily. Change the identity in the store in the same step, and roll
+every consumer, not the one being worked on.
+
 ## Rotate the image-signing key
 
 The cosign key pair signs every first-party image, and Kyverno verifies it at admission ([ADR-0104](../adr/0104-supply-chain-security.md)). Rotating it is the one rotation with an ordering constraint, because the policy that trusts the key is also the policy that blocks every deploy when it is wrong.

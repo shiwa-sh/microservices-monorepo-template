@@ -45,9 +45,8 @@ spec:
 ---
 {{- /*
 zot — the image registry (ADR-0105). In this file because its whole storage layer
-is the object store above: everything it serves is a read from that bucket, and
-its only egress of consequence is back to it, which the baseline's intra-namespace
-allow already covers.
+is the object store above: everything it serves is a read from that bucket, which
+the baseline's intra-namespace allow already covers.
 
 Ingress is the interesting half. A pull is made by the KUBELET, not by a pod, so
 it arrives from the node rather than from an endpoint the selector could name —
@@ -71,3 +70,18 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
         - ports: [{ port: "5000", protocol: TCP }]
+  {{- if .Values.registryMirror }}
+  # Egress to the upstream registries, which is the MIRROR itself (ADR-0105): a
+  # pull-through cache that cannot reach upstream is a cache that can only serve
+  # what was pushed to it directly. This is the one component whose world egress
+  # is its purpose rather than a side effect, and it is what makes every other
+  # layer's egress unnecessary — the whole point of pointing the nodes here.
+  #
+  # Denied, it does not fail loudly: zot authenticates the pull, logs
+  # `sync: syncing image` and then `failed to get upstream image manifest
+  # details`, and the client sees a request that never returns.
+  egress:
+    - toEntities: [world]
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+  {{- end }}
