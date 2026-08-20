@@ -43,3 +43,18 @@ schedules:
     # data outliving its declared period by up to the gap.
     cron: "0 3 * * *"
     note: ADR-0301 — prunes or anonymises data past its class's retention, driven by docs/reference/data-classes.md.
+
+  - id: funnel-rollup
+    workflow: FunnelRollup
+    taskQueue: platform-queue
+    # Daily, shortly after midnight UTC, so the day that just ended is the first
+    # complete bucket the pass sees. The window trails three days (see
+    # rollupTrailingDays) because events arrive late — a browser that was offline,
+    # a collector that retried — and a bucket computed the moment its day ends is
+    # missing whatever comes afterwards.
+    cron: "20 0 * * *"
+    # The funnels to recompute, matching the ids in infra/analytics/funnels.yaml.
+    # Named here rather than discovered, so adding a funnel to that file does not
+    # silently change what a schedule does — the two edits are one review.
+    args: [[checkout, registration]]
+    note: ADR-0700 — the panel reads these buckets, so an interactive funnel question is a lookup rather than a scan over every event in the window.

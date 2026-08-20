@@ -21,6 +21,12 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// rollupTrailingDays is how far back each funnel pass recomputes. Events arrive
+// late, so a bucket is not final the moment its day ends; three days is longer
+// than any plausible delivery delay and short enough that a daily pass stays a
+// bounded query.
+const rollupTrailingDays = 3
+
 // activityOptions is shared by every workflow here. Periodic work is not latency
 // sensitive and its activities talk to systems that are occasionally slow, so the
 // timeout is generous and the retry count is high: a run that fails because a
@@ -88,6 +94,43 @@ func CardinalityAudit(ctx workflow.Context) error {
 	err := workflow.ExecuteActivity(ctx, "AuditCardinalityActivity").Get(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("cardinality audit: %w", err)
+	}
+	return nil
+}
+
+// FunnelRollup recomputes every funnel's rollup over a trailing window (ADR-0700).
+//
+// The window is a trailing few days rather than "since the last run", and that is
+// deliberate. Events arrive late — a browser that was offline, a collector that
+// retried — so a bucket computed the moment its day ended is missing whatever
+// arrives afterwards. Recomputing the recent past on every pass is what makes the
+// numbers settle, and it costs nothing because a bucket is REPLACED rather than
+// added to.
+//
+// One activity per funnel rather than one for all of them: a funnel whose
+// definition names an event nothing emits should not stop the others being
+// computed, and Temporal's retries are per activity.
+func FunnelRollup(ctx workflow.Context, funnels []string) error {
+	ctx = activityOptions(ctx)
+
+	// `workflow.Now`, never `time.Now`: a workflow must be deterministic, and a
+	// replay that read the wall clock would compute a different window than the
+	// original run and write different buckets.
+	end := workflow.Now(ctx).UTC().Truncate(24 * time.Hour).Add(24 * time.Hour)
+	start := end.AddDate(0, 0, -rollupTrailingDays)
+
+	var failed []string
+	for _, funnel := range funnels {
+		err := workflow.ExecuteActivity(ctx, "ComputeFunnelRollupActivity", funnel, start, end).Get(ctx, nil)
+		if err != nil {
+			// Recorded and carried on. Returning here would leave the funnels after
+			// this one uncomputed because of a problem with this one.
+			workflow.GetLogger(ctx).Error("funnel rollup failed", "funnel", funnel, "err", err)
+			failed = append(failed, funnel)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("funnel rollup: %d of %d funnels failed: %v", len(failed), len(funnels), failed)
 	}
 	return nil
 }

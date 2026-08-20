@@ -59,6 +59,56 @@ paths:
                   - { name: signup.started, occurrences: 128, sessions: 96 }
                   - { name: signup.completed, occurrences: 71, sessions: 68 }
         default: { $ref: "#/components/responses/Error" }
+  /analytics/funnels/{funnel}/rollup:
+    post:
+      operationId: computeFunnelRollup
+      # Driven by a Temporal Schedule (ADR-0302, infra/temporal/schedules.yaml), not
+      # by a person and not by a browser. The computation belongs HERE rather than in
+      # the platform worker because the events are this service's store and no other
+      # service reads it directly.
+      description: |
+        Recompute a funnel's rollup over a window, one bucket per day.
+
+        Idempotent by construction: a bucket is replaced rather than added to, so
+        re-running over a window that is still filling is the normal case rather
+        than a hazard. The most recent bucket is always incomplete.
+      tags: [analytics]
+      parameters:
+        - name: funnel
+          in: path
+          required: true
+          description: The funnel's id, from infra/analytics/funnels.yaml.
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        description: The window to recompute.
+        content: { application/json: { schema: { $ref: "#/components/schemas/RollupWindow" } } }
+      responses:
+        "200":
+          description: The buckets that were written.
+          content: { application/json: { schema: { $ref: "#/components/schemas/RollupResult" } } }
+        default: { $ref: "#/components/responses/Error" }
+    get:
+      operationId: getFunnelRollup
+      description: Read a funnel's computed rollup, in bucket then step order.
+      tags: [analytics]
+      parameters:
+        - { name: funnel, in: path, required: true, description: The funnel's id., schema: { type: string, minLength: 1 } }
+        - { name: from, in: query, required: true, description: The first bucket to return., schema: { type: string, format: date-time } }
+        - { name: to, in: query, required: true, description: Exclusive end of the range., schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: One row per bucket and step.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FunnelRollupRow" }
+                # Served verbatim by the API mock (ADR-0600).
+                example:
+                  - { funnel: checkout, step_index: 0, step_name: product_viewed, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 412 }
+                  - { funnel: checkout, step_index: 1, step_name: cart_item_added, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 178 }
+        default: { $ref: "#/components/responses/Error" }
   /analytics/consent:
     put:
       operationId: recordConsent
@@ -202,6 +252,43 @@ components:
           description: Distinct sessions, which is the number that answers "how many people" rather than "how many times".
       # Served verbatim by the API mock (ADR-0600).
       example: { name: signup.started, occurrences: 128, sessions: 96 }
+    RollupWindow:
+      type: object
+      description: |
+        The window to recompute, half-open. Bucketed by day, which is the only
+        bucket the panel asks for — an hourly funnel is noise at this platform's
+        volume, and a weekly one hides the day a release broke a step.
+      required: [from, to]
+      properties:
+        from: { type: string, format: date-time, description: Inclusive start. }
+        to: { type: string, format: date-time, description: Exclusive end. }
+      example: { from: "2026-08-13T00:00:00Z", to: "2026-08-20T00:00:00Z" }
+    RollupResult:
+      type: object
+      description: What the pass wrote.
+      required: [funnel, buckets, rows]
+      properties:
+        funnel: { type: string }
+        buckets: { type: integer, description: Day buckets covered by the window. }
+        rows: { type: integer, description: Rows written, which is buckets times steps. }
+      example: { funnel: checkout, buckets: 7, rows: 28 }
+    FunnelRollupRow:
+      type: object
+      description: One funnel step's session count in one bucket.
+      required: [funnel, step_index, step_name, bucket_start, bucket_end, sessions]
+      properties:
+        funnel: { type: string }
+        step_index: { type: integer, description: Zero-based position in the funnel. }
+        step_name: { type: string }
+        bucket_start: { type: string, format: date-time }
+        bucket_end: { type: string, format: date-time }
+        sessions:
+          type: integer
+          description: |
+            Sessions that reached this step IN ORDER — having reached every earlier
+            step first. A session that arrives at a later step directly is not
+            counted, because it did not traverse the funnel.
+      example: { funnel: checkout, step_index: 0, step_name: product_viewed, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 412 }
     ConsentInput:
       type: object
       description: A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)).

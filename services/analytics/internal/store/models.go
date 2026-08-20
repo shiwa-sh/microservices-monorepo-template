@@ -38,3 +38,20 @@ type Event struct {
 	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
+
+type FunnelRollup struct {
+	// pii:none
+	Funnel string `json:"funnel"`
+	// pii:none
+	StepIndex int32 `json:"step_index"`
+	// pii:none
+	StepName string `json:"step_name"`
+	// pii:none
+	BucketStart pgtype.Timestamptz `json:"bucket_start"`
+	// pii:none
+	BucketEnd pgtype.Timestamptz `json:"bucket_end"`
+	// pii:none
+	Sessions int64 `json:"sessions"`
+	// pii:none
+	ComputedAt pgtype.Timestamptz `json:"computed_at"`
+}

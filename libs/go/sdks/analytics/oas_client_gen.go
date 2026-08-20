@@ -28,12 +28,28 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// ComputeFunnelRollup invokes computeFunnelRollup operation.
+	//
+	// Recompute a funnel's rollup over a window, one bucket per day.
+	//
+	// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
+	// that is still filling is the normal case rather than a hazard. The most recent bucket is always
+	// incomplete.
+	//
+	// POST /analytics/funnels/{funnel}/rollup
+	ComputeFunnelRollup(ctx context.Context, request *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error)
 	// GetConsent invokes getConsent operation.
 	//
 	// Read the recorded decision for a session.
 	//
 	// GET /analytics/consent
 	GetConsent(ctx context.Context, params GetConsentParams) (*Consent, error)
+	// GetFunnelRollup invokes getFunnelRollup operation.
+	//
+	// Read a funnel's computed rollup, in bucket then step order.
+	//
+	// GET /analytics/funnels/{funnel}/rollup
+	GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error)
 	// RecordConsent invokes recordConsent operation.
 	//
 	// Record or withdraw consent for a session.
@@ -91,6 +107,112 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 		return c.serverURL
 	}
 	return u
+}
+
+// ComputeFunnelRollup invokes computeFunnelRollup operation.
+//
+// Recompute a funnel's rollup over a window, one bucket per day.
+//
+// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
+// that is still filling is the normal case rather than a hazard. The most recent bucket is always
+// incomplete.
+//
+// POST /analytics/funnels/{funnel}/rollup
+func (c *Client) ComputeFunnelRollup(ctx context.Context, request *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error) {
+	res, err := c.sendComputeFunnelRollup(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendComputeFunnelRollup(ctx context.Context, request *RollupWindow, params ComputeFunnelRollupParams) (res *RollupResult, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("computeFunnelRollup"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/analytics/funnels/{funnel}/rollup"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ComputeFunnelRollupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/analytics/funnels/"
+	{
+		// Encode "funnel" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "funnel",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Funnel))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/rollup"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeComputeFunnelRollupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeComputeFunnelRollupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
 }
 
 // GetConsent invokes getConsent operation.
@@ -184,6 +306,137 @@ func (c *Client) sendGetConsent(ctx context.Context, params GetConsentParams) (r
 
 	stage = "DecodeResponse"
 	result, err := decodeGetConsentResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetFunnelRollup invokes getFunnelRollup operation.
+//
+// Read a funnel's computed rollup, in bucket then step order.
+//
+// GET /analytics/funnels/{funnel}/rollup
+func (c *Client) GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error) {
+	res, err := c.sendGetFunnelRollup(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) (res []FunnelRollupRow, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getFunnelRollup"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/analytics/funnels/{funnel}/rollup"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetFunnelRollupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/analytics/funnels/"
+	{
+		// Encode "funnel" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "funnel",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Funnel))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/rollup"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "from" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "from",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.DateTimeToString(params.From))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "to" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "to",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.DateTimeToString(params.To))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetFunnelRollupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

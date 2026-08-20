@@ -25,7 +25,7 @@ This is the checklist a new service is reviewed against. A service can otherwise
 
 ## Classified columns
 
-21 columns across 5 services.
+28 columns across 5 services.
 
 | Service | Column | Class | Retention | At the end |
 | --- | --- | --- | --- | --- |
@@ -39,6 +39,13 @@ This is the checklist a new service is reviewed against. A service can otherwise
 | analytics | `events.name` | `none` | n/a | n/a |
 | analytics | `events.properties` | `free_text` | life of the account, then 30 days | delete |
 | analytics | `events.session_id` | `identifier` | life of the account, then 30 days | anonymise |
+| analytics | `funnel_rollup.bucket_end` | `none` | n/a | n/a |
+| analytics | `funnel_rollup.bucket_start` | `none` | n/a | n/a |
+| analytics | `funnel_rollup.computed_at` | `none` | n/a | n/a |
+| analytics | `funnel_rollup.funnel` | `none` | n/a | n/a |
+| analytics | `funnel_rollup.sessions` | `none` | n/a | n/a |
+| analytics | `funnel_rollup.step_index` | `none` | n/a | n/a |
+| analytics | `funnel_rollup.step_name` | `none` | n/a | n/a |
 | catalog | `products.currency` | `none` | n/a | n/a |
 | catalog | `products.price` | `none` | n/a | n/a |
 | orders | `orders.currency` | `none` | n/a | n/a |

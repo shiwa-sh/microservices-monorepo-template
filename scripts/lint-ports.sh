@@ -40,6 +40,22 @@ for dir in services/*/; do
   svc="$(basename "$dir")"
   [ "${svc#_}" = "$svc" ] || continue # skip _template
 
+  # A WORKER-ONLY service has no server, so it has no local port to register and
+  # nothing to collide with — it reaches Temporal outbound and never binds. The
+  # registry exists so two natively-run SERVERS do not race for a port; requiring
+  # an entry for something that never listens would put a number in the registry
+  # that means nothing, and a future service could then collide with it.
+  #
+  # `cmd/server` is the same discriminator lint:service-contract uses, so the two
+  # gates cannot disagree about what a service is.
+  if [ ! -d "${dir}cmd/server" ]; then
+    if service_port "$svc" >/dev/null 2>&1; then
+      warn "${svc} has no cmd/server but registers a local port — it never binds one"
+      rc=1
+    fi
+    continue
+  fi
+
   if ! registered="$(service_port "$svc" 2>/dev/null)"; then
     warn "${svc} has no entry in scripts/lib/ports.sh"
     rc=1

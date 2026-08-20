@@ -11,6 +11,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const funnelStepFirstSeen = `-- name: FunnelStepFirstSeen :many
+select
+  session_id,
+  name,
+  min(occurred_at)::timestamptz as first_seen
+from events
+where
+  occurred_at >= $1
+  and occurred_at < $2
+  and name = any($3::text [])
+group by session_id, name
+`
+
+type FunnelStepFirstSeenParams struct {
+	OccurredAt   pgtype.Timestamptz `json:"occurred_at"`
+	OccurredAt_2 pgtype.Timestamptz `json:"occurred_at_2"`
+	Column3      []string           `json:"column_3"`
+}
+
+type FunnelStepFirstSeenRow struct {
+	SessionID string             `json:"session_id"`
+	Name      string             `json:"name"`
+	FirstSeen pgtype.Timestamptz `json:"first_seen"`
+}
+
+// Each session's FIRST occurrence of each named step within the window.
+//
+// The ordering that makes a funnel a funnel is not done here. This returns one row
+// per session and step, and the caller walks a session's steps in the definition's
+// order, keeping only those whose first occurrence is at or after the previous
+// step's. Doing it in SQL would mean a query whose shape depends on the number of
+// steps — which sqlc cannot generate and a reviewer cannot read — and this shape
+// serves a funnel of any length.
+//
+// `name = any($3::text[])` rather than a join against the definitions: the funnels
+// are committed configuration, not a table (infra/analytics/funnels.yaml).
+func (q *Queries) FunnelStepFirstSeen(ctx context.Context, arg FunnelStepFirstSeenParams) ([]FunnelStepFirstSeenRow, error) {
+	rows, err := q.db.Query(ctx, funnelStepFirstSeen, arg.OccurredAt, arg.OccurredAt_2, arg.Column3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FunnelStepFirstSeenRow
+	for rows.Next() {
+		var i FunnelStepFirstSeenRow
+		if err := rows.Scan(&i.SessionID, &i.Name, &i.FirstSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getConsent = `-- name: GetConsent :one
 select
   session_id,
@@ -44,6 +100,66 @@ func (q *Queries) GetConsent(ctx context.Context, sessionID string) (GetConsentR
 		&i.DecidedAt,
 	)
 	return i, err
+}
+
+const getFunnelRollup = `-- name: GetFunnelRollup :many
+select
+  funnel,
+  step_index,
+  step_name,
+  bucket_start,
+  bucket_end,
+  sessions
+from funnel_rollup
+where
+  funnel = $1
+  and bucket_start >= $2
+  and bucket_start < $3
+order by bucket_start desc, step_index asc
+`
+
+type GetFunnelRollupParams struct {
+	Funnel        string             `json:"funnel"`
+	BucketStart   pgtype.Timestamptz `json:"bucket_start"`
+	BucketStart_2 pgtype.Timestamptz `json:"bucket_start_2"`
+}
+
+type GetFunnelRollupRow struct {
+	Funnel      string             `json:"funnel"`
+	StepIndex   int32              `json:"step_index"`
+	StepName    string             `json:"step_name"`
+	BucketStart pgtype.Timestamptz `json:"bucket_start"`
+	BucketEnd   pgtype.Timestamptz `json:"bucket_end"`
+	Sessions    int64              `json:"sessions"`
+}
+
+// The panel's read: one funnel over a range of buckets, in bucket then step order,
+// which is the order it renders.
+func (q *Queries) GetFunnelRollup(ctx context.Context, arg GetFunnelRollupParams) ([]GetFunnelRollupRow, error) {
+	rows, err := q.db.Query(ctx, getFunnelRollup, arg.Funnel, arg.BucketStart, arg.BucketStart_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFunnelRollupRow
+	for rows.Next() {
+		var i GetFunnelRollupRow
+		if err := rows.Scan(
+			&i.Funnel,
+			&i.StepIndex,
+			&i.StepName,
+			&i.BucketStart,
+			&i.BucketEnd,
+			&i.Sessions,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertEvent = `-- name: InsertEvent :exec
@@ -168,4 +284,40 @@ func (q *Queries) UpsertConsent(ctx context.Context, arg UpsertConsentParams) (U
 		&i.DecidedAt,
 	)
 	return i, err
+}
+
+const upsertFunnelRollup = `-- name: UpsertFunnelRollup :exec
+insert into funnel_rollup (
+  funnel, step_index, step_name, bucket_start, bucket_end, sessions
+)
+values ($1, $2, $3, $4, $5, $6)
+on conflict (funnel, bucket_start, step_index) do update set
+step_name = excluded.step_name,
+bucket_end = excluded.bucket_end,
+sessions = excluded.sessions,
+computed_at = now()
+`
+
+type UpsertFunnelRollupParams struct {
+	Funnel      string             `json:"funnel"`
+	StepIndex   int32              `json:"step_index"`
+	StepName    string             `json:"step_name"`
+	BucketStart pgtype.Timestamptz `json:"bucket_start"`
+	BucketEnd   pgtype.Timestamptz `json:"bucket_end"`
+	Sessions    int64              `json:"sessions"`
+}
+
+// Recomputing a bucket REPLACES it. A pass over a window that is still filling is
+// therefore safe to re-run, and re-running is the normal case: the most recent
+// bucket is always incomplete.
+func (q *Queries) UpsertFunnelRollup(ctx context.Context, arg UpsertFunnelRollupParams) error {
+	_, err := q.db.Exec(ctx, upsertFunnelRollup,
+		arg.Funnel,
+		arg.StepIndex,
+		arg.StepName,
+		arg.BucketStart,
+		arg.BucketEnd,
+		arg.Sessions,
+	)
+	return err
 }

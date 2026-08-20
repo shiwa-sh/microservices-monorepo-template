@@ -11,7 +11,22 @@ import (
 )
 
 type Querier interface {
+	// Each session's FIRST occurrence of each named step within the window.
+	//
+	// The ordering that makes a funnel a funnel is not done here. This returns one row
+	// per session and step, and the caller walks a session's steps in the definition's
+	// order, keeping only those whose first occurrence is at or after the previous
+	// step's. Doing it in SQL would mean a query whose shape depends on the number of
+	// steps — which sqlc cannot generate and a reviewer cannot read — and this shape
+	// serves a funnel of any length.
+	//
+	// `name = any($3::text[])` rather than a join against the definitions: the funnels
+	// are committed configuration, not a table (infra/analytics/funnels.yaml).
+	FunnelStepFirstSeen(ctx context.Context, arg FunnelStepFirstSeenParams) ([]FunnelStepFirstSeenRow, error)
 	GetConsent(ctx context.Context, sessionID string) (GetConsentRow, error)
+	// The panel's read: one funnel over a range of buckets, in bucket then step order,
+	// which is the order it renders.
+	GetFunnelRollup(ctx context.Context, arg GetFunnelRollupParams) ([]GetFunnelRollupRow, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) error
 	// One row per event name over a window, with the distinct sessions that produced
 	// it. This is the shape every funnel question starts from, and it is a plain
@@ -22,6 +37,10 @@ type Querier interface {
 	// withdrawal is a state rather than a deletion: erasing it would erase the evidence
 	// that consent was once given, which is what GDPR Art. 7(1) asks to be demonstrable.
 	UpsertConsent(ctx context.Context, arg UpsertConsentParams) (UpsertConsentRow, error)
+	// Recomputing a bucket REPLACES it. A pass over a window that is still filling is
+	// therefore safe to re-run, and re-running is the normal case: the most recent
+	// bucket is always incomplete.
+	UpsertFunnelRollup(ctx context.Context, arg UpsertFunnelRollupParams) error
 }
 
 var _ Querier = (*Queries)(nil)

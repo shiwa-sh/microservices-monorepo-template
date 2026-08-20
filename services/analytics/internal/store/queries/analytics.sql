@@ -43,3 +43,57 @@ where occurred_at >= $1
 group by name
 order by occurrences desc
 limit 50;
+
+-- name: FunnelStepFirstSeen :many
+-- Each session's FIRST occurrence of each named step within the window.
+--
+-- The ordering that makes a funnel a funnel is not done here. This returns one row
+-- per session and step, and the caller walks a session's steps in the definition's
+-- order, keeping only those whose first occurrence is at or after the previous
+-- step's. Doing it in SQL would mean a query whose shape depends on the number of
+-- steps — which sqlc cannot generate and a reviewer cannot read — and this shape
+-- serves a funnel of any length.
+--
+-- `name = any($3::text[])` rather than a join against the definitions: the funnels
+-- are committed configuration, not a table (infra/analytics/funnels.yaml).
+select
+  session_id,
+  name,
+  min(occurred_at)::timestamptz as first_seen
+from events
+where
+  occurred_at >= $1
+  and occurred_at < $2
+  and name = any($3::text [])
+group by session_id, name;
+
+-- name: UpsertFunnelRollup :exec
+-- Recomputing a bucket REPLACES it. A pass over a window that is still filling is
+-- therefore safe to re-run, and re-running is the normal case: the most recent
+-- bucket is always incomplete.
+insert into funnel_rollup (
+  funnel, step_index, step_name, bucket_start, bucket_end, sessions
+)
+values ($1, $2, $3, $4, $5, $6)
+on conflict (funnel, bucket_start, step_index) do update set
+step_name = excluded.step_name,
+bucket_end = excluded.bucket_end,
+sessions = excluded.sessions,
+computed_at = now();
+
+-- name: GetFunnelRollup :many
+-- The panel's read: one funnel over a range of buckets, in bucket then step order,
+-- which is the order it renders.
+select
+  funnel,
+  step_index,
+  step_name,
+  bucket_start,
+  bucket_end,
+  sessions
+from funnel_rollup
+where
+  funnel = $1
+  and bucket_start >= $2
+  and bucket_start < $3
+order by bucket_start desc, step_index asc;

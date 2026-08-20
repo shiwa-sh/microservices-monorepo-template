@@ -13,6 +13,12 @@ worker:
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/platform-worker
     tag: "0000000000000000000000000000000000000000"
+env:
+  # The analytics service, east-west (ADR-0303). The funnel rollup asks it to
+  # recompute rather than reading its store: the events belong to that service, and
+  # a worker holding a second connection to someone else's schema would need its
+  # own migrations to stay current.
+  ANALYTICS_API_URL: "http://analytics.platform.svc.cluster.local:8080"
 ingress:    { enabled: false }
 migrations: { enabled: false }   # owns no schema
 otel:       { deployEnv: dev }

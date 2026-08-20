@@ -38,6 +38,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analytics/funnels/{funnel}/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read a funnel's computed rollup, in bucket then step order. */
+        get: operations["getFunnelRollup"];
+        put?: never;
+        /**
+         * @description Recompute a funnel's rollup over a window, one bucket per day.
+         *
+         *     Idempotent by construction: a bucket is replaced rather than added to, so
+         *     re-running over a window that is still filling is the normal case rather
+         *     than a hazard. The most recent bucket is always incomplete.
+         */
+        post: operations["computeFunnelRollup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/analytics/consent": {
         parameters: {
             query?: never;
@@ -160,6 +184,69 @@ export interface components {
             /** @description Distinct sessions, which is the number that answers "how many people" rather than "how many times". */
             sessions: number;
         };
+        /**
+         * @description The window to recompute, half-open. Bucketed by day, which is the only
+         *     bucket the panel asks for — an hourly funnel is noise at this platform's
+         *     volume, and a weekly one hides the day a release broke a step.
+         * @example {
+         *       "from": "2026-08-13T00:00:00Z",
+         *       "to": "2026-08-20T00:00:00Z"
+         *     }
+         */
+        RollupWindow: {
+            /**
+             * Format: date-time
+             * @description Inclusive start.
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @description Exclusive end.
+             */
+            to: string;
+        };
+        /**
+         * @description What the pass wrote.
+         * @example {
+         *       "funnel": "checkout",
+         *       "buckets": 7,
+         *       "rows": 28
+         *     }
+         */
+        RollupResult: {
+            funnel: string;
+            /** @description Day buckets covered by the window. */
+            buckets: number;
+            /** @description Rows written */
+            rows: number;
+        };
+        /**
+         * @description One funnel step's session count in one bucket.
+         * @example {
+         *       "funnel": "checkout",
+         *       "step_index": 0,
+         *       "step_name": "product_viewed",
+         *       "bucket_start": "2026-08-19T00:00:00Z",
+         *       "bucket_end": "2026-08-20T00:00:00Z",
+         *       "sessions": 412
+         *     }
+         */
+        FunnelRollupRow: {
+            funnel: string;
+            /** @description Zero-based position in the funnel. */
+            step_index: number;
+            step_name: string;
+            /** Format: date-time */
+            bucket_start: string;
+            /** Format: date-time */
+            bucket_end: string;
+            /**
+             * @description Sessions that reached this step IN ORDER — having reached every earlier
+             *     step first. A session that arrives at a later step directly is not
+             *     counted, because it did not traverse the funnel.
+             */
+            sessions: number;
+        };
         /** @description A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)). */
         ConsentInput: {
             session_id: string;
@@ -264,6 +351,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventSummary"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getFunnelRollup: {
+        parameters: {
+            query: {
+                /** @description The first bucket to return. */
+                from: string;
+                /** @description Exclusive end of the range. */
+                to: string;
+            };
+            header?: never;
+            path: {
+                /** @description The funnel's id. */
+                funnel: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One row per bucket and step. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FunnelRollupRow"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    computeFunnelRollup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The funnel's id, from infra/analytics/funnels.yaml. */
+                funnel: string;
+            };
+            cookie?: never;
+        };
+        /** @description The window to recompute. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollupWindow"];
+            };
+        };
+        responses: {
+            /** @description The buckets that were written. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RollupResult"];
                 };
             };
             default: components["responses"]["Error"];

@@ -11,8 +11,11 @@ import (
 )
 
 var (
-	rn1AllowedHeaders = map[string]string{
+	rn5AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
+	}
+	rn6AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn3AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
@@ -49,6 +52,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	args := [1]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -87,7 +91,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET,PUT",
-							allowedHeaders: rn1AllowedHeaders,
+							allowedHeaders: rn5AllowedHeaders,
 							acceptPost:     "",
 							acceptPatch:    "",
 						})
@@ -112,13 +116,67 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "POST",
-							allowedHeaders: rn3AllowedHeaders,
+							allowedHeaders: rn6AllowedHeaders,
 							acceptPost:     "application/json",
 							acceptPatch:    "",
 						})
 					}
 
 					return
+				}
+
+			case 'f': // Prefix: "funnels/"
+
+				if l := len("funnels/"); len(elem) >= l && elem[0:l] == "funnels/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "funnel"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/rollup"
+
+					if l := len("/rollup"); len(elem) >= l && elem[0:l] == "/rollup" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleGetFunnelRollupRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleComputeFunnelRollupRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET,POST",
+								allowedHeaders: rn3AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
 				}
 
 			case 's': // Prefix: "summary"
@@ -161,7 +219,7 @@ type Route struct {
 	operationGroup string
 	pathPattern    string
 	count          int
-	args           [0]string
+	args           [1]string
 }
 
 // Name returns ogen operation name.
@@ -303,6 +361,63 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+
+			case 'f': // Prefix: "funnels/"
+
+				if l := len("funnels/"); len(elem) >= l && elem[0:l] == "funnels/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "funnel"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/rollup"
+
+					if l := len("/rollup"); len(elem) >= l && elem[0:l] == "/rollup" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = GetFunnelRollupOperation
+							r.summary = ""
+							r.operationID = "getFunnelRollup"
+							r.operationGroup = ""
+							r.pathPattern = "/analytics/funnels/{funnel}/rollup"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "POST":
+							r.name = ComputeFunnelRollupOperation
+							r.summary = ""
+							r.operationID = "computeFunnelRollup"
+							r.operationGroup = ""
+							r.pathPattern = "/analytics/funnels/{funnel}/rollup"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			case 's': // Prefix: "summary"

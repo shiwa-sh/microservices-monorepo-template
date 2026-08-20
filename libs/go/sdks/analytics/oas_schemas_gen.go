@@ -546,6 +546,80 @@ func (s *EventSummary) SetSessions(val int) {
 	s.Sessions = val
 }
 
+// One funnel step's session count in one bucket.
+// Ref: #/components/schemas/FunnelRollupRow
+type FunnelRollupRow struct {
+	Funnel string `json:"funnel"`
+	// Zero-based position in the funnel.
+	StepIndex   int       `json:"step_index"`
+	StepName    string    `json:"step_name"`
+	BucketStart time.Time `json:"bucket_start"`
+	BucketEnd   time.Time `json:"bucket_end"`
+	// Sessions that reached this step IN ORDER — having reached every earlier step first. A session that
+	// arrives at a later step directly is not counted, because it did not traverse the funnel.
+	Sessions int `json:"sessions"`
+}
+
+// GetFunnel returns the value of Funnel.
+func (s *FunnelRollupRow) GetFunnel() string {
+	return s.Funnel
+}
+
+// GetStepIndex returns the value of StepIndex.
+func (s *FunnelRollupRow) GetStepIndex() int {
+	return s.StepIndex
+}
+
+// GetStepName returns the value of StepName.
+func (s *FunnelRollupRow) GetStepName() string {
+	return s.StepName
+}
+
+// GetBucketStart returns the value of BucketStart.
+func (s *FunnelRollupRow) GetBucketStart() time.Time {
+	return s.BucketStart
+}
+
+// GetBucketEnd returns the value of BucketEnd.
+func (s *FunnelRollupRow) GetBucketEnd() time.Time {
+	return s.BucketEnd
+}
+
+// GetSessions returns the value of Sessions.
+func (s *FunnelRollupRow) GetSessions() int {
+	return s.Sessions
+}
+
+// SetFunnel sets the value of Funnel.
+func (s *FunnelRollupRow) SetFunnel(val string) {
+	s.Funnel = val
+}
+
+// SetStepIndex sets the value of StepIndex.
+func (s *FunnelRollupRow) SetStepIndex(val int) {
+	s.StepIndex = val
+}
+
+// SetStepName sets the value of StepName.
+func (s *FunnelRollupRow) SetStepName(val string) {
+	s.StepName = val
+}
+
+// SetBucketStart sets the value of BucketStart.
+func (s *FunnelRollupRow) SetBucketStart(val time.Time) {
+	s.BucketStart = val
+}
+
+// SetBucketEnd sets the value of BucketEnd.
+func (s *FunnelRollupRow) SetBucketEnd(val time.Time) {
+	s.BucketEnd = val
+}
+
+// SetSessions sets the value of Sessions.
+func (s *FunnelRollupRow) SetSessions(val int) {
+	s.Sessions = val
+}
+
 // NewOptEventBatchDeviceClass returns new OptEventBatchDeviceClass with value set to v.
 func NewOptEventBatchDeviceClass(v EventBatchDeviceClass) OptEventBatchDeviceClass {
 	return OptEventBatchDeviceClass{
@@ -819,4 +893,75 @@ func (s *RecordResult) SetStored(val int) {
 // SetDropped sets the value of Dropped.
 func (s *RecordResult) SetDropped(val int) {
 	s.Dropped = val
+}
+
+// What the pass wrote.
+// Ref: #/components/schemas/RollupResult
+type RollupResult struct {
+	Funnel string `json:"funnel"`
+	// Day buckets covered by the window.
+	Buckets int `json:"buckets"`
+	// Rows written.
+	Rows int `json:"rows"`
+}
+
+// GetFunnel returns the value of Funnel.
+func (s *RollupResult) GetFunnel() string {
+	return s.Funnel
+}
+
+// GetBuckets returns the value of Buckets.
+func (s *RollupResult) GetBuckets() int {
+	return s.Buckets
+}
+
+// GetRows returns the value of Rows.
+func (s *RollupResult) GetRows() int {
+	return s.Rows
+}
+
+// SetFunnel sets the value of Funnel.
+func (s *RollupResult) SetFunnel(val string) {
+	s.Funnel = val
+}
+
+// SetBuckets sets the value of Buckets.
+func (s *RollupResult) SetBuckets(val int) {
+	s.Buckets = val
+}
+
+// SetRows sets the value of Rows.
+func (s *RollupResult) SetRows(val int) {
+	s.Rows = val
+}
+
+// The window to recompute, half-open. Bucketed by day, which is the only bucket the panel asks for —
+// an hourly funnel is noise at this platform's volume, and a weekly one hides the day a release broke
+// a step.
+// Ref: #/components/schemas/RollupWindow
+type RollupWindow struct {
+	// Inclusive start.
+	From time.Time `json:"from"`
+	// Exclusive end.
+	To time.Time `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *RollupWindow) GetFrom() time.Time {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *RollupWindow) GetTo() time.Time {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *RollupWindow) SetFrom(val time.Time) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *RollupWindow) SetTo(val time.Time) {
+	s.To = val
 }

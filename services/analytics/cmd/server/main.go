@@ -24,6 +24,7 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	analytics "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/analytics"
+	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/funnels"
 	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/handlers"
 )
 
@@ -50,12 +51,22 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
+	// The funnel definitions are committed configuration, loaded at START rather
+	// than per request: a malformed definition should stop the service coming up,
+	// not surface as a rollup that is quietly wrong. Delivered to the pod as a
+	// ConfigMap mount; the default is the in-repo path, for running natively.
+	defs, err := funnels.Load(envOr("FUNNELS_PATH", defaultFunnelsPath))
+	if err != nil {
+		return fmt.Errorf("funnels: %w", err)
+	}
+	slog.Info("funnel definitions loaded", "count", defs.Len())
+
 	// No OpenFGA client. The panel that reads this store is authorised in the render
 	// layer against the marketing group (ADR-0700); the write path here is reached
 	// only by the collector and the consent control, both east-west, and its own
 	// gate is the consent record rather than a relationship.
 	api, err := analytics.NewServer(
-		handlers.New(db, slog.Default()),
+		handlers.New(db, defs, slog.Default()),
 		// A request the generated server rejects before a handler runs — a malformed
 		// body, a bad parameter, a missing required header — still gets an RFC 9457
 		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
@@ -91,4 +102,17 @@ func run() error {
 		return fmt.Errorf("analytics: server shutdown: %w", err)
 	}
 	return nil
+}
+
+// defaultFunnelsPath is where the Dockerfile bakes the definitions. Running
+// natively overrides it with FUNNELS_PATH, because the repo path is not this one.
+const defaultFunnelsPath = "/etc/analytics/funnels.yaml"
+
+// envOr reads an environment variable, falling back to a default.
+func envOr(key, fallback string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	return v
 }

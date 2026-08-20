@@ -15,4 +15,7 @@ networkPolicy:
   allowFromGateway: false
   # The node-level OTel collector is the only caller — it is what splits
   # `marketing.*` out of the logs pipeline and delivers the batch here.
-  allowFrom: [otel-agent, frontend]
+  # `platform` is the periodic worker, which asks this service to recompute the
+  # funnel rollup on a Schedule (ADR-0700, ADR-0302). It calls the API rather than
+  # reading the store, so it is an ordinary east-west caller like the others.
+  allowFrom: [otel-agent, frontend, platform]

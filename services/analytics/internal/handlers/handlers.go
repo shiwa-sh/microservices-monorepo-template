@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -22,6 +23,8 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	analytics "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/analytics"
+	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/funnels"
+	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/rollup"
 	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/store"
 )
 
@@ -30,16 +33,23 @@ import (
 // what the visitor did rather than a difference in what may be stored.
 const stateGranted = "granted"
 
+// maxRollupBuckets bounds one pass. A schedule that drifted, or a retry that
+// widened its window, would otherwise ask the rollup to scan the whole events
+// table — which is the scan the rollup exists to avoid. Roughly a quarter, which is
+// wider than any scheduled pass and narrow enough to stay a bounded query.
+const maxRollupBuckets = 92
+
 type Handlers struct {
-	q   *store.Queries
-	log *slog.Logger
+	q       *store.Queries
+	funnels *funnels.Set
+	log     *slog.Logger
 }
 
-func New(db *pgxpool.Pool, log *slog.Logger) *Handlers {
+func New(db *pgxpool.Pool, defs *funnels.Set, log *slog.Logger) *Handlers {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Handlers{q: store.New(db), log: log}
+	return &Handlers{q: store.New(db), funnels: defs, log: log}
 }
 
 var _ analytics.Handler = (*Handlers)(nil)
@@ -177,6 +187,104 @@ func (h *Handlers) NewError(ctx context.Context, err error) *analytics.ErrorStat
 	return &analytics.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
+func optText(v analytics.OptString) pgtype.Text {
+	s, ok := v.Get()
+	if !ok {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: s, Valid: true}
+}
+
+func fromText(v pgtype.Text) analytics.OptString {
+	if !v.Valid {
+		return analytics.OptString{}
+	}
+	return analytics.NewOptString(v.String)
+}
+
+// ComputeFunnelRollup recomputes one funnel's rollup over a window (ADR-0700).
+//
+// Driven by a Temporal Schedule (ADR-0302), and idempotent by construction: each
+// bucket is REPLACED, so a pass over a window that is still filling is the normal
+// case rather than a hazard. The most recent bucket is always incomplete.
+//
+// The window is bounded here rather than trusted from the caller. A schedule that
+// drifted, or a retry that widened its window, would otherwise ask this to scan
+// the whole events table — which is exactly the scan the rollup exists to avoid.
+func (h *Handlers) ComputeFunnelRollup(
+	ctx context.Context, req *analytics.RollupWindow, params analytics.ComputeFunnelRollupParams,
+) (*analytics.RollupResult, error) {
+	fn, ok := h.funnels.Get(params.Funnel)
+	if !ok {
+		return nil, apierr.NotFound("no funnel with that id")
+	}
+	if !req.From.Before(req.To) {
+		return nil, apierr.BadRequest("`from` must be before `to`")
+	}
+	buckets := rollup.Buckets(req.From, req.To)
+	if len(buckets) > maxRollupBuckets {
+		detail := fmt.Sprintf(
+			"the window covers %d days; the limit is %d",
+			len(buckets),
+			maxRollupBuckets,
+		)
+		return nil, apierr.BadRequest(detail)
+	}
+
+	written := 0
+	for _, b := range buckets {
+		n, err := h.rollupBucket(ctx, fn, b)
+		if err != nil {
+			return nil, err
+		}
+		written += n
+	}
+
+	return &analytics.RollupResult{
+		Funnel:  fn.ID,
+		Buckets: len(buckets),
+		Rows:    written,
+	}, nil
+}
+
+// GetFunnelRollup reads a funnel's computed buckets.
+func (h *Handlers) GetFunnelRollup(
+	ctx context.Context, params analytics.GetFunnelRollupParams,
+) ([]analytics.FunnelRollupRow, error) {
+	_, ok := h.funnels.Get(params.Funnel)
+	if !ok {
+		return nil, apierr.NotFound("no funnel with that id")
+	}
+	rows, err := h.q.GetFunnelRollup(
+		ctx,
+		store.GetFunnelRollupParams{
+			Funnel:        params.Funnel,
+			BucketStart:   pgtype.Timestamptz{Time: params.From.UTC(), Valid: true},
+			BucketStart_2: pgtype.Timestamptz{Time: params.To.UTC(), Valid: true},
+		},
+	)
+	if err != nil {
+		observability.RecordError(ctx, err, observability.KindDependency)
+		h.log.Error("read funnel rollup", "funnel", params.Funnel, "err", err)
+		return nil, apierr.Internal("failed to read the rollup")
+	}
+	out := make([]analytics.FunnelRollupRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(
+			out,
+			analytics.FunnelRollupRow{
+				Funnel:      r.Funnel,
+				StepIndex:   int(r.StepIndex),
+				StepName:    r.StepName,
+				BucketStart: r.BucketStart.Time,
+				BucketEnd:   r.BucketEnd.Time,
+				Sessions:    int(r.Sessions),
+			},
+		)
+	}
+	return out, nil
+}
+
 // hasGrant answers whether this session's events may be stored.
 //
 // The two failure modes must not be confused, and confusing them is what a first
@@ -229,17 +337,59 @@ func (h *Handlers) insert(ctx context.Context, batch *analytics.EventBatch, even
 	return nil
 }
 
-func optText(v analytics.OptString) pgtype.Text {
-	s, ok := v.Get()
-	if !ok {
-		return pgtype.Text{}
+// rollupBucket computes and writes one bucket, returning the rows written.
+func (h *Handlers) rollupBucket(
+	ctx context.Context, fn funnels.Funnel, b [2]time.Time,
+) (int, error) {
+	rows, err := h.q.FunnelStepFirstSeen(
+		ctx,
+		store.FunnelStepFirstSeenParams{
+			OccurredAt:   pgtype.Timestamptz{Time: b[0], Valid: true},
+			OccurredAt_2: pgtype.Timestamptz{Time: b[1], Valid: true},
+			Column3:      fn.Steps,
+		},
+	)
+	if err != nil {
+		observability.RecordError(ctx, err, observability.KindDependency)
+		h.log.Error("funnel rollup: read steps", "funnel", fn.ID, "bucket", b[0], "err", err)
+		return 0, apierr.Internal("failed to compute the rollup")
 	}
-	return pgtype.Text{String: s, Valid: true}
-}
 
-func fromText(v pgtype.Text) analytics.OptString {
-	if !v.Valid {
-		return analytics.OptString{}
+	steps := make([]rollup.Step, 0, len(rows))
+	for _, r := range rows {
+		steps = append(
+			steps,
+			rollup.Step{
+				SessionID: r.SessionID,
+				Name:      r.Name,
+				FirstSeen: r.FirstSeen.Time,
+			},
+		)
 	}
-	return analytics.NewOptString(v.String)
+	counts := rollup.Count(fn.Steps, steps)
+
+	// Every step is written, including the zeroes. A bucket missing its later steps
+	// would render as a funnel that ends early rather than one nobody completed, and
+	// those are different findings.
+	written := 0
+	for i, name := range fn.Steps {
+		err = h.q.UpsertFunnelRollup(
+			ctx,
+			store.UpsertFunnelRollupParams{
+				Funnel:      fn.ID,
+				StepIndex:   int32(i),
+				StepName:    name,
+				BucketStart: pgtype.Timestamptz{Time: b[0], Valid: true},
+				BucketEnd:   pgtype.Timestamptz{Time: b[1], Valid: true},
+				Sessions:    counts[i],
+			},
+		)
+		if err != nil {
+			observability.RecordError(ctx, err, observability.KindDependency)
+			h.log.Error("funnel rollup: write bucket", "funnel", fn.ID, "step", name, "err", err)
+			return 0, apierr.Internal("failed to write the rollup")
+		}
+		written++
+	}
+	return written, nil
 }

@@ -10,6 +10,11 @@ COPY libs/go ./libs/go
 ARG APP_CMD=server
 ARG SERVICE=analytics
 COPY services/${SERVICE} ./services/${SERVICE}
+# The funnel definitions (ADR-0700). Baked into the image rather than mounted,
+# because a funnel's steps are what its stored history MEANS: changing them
+# changes how every past bucket should be read, so the change belongs to a release
+# rather than to a config edit that can happen underneath one.
+COPY infra/analytics/funnels.yaml ./funnels.yaml
 # Build identity baked into the binary (ADR-0103) so the running pod self-reports
 # its git SHA / release; passed by the build scripts + CI, VCS-stamp fallback when absent.
 ARG GIT_SHA=""
@@ -27,6 +32,7 @@ RUN mkdir -p /out/migrations && cp -r services/${SERVICE}/migrations/* /out/migr
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:f7f8f729987ad0fdf6b05eeeae94b26e6a0f613bdf46feea7fc40f7bd72953e6
 COPY --from=build /out/app /app
 COPY --from=build /out/migrations /db/migrations
+COPY --from=build /src/funnels.yaml /etc/analytics/funnels.yaml
 # dbmate (static binary) co-located with the baked migrations so the chart's
 # migration initContainer runs them from this image — no separate dbmate image.
 COPY --from=amacneil/dbmate:2.27.0 /usr/local/bin/dbmate /usr/local/bin/dbmate

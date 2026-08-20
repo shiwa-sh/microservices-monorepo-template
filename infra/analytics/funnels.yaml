@@ -1,0 +1,40 @@
+# Funnel definitions (ADR-0700).
+#
+# A funnel is an ORDERED list of event names. The rollup counts sessions that
+# reached each step having reached every earlier step first — a session that lands
+# on checkout from a bookmark has not traversed the funnel, and counting it would
+# make every funnel look flat.
+#
+# Committed configuration rather than a table, for the reason the access rules and
+# the alert rules are: a funnel someone defined in a UI is a funnel nobody can
+# review, and the definition is what the numbers mean. Changing a step changes what
+# the historical buckets were counting, so the change is a diff someone reads.
+#
+# The event names are the names as STORED — without the marketing prefix, which is
+# how the collector routes an event rather than what the event is (ADR-0700).
+#
+# Adding a funnel does not backfill. The rollup pass computes the buckets it is
+# given, so a new funnel starts empty and fills forward unless someone runs the
+# pass over an older window on purpose.
+funnels:
+  - id: checkout
+    name: Browse to purchase
+    # The platform's one first-party funnel, and the one the panel opens on. Each
+    # step is an event the frontend already emits; a step naming an event nothing
+    # emits produces a row of zeroes rather than an error, which is why the names
+    # are worth checking against the emitting code rather than against this file.
+    steps:
+      - product_viewed
+      - cart_item_added
+      - checkout_started
+      - order_placed
+
+  - id: registration
+    name: Visit to verified identity
+    # The identity flow, which ADR-0307 names as the signal that catches mail that
+    # is accepted and never delivered. The same drop shows up here as a step that
+    # stops converting, which is the panel's view of the alert.
+    steps:
+      - signup_started
+      - signup_submitted
+      - identity_verified

@@ -24,14 +24,28 @@ for i in $(seq 0 $((count - 1))); do
   queue=$(yq -r ".schedules[$i].taskQueue" "$SPEC")
   cron=$(yq -r ".schedules[$i].cron" "$SPEC")
 
+  # The workflow's arguments, one `--input` per top-level element, each as JSON.
+  # A workflow taking no arguments has no `args` key and contributes none.
+  #
+  # This is not cosmetic: a schedule whose workflow expects an argument and is
+  # created without one starts a run that fails on its first line, once per tick,
+  # for as long as nobody looks at it.
+  args=()
+  arg_count=$(yq -r ".schedules[$i].args // [] | length" "$SPEC")
+  for j in $(seq 0 $((arg_count - 1))); do
+    args+=(--input "$(yq -o=json -I=0 ".schedules[$i].args[$j]" "$SPEC")")
+  done
+
   if temporal schedule describe --schedule-id "$id" --address "$ADDRESS" --namespace "$NAMESPACE" >/dev/null 2>&1; then
     temporal schedule update --schedule-id "$id" --address "$ADDRESS" --namespace "$NAMESPACE" \
       --workflow-type "$workflow" --task-queue "$queue" --cron "$cron" \
+      "${args[@]+"${args[@]}"}" \
       --workflow-id "${id}-run" >/dev/null
     detail "updated ${id}"
   else
     temporal schedule create --schedule-id "$id" --address "$ADDRESS" --namespace "$NAMESPACE" \
       --workflow-type "$workflow" --task-queue "$queue" --cron "$cron" \
+      "${args[@]+"${args[@]}"}" \
       --workflow-id "${id}-run" >/dev/null
     detail "created ${id}"
   fi

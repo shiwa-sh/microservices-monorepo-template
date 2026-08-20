@@ -8,12 +8,28 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// ComputeFunnelRollup implements computeFunnelRollup operation.
+	//
+	// Recompute a funnel's rollup over a window, one bucket per day.
+	//
+	// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
+	// that is still filling is the normal case rather than a hazard. The most recent bucket is always
+	// incomplete.
+	//
+	// POST /analytics/funnels/{funnel}/rollup
+	ComputeFunnelRollup(ctx context.Context, req *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error)
 	// GetConsent implements getConsent operation.
 	//
 	// Read the recorded decision for a session.
 	//
 	// GET /analytics/consent
 	GetConsent(ctx context.Context, params GetConsentParams) (*Consent, error)
+	// GetFunnelRollup implements getFunnelRollup operation.
+	//
+	// Read a funnel's computed rollup, in bucket then step order.
+	//
+	// GET /analytics/funnels/{funnel}/rollup
+	GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error)
 	// RecordConsent implements recordConsent operation.
 	//
 	// Record or withdraw consent for a session.

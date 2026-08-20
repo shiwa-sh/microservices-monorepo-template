@@ -7,10 +7,17 @@
 package activities
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
+	"time"
 )
 
 type Activities struct {
@@ -19,13 +26,28 @@ type Activities struct {
 	// which is the honest state: ADR-0207 says the drill "opens a tracking issue",
 	// and there is nowhere to open one yet.
 	forgeAPI string
+	// analyticsAPI is the analytics service, east-west. Unlike the forge it exists,
+	// so an activity that needs it fails rather than logging a warning: a rollup
+	// that silently did not run is a panel showing stale numbers with no sign that
+	// they are stale.
+	analyticsAPI string
+	// One client, reused. A client per call leaks a connection pool per call, and
+	// the timeout here is what stops an activity hanging until Temporal's
+	// StartToClose fires — which would turn a slow dependency into a ten-minute
+	// wait per retry.
+	http *http.Client
 }
 
 func New(log *slog.Logger) *Activities {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Activities{log: log, forgeAPI: os.Getenv("FORGE_API_URL")}
+	return &Activities{
+		log:          log,
+		forgeAPI:     os.Getenv("FORGE_API_URL"),
+		analyticsAPI: os.Getenv("ANALYTICS_API_URL"),
+		http:         &http.Client{Timeout: 2 * time.Minute},
+	}
 }
 
 // OpenTrackingIssueActivity files the issue a periodic obligation produces.
@@ -96,6 +118,60 @@ func (a *Activities) ExportSubjectDataActivity(ctx context.Context, identityID s
 // ApplyRetentionActivity prunes data past its class's declared retention.
 func (a *Activities) ApplyRetentionActivity(ctx context.Context) error {
 	a.log.InfoContext(ctx, "retention pass: not yet pruning")
+	return nil
+}
+
+// ComputeFunnelRollupActivity asks the analytics service to recompute one funnel
+// over a window (ADR-0700, ADR-0302).
+//
+// It calls the service rather than the database. The events are the analytics
+// service's store and no other service reads it directly — a worker holding a
+// second connection to someone else's schema is exactly the coupling the ownership
+// rule exists to prevent, and it would need its own migrations to stay current.
+//
+// Unlike the stubs above this one has a real body, because its dependency exists:
+// the endpoint is east-west (`x-audience: cluster`) and reachable from this pod.
+func (a *Activities) ComputeFunnelRollupActivity(
+	ctx context.Context, funnel string, from, to time.Time,
+) error {
+	if a.analyticsAPI == "" {
+		return errors.New("ANALYTICS_API_URL is not set")
+	}
+
+	window := map[string]string{
+		"from": from.UTC().Format(time.RFC3339),
+		"to":   to.UTC().Format(time.RFC3339),
+	}
+	body, err := json.Marshal(window)
+	if err != nil {
+		return fmt.Errorf("marshal window: %w", err)
+	}
+
+	endpoint := fmt.Sprintf(
+		"%s/api/analytics/funnels/%s/rollup",
+		a.analyticsAPI,
+		url.PathEscape(funnel),
+	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("call analytics: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// The response body is read on the error path and discarded otherwise. A
+	// rollup's result is a count this activity has nothing to do with — the record
+	// that it ran is the workflow's event history.
+	if resp.StatusCode != http.StatusOK {
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("analytics rollup %s: %s: %s", funnel, resp.Status, bytes.TrimSpace(detail))
+	}
+	a.log.InfoContext(ctx, "funnel rollup computed", "funnel", funnel, "from", from, "to", to)
 	return nil
 }
 

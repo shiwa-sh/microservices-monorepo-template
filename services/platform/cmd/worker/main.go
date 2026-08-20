@@ -69,6 +69,7 @@ func run() error {
 	w.RegisterWorkflow(workflows.EraseSubject)
 	w.RegisterWorkflow(workflows.ExportSubject)
 	w.RegisterWorkflow(workflows.RetentionPass)
+	w.RegisterWorkflow(workflows.FunnelRollup)
 
 	acts := activities.New(slog.Default())
 	w.RegisterActivity(acts.OpenTrackingIssueActivity)
@@ -78,6 +79,7 @@ func run() error {
 	w.RegisterActivity(acts.EraseAuthzTuplesActivity)
 	w.RegisterActivity(acts.ExportSubjectDataActivity)
 	w.RegisterActivity(acts.ApplyRetentionActivity)
+	w.RegisterActivity(acts.ComputeFunnelRollupActivity)
 
 	interrupt := make(chan any, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()
