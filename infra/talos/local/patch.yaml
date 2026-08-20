@@ -26,6 +26,28 @@ cluster:
     enabled: false
 
 machine:
+  kubelet:
+    # The node's "image filesystem" is the DEVELOPER'S DISK. These nodes are
+    # containers sharing the host filesystem, so each kubelet measures the whole
+    # laptop and applies thresholds meant for a dedicated node.
+    #
+    # A laptop at 80% is normal and is not a node running out of room, but the
+    # defaults (image GC high at 85%, eviction at 10% free) read it as one: all
+    # three nodes take a `disk-pressure` taint at once, the Cilium operator cannot
+    # schedule because it does not tolerate that taint, the Cilium CRDs are never
+    # registered, and every agent fatals after five minutes on "Unable to find all
+    # Cilium CRDs". Nothing in that chain mentions disk, which is why this is set
+    # here rather than left to be rediscovered.
+    #
+    # `cluster-talos-ensure.sh` still refuses to start above 85%, so this raises the
+    # threshold for normal laptop fullness without hiding a genuinely full disk.
+    extraConfig:
+      imageGCHighThresholdPercent: 95
+      imageGCLowThresholdPercent: 90
+      evictionHard:
+        nodefs.available: 3%
+        imagefs.available: 3%
+
   features:
     kubePrism:
       enabled: true
