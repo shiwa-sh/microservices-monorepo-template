@@ -27,6 +27,12 @@ spec:
             k8s:io.kubernetes.pod.namespace: platform
             app.kubernetes.io/name: postgresql
             app.kubernetes.io/component: database
+        # zot keeps every image, and every signature and SBOM attached to one, in
+        # this store (ADR-0105) — it reads the bucket before it can serve a single
+        # pull. Missing here, it hangs for the S3 client's whole timeout and then
+        # exits with a status and no message, having logged only
+        # `parsing storage and initializing`.
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app: zot }
       toPorts:
         - ports: [{ port: "8333", protocol: TCP }]
     # The admin UI, reached only through the edge (ADR-0306): Traefik terminates
