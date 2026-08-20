@@ -189,3 +189,36 @@ func (a *Activities) openIssue(ctx context.Context, title, body string) error {
 	// against a real base URL.
 	return fmt.Errorf("forge issue API not implemented for %s", a.forgeAPI)
 }
+
+// RestoreToScratchActivity restores the most recent backup into a scratch
+// namespace and returns that namespace's name (ADR-0207).
+//
+// Stubbed, and the stub FAILS rather than succeeding quietly. That is the
+// difference between this and the tracking-issue activity above: an issue nobody
+// files is visible as a missing issue, but a restore verification that reports
+// success without restoring anything is worse than no verification at all — it
+// converts "we do not know whether the backups work" into "we believe they do".
+func (a *Activities) RestoreToScratchActivity(ctx context.Context) (string, error) {
+	a.log.ErrorContext(ctx, "restore verification is scheduled but not implemented")
+	return "", errors.New(
+		"RestoreToScratchActivity is not implemented: it must create a CNPG Cluster " +
+			"with a recovery bootstrap from the backup object store (ADR-0207)",
+	)
+}
+
+// AssertRestoredRowCountsActivity checks the restored database is not merely
+// present but populated (ADR-0207).
+func (a *Activities) AssertRestoredRowCountsActivity(ctx context.Context, namespace string) error {
+	a.log.ErrorContext(ctx, "restore assertion is scheduled but not implemented", "namespace", namespace)
+	return errors.New("AssertRestoredRowCountsActivity is not implemented")
+}
+
+// TeardownScratchRestoreActivity removes the scratch restore.
+//
+// A scratch namespace left behind holds a full copy of production data, so this is
+// the one activity here whose failure is worth logging loudly even when the run
+// otherwise succeeded.
+func (a *Activities) TeardownScratchRestoreActivity(ctx context.Context, namespace string) error {
+	a.log.ErrorContext(ctx, "scratch teardown is scheduled but not implemented", "namespace", namespace)
+	return errors.New("TeardownScratchRestoreActivity is not implemented")
+}

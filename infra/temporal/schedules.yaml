@@ -58,3 +58,14 @@ schedules:
     # silently change what a schedule does — the two edits are one review.
     args: [[checkout, registration]]
     note: ADR-0700 — the panel reads these buckets, so an interactive funnel question is a lookup rather than a scan over every event in the window.
+
+  - id: restore-verification
+    workflow: RestoreVerification
+    taskQueue: platform-queue
+    # Weekly, early Sunday. The quarterly rehearsal (dr-drill) is a person restoring
+    # a cluster and timing it; this is the machine half, and it exists because
+    # QUARTERLY IS THE DETECTION LATENCY for an unrestorable backup — a backup that
+    # stopped being valid in January is found in April, by which time every backup
+    # in the retention window may share the defect.
+    cron: "0 3 * * 0"
+    note: ADR-0207 — restores into a scratch namespace and asserts row counts, because a restore that produces an empty database also succeeds.

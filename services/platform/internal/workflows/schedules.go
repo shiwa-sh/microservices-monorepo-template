@@ -134,3 +134,52 @@ func FunnelRollup(ctx workflow.Context, funnels []string) error {
 	}
 	return nil
 }
+
+// RestoreVerification proves a backup is restorable, weekly (ADR-0207).
+//
+// The quarterly rehearsal that DisasterRecoveryDrill schedules is a person
+// restoring a cluster and timing it. This is the other half, and it exists because
+// quarterly is the detection latency for an unrestorable backup: a backup that
+// stopped being valid in January is discovered in April, and by then every backup
+// in the retention window may share the defect.
+//
+// It restores into a SCRATCH namespace and asserts row counts, then tears the
+// restore down. Asserting row counts rather than "the restore succeeded" is the
+// point — a restore that produces an empty database succeeds.
+//
+// It does not page. A failed verification means the backups are suspect, which is
+// hours-matter rather than minutes-matter (ADR-0502), and the alert it raises is
+// the ticket.
+func RestoreVerification(ctx workflow.Context) error {
+	ctx = activityOptions(ctx)
+
+	var restored string
+	err := workflow.ExecuteActivity(ctx, "RestoreToScratchActivity").Get(ctx, &restored)
+	if err != nil {
+		return fmt.Errorf("restore verification: restore: %w", err)
+	}
+
+	// Teardown runs whether or not the assertion passes, and its failure does not
+	// mask the assertion's. A scratch namespace left behind holds a full copy of
+	// production data, which is a worse outcome than a failed check.
+	assertErr := workflow.ExecuteActivity(ctx, "AssertRestoredRowCountsActivity", restored).Get(ctx, nil)
+
+	teardownErr := workflow.ExecuteActivity(ctx, "TeardownScratchRestoreActivity", restored).Get(ctx, nil)
+	if teardownErr != nil {
+		workflow.GetLogger(ctx).Error(
+			"scratch restore not torn down — it holds a copy of production data",
+			"namespace",
+			restored,
+			"err",
+			teardownErr,
+		)
+	}
+
+	if assertErr != nil {
+		return fmt.Errorf("restore verification: assert: %w", assertErr)
+	}
+	if teardownErr != nil {
+		return fmt.Errorf("restore verification: teardown: %w", teardownErr)
+	}
+	return nil
+}
