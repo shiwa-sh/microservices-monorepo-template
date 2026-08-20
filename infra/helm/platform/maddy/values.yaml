@@ -40,6 +40,12 @@ maddy:
     # unhealthy — so the deployment treats a missing secret as a failure to start.
     secretName: maddy-dkim
 
+  # The OpenMetrics listener. Cluster-internal only: the network policy admits the
+  # node-local collector and nothing else, and the Service does not publish it
+  # outside the pod network.
+  metrics:
+    port: 9749
+
   submission:
     port: 587
     # The credential Kratos and the services authenticate with. One account, because

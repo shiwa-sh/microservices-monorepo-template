@@ -31,20 +31,44 @@ groups:
             The courier cannot hand messages to the submission endpoint. Verification
             and recovery mail is not being sent at all — this is upstream of
             deliverability, so DNS and DKIM are not the place to look first.
-      # The queue draining is what says delivery is working. A queue that grows
-      # without bound is a receiver deferring us, which is what a reputation problem
-      # looks like from this side.
-      - alert: MailQueueGrowing
+      # Transactions that start and do not finish. maddy exposes NO queue-depth
+      # series — this rule previously read `maddy_queue_length`, which does not
+      # exist in 0.9.5 and therefore never fired. The three counters below are
+      # everything the agent publishes, read off a running instance:
+      # started, aborted, and failed commands by SMTP code.
+      #
+      # An aborted transaction is one maddy accepted and could not complete, which
+      # is the closest thing to "the queue is not draining" that the agent will say.
+      # A ratio rather than a count, so a busy platform and a quiet one alert at the
+      # same sensitivity.
+      - alert: MailTransactionsAborting
         expr: |
-          increase(maddy_queue_length[1h]) > 0 and maddy_queue_length > 50
+          sum(rate(maddy_smtp_aborted_transactions[30m]))
+            / clamp_min(sum(rate(maddy_smtp_started_transactions[30m])), 0.001)
+            > 0.1
         for: 30m
         labels: { severity: ticket }
         annotations:
-          summary: "The outbound mail queue is growing"
+          summary: "Outbound mail transactions are aborting"
           description: >-
-            Messages are entering the queue faster than they leave it. A receiver is
-            deferring: check the DMARC aggregate reports and whether the egress IP is
-            listed anywhere before changing configuration.
+            More than a tenth of submission transactions are not completing. A
+            receiver is deferring or refusing: check the DMARC aggregate reports and
+            whether the egress IP is listed anywhere before changing configuration.
+      # Permanent rejections, which are the ones no retry will fix. 5xx from the
+      # receiving side means the message is refused rather than delayed, and the
+      # enhanced code says why — `5.7.x` is policy, which is where a signing or
+      # reputation problem lands.
+      - alert: MailPermanentlyRejected
+        expr: |
+          sum(rate(maddy_smtp_failed_commands{smtp_code=~"5.."}[30m])) > 0
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Outbound mail is being permanently rejected"
+          description: >-
+            A receiver is refusing messages outright rather than deferring them.
+            Check the `smtp_enchcode` label: `5.7.x` is a policy rejection, which
+            points at DKIM, SPF or the egress IP's reputation.
 
   - name: mail.identity-flow
     rules:

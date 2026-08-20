@@ -123,6 +123,31 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
+            # maddy's delivery counters (ADR-0307). Gated on the chart's own flag:
+            # maddy is production-only, and a job discovering nothing in every other
+            # environment is a scrape error per interval rather than a no-op.
+            #
+            # Three series exist and no more — started, aborted, and failed commands
+            # by SMTP code. There is no queue-depth metric, which is why the mail
+            # alerts do not reference one.
+            #
+            # They also register LAZILY: an instance that has handled no mail
+            # publishes none of them, so this job legitimately returns an empty
+            # scrape on a healthy idle platform.
+{{- if .Values.maddy.enabled }}
+            - job_name: maddy
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [{{ .Release.Namespace }}] }
+                  selectors:
+                    - role: pod
+                      label: "app=maddy"
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: metrics
+{{- end }}
             # Prometheus's own TSDB metrics (ADR-0500's cardinality defence 2).
             # Nothing observed the metrics store itself: `prometheus_*` was absent
             # from its own TSDB, so the active-series ceiling could not be

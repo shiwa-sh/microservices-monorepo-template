@@ -32,6 +32,24 @@ data:
     tls off
     hostname $(hostname)
 
+    # maddy's own delivery counters, for the collector to scrape (ADR-0307,
+    # ADR-0500). Three series and no more — that is everything 0.9.5 exposes, read
+    # off a running instance rather than from documentation:
+    #
+    #   maddy_smtp_started_transactions{module}
+    #   maddy_smtp_aborted_transactions{module}
+    #   maddy_smtp_failed_commands{command,module,smtp_code,smtp_enchcode}
+    #
+    # There is NO queue-depth series, no per-message delivery outcome, and nothing
+    # about bounces or complaints. Those have to come from the receiving end —
+    # DMARC aggregate reports — which is what ADR-0307 already says the real signal
+    # is.
+    #
+    # The series also register LAZILY: a maddy that has handled no traffic exposes
+    # none of them at all. Any rule written with `absent()` here would fire on a
+    # healthy idle server, which is why none below use it.
+    openmetrics tcp://0.0.0.0:{{ .Values.maddy.metrics.port }} { }
+
     auth.pass_table submission_auth {
         table static {
             entry {{ .Values.maddy.submission.username }} "{env:MADDY_SUBMISSION_HASH}"

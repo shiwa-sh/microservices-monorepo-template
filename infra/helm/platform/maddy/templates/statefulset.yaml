@@ -51,6 +51,7 @@ spec:
                 secretKeyRef: { name: {{ .Values.maddy.submission.secretName }}, key: password_hash }
           ports:
             - { name: submission, containerPort: {{ .Values.maddy.submission.port }} }
+            - { name: metrics, containerPort: {{ .Values.maddy.metrics.port }} }
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false

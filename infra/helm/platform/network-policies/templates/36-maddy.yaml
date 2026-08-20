@@ -32,6 +32,15 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager }
       toPorts:
         - ports: [{ port: "587", protocol: TCP }]
+    # The cluster collector scraping maddy's delivery counters (ADR-0500). Without
+    # this the scrape fails every interval and the mail alerts evaluate against no
+    # data — which reads as "no failures" rather than as "no signal".
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: platform
+            app.kubernetes.io/name: otel-cluster
+      toPorts:
+        - ports: [{ port: "9749", protocol: TCP }]
   egress:
     - toEntities: [world]
       toPorts:

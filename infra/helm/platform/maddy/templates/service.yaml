@@ -12,4 +12,5 @@ spec:
     app: maddy
   ports:
     - { name: submission, port: {{ .Values.maddy.submission.port }}, targetPort: submission }
+    - { name: metrics, port: {{ .Values.maddy.metrics.port }}, targetPort: metrics }
 {{- end }}

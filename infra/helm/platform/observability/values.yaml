@@ -308,3 +308,10 @@ otelCluster:
   resources:
     requests: { cpu: "50m", memory: "192Mi" }
     limits:   { memory: "512Mi" }
+
+# Mirrors the gate in the maddy chart (infra/helm/platform/maddy). Both read the
+# same per-env overlay, so the scrape job appears exactly where the agent does.
+# maddy is production-only (ADR-0307), and a job that discovers nothing is a scrape
+# error every interval rather than a no-op.
+maddy:
+  enabled: false
