@@ -146,23 +146,6 @@ CGO_ENABLED = "0"
 # nested config's [tools], so there is exactly one place to bump.
 NODE_VERSION = "22"
 
-# mise presents `GITHUB_TOKEN` to api.github.com whenever it resolves a `github:`
-# or `ubi:` tool. On GitHub Actions that token is a GitHub token and the fetch is
-# authenticated. On a Forgejo runner it is the FORGE's token — valid, for another
-# host — and GitHub answers `401 Bad credentials`, which reads as an expired
-# secret rather than as a token offered to the wrong host. Every tool resolution
-# in the job fails the same way, so the whole pipeline goes red on a forge that is
-# configured correctly.
-#
-# `FORGEJO_ACTIONS` is set by that runner and by nothing else. Comparing
-# `GITHUB_SERVER_URL` does not work — a forge that resolves actions from
-# github.com reports github.com there too. Off a forge runner the variable is
-# absent and the token passes through untouched, so a workstation is unaffected.
-#
-# `MISE_GITHUB_TOKEN` is the way back to authenticated rate limits there: an
-# adopter sets a real GitHub token as a forge secret, and it needs no scopes,
-# because it only reads public releases.
-GITHUB_TOKEN = "{% if env.FORGEJO_ACTIONS is defined %}{{ env.MISE_GITHUB_TOKEN | default(value='') }}{% else %}{{ env.GITHUB_TOKEN | default(value='') }}{% endif %}"
 
 # Task naming: `group:member`, group = the axis you list/run together (ADR-0101).
 # `activity:target` for fan-out families with an umbrella (gen, lint, format);
