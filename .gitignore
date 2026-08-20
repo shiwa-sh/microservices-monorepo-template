@@ -72,5 +72,15 @@ core.*
 # Rumble cache
 .rumdl_cache
 
+# Compiled Go binaries dropped at the repo root. `go build ./tools/<name>` with no
+# -o writes the binary into the CWD named after the package, and the root is where
+# most people run it from — so a stray 3 MB artefact is one forgotten flag away, and
+# nothing else here would have caught it. Every tool is RUN with `go run` (see the
+# lint tasks in .mise.toml); a built binary is scratch either way.
+/lint-*
+/gen-*
+/data-classes
+/zod-gen
+
 # Local-only working files, never committed (AGENTS.md)
 *.local.md
