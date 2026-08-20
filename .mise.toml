@@ -935,6 +935,19 @@ run = "mise run -C test/e2e test:smoke"
 # The steady baseline: nightly + pre-release.
 run = "mise run -C test/perf load"
 
+[tasks."frontend:sourcemaps"]
+# Collect the production build's browser source maps for a release and strip them
+# from the served output (ADR-0503). A stack trace is unreadable without them and
+# an attacker reads the application with them, so they are kept and not shipped.
+run = "bash scripts/frontend-sourcemaps.sh"
+
+[tasks."perf:re-derive"]
+# The measured numbers the ADR set asserts, recomputed and printed beside what is
+# committed (ADR-0001). It prints rather than rewrites: a number that moved may mean
+# the platform changed or that the machine did, and a script that edited the ADR
+# would erase that distinction.
+run = "bash scripts/perf-rederive.sh"
+
 [tasks."perf:smoke"]
 # ~30s. Proves the scenarios still run; the label-gated per-PR lane.
 run = "mise run -C test/perf smoke"

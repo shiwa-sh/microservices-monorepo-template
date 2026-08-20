@@ -26,6 +26,17 @@ const nextConfig = {
   transpilePackages: ["@libs/id"],
   reactStrictMode: true,
   typedRoutes: true,
+  // Emit browser source maps in the production build (ADR-0503).
+  //
+  // Without them a browser stack trace names minified chunks and offsets, which
+  // groups every fault in a bundle under one unreadable frame and defeats the
+  // fingerprint that is supposed to tell them apart.
+  //
+  // They are BUILD artefacts, not served ones: Next writes them beside the chunks,
+  // and the maps must be collected from the build and kept per release rather than
+  // shipped to browsers — a public source map hands an attacker the unminified
+  // application. Collection is `mise run frontend:sourcemaps`.
+  productionBrowserSourceMaps: true,
   // `cluster:full` serves the host-run `next dev` through the edge at
   // dev.localtest.me:8443 — a different origin than localhost — so allow it,
   // otherwise Next blocks the cross-origin dev/HMR requests. Dev-server-only;
