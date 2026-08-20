@@ -1,0 +1,34 @@
+{{- if .Values.forgejo.enabled }}
+## The forge (ADR-0102). Gated on the same flag the chart is.
+##
+## Ingress is the edge and the Actions runners. The runners are not built yet (G3
+## in the plan), so today this admits the edge and nothing else — a rule naming a
+## workload that does not exist would select nothing and read as coverage.
+##
+## Egress needs to reach the WORLD on 443, and that is the uncomfortable one worth
+## stating: a forge fetches from upstream repositories, posts webhooks, and pulls
+## container images for Actions. Restricting it to an allow-list of known hosts
+## would be a list that is wrong the first time someone adds a dependency.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: forgejo
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "3000", protocol: TCP }]
+  egress:
+    # Its database, on the shared CNPG cluster through the pooler (ADR-0300).
+    - toEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, cnpg.io/poolerName: postgres-pooler }
+      toPorts:
+        - ports: [{ port: "5432", protocol: TCP }]
+    - toEntities: [world]
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+{{- end }}

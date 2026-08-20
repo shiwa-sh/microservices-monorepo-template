@@ -1,0 +1,64 @@
+# Values namespaced under `forgejo:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions.
+forgejo:
+  # Off everywhere by default. The forge is the one platform component that cannot
+  # be brought up by the platform it hosts without answering the bootstrap
+  # circularity first (ADR-0102, and G2 in the plan): Argo syncs from the repo, the
+  # repo lives here, and this is deployed by Argo. Enabling it is a deliberate act
+  # in one environment's overlay, not a default.
+  enabled: false
+
+  image:
+    repository: codeberg.org/forgejo/forgejo
+    # v16.0.2 rather than the v15 line: both received patch releases on the same
+    # day, so both are maintained, and v16 has had weeks of field exposure rather
+    # than days. A forge holds every line of source this platform has, which argues
+    # for the maintained line that is current rather than the one being wound down.
+    tag: "16.0.2"
+    digest: sha256:2fdfe28b5c68f82f49580e227b84e2afb43af0250e0631a54a386ef3b1d9b759
+    pullPolicy: IfNotPresent
+
+  # One replica, and this is not a placeholder for two.
+  #
+  # Forgejo keeps repositories on a filesystem, and two replicas sharing one
+  # ReadWriteOnce volume cannot both mount it — while two replicas on separate
+  # volumes are two different forges. Horizontal scaling needs shared storage and
+  # is a decision this chart does not make on anyone's behalf. Availability comes
+  # from a fast restart and a restorable volume instead.
+  replicas: 1
+
+  # Repository storage. Not object storage: git's own format is many small files
+  # with hard links between them, which is what a filesystem is good at and what an
+  # S3 gateway is worst at.
+  storage:
+    size: 20Gi
+    storageClass: ""   # the cluster's default (ADR-0207)
+
+  # The database, on the existing CNPG cluster (ADR-0102, ADR-0300). The DSN
+  # arrives from a Secret rather than from values — it carries a password, and
+  # ADR-0202 keeps those out of committed files.
+  database:
+    secretName: forgejo-db-creds
+
+  # The admin account is NOT created here. Forgejo's `INSTALL_LOCK` closes the web
+  # installer, and the first account is created out of band by
+  # `forgejo admin user create`. A password in values would be a committed
+  # credential, and a generated one in a Secret would still have to be read by a
+  # human on first login.
+  config:
+    # The externally reachable root. Every clone URL, webhook target and OAuth
+    # redirect is built from it, so a wrong value produces a forge that works in
+    # the browser and hands out URLs nobody can reach.
+    rootURL: https://forge.example.com/
+    # SSH is served by this pod on a non-privileged port; the edge is HTTP-only
+    # (ADR-0305 routes HTTP), so git-over-SSH needs a Service of type LoadBalancer
+    # or a node port, which is per-environment and therefore not decided here.
+    sshPort: 2222
+    # Disabled: this forge hosts one organisation's code, and open registration on
+    # a self-hosted forge is how it becomes someone else's file host.
+    disableRegistration: true
+    requireSignin: true
+
+  resources:
+    requests: { cpu: "200m", memory: "512Mi" }
+    limits:   { memory: "2Gi" }

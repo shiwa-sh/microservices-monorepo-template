@@ -51,3 +51,9 @@ maddyEnabled: false
 # true.
 edgeErrors:
   enabled: true
+
+# Mirrors the gate in the forgejo chart (infra/helm/platform/forgejo). Off by
+# default like the chart: a policy selecting an endpoint that does not exist is a
+# claim about the platform that is not true.
+forgejo:
+  enabled: false

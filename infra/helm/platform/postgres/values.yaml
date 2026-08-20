@@ -60,6 +60,10 @@ cluster:
       - "CREATE DATABASE temporal_visibility OWNER dev"
       - "CREATE DATABASE analytics OWNER dev"
       - "CREATE DATABASE openfga OWNER dev"
+      # The forge's database (ADR-0102). Created even though the forgejo chart is
+      # disabled by default: this list runs ONCE at bootstrap, so a database that
+      # is not created here cannot be created later by enabling a chart.
+      - "CREATE DATABASE forgejo OWNER dev"
   # The read-only role's login half (ADR-0401, ADR-0202). CNPG reconciles the
   # password from the Secret rather than from a values field, so rotating it is
   # re-encrypting one SopsSecret entry.

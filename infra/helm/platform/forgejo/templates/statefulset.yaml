@@ -1,0 +1,97 @@
+{{- if .Values.forgejo.enabled }}
+{{- $f := .Values.forgejo }}
+{{- /*
+A StatefulSet, not a Deployment: the repositories are the state, and a
+StatefulSet's volumeClaimTemplate keeps one pod bound to one volume across
+restarts. A Deployment with a PVC would happily start a second pod that cannot
+mount it, and a rolling update would deadlock waiting for the old pod to release
+a ReadWriteOnce volume.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: forgejo
+  labels: &labels
+    app.kubernetes.io/name: forgejo
+    app.kubernetes.io/part-of: platform
+spec:
+  serviceName: forgejo
+  replicas: {{ $f.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # 1000 is the `git` user in the upstream image, and the volume below is
+        # chowned to it by fsGroup. Running as anyone else produces a pod that
+        # starts and cannot write a single repository.
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: forgejo
+          image: {{ $f.image.repository }}:{{ $f.image.tag }}@{{ $f.image.digest }}
+          imagePullPolicy: {{ $f.image.pullPolicy }}
+          env:
+            # `INSTALL_LOCK` closes the web installer. Without it, the first person
+            # to reach the forge — which is anyone, before there is an account —
+            # is offered a form that configures the database and creates an admin.
+            - { name: FORGEJO__security__INSTALL_LOCK, value: "true" }
+            - { name: FORGEJO__server__ROOT_URL, value: {{ $f.config.rootURL | quote }} }
+            - { name: FORGEJO__server__SSH_PORT, value: {{ $f.config.sshPort | quote }} }
+            - { name: FORGEJO__server__SSH_LISTEN_PORT, value: {{ $f.config.sshPort | quote }} }
+            - { name: FORGEJO__service__DISABLE_REGISTRATION, value: {{ $f.config.disableRegistration | quote }} }
+            - { name: FORGEJO__service__REQUIRE_SIGNIN_VIEW, value: {{ $f.config.requireSignin | quote }} }
+            - { name: FORGEJO__database__DB_TYPE, value: postgres }
+            # The DSN's parts come from the Secret CNPG's credentials populate, so
+            # no password is rendered into the pod spec.
+            - name: FORGEJO__database__HOST
+              valueFrom: { secretKeyRef: { name: {{ $f.database.secretName }}, key: host } }
+            - name: FORGEJO__database__NAME
+              valueFrom: { secretKeyRef: { name: {{ $f.database.secretName }}, key: dbname } }
+            - name: FORGEJO__database__USER
+              valueFrom: { secretKeyRef: { name: {{ $f.database.secretName }}, key: username } }
+            - name: FORGEJO__database__PASSWD
+              valueFrom: { secretKeyRef: { name: {{ $f.database.secretName }}, key: password } }
+          ports:
+            - { name: http, containerPort: 3000 }
+            - { name: ssh, containerPort: {{ $f.config.sshPort | int }} }
+          readinessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            # NOT read-only. Forgejo writes repositories, its own config file, and
+            # the SSH host keys into /data at startup; a read-only root with an
+            # emptyDir per writable path would be a longer list than the volume it
+            # replaces, and the volume is persistent for a reason.
+            readOnlyRootFilesystem: false
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          resources:
+            {{- toYaml $f.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with $f.storage.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $f.storage.size }}
+{{- end }}
