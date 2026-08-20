@@ -21,6 +21,11 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
+    # The DNS-01 solver's credential (ADR-0205). Without it the public issuer
+    # never becomes Ready and no wildcard certificate is ever issued.
+    - name: cloudflare-api-token
+      stringData:
+        token: ""
     - name: observability-bucket
       stringData:
         AWS_ACCESS_KEY_ID: ""

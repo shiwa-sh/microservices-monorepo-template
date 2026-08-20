@@ -309,6 +309,13 @@ spec:
                   # the bootstrap circularity, and it is a decision rather than a
                   # default.
                 - { path: "infra/helm/platform/forgejo" }
+                  # The public ACME issuer and the edge's wildcard certificates
+                  # (ADR-0205). Core tier, not base: a DNS-01 solver needs the
+                  # token the secrets tier (wave 1) delivers, and an Application
+                  # stays Progressing while an issuer it owns is not Ready — so
+                  # in the base tier it holds wave 0 open against a secret only a
+                  # later wave can produce.
+                - { path: "infra/helm/platform/public-tls" }
                 - { path: "infra/helm/platform/observability" }
                 - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it

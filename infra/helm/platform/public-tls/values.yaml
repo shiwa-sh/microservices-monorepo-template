@@ -1,0 +1,24 @@
+# Values namespaced under `publicTls:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions.
+publicTls:
+  # Off in the local tiers, where cert-manager's own self-signed CA issues the
+  # same wildcard secret names (ADR-0205). The deployed overlays turn it on.
+  enabled: false
+
+  # The wildcard host this environment serves, e.g. `dev.example.com`. Every
+  # certificate below is derived from it, and a certificate for `*.` is a worse
+  # outcome than a render that fails, so it is required rather than defaulted.
+  envHost: ""
+
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Where expiry warnings and account recovery go. Let's Encrypt sends nothing
+    # else here. Required for the same reason as the host: a placeholder address
+    # is an account nobody can recover.
+    email: ""
+    # DNS-01 rather than HTTP-01, because the certificates are WILDCARDS and
+    # Let's Encrypt issues those over DNS-01 only. The token comes from the
+    # secrets tier as `cloudflare-api-token` (ADR-0202).
+    cloudflare:
+      tokenSecret: cloudflare-api-token
+      tokenKey: token

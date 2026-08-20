@@ -1,0 +1,43 @@
+{{- if .Values.publicTls.enabled }}
+{{- $tls := .Values.publicTls }}
+{{- $host := required "publicTls.envHost is required: set the environment's wildcard host in infra/gitops/platform/<env>/values.yaml" $tls.envHost }}
+# The public issuer (ADR-0205). DNS-01 through Cloudflare, because these are
+# wildcard certificates and Let's Encrypt issues those over DNS-01 only.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata: { name: letsencrypt }
+spec:
+  acme:
+    server: {{ $tls.acme.server }}
+    email: {{ required "publicTls.acme.email is required: Let's Encrypt sends expiry warnings and account recovery there" $tls.acme.email }}
+    privateKeySecretRef: { name: letsencrypt-account }
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef: { name: {{ $tls.acme.cloudflare.tokenSecret }}, key: {{ $tls.acme.cloudflare.tokenKey }} }
+---
+# Product tier `*.<host>`. Routes in infra/gateway read this secret.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard
+  namespace: traefik
+spec:
+  secretName: wildcard-tls
+  issuerRef: { name: letsencrypt, kind: ClusterIssuer }
+  dnsNames:
+    - "*.{{ $host }}"
+---
+# Ops-tier wildcard (ADR-0306). The product wildcard covers one label, so the
+# two-labels-deep ops tools (`{tool}.ops.<host>`) need their own certificate.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ops
+  namespace: traefik
+spec:
+  secretName: wildcard-ops-tls
+  issuerRef: { name: letsencrypt, kind: ClusterIssuer }
+  dnsNames:
+    - "*.ops.{{ $host }}"
+{{- end }}

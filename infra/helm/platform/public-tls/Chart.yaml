@@ -1,0 +1,14 @@
+apiVersion: v2
+name: public-tls
+description: |
+  The public ACME issuer and the wildcard certificates the edge serves (ADR-0205).
+
+  Separate from the cert-manager chart because of WHEN it can work rather than
+  what it does. cert-manager is a base-tier component: the webhook has to exist
+  before anything else can create a cert-manager object at all. Its ACME issuer
+  cannot be, because a DNS-01 solver needs an API token, tokens arrive with the
+  secrets tier, and an Application is Progressing while an issuer it owns is not
+  Ready — so an ACME issuer in the base tier holds that tier open against a
+  secret that a later tier delivers, and no later tier ever runs.
+type: application
+version: 0.1.0

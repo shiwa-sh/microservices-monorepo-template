@@ -128,3 +128,15 @@ lowdefy:
 # The laptop tier leaves it off — kind brings its own.
 localPath:
   enabled: true
+
+# The wildcard host this environment serves, and the ACME account that certifies
+# it (ADR-0205). Both are placeholders an adopter replaces: the certificates are
+# derived from the host, and Let's Encrypt sends expiry warnings and account
+# recovery to the address. Neither has a default a template could pick, so the
+# chart fails the render rather than issuing a certificate for `*.`.
+envHost: prod.example.com
+publicTls:
+  enabled: true
+  envHost: prod.example.com
+  acme:
+    email: ops@example.com
