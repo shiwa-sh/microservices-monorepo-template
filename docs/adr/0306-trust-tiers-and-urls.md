@@ -164,6 +164,38 @@ The service API is a **flat resource namespace** — the URL names the resource,
 
 **The path holds for a public or partner API too.** It is distinguished by its `x-audience: public` contract and its JWT auth, not by its origin. Versioning never enters the URL: the default is single-live-version, and online versioning rides a header ([ADR-0303](0303-api-contracts-and-lifecycle.md)), which is precisely why the flat resource URL stays stable across versions.
 
+## Single sign-on for the operator consoles
+
+Self-hosting multiplies consoles — Forgejo, zot, Grafana, Argo CD, Headlamp, Hubble,
+the Temporal UI, pgweb — and the cost lands on offboarding: someone leaves, and
+the question is whether anyone remembers all eight.
+
+**The answer is the identity stack already here, not a ninth component.** Ory Hydra
+is already in the tree as the OIDC provider ([ADR-0305](0305-edge-auth-and-traffic-policy.md)),
+Kratos is already the identity source, and the login UI already exists at
+`/auth/login`. Consoles that speak OIDC consume it; deactivating one Kratos identity
+removes access to all of them at once.
+
+| Option | Verdict |
+| --- | --- |
+| **Hydra + Kratos, already deployed** | **Chosen.** No new component, no second identity source, and one offboarding action. Consent is auto-granted for first-party console clients, which is what keeps a third-party consent screen from appearing in front of an internal tool *(reasoned)* |
+| Authentik | The best admin experience in the field and the wrong shape here: it is a second identity system beside Kratos, so every person exists twice and offboarding becomes two actions — the problem restated, not solved. It also brings its own PostgreSQL and Redis |
+| Zitadel | Live candidate for this slot precisely because the objections to it are about custom login UIs and config-as-code for *application* identity, neither of which applies to hosted-login OIDC. It still loses on the same count as Authentik: a second source of people |
+| Keycloak | The same duplication, on a JVM, with realms and mappers to learn |
+| Authelia | A tiny footprint and a forward-auth model this platform already has, in Oathkeeper. It would replace a component rather than add SSO |
+
+**Consoles that do not speak OIDC stay edge-gated**, which is what they have today:
+Oathkeeper's forward-auth in front of `{tool}.ops.<host>` already requires a Kratos
+session, so access is single sign-on even where the console has no idea. pgweb, the
+Hubble UI and the Temporal UI are in this group.
+
+**The residual risk is local accounts, and it is the one worth naming.** Grafana,
+Forgejo and Argo CD each keep an internal admin that bypasses OIDC entirely, so an
+offboarding that only deactivates the Kratos identity leaves those standing. Each
+console's local admin is therefore a **break-glass credential in the secret store**
+([ADR-0202](0202-secrets.md)) rather than a per-person account — one credential to
+rotate, and nobody's personal login.
+
 ## Consequences
 
 ### Positive
