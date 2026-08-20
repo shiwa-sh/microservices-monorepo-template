@@ -20,3 +20,16 @@ pgweb:
   # The role is created by the postgres chart and granted SELECT by each service's
   # migrations; pgweb's own `--readonly` flag is the second layer, not the first.
   databaseUrl: ""
+
+  # The deployed shape: the parts of the DSN that are not secret, plus the Secret
+  # the password comes from. Used whenever `databaseUrl` above is empty.
+  database:
+    host: postgres-rw.platform.svc.cluster.local
+    port: 5432
+    # Which database the inspector opens on. Any of them shows the same cluster;
+    # this is the one it starts in.
+    name: orders
+    user: readonly
+    sslMode: disable
+    passwordSecret: postgres-readonly
+    passwordKey: password

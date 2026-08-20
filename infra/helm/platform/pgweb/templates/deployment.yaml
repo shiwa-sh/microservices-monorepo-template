@@ -39,7 +39,7 @@ spec:
               drop: ["ALL"]
           command: ["sh", "-c", "until pg_isready -d \"$PGWEB_DATABASE_URL\"; do echo waiting for postgres; sleep 2; done"]
           env:
-            - { name: PGWEB_DATABASE_URL, value: {{ .Values.pgweb.databaseUrl | quote }} }
+{{- include "pgweb.dsnEnv" . | indent 12 }}
       containers:
         - name: pgweb
           image: "{{ .Values.pgweb.image.repository }}:{{ .Values.pgweb.image.tag }}"
@@ -54,7 +54,7 @@ spec:
           # read from PGWEB_DATABASE_URL below.
           args: ["--bind=0.0.0.0", "--listen=8081", "--readonly"]
           env:
-            - { name: PGWEB_DATABASE_URL, value: {{ .Values.pgweb.databaseUrl | quote }} }
+{{- include "pgweb.dsnEnv" . | indent 12 }}
           ports: [{ name: http, containerPort: 8081 }]
           readinessProbe: { tcpSocket: { port: http } }
 ---

@@ -33,6 +33,15 @@ oathkeeper:
 # This is deployment wiring, not auth config, so it lives here and not in
 # infra/auth/.
 kratos:
+  # Migrations run as an init container before the service container, in every
+  # environment (docs/guide/database-migrations.md). Setting this per-overlay is
+  # how a deployed environment ends up with a Kratos that starts against an
+  # unmigrated database and reports `Unable to locate the table` — a message that
+  # names neither the migration nor the setting that would have run it.
+  kratos:
+    automigration:
+      enabled: true
+      type: initContainer
   deployment:
     # ADR-0204. Measured: 121Mi working set, 89m CPU. Explicit because 121Mi is
     # nearly double the namespace LimitRange's 64Mi default request.

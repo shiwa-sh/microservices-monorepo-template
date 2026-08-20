@@ -85,10 +85,6 @@ kratos:
     # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
     # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never
     # inline here (ADR-0202, Phase 5).
-    # Run Kratos migrations automatically for local (initContainer before serve).
-    automigration:
-      enabled: true
-      type: initContainer
 
 # Oathkeeper sends unauthenticated browser (text/html) requests to a login page.
 # Override the prod placeholder host so gated routes redirect to the local edge.
