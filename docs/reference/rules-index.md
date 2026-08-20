@@ -169,7 +169,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster. | review |
+| The forge is Forgejo, self-hosted on a host outside the workload cluster, with its Postgres on that host. | review |
 | **The forge runs OUTSIDE the workload cluster it serves.** See below. | review |
 | Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](../adr/0000-platform-foundations.md), principle 5). | review |
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |

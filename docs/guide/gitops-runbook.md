@@ -71,13 +71,28 @@ broken. Each of these was diagnosed the long way at least once.
 **The habit that saves the most time: verify the dataplane with a pod.**
 
 ```sh
-kubectl run t --rm -i --restart=Never --image=busybox -- \
-  sh -c 'wget -T10 -O/dev/null https://10.96.0.1:443/version; nslookup kubernetes.default'
+kubectl run t --rm -i --restart=Never --image=docker.io/library/busybox:1.37 -- \
+  sh -c 'wget -T10 -O/dev/null https://10.96.0.1:443/version
+         nslookup kubernetes.default.svc.cluster.local'
 ```
 
 A 401 from the API means the connection worked — that is success, not failure.
 Resolution failing is the signal that Service routing is dead, whatever every
 component's own health endpoint claims.
+
+Both halves of that image reference are load-bearing, and admission rejects the
+short forms this command is usually written with. `busybox` is denied because the
+allow-list holds repositories in registry-qualified form, and an untagged
+`docker.io/library/busybox` is denied because every entry demands a tag or a
+digest — an implicit `latest` is exactly what ADR-0104 exists to reject. Query the
+**fully qualified** Service name: a short name is resolved through the pod's search
+list, so a working cluster still prints one `NXDOMAIN` per unmatched suffix first,
+which reads as a DNS failure and is not one.
+
+A namespace under the `restricted` Pod Security profile needs the four fields
+`kubectl run` omits (`runAsNonRoot`, `allowPrivilegeEscalation: false`,
+`capabilities.drop: [ALL]`, `seccompProfile`), so there apply a Pod manifest that
+carries them instead.
 
 ## Break-glass
 

@@ -30,10 +30,20 @@ data:
 
   # The helper Pod's command. `-p` so a re-run after a partial failure succeeds
   # rather than erroring on a directory that is already there.
+  #
+  # `-m 0777` is load-bearing, and it is upstream's own default for this script.
+  # The PVs this provisioner creates are hostPath, and the kubelet does not apply
+  # `fsGroup` ownership to a hostPath volume — so a directory created with the
+  # default mode is root-owned and unwritable by every pod that runs as anyone
+  # else. What that looks like is not a permissions error on the volume: it is
+  # `initdb: could not create directory` from Postgres, a CrashLoopBackOff from
+  # SeaweedFS and Loki, and pods that mounted their volume successfully and then
+  # could not use it. The mode is per-volume, on a directory only that volume's
+  # pod is given.
   setup: |
     #!/bin/sh
     set -eu
-    mkdir -p "$VOL_DIR"
+    mkdir -m 0777 -p "$VOL_DIR"
   # `$VOL_DIR` is the volume's own directory, never the parent: a teardown that
   # walked up one level would delete every other volume on the node.
   teardown: |

@@ -7,8 +7,9 @@ This directory is synced by the `dev-secrets` Application (the `secrets` Applica
 ## Adopt
 
 1. Generate the `dev` cluster age key and replace the `cluster_dev` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` and `infra/talos/README.md` — on Talos it rides in the SOPS-encrypted machine config as an inline manifest, because there is no host filesystem to place it on).
-2. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/dev/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_dev` + engineers + ops-recovery.
-3. Commit. Argo delivers it and the operator materialises the Secrets.
+2. **Replace the other two recipients of that path as well.** `.sops.yaml` gives it `eng_placeholder` and `ops_recovery` beside the cluster key, and sops encrypts to every recipient of a rule or to none — one remaining placeholder fails the encrypt with `malformed recipient`, naming the placeholder rather than the rule that pulled it in.
+3. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/dev/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_dev` + engineers + ops-recovery.
+4. Commit. Argo delivers it and the operator materialises the Secrets.
 
 ## `platform.enc.yaml` skeleton
 
