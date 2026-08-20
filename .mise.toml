@@ -107,6 +107,11 @@ trivy = "0.73.0"
 # "failed to download 13.root.json" behind a proxy. Revisit when Kyverno can verify
 # a bundle against a bare public key with no trust-root fetch.
 cosign = "2.6.5"
+# Pushes the frontend's source-map archive to the registry as an OCI artefact
+# (ADR-0503, ADR-0105). Not an image, but the registry is already the artefact
+# store — same auth, same retention, same digest addressing — so a second store is
+# a second thing to secure and expire.
+oras = "1.3.3"
 # The SBOM half of the same rule: an SPDX bill of materials attached to each image
 # as a cosign attestation, so it travels with the image rather than beside it.
 syft = "1.51.0"

@@ -50,6 +50,7 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | sops-secrets-operator | in-cluster decryption | [0202](adr/0202-secrets.md) | MPL-2.0 | maintainer-led | an init container, a CI-side decrypt, External Secrets Operator |
 | Terraform | infrastructure provisioning | [0200](adr/0200-cluster-topology.md) | BUSL-1.1 | HashiCorp / IBM, single-vendor | OpenTofu, Pulumi, Crossplane, provider CLIs |
 | zot | image registry | [0105](adr/0105-image-registry.md) | Apache-2.0 | CNCF | CNCF Distribution, Harbor, Quay, a provider registry |
+| oras | pushing and pulling non-image OCI artefacts | [0503](adr/0503-error-tracking.md) | Apache-2.0 | CNCF | `crane`, a plain object-store upload, a CI artefact store |
 | cosign | artefact signing | [0104](adr/0104-supply-chain-security.md) | Apache-2.0 | OpenSSF / Sigstore | notation/Notary v2, GPG, keyless via public Fulcio |
 | syft | SBOM generation | [0104](adr/0104-supply-chain-security.md) | Apache-2.0 | Anchore, single-vendor | Trivy's own SBOM output, cdxgen, the build system's |
 | Trivy | vulnerability scanning | [0104](adr/0104-supply-chain-security.md) | Apache-2.0 | Aqua Security | Grype, Clair, Snyk, registry-side scanning |
