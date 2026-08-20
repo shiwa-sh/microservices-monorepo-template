@@ -469,7 +469,7 @@ run = "bash scripts/format-shell.sh"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -512,6 +512,13 @@ run = "bash scripts/lint-openapi.sh"
 # is absent from that environment with nothing to notice — how authz ended up
 # undeployed in dev while Oathkeeper called it by DNS.
 run = "bash scripts/lint-service-contract.sh"
+
+[tasks."lint:workspace-copies"]
+# A TS workspace member missing from the frontend image build fails `bun install`
+# with "Workspace not found" — and only when the image is BUILT, which on the full
+# tier is minutes into a cluster bring-up. The Dockerfile already said a new member
+# needs a line; two were added without one.
+run = "bash scripts/lint-workspace-copies.sh"
 
 [tasks."lint:service-databases"]
 # ADR-0300: a service that ships migrations has a database to run them against.

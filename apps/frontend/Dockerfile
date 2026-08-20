@@ -15,6 +15,8 @@ COPY package.json bun.lock ./
 COPY apps/frontend/package.json apps/frontend/
 COPY libs/ts/id/package.json libs/ts/id/
 COPY libs/ts/money/package.json libs/ts/money/
+COPY libs/ts/observability/package.json libs/ts/observability/
+COPY libs/ts/schemas/package.json libs/ts/schemas/
 RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
 
 FROM oven/bun:${BUN_VERSION}-alpine AS build
