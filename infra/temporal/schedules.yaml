@@ -1,0 +1,45 @@
+# Temporal Schedules for the platform's periodic obligations (ADR-0302).
+#
+# Committed rather than created by hand, for the reason every other piece of
+# configuration here is committed: a schedule someone created in a UI is a schedule
+# nobody can review, and its absence after a rebuild is silent.
+#
+# `CronJob` is deliberately not used. ADR-0302 reserves it for pure infrastructure,
+# and three of these four are business-meaningful — a retention pass deletes user
+# data, a DR drill makes a recovery objective a measurement, a review is an
+# obligation with a deadline. Each run's event history is the record that it
+# happened, which is the property a CronJob cannot offer.
+#
+# Applied by `mise run temporal:schedules`.
+schedules:
+  - id: dr-drill
+    workflow: DisasterRecoveryDrill
+    taskQueue: platform-queue
+    # Quarterly, on the first of the month at 09:00 UTC. ADR-0207 sets the cadence;
+    # the hour is arbitrary and deliberately inside a working day, because what this
+    # produces is a task for a person.
+    cron: "0 9 1 1,4,7,10 *"
+    note: ADR-0200 and ADR-0207 — the restore rehearsal that makes the recovery objectives measurements rather than intentions.
+
+  - id: trigger-review
+    workflow: TriggerReview
+    taskQueue: platform-queue
+    cron: "0 9 1 1,4,7,10 *"
+    note: ADR-0000 — the deferral register's `query` rows and the ASVS cadence. Both decay silently, which is why the reminder is mechanical.
+
+  - id: cardinality-audit
+    workflow: CardinalityAudit
+    taskQueue: platform-queue
+    # Monthly. Cardinality grows with releases rather than with time, so the cadence
+    # is a compromise: often enough to catch a bad label before the retention window
+    # is full of it, rare enough that the report is read.
+    cron: "0 9 1 * *"
+    note: ADR-0500 — which labels are growing. The ceiling itself is alerted by `ActiveSeriesNearCeiling`.
+
+  - id: retention-pass
+    workflow: RetentionPass
+    taskQueue: platform-queue
+    # Daily. Retention periods are expressed in days, so a slower cadence would mean
+    # data outliving its declared period by up to the gap.
+    cron: "0 3 * * *"
+    note: ADR-0301 — prunes or anonymises data past its class's retention, driven by docs/reference/data-classes.md.

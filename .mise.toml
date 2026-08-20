@@ -832,6 +832,13 @@ run = "bash scripts/promote-verify.sh"
 [tasks."ci:build"]
 depends = ["build"]
 
+[tasks."temporal:schedules"]
+# The platform's periodic obligations, from infra/temporal/schedules.yaml
+# (ADR-0302). Idempotent — an existing schedule is updated rather than duplicated,
+# because a schedule created twice fires twice and a retention pass running twice
+# concurrently is two workflows deleting the same rows.
+run = "bash scripts/temporal-schedules.sh"
+
 [tasks."ci:gen"]
 # The single definition behind ci-drift.yml and the lefthook gen-drift hook: run it
 # locally to reproduce that CI job exactly. Why it hashes content rather than

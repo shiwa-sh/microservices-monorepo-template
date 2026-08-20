@@ -77,6 +77,11 @@ worker:
       deleteDelay: 24h
 
 server:
+  # Off for a deployable that owns processes rather than an API — the platform
+  # worker is the first (ADR-0302). Every other service leaves this alone: a
+  # service with no HTTP surface is the exception, and one that accidentally had
+  # none would be a service nobody can call.
+  enabled: true
   replicas: 2
   port: 8080
   adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0500). Set to null for

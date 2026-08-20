@@ -62,6 +62,23 @@ linters:
         # The rule is not stylistic. Two services sharing a Go package share a
         # deploy, a schema assumption, and a failure: the boundary is the generated
         # HTTP client, and an import is how it stops being one (ADR-0101).
+        service-isolation-platform:
+          list-mode: lax
+          files:
+            - '**/services/platform/**'
+          deny:
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/analytics
+              desc: services/platform must not import services/analytics. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/authz
+              desc: services/platform must not import services/authz. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/catalog
+              desc: services/platform must not import services/catalog. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/orders
+              desc: services/platform must not import services/orders. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/orgs
+              desc: services/platform must not import services/orgs. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/payment
+              desc: services/platform must not import services/payment. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-analytics:
           list-mode: lax
           files:
@@ -77,6 +94,8 @@ linters:
               desc: services/analytics must not import services/orgs. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
             - pkg: github.com/tabmadi/microservices-monorepo-template/services/payment
               desc: services/analytics must not import services/payment. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/platform
+              desc: services/analytics must not import services/platform. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-authz:
           list-mode: lax
           files:
@@ -94,6 +113,8 @@ linters:
               desc: services/authz must not import services/_template. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
             - pkg: github.com/tabmadi/microservices-monorepo-template/services/analytics
               desc: services/authz must not import services/analytics. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/platform
+              desc: services/authz must not import services/platform. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-catalog:
           list-mode: lax
           files:
@@ -111,6 +132,8 @@ linters:
               desc: services/catalog must not import services/_template. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
             - pkg: github.com/tabmadi/microservices-monorepo-template/services/analytics
               desc: services/catalog must not import services/analytics. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/platform
+              desc: services/catalog must not import services/platform. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-orders:
           list-mode: lax
           files:
@@ -128,6 +151,8 @@ linters:
               desc: services/orders must not import services/_template. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
             - pkg: github.com/tabmadi/microservices-monorepo-template/services/analytics
               desc: services/orders must not import services/analytics. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/platform
+              desc: services/orders must not import services/platform. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-orgs:
           list-mode: lax
           files:
@@ -145,6 +170,8 @@ linters:
               desc: services/orgs must not import services/_template. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
             - pkg: github.com/tabmadi/microservices-monorepo-template/services/analytics
               desc: services/orgs must not import services/analytics. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/platform
+              desc: services/orgs must not import services/platform. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-payment:
           list-mode: lax
           files:
@@ -162,6 +189,8 @@ linters:
               desc: services/payment must not import services/_template. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
             - pkg: github.com/tabmadi/microservices-monorepo-template/services/analytics
               desc: services/payment must not import services/analytics. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
+            - pkg: github.com/tabmadi/microservices-monorepo-template/services/platform
+              desc: services/payment must not import services/platform. Cross-service access is HTTP through the generated client (ADR-0101, ADR-0300).
         service-isolation-template:
           list-mode: lax
           files:

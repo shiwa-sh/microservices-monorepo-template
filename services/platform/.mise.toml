@@ -1,0 +1,31 @@
+# The platform worker owns no HTTP surface, so there is no `server` task and no
+# registered port. It is the one deployable here that answers no requests.
+#
+# platform/not-deployed: local
+#
+# Not on the inner-loop tier: everything it runs is periodic or request-driven from
+# an operator, and a laptop cluster that fires a quarterly DR-drill reminder is
+# noise. It deploys to dev and above, where a Schedule has something to remind
+# someone about.
+
+[env]
+_.file = ".env"
+
+[tasks.env]
+hide = true
+run = "bash ../../scripts/env-ensure.sh"
+
+[tasks.worker]
+# Temporal only. This worker owns no schema — every store it touches belongs to
+# another service, reached through an activity.
+depends = ["env", "dep:temporal"]
+run = "go run ./cmd/worker"
+
+[tasks.test]
+run = "go test ./..."
+
+[tasks.lint]
+run = "golangci-lint run ./..."
+
+[tasks.build]
+run = "go build ./..."

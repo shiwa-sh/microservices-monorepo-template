@@ -51,7 +51,18 @@ for dir in services/*/; do
   done
 
   # ── Standard task names (ADR-0101) ──────────────────────────────────────────
-  for t in server test lint build; do
+  #
+  # `server` only for a service that has one. A worker-only deployable declares
+  # `worker` instead, and demanding both would force it to ship a task that runs
+  # nothing — which is worse than the gap, because a task that exists is a task
+  # someone will run.
+  tasks="test lint build"
+  if [ -d "services/${svc}/cmd/server" ]; then
+    tasks="server ${tasks}"
+  else
+    tasks="worker ${tasks}"
+  fi
+  for t in ${tasks}; do
     grep -q "^\[tasks\.${t}\]" "${dir}.mise.toml" 2>/dev/null || {
       warn "${svc}: .mise.toml declares no [tasks.${t}]"
       rc=1
@@ -72,10 +83,17 @@ for dir in services/*/; do
 
   # ── Registered local port, agreeing with what the service binds ─────────────
   # (uniqueness and the reverse direction are lint:ports' job)
-  service_port "$svc" >/dev/null 2>&1 || {
-    warn "${svc}: no local port in scripts/lib/ports.sh"
-    rc=1
-  }
+  #
+  # Only for a service that binds one. A worker-only deployable — the platform
+  # worker is the first — answers no requests, so demanding a port would be
+  # demanding a number nothing listens on, and the registry's value is that every
+  # entry in it is real.
+  if [ -d "services/${svc}/cmd/server" ]; then
+    service_port "$svc" >/dev/null 2>&1 || {
+      warn "${svc}: no local port in scripts/lib/ports.sh"
+      rc=1
+    }
+  fi
 
   # ── Deployable in every environment, or explicitly not ──────────────────────
   for env in "${envs[@]}"; do
