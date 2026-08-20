@@ -58,6 +58,9 @@ zot:
   # reduces the layers that need a proxy; it does not remove the proxy.
   sync:
     enabled: true
+    # Under `/var/lib/zot`, which is the emptyDir the deployment already mounts —
+    # a staging directory for in-flight syncs, not a second cache to size.
+    downloadDir: /var/lib/zot/sync
     # Retained on the local disk cache as well as the bucket, so a second node
     # pulling the same image does not re-fetch it from upstream.
     registries:

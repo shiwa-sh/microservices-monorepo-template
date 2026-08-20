@@ -87,6 +87,16 @@ data:
           Docker Hub's anonymous rate limit applies and is the accepted cost; it is
           also why that upstream must stay onDemand rather than polled.
           */}}
+          {{- /*
+          Where a synced image lands before it is committed to the store. zot
+          REFUSES TO START without it whenever sync and a remote storage driver
+          are both configured — `using both sync and remote storage features
+          needs config.Extensions.Sync.DownloadDir to be specified` — so on S3
+          this key is not a tuning option, it is the difference between a
+          registry and a CrashLoopBackOff. It shares the emptyDir that holds the
+          metadata cache: the contents are a staging area, rebuilt on demand.
+          */}}
+          "downloadDir": "{{ .Values.zot.sync.downloadDir }}",
           "registries": {{ toJson .Values.zot.sync.registries }}
         }
       }{{ end }}
