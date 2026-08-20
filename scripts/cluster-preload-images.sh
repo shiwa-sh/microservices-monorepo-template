@@ -47,11 +47,25 @@ import_image() { # <ref>
     kind load docker-image "$ref" --name "$CLUSTER" >/dev/null
     return
   fi
-  local path="${ref#*/}" # strip the registry host
-  case "${ref%%/*}" in
-  *.* | *:*) ;;               # had a host
-  *) path="library/${ref}" ;; # bare name → Docker Hub's implicit library/
-  esac
+  # The repository path the NODE asks the mirror for: the ref minus its registry
+  # host. Three shapes, and conflating them silently wastes the push:
+  #
+  #   redis:8              → library/redis:8     (Docker Hub's implicit namespace)
+  #   axllent/mailpit:v1   → axllent/mailpit:v1  (already namespaced — NOT library/)
+  #   ghcr.io/org/app:v1   → org/app:v1          (explicit host, stripped)
+  #
+  # `library/` applies only to a SINGLE-segment name. Adding it to `axllent/mailpit`
+  # produces `library/axllent/mailpit`, which no node ever requests — the pull falls
+  # back upstream and the preload bought nothing. Measured: mailpit and seaweedfs
+  # both landed under the wrong path.
+  local path
+  if [[ "$ref" != */* ]]; then
+    path="library/${ref}"
+  elif [[ "${ref%%/*}" == *.* || "${ref%%/*}" == *:* ]]; then
+    path="${ref#*/}"
+  else
+    path="$ref"
+  fi
   docker tag "$ref" "${LOCAL_REGISTRY}/${path}"
   docker push -q "${LOCAL_REGISTRY}/${path}" >/dev/null
 }
