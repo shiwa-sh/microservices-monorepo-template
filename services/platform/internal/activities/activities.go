@@ -175,21 +175,6 @@ func (a *Activities) ComputeFunnelRollupActivity(
 	return nil
 }
 
-func (a *Activities) openIssue(ctx context.Context, title, body string) error {
-	a.log.InfoContext(
-		ctx,
-		"filing tracking issue",
-		slog.String("title", title),
-		slog.String("body", body),
-		slog.String("forge", a.forgeAPI),
-	)
-	// The forge's issue API. Deliberately not implemented against a specific forge
-	// yet: ADR-0102 is mid-migration between GitHub and Forgejo, and the two differ
-	// in exactly this endpoint. Wiring it to whichever is live is a small change
-	// against a real base URL.
-	return fmt.Errorf("forge issue API not implemented for %s", a.forgeAPI)
-}
-
 // RestoreToScratchActivity restores the most recent backup into a scratch
 // namespace and returns that namespace's name (ADR-0207).
 //
@@ -221,4 +206,21 @@ func (a *Activities) AssertRestoredRowCountsActivity(ctx context.Context, namesp
 func (a *Activities) TeardownScratchRestoreActivity(ctx context.Context, namespace string) error {
 	a.log.ErrorContext(ctx, "scratch teardown is scheduled but not implemented", "namespace", namespace)
 	return errors.New("TeardownScratchRestoreActivity is not implemented")
+}
+
+// openIssue posts to the forge's issue API. Shared by every periodic obligation
+// that produces a task for a person rather than a change to the platform.
+func (a *Activities) openIssue(ctx context.Context, title, body string) error {
+	a.log.InfoContext(
+		ctx,
+		"filing tracking issue",
+		slog.String("title", title),
+		slog.String("body", body),
+		slog.String("forge", a.forgeAPI),
+	)
+	// The forge's issue API. Deliberately not implemented against a specific forge
+	// yet: ADR-0102 is mid-migration between GitHub and Forgejo, and the two differ
+	// in exactly this endpoint. Wiring it to whichever is live is a small change
+	// against a real base URL.
+	return fmt.Errorf("forge issue API not implemented for %s", a.forgeAPI)
 }
