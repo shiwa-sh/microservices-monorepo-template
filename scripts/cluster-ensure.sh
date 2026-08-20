@@ -43,6 +43,16 @@ if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
     -p 127.0.0.1:5000:5000 registry:2 >/dev/null
 fi
 
+# The full tier holds the same edge ports (8080/8443) — the two tiers are
+# alternatives rather than peers. Name the conflict rather than letting docker
+# report a bind failure from inside a half-created cluster.
+if docker inspect -f '{{.State.Running}}' "${CLUSTER}-full-controlplane-1" 2>/dev/null | grep -qx true; then
+  echo "✗ the full tier is running and holds the edge ports 8080/8443." >&2
+  echo "  The two tiers are alternatives — run one at a time:" >&2
+  echo "    TIER=full mise run cluster:stop" >&2
+  exit 1
+fi
+
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
   echo "→ creating kind cluster '$CLUSTER'"
   kind create cluster --name "$CLUSTER" --config infra/local/kind.yaml

@@ -58,7 +58,7 @@ Conformance makes a chart apply; it does not make the cluster behave. A distribu
 | Layer | What a deployed environment runs | What a divergence hides |
 | --- | --- | --- |
 | Distribution | upstream Kubernetes, shipped and upgraded by Talos | a Kubernetes-version behaviour, and any patch a vendor carries |
-| Datastore | embedded etcd across three nodes | watch, compaction, and optimistic-concurrency semantics, which the operators on the floor depend on |
+| Datastore | embedded etcd | watch, compaction, and optimistic-concurrency semantics, which the operators on the floor depend on. These are properties of **etcd**, not of quorum: a single-member etcd is still a Raft group and serves watch streams, MVCC revisions, compaction and compare-and-swap identically, so the full tier reproduces them at any node count |
 | Service datapath | Cilium's eBPF dataplane, with `cluster.proxy.disabled: true` and no kube-proxy | Service routing, source-IP preservation, and backend health semantics |
 | Edge | the committed Traefik chart | middleware and CRD behaviour on the path every request takes |
 
@@ -75,9 +75,13 @@ The measurement behind the two verdicts above is a bare single-node cluster of e
 
 **The split is the parity ladder, applied.** [ADR-0205](0205-environment-parity.md) permits implementation divergence in the inner loop and forbids it in the full tier. The inner loop runs one service against stand-ins, where recreate speed is the forcing property; the full tier is what CI, label-gated previews, and pre-merge validation run, where the forcing property is that they exercise production's implementation, including how that implementation is delivered.
 
-**The inner loop's divergence is one line: it is a single node, so etcd has one member.** Everything above that matches — upstream Kubernetes, etcd, Cilium's eBPF dataplane with kube-proxy absent, and the committed Traefik chart. Cilium is the same chart with the same WireGuard encryption in both tiers, so NetworkPolicy is enforced in the inner loop as it is everywhere ([ADR-0206](0206-cluster-networking.md)).
+**Neither local tier carries quorum, and that is deliberate.** `talosctl cluster create docker` builds one control plane — the docker provisioner takes `--workers` and has no `--controlplanes` — so the full tier is one control plane plus two workers. Quorum was never what the tier was for: nothing that runs here kills two of three members, and the datastore semantics the table above names are single-member properties. Raft consensus, leader election and partition behaviour are exercised where they matter, on the three-node deployed environments ([ADR-0200](0200-cluster-topology.md)), and quorum loss is a recovery rehearsal ([ADR-0207](0207-cluster-storage.md)) rather than something a laptop reproduces.
 
-What the inner loop cannot show is quorum behaviour and anything the machine config carries. The full tier is where both surface, and there is no tier behind it: [ADR-0205](0205-environment-parity.md) makes CI and the label-gated preview that same tier at a different lifecycle, so a divergence it carries reaches a deployed environment unexamined.
+**What the extra nodes buy is not etcd.** Three nodes make pod-to-pod traffic cross a real network hop, so Cilium's dataplane and NetworkPolicy are enforced between nodes rather than over loopback; they make anti-affinity and PodDisruptionBudgets mean something; and they make a `local-path` volume node-pinned, which is the `WaitForFirstConsumer` failure mode that is invisible on a single node.
+
+**The inner loop's divergence is one line: it is a single node.** Everything above that matches — upstream Kubernetes, etcd, Cilium's eBPF dataplane with kube-proxy absent, and the committed Traefik chart. Cilium is the same chart with the same WireGuard encryption in both tiers, so NetworkPolicy is enforced in the inner loop as it is everywhere ([ADR-0206](0206-cluster-networking.md)).
+
+What the inner loop cannot show is anything the machine config carries. The full tier is where that surfaces, and there is no tier behind it: [ADR-0205](0205-environment-parity.md) makes CI and the label-gated preview that same tier at a different lifecycle, so a divergence it carries reaches a deployed environment unexamined.
 
 **The ~20-service ceiling is the trigger to revisit.** "Run it all locally" is the consensus-correct choice below it and the consensus-wrong one above it. A project that grows past it moves to the third approach. The cheap thing to protect meanwhile is **trace-context propagation**, because request-level isolation (Lyft's staging overrides, Uber's SLATE, Signadot's sandboxes) is built on it. OTel is already wired; keeping propagation honest keeps that door open.
 
@@ -147,7 +151,7 @@ It does **not** win on graph resolution, the property that attracted us: mise al
 
 The inner loop runs the service natively against lightweight stand-ins — a plain Postgres, `temporal server start-dev`, in-memory OpenFGA — reached through `dev:forward`. The stand-ins honour the same wire contract, so a bug reproduced against them reproduces in production. There is no image build, redeploy, or file watch on the hot path.
 
-The full platform runs the same charts on the same distribution a deployed environment runs, scaled to one replica through the `local` values overlay. Its nodes take the same machine config, so Cilium arrives as an inline manifest with kube-proxy disabled and etcd is the datastore ([ADR-0200](0200-cluster-topology.md), [ADR-0206](0206-cluster-networking.md)). It catches operator behaviour, sync ordering, and chart wiring, and it is the exact configuration CI and PR previews use.
+The full platform runs the same charts on the same distribution a deployed environment runs, scaled to one replica through the `local` values overlay. Its nodes take the same machine config, so Cilium arrives as an inline manifest with kube-proxy disabled and etcd is the datastore ([ADR-0200](0200-cluster-topology.md), [ADR-0206](0206-cluster-networking.md)). One control plane and two workers: the workers are what make the datapath cross a node boundary, not what make etcd a cluster. It catches operator behaviour, sync ordering, and chart wiring, and it is the exact configuration CI and PR previews use.
 
 **The two tiers are two clusters, not two states of one.** They differ in distribution, so the inner loop survives a full-tier teardown and neither bring-up disturbs the other. Each is addressed by its own `kubectl` context, and a service's local port is the same in both (`scripts/lib/ports.sh`).
 

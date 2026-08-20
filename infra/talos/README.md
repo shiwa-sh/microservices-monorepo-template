@@ -101,6 +101,32 @@ else — and it means cluster identity and the secret root of trust are recovere
 the same apply, rather than by a manual step someone has to remember during an
 incident.
 
+## Behind a proxy
+
+A Talos node inherits nothing from anyone's shell. On a proxied network the node
+cannot pull, and **the failure never mentions the proxy**: the node reports
+`403 Forbidden` fetching `registry.k8s.io/etcd`, etcd never leaves `Preparing`, and
+whatever is waiting on the cluster times out on "waiting for etcd to be healthy".
+That reads as a broken cluster rather than as a blocked network, and it is the
+single most expensive way to learn this.
+
+The proxy goes in the machine config, and only there:
+
+```yaml
+machine:
+  env:
+    http_proxy: http://proxy.example.com:8118
+    https_proxy: http://proxy.example.com:8118
+    # Without the CIDRs the nodes proxy their own east-west traffic, which fails
+    # differently and later.
+    no_proxy: localhost,127.0.0.1,10.96.0.0/12,10.244.0.0/16,.svc,.cluster.local
+```
+
+Two things that catch people. `127.0.0.1` is the NODE inside a node — a proxy on
+the operator's loopback has to be named by an address the node can route to. And
+`no_proxy` must carry the pod and service CIDRs, or the API server, the kubelet and
+every pod-to-pod call go out through the proxy.
+
 ## Secrets
 
 The machine secrets — the cluster CA and `talosconfig` — are SOPS-encrypted in git

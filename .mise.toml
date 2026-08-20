@@ -161,8 +161,22 @@ run = "bun install --frozen-lockfile"
 
 # ── Local cluster & inner loop ────────────────────────────────────────────────
 [tasks."cluster:ensure"]
-# Ensure the single local kind cluster exists and is running (create-or-start).
-run = "bash scripts/cluster-ensure.sh"
+# Ensure the ACTIVE TIER's cluster exists and is running (create-or-start).
+#
+# There are two clusters, because the two tiers run different distributions
+# (ADR-0600): the inner loop on kind, the full tier on Talos in Docker. `TIER=full`
+# selects the second; the default is the inner loop, which is the common case.
+#
+# They share the edge's host ports and are therefore alternatives rather than
+# peers — bringing one up while the other runs is refused with the command to stop
+# it, instead of a bind error from inside a half-created cluster.
+run = "bash scripts/cluster-dispatch.sh ensure"
+
+[tasks."cluster:talos"]
+# The full tier's provisioner, run directly. `TIER=full mise run cluster:ensure`
+# reaches the same script; this exists so the Talos path is discoverable by name.
+hide = true
+run = "TIER=full bash scripts/cluster-talos-ensure.sh"
 
 [tasks."cluster:cilium"]
 # Install Cilium as the CNI (ADR-0200). Needs the cluster first. Internal plumbing
@@ -254,13 +268,16 @@ hide = true
 run = "bash scripts/cluster-edge-glue.sh"
 
 [tasks."cluster:stop"]
-# Stops the cluster but KEEPS it (image cache + volumes survive) so the next
-# bring-up resumes without re-pulling.
-run = "bash scripts/cluster-stop.sh"
+# Stops the ACTIVE TIER's cluster but KEEPS it (image cache + volumes survive) so
+# the next bring-up resumes without re-pulling. This is also how you hand the edge
+# ports over to the other tier.
+run = "bash scripts/cluster-dispatch.sh stop"
 
 [tasks."cluster:delete"]
-# Deletes the cluster and wipes its image cache (reclaims disk, clean rebuild).
-run = "kind delete cluster ${CLUSTER:-platform}"
+# Deletes the ACTIVE TIER's cluster and wipes its image cache (reclaims disk, clean
+# rebuild). `TIER=full` deletes the Talos cluster instead of the kind one — the
+# dispatch is what stops one tier's delete taking the other's cluster with it.
+run = "bash scripts/cluster-dispatch.sh delete"
 
 [tasks."cluster:heal"]
 # Recover a cluster wedged after a host reboot: Docker's raw restart of the node

@@ -1,0 +1,50 @@
+# The full tier's machine config (ADR-0600, ADR-0200).
+#
+# Applied on top of what `talosctl cluster create` generates, and deliberately NOT
+# a copy of infra/talos/patches/common.yaml: the container profile has no disk to
+# install to, no installer image, and no sysctls it is allowed to set — the nodes
+# share the host kernel. What it DOES share with a deployed environment is the part
+# the tier exists to exercise: the CNI is absent so Cilium delivers it, kube-proxy
+# is disabled so Cilium's eBPF dataplane owns Services, and KubePrism is the address
+# the agent uses.
+cluster:
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
+
+  # Every node schedules. Three nodes exist here to make pod-to-pod traffic cross a
+  # real network hop and to make anti-affinity and node-pinned volumes mean
+  # something — not to make etcd a cluster, which the docker provisioner cannot do.
+  allowSchedulingOnControlPlanes: true
+
+  # Talos's discovery service talks to a Sidero-hosted registry. A laptop cluster
+  # that phones home on every create is a network dependency in the inner path of
+  # `mise run cluster:full`, and it buys nothing here.
+  discovery:
+    enabled: false
+
+machine:
+  features:
+    kubePrism:
+      enabled: true
+      port: 7445
+
+  # The local registry, reached over PLAIN HTTP.
+  #
+  # Talos nodes hold no image the cluster did not pull — there is no `kind load`
+  # equivalent and no host image store to share — so the full tier gets images the
+  # way a deployed environment does: pushed to a registry, pulled by the kubelet
+  # (ADR-0600). That registry is a container on the docker network with no TLS, and
+  # without this mirror every pull fails on an https handshake against a plaintext
+  # endpoint.
+  registries:
+    mirrors:
+      registry.localhost:5000:
+        endpoints:
+          - http://registry.localhost:5000
+    config:
+      registry.localhost:5000:
+        tls:
+          insecureSkipVerify: true

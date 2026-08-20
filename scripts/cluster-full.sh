@@ -13,6 +13,12 @@
 # Teardown: mise run cluster:stop (stop) / mise run cluster:delete (delete).
 set -euo pipefail
 
+# The full tier runs on Talos, not kind (ADR-0600). Set BEFORE the context library
+# is sourced: it resolves the cluster name and kube context from this, and a
+# cluster:full that resolved to the inner loop's context would install the whole
+# platform onto the wrong cluster.
+export TIER=full
+
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
@@ -30,7 +36,12 @@ h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 ac() { KUBECONFIG="$AC_KUBECONFIG" argocd --core "$@"; }
 
 # 1. Cluster + CNI (a CNI must exist before Argo's pods can schedule).
-bash scripts/cluster-ensure.sh
+#
+# The Talos provisioner installs Cilium itself, and it has to: this tier's machine
+# config carries `cni: name: none`, so the nodes never go Ready — and
+# `talosctl cluster create` never returns — until a CNI is delivered. There is no
+# separate cilium-install step here for that reason.
+bash scripts/cluster-dispatch.sh ensure
 # On a proxied network the node's containerd can wedge pulling the large Cilium /
 # ArgoCD images through privoxy, stalling the `helm --wait` steps below (which run
 # before Argo, so cluster:unwedge can't rescue them). CLUSTER_PRELOAD=1 warms those
@@ -39,7 +50,6 @@ if [ "${CLUSTER_PRELOAD:-0}" = "1" ]; then
   echo "→ CLUSTER_PRELOAD=1: preloading bootstrap-critical images"
   bash scripts/cluster-preload-images.sh
 fi
-bash scripts/cilium-install.sh
 
 # 2. ArgoCD (it cannot sync itself into existence). Excluded from the local
 #    platform ApplicationSet, so this imperative release is authoritative.
