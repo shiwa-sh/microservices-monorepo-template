@@ -4,6 +4,19 @@ argo-cd:
   configs:
     params:
       server.insecure: "true"          # TLS terminates upstream at Traefik
+      # Diff against the API SERVER's dry-run rather than against the manifest
+      # alone. Every Application here syncs with `ServerSideApply`, and the
+      # cluster runs mutating webhooks (CNPG defaults a `Cluster`, Kyverno
+      # mutates pods) — so the live object legitimately carries fields the chart
+      # never rendered, and a client-side diff calls that drift forever.
+      #
+      # The cost is not cosmetic. `platform-data` is Healthy only when every
+      # Application it generated is Synced AND Healthy, so one permanently
+      # OutOfSync resource holds the wave-2 gate shut and every later tier —
+      # core, gateway, services — never syncs at all. What it looks like is an
+      # Application that reports OutOfSync while `argocd app diff` prints
+      # nothing.
+      controller.diff.server.side: "true"
     cm:
       timeout.reconciliation: "60s"
       # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator
