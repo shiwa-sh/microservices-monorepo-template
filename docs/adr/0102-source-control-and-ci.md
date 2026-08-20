@@ -72,6 +72,41 @@ A generated project needs CI from its first commit, before any cluster exists to
 
 Forgejo does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/latest/user/actions/security-openid-connect/), alongside ephemeral runners. That capability is available for anything wanting a short-lived workload identity; it is not what signs images.
 
+## Where the forge runs
+
+**Outside the workload cluster**, on its own host, and this is the same decision
+[ADR-0207](0207-cluster-storage.md) makes about the production object store for the
+same reason: a component that exists to recover a cluster must not share that
+cluster's failure domain.
+
+The forcing argument is circularity. Argo CD reconciles the platform from git, git
+lives in the forge, and the forge would be deployed by Argo — so a full-cluster loss
+leaves nothing to reconcile *from*. Recovery would start by rebuilding the forge by
+hand, from a backup, before any of the automation that depends on it can run. That
+is not a recovery procedure anyone should discover during an incident.
+
+Running it outside removes the cycle rather than sequencing it: Argo syncs from a
+forge that Argo never deployed.
+
+| | In the workload cluster | Outside it |
+| --- | --- | --- |
+| Recovery from full-cluster loss | rebuild the forge first, by hand, from a backup | the source is already there; Argo reconciles |
+| Bootstrap order | forge must be installed imperatively before Argo, like Argo itself | no ordering constraint at all |
+| Operational cost | one fewer host | one more host, patched and backed up separately |
+| Blast radius of a cluster mistake | takes the source of truth with it | does not |
+
+The cost is honest and it is a host: someone patches it, backs it up, and monitors
+it outside the platform's own observability. That is the price of the property, and
+it is the same price already paid for the object store.
+
+**zot is the same question with a different answer.** The registry is on the
+critical path for every pod start, so an in-cluster registry cannot serve the
+cluster it lives in during a cold start — but unlike the forge it holds no source of
+truth: it is object-storage-backed and its contents are rebuildable by a redeploy
+([ADR-0105](0105-image-registry.md)). What it needs is for its BUCKET to be outside
+the cluster, which [ADR-0207](0207-cluster-storage.md) already requires in
+production. The registry itself stays in-cluster.
+
 ## Consequences
 
 ### Positive
@@ -89,6 +124,7 @@ Forgejo does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/lat
 ## Rules
 
 - The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster.
+- **The forge runs OUTSIDE the workload cluster it serves.** See below.
 - Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](0000-platform-foundations.md), principle 5).
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1).

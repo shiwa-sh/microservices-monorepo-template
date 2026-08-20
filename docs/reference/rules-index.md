@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 157 |
-| Review-enforced | 304 |
-| **Total** | **461** |
+| Review-enforced | 305 |
+| **Total** | **462** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -170,6 +170,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster. | review |
+| **The forge runs OUTSIDE the workload cluster it serves.** See below. | review |
 | Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](../adr/0000-platform-foundations.md), principle 5). | review |
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). | review |
