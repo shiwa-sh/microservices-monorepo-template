@@ -57,14 +57,29 @@ second node makes a second cluster.
 
 ## Two things that will bite
 
-**`cni: none` does not remove flannel from a running cluster.** Talos applies its
-default manifests once at bootstrap and then leaves them alone. Patch an existing
-cluster and the nodes come back `Ready` — on flannel — while the config says there
-is no CNI. Installing Cilium on top leaves two CNIs contending for the dataplane,
-which presents as intermittent pod-to-pod failure rather than as an error anyone
-would connect to the cause. Delete `kube-flannel` and `kube-proxy` explicitly after
-the patch. On a cluster bootstrapped with these documents from the start, neither
-is ever created.
+**`cni: none` does not remove flannel from a running cluster, and deleting the
+DaemonSets is not enough either.** Talos applies its default manifests once at
+bootstrap and then leaves them alone. Patch an existing cluster and the nodes come
+back `Ready` — on flannel — while the config says there is no CNI.
+
+Deleting `kube-flannel` and `kube-proxy` stops them being reconciled. It does **not**
+undo what they already did to the node:
+
+- flannel's CNI config is disabled by Cilium (renamed `.cilium_bak`) and its
+  `flannel.1` interface lingers.
+- **kube-proxy's iptables NAT rules remain, and nothing maintains them.** Under
+  Cilium's eBPF kube-proxy replacement those stale rules still intercept ClusterIP
+  traffic, so every pod-to-Service connection blackholes while `cilium-dbg status`
+  reports `KubeProxyReplacement: True` and `Cluster health: 3/3`. Measured on a
+  converted cluster: a test pod could reach neither `10.96.0.1:443` nor DNS, and
+  Argo CD's pre-install job failed on an API timeout that named nothing relevant.
+
+Talos has no shell to flush iptables from, so **the node reboot is the flush** —
+roll them one at a time, since they are etcd members.
+
+**Bootstrap with these documents from the start and none of this applies**: neither
+flannel nor kube-proxy is ever created, so there is nothing to delete and nothing
+left behind. Converting a running cluster is the path that carries the cost.
 
 **Cilium's `k8sServiceHost` is KubePrism, not an API server.** It is `localhost:7445`,
 a per-node load balancer over every control-plane endpoint, so the agent survives
