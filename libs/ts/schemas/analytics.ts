@@ -26,6 +26,14 @@ export const eventBatchSchema = z.object({
   session_id: z.string().min(1),
 });
 
+export const rollupWindowSchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+});
+
+export const computeFunnelRollupSchema = rollupWindowSchema;
+export type ComputeFunnelRollupInput = z.infer<typeof computeFunnelRollupSchema>;
+
 export const recordConsentSchema = consentInputSchema;
 export type RecordConsentInput = z.infer<typeof recordConsentSchema>;
 
