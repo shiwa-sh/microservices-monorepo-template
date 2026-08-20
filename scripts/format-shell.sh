@@ -4,11 +4,11 @@
 # the repo's 2-space style.
 #
 # A script rather than a one-line mise task, so it shares its file enumeration with
-# `lint:shell` (scripts/lib/sh-files.sh). The two disagreeing is how a repository
+# `lint:shell` (scripts/lib/repo-files.sh). The two disagreeing is how a repository
 # ends up formatted but unlinted.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/sh-files.sh"
+source "$(dirname "$0")/lib/repo-files.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 mapfile -d '' -t files < <(sh_files)

@@ -5,12 +5,12 @@
 # is a lint only — formatting lives in `format:shell` (shfmt).
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/sh-files.sh"
+source "$(dirname "$0")/lib/repo-files.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 step "shellcheck: linting shell scripts"
 
-# Shared with format:shell (scripts/lib/sh-files.sh), so the linter and the
+# Shared with format:shell (scripts/lib/repo-files.sh), so the linter and the
 # formatter cannot act on different sets.
 #
 # An empty result is a FAILURE, not a clean run. It used to be `ok "no shell

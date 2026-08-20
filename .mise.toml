@@ -833,50 +833,11 @@ run = "bash scripts/promote-verify.sh"
 depends = ["build"]
 
 [tasks."ci:gen"]
-# Drift check: regenerate AND reformat, then fail if anything changed.
-#
-# Formatting belongs here rather than in `lint` because the linters are analysers
-# (golangci-lint run, biome lint, rumdl check, shellcheck) and none of them rewrite
-# code — a correctly-analysed-but-misformatted file passes `mise run lint` cleanly.
-# Only the formatters can tell, and they tell by rewriting, which is exactly the
-# shape this drift check already handles for generated code.
-#
 # The single definition behind ci-drift.yml and the lefthook gen-drift hook: run it
-# locally to reproduce that CI job exactly.
-#
-# Drift is "regenerating CHANGES something", which is not the same question as "the
-# working tree is dirty", and two earlier versions of this check confused the two.
-#
-# `git diff --exit-code` compares the worktree against the INDEX, so a partially
-# staged commit reported every unstaged file as drift. Replacing it with a
-# before/after snapshot of `git status --porcelain; git diff HEAD` fixed that and
-# left a subtler version of the same bug: both of those read the INDEX and the
-# stash, and lefthook stashes unstaged changes for the duration of a pre-commit
-# hook. Any commit made with unrelated work in the tree therefore failed here — and
-# failed by telling the developer to run the very command that, run by hand, reports
-# no drift at all. That cost three attempts on one commit before anyone believed it.
-#
-# So this hashes CONTENT, and only of files git tracks or would track. It answers
-# the question the check is named for and nothing else: did regenerating change a
-# file? Index state, stash state, and staged-versus-unstaged do not enter into it.
-run = """
-snapshot() {
-  { git ls-files -z; git ls-files -z --others --exclude-standard; } |
-    xargs -0 sha256sum 2>/dev/null | LC_ALL=C sort
-}
-before=$(snapshot)
-mise run gen
-mise run format
-after=$(snapshot)
-if [ "$after" != "$before" ]; then
-  echo "::error::Generated or formatted artifacts are out of date. Run 'mise run ci:gen' and commit the result."
-  # The changed paths, which is the actionable half. A full `git diff HEAD` here
-  # printed every uncommitted change in the tree, so the drift was buried in it.
-  diff <(printf '%s\n' "$before") <(printf '%s\n' "$after") |
-    sed -n 's/^[<>] [0-9a-f]* *//p' | sort -u
-  exit 1
-fi
-"""
+# locally to reproduce that CI job exactly. Why it hashes content rather than
+# reading git state, and what each earlier version got wrong, is at the top of the
+# script.
+run = "bash scripts/ci-gen.sh"
 
 # ── Deploy to cluster (working-tree overrides) ────────────────────────────────
 [tasks."cluster:add"]
