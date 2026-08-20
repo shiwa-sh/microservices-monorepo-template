@@ -107,6 +107,22 @@ The seam is real and the cost of waiting is bounded, which makes this a deferral
 - **The fingerprint is ours to get right.** Too coarse merges distinct faults; too fine mints a new fault per release. It is centralised in the `obs` helpers so it is tuned in one place, and it carries unit tests.
 - **Grouping is a query, not a landing page.** An engineer runs a dashboard rather than opening an inbox.
 
+## Where the source maps are kept
+
+A map is useless if it cannot be found for the release that produced the trace, so
+"retained per release" needs a store rather than a convention.
+
+| Option | Verdict |
+| --- | --- |
+| **The registry, as an OCI artefact via `oras`** | **Chosen.** The registry already holds this release's artefacts, so it is one auth model, one retention policy and one digest-addressed store. The archive is tagged with the release and pulled by `oras pull` when a trace needs symbolicating *(reasoned)* |
+| `crane` against the same registry | The same store reached with a different tool. `crane` is built for images and copying between registries; pushing an arbitrary blob as a typed artefact is what `oras` exists for, and the artefact type is what stops an image client trying to run it |
+| A plain object-store upload | A second store to secure, expire and remember, holding the same release's data as the registry. It also has no digest addressing, so "the map for this image" becomes a naming convention |
+| A CI artefact store | Tied to the forge's retention window rather than the release's, and [ADR-0102](0102-source-control-and-ci.md) keeps the forge cheap to leave — an artefact only that forge can serve is exactly the coupling that rule exists to avoid |
+
+The archive is never reachable from the product origin. Serving a map to a browser
+hands over the unminified application, which is the whole reason it is stripped from
+the build.
+
 ## Rules
 
 - A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK. `(ref: OTel semconv)`
