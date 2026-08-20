@@ -100,14 +100,16 @@ Four ApplicationSets per environment, ordered by sync wave on the root app-of-ap
 | Wave | Set | Components | Gated on |
 | --- | --- | --- | --- |
 | `-10` | AppProjects | per-env `AppProject`s | — |
-| `0` | `platform-base` | sops-operator, cert-manager, network-policies, plus Cilium and Argo CD in prod | — |
+| `0` | `platform-base` | sops-operator, cert-manager, network-policies | — |
 | `1` | secrets | the per-env `SopsSecret` | base — the operator and its CRD are up |
 | `2` | `platform-data` | postgres, seaweedfs | secrets — credentials decrypted |
 | `3` | `platform-core` | observability, ory, temporal, openfga, pgweb, headlamp, lowdefy | data — live Postgres, buckets exist |
 | `4` | gateway | Traefik middlewares and cross-cutting IngressRoutes | core |
 | `5` | services | one Application per service, from a git-directory generator over the values files | gateway |
 
-Cilium and Argo CD sit in the prod base tier and are excluded locally, where they are installed imperatively: a CNI must exist before any pod, and Argo cannot install itself.
+Cilium and Argo CD are in no tier, in any environment. Both are installed imperatively before Argo runs, which is the one-time bootstrap step this ADR permits: no pod schedules before the CNI exists, and Argo cannot apply its own first install.
+
+Managing either through this set also breaks it. Every generated Application targets the `platform` namespace, while Cilium runs in `kube-system` and Argo CD in `argocd`, and both charts carry cluster-scoped RBAC — the rendered `ClusterRoleBinding` keeps its name and rebinds the subject to `platform:<sa>`, overwriting the correct binding. The component then loses the access its own `ClusterRole` grants while continuing to report healthy.
 
 **Why the waves inside one set are inert:** Applications a single ApplicationSet generates are created by the ApplicationSet controller rather than synced as a parent's resources, so Argo never sequences them among themselves and applies them concurrently. Ordering exists only at the granularity of a root-app-of-apps child, which is why each tier is its own set.
 

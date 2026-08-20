@@ -1,9 +1,11 @@
 # Platform ApplicationSets (ADR-0201). The platform tier is split into three
 # dependency layers, each its own ApplicationSet so ArgoCD can order them:
 #
-#   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance, cilium, argocd
+#   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance
 #                    Foundational, dependency-free. sops-operator must run before
 #                    any SopsSecret CR can be decrypted into Secrets (ADR-0202).
+#                    Cilium and Argo CD are NOT in it — they precede Argo and are
+#                    installed imperatively in every tier (see the generator).
 #   data (wave 2)  — postgres, seaweedfs. The storage layer everything else sits on;
 #                    needs the Secrets produced by the base + secrets tiers.
 #   core (wave 3)  — observability, ory, temporal, temporal-worker-controller,
@@ -89,12 +91,41 @@ spec:
                   # workload names one — a pod naming a missing class is rejected.
                 - { path: "infra/helm/platform/resource-governance" }
                 - { path: "infra/helm/platform/temporal-worker-controller-crds" }
-                # Prod manages the CNI + ArgoCD itself through GitOps (the local
-                # tier excludes these — cluster:full installs them imperatively
-                # because a CNI must exist before any pod, and Argo cannot install
-                # itself). They belong in the earliest tier.
-                - { path: "infra/helm/platform/cilium" }
-                - { path: "infra/helm/platform/argocd" }
+                # CILIUM AND ARGO CD ARE DELIBERATELY NOT HERE, in any tier.
+                #
+                # Neither can be installed by the thing it is a prerequisite of:
+                # no pod schedules before the CNI exists, and Argo cannot apply
+                # its own first install. Both come up imperatively ahead of Argo
+                # (scripts/cilium-install.sh and cluster-full.sh / the equivalent
+                # prod bootstrap), which is the one-time `kubectl apply` step
+                # ADR-0201 permits.
+                #
+                # Listing either here does not merely duplicate that install — it
+                # BREAKS it. Every Application this set generates targets the
+                # `platform` namespace, while Cilium runs in `kube-system` and
+                # Argo CD in `argocd`, and both charts' RBAC is CLUSTER-SCOPED:
+                # the rendered ClusterRoleBinding keeps its name and rebinds the
+                # subject to `platform:<sa>`, overwriting the correct binding.
+                #
+                # Measured on a three-node cluster, both faults reproduced from a
+                # clean install:
+                #
+                #   kubectl get clusterrolebinding cilium-operator -o \
+                #     jsonpath='{.subjects[0].namespace}'            -> platform
+                #   kubectl auth can-i get namespaces --as=system:\
+                #     serviceaccount:kube-system:cilium-operator      -> no
+                #
+                # on a cluster whose ClusterRole granted exactly that verb. The
+                # operator then crashloops on `namespaces "kube-system" is
+                # forbidden` while every agent still reports healthy; new pods
+                # stop getting identities and sit in ContainerCreating with no
+                # events at all.
+                #
+                # Argo CD fails the same way one level up — its own controller
+                # loses cluster access and reports
+                # `namespaces "platform" is forbidden: User
+                # "system:serviceaccount:argocd:argocd-application-controller"`,
+                # so every other Application in the set stops syncing.
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
