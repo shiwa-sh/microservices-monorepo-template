@@ -25,20 +25,8 @@ runs:
       with:
         # renovate: datasource=github-releases depName=jdx/mise
         version: 2026.8.5
-        # The TOOLS are installed by the next step but one, not here. Installing
-        # them here would run before the correction below, and the correction is
-        # about how tools are fetched — on Forgejo the install fails outright.
-        install: false
+        install: true
         cache: true
-
-    # Corrections a forge that is not GitHub needs, applied to the whole job.
-    # This is the earliest step that can run them: they are a mise task, and mise
-    # exists as of the step above.
-    - shell: bash
-      run: mise run ci:forge-env >> "$GITHUB_ENV"
-
-    - shell: bash
-      run: mise run ci:tools
 
     # One key across test.yml and build.yml so they share a single cache entry
     # instead of each warming their own copy of the same compiled packages.
