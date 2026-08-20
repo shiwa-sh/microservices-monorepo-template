@@ -35,6 +35,45 @@ zot:
     gcDelay: 1h
     gcInterval: 24h
 
+  # PULL-THROUGH MIRRORING of the upstream registries (ADR-0105).
+  #
+  # This is the answer to a problem that is not really about registries: on a
+  # proxied or firewalled network, every layer that pulls an image needs its own
+  # egress configuration — each Talos node, each kind node, each build host. Point
+  # them all at zot instead and exactly ONE component talks to the internet for
+  # images. The firewall rule becomes one entry and the node configuration becomes
+  # none.
+  #
+  # `onDemand` rather than a poll: zot fetches an image the first time something
+  # asks for it and caches it thereafter. Nothing has to be preloaded, and no list
+  # of images has to be derived and kept current — which is the part that rots.
+  #
+  # Docker Hub is `onDemand` ONLY and must never be polled: it rate-limits pulls
+  # and does not support catalog listing, so a poll walks a catalog that is not
+  # there and spends the rate limit finding out. zot's own documentation says so.
+  #
+  # What this does NOT do, and the docs say so plainly: it covers IMAGE pulls. The
+  # build path still needs egress for base images and language modules, and
+  # non-image traffic — ACME, mail delivery, DMARC reports — is unaffected. This
+  # reduces the layers that need a proxy; it does not remove the proxy.
+  sync:
+    enabled: true
+    # Retained on the local disk cache as well as the bucket, so a second node
+    # pulling the same image does not re-fetch it from upstream.
+    registries:
+      - urls: ["https://registry-1.docker.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://quay.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://ghcr.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://registry.k8s.io"]
+        onDemand: true
+        tlsVerify: true
+
   # Credentials, both halves, from one SOPS-encrypted Secret (ADR-0105, ADR-0202):
   #
   #   htpasswd                 bcrypt lines for the two identities below

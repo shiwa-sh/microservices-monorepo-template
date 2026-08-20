@@ -44,7 +44,27 @@ networking:
 # repo-built images from registry.localhost:5000 exactly as a deployed tier pulls
 # from ghcr. The endpoint carries an explicit http:// scheme, which is how
 # containerd marks a registry as plain-HTTP.
+#
+# The UPSTREAM registries are mirrored at the same address (ADR-0105). On a proxied
+# or firewalled network every layer that pulls an image otherwise needs its own
+# egress configuration — this node, the Talos nodes, the build host. Pointing them
+# all at one mirror means exactly one component talks to the internet for images.
+#
+# containerd falls back to the upstream registry when a mirror does not have the
+# image, so this is an accelerator rather than an allow-list; Kyverno is the
+# allow-list (ADR-0104).
+#
+# `kind load` is unaffected and stays the fast path for repo-built images: it
+# copies from the host image store and never touches a registry.
 containerdConfigPatches:
   - |-
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.localhost:5000"]
       endpoint = ["http://registry.localhost:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+      endpoint = ["http://registry.localhost:5000", "https://registry-1.docker.io"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+      endpoint = ["http://registry.localhost:5000", "https://quay.io"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."ghcr.io"]
+      endpoint = ["http://registry.localhost:5000", "https://ghcr.io"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
+      endpoint = ["http://registry.localhost:5000", "https://registry.k8s.io"]

@@ -68,6 +68,27 @@ data:
         },
         "compat": ["docker2s2"]
       },
-      "log": { "level": "info" }
+      "log": { "level": "info" }{{ if .Values.zot.sync.enabled }},
+      {{- /*
+      The sync extension, making zot a pull-through cache for the upstreams
+      (ADR-0105). Anonymous pulls of a MIRRORED image still pass through the
+      accessControl above, so the pull identity is the same one the cluster already
+      uses — mirroring does not open a second, unauthenticated door into the
+      registry.
+      */}}
+      "extensions": {
+        "sync": {
+          "enable": true,
+          {{- /*
+          No `credentialsFile`. Every upstream here is PUBLIC, and naming a file
+          that does not exist is how zot fails to start — a registry that will not
+          come up is worse than one that pulls anonymously. A private upstream
+          would add the file and this key together, never one without the other.
+          Docker Hub's anonymous rate limit applies and is the accepted cost; it is
+          also why that upstream must stay onDemand rather than polled.
+          */}}
+          "registries": {{ toJson .Values.zot.sync.registries }}
+        }
+      }{{ end }}
     }
 {{- end }}

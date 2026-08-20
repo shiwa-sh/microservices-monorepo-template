@@ -2,6 +2,8 @@
 
 Proxy configuration is a property of **your machine**, not of this template. The repo carries no proxy values and no proxy logic, and the `cluster:*` tasks work unchanged once the three one-time steps below are done. On a clean network, none of this applies.
 
+**Most of the image-pull steps below are now optional.** zot mirrors docker.io, quay.io, ghcr.io and registry.k8s.io as a pull-through cache ([ADR-0105](../adr/0105-image-registry.md)), so once it is up the cluster nodes fetch images from it rather than from the internet — one component with egress instead of every node. What still needs a proxy is the **build** path (base images, Go modules, bun) and non-image traffic such as ACME. Steps 1 and 2 are therefore about your host and your builds; step 3 matters only before the mirror exists.
+
 The steps assume a **loopback** proxy on your host, for example `http://127.0.0.1:8118`. Each step is read from a different place — the host, a build container, the cluster node, a cluster pod — so the address differs per step. That is the only subtlety. A **routable** proxy address works from everywhere: use it verbatim in every step and ignore the per-step address notes.
 
 ## Start here
@@ -189,6 +191,38 @@ the removal — confirm with `git ls-remote` from inside the repo-server, then c
 
 Everything below reads the inner loop's node ([ADR-0600](../adr/0600-local-development-loop.md)). The full tier is provisioned from a machine config, which carries its own proxy and registry-mirror settings, so its node name and its recovery path differ.
 
+## Talos nodes — the machine config, not the shell
+
+The steps above configure a **kind** node, which inherits a good deal from the host
+docker daemon. A Talos node inherits nothing: there is no shell, no daemon
+configuration, and no environment to export into. The proxy is part of the machine
+config or it does not exist.
+
+```yaml
+machine:
+  env:
+    http_proxy: http://10.5.0.1:8118
+    https_proxy: http://10.5.0.1:8118
+    no_proxy: localhost,127.0.0.1,10.96.0.0/12,10.244.0.0/16,.svc,.cluster.local
+```
+
+Two things catch people, and both were measured rather than guessed:
+
+**`127.0.0.1` is the node.** A proxy on your host's loopback is not reachable from
+inside a node container by that address; use the address the node can route to — the
+docker network's gateway for the local tier, a routable address for real hardware.
+
+**`no_proxy` must carry the pod and service CIDRs.** Without them the kubelet, the
+API server and every pod-to-pod call go out through the proxy, which fails
+differently and later than a missing proxy does.
+
+**The failure never mentions the proxy.** Without this the node reports
+`403 Forbidden` fetching `registry.k8s.io/etcd`, etcd never leaves `Preparing`, and
+`talosctl cluster create` times out on "waiting for etcd to be healthy" — which
+reads as a broken cluster rather than a blocked network. That is the single most
+expensive way to learn this, and it is why `cluster-talos-ensure.sh` injects the
+block automatically from the host's own proxy environment.
+
 ## Stalled image pulls
 
 Even with the node proxied, some egress proxies time out or truncate large image layers on containerd's single-stream pull, leaving pods in `ImagePullBackOff`. Cilium, Argo CD, and the OpenFGA seed image are the usual victims.
@@ -203,3 +237,11 @@ Docker resumes and retries reliably where containerd does not, which is why the 
 ## Restricted registries
 
 On a network whose registry blocks **digest** pulls, so that only tags resolve, pre-pull the platform images by tag and `kind load docker-image` them. The upstream charts pin images by digest ([ADR-0104](../adr/0104-supply-chain-security.md)), which is what fails.
+
+**On the full tier there is no `kind load`.** A Talos node holds no image the cluster did not pull, so the equivalent is to put the image in a registry the node can reach:
+
+```sh
+TIER=full mise run cluster:preload   # host-pull, then push to the local registry
+```
+
+The nodes resolve it because `infra/talos/local/patch.yaml` mirrors the upstream registries at that address. Longer term the same job is zot's: as a pull-through cache it fetches on first request, so nothing has to be preloaded at all ([ADR-0105](../adr/0105-image-registry.md)).

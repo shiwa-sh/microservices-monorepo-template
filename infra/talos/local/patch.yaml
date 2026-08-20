@@ -66,22 +66,30 @@ machine:
       registry.localhost:5000:
         endpoints:
           - http://registry.localhost:5000
-      # Upstream registries, mirrored to the LOCAL one first (ADR-0600, and the
-      # Talos half of docs/guide/http-proxy.md).
+      # Upstream registries, mirrored locally (ADR-0105, ADR-0600, and the Talos
+      # half of docs/guide/http-proxy.md).
       #
       # This is the replacement for `kind load`. A Talos node holds no image the
       # cluster did not pull, so on a slow or restricted network every bootstrap
       # image crosses the proxy — and concurrently, which is how `TLS handshake
       # timeout` from quay.io stalls the Argo CD rollout. Measured: Cilium's images
-      # got through, Argo's did not.
+      # got through, Argo's did not, and Traefik sat in ContainerCreating for 28
+      # minutes until the mirror had it.
       #
-      # `mise run cluster:preload` pulls those images on the HOST, where the proxy
-      # is already configured and the pull is serial, and pushes them here. The node
-      # then fetches them over the docker network at local speed.
+      # Two ways to fill the mirror, and the second is better:
+      #
+      #   `mise run cluster:preload` pulls on the HOST, where the proxy is already
+      #   configured and the pull is serial, and pushes here. Needs a derived image
+      #   list, which is the part that rots.
+      #
+      #   zot's sync extension makes this a PULL-THROUGH cache: it fetches on first
+      #   request and keeps it. Nothing has to be preloaded and no list has to be
+      #   maintained. That is what infra/helm/platform/zot configures, and it is why
+      #   only ONE component needs egress for images.
       #
       # Fallback to the upstream registry is DELIBERATELY left on (no
-      # `skipFallback`): an image nobody preloaded still resolves, slowly, instead
-      # of failing. The mirror is an accelerator, not an allow-list — Kyverno is the
+      # `skipFallback`): an image nobody cached still resolves, slowly, instead of
+      # failing. The mirror is an accelerator, not an allow-list — Kyverno is the
       # allow-list (ADR-0104).
       quay.io:
         endpoints:

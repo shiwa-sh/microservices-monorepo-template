@@ -60,6 +60,47 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | **Seam** | ✓ zot supports pull-through mirroring in the same config file. Enabling it changes registry configuration and image references, not the deploy path |
 | **Cost if adopted late** | a bootstrap depends on upstream availability, which [`docs/guide/http-proxy.md`](../guide/http-proxy.md) already documents as a failure mode on restricted networks |
 
+## Mirroring the upstream registries
+
+zot is also a **pull-through cache** for the registries the platform pulls from —
+docker.io, quay.io, ghcr.io and registry.k8s.io — fetching an image on first
+request and keeping it.
+
+The reason is not registry performance, it is **egress surface**. Every layer that
+pulls an image otherwise needs its own network configuration: each Talos node, each
+kind node, each build host. On a proxied or firewalled network that is the same
+credential and the same allow-list entry maintained in four places, and the failure
+when one is missed does not mention the network — a Talos node reports
+`403 Forbidden` fetching etcd and the cluster never bootstraps, or Traefik sits in
+`ContainerCreating` while quay.io times out mid-handshake. Both were measured
+during this platform's own bring-up.
+
+Pointing every node at zot collapses that to one component with egress and one
+firewall rule.
+
+| Option | Verdict |
+| --- | --- |
+| **zot's `sync` extension, `onDemand`** | **Chosen.** zot is already the registry, so this is configuration rather than a new component, and it handles all four upstreams in one instance. Nothing has to be preloaded and no image list has to be derived or kept current *(reasoned)* |
+| A push-filled mirror | Works, and the platform keeps it as `mise run cluster:preload` for the local tiers. It needs a list of images derived from the charts, and that list is the part that rots — an image nobody thought to add falls back to the upstream and the mirror bought nothing |
+| `registry:2` as a pull-through cache | The obvious tool and it cannot do this: it proxies exactly **one** upstream per instance, so four upstreams is four registries to run |
+| Per-node proxy configuration, no mirror | Correct, and it is the same configuration repeated in four places — every one of which has to be right, and none of which says so when it is not |
+
+**Fallback to the upstream registry stays enabled.** An image the mirror does not
+have still resolves, slowly, rather than failing — the mirror is an accelerator,
+not an allow-list. The allow-list is Kyverno's
+([ADR-0104](0104-supply-chain-security.md)), and that separation is deliberate: a
+cache that silently became an authorization boundary would be one nobody could
+safely flush.
+
+**Docker Hub is `onDemand` only and must never be polled.** It rate-limits pulls
+and does not support catalog listing, so a scheduled sync walks a catalog that is
+not there and spends the rate limit discovering that.
+
+**What this does not do.** It covers image pulls. The BUILD path still needs egress
+for base images and language modules, and non-image traffic — ACME, mail delivery,
+DMARC reports — is untouched. This reduces the number of layers that need a proxy;
+it does not remove the proxy.
+
 ## Consequences
 
 ### Positive
