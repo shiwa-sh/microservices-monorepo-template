@@ -23,24 +23,29 @@ runs:
     # manager in .github/renovate.json owns the bump, keyed on the marker comment.
     - uses: jdx/mise-action@v2
       # The token mise presents to api.github.com when it fetches a `github:` or
-      # `ubi:` tool. It defaults to the one the forge minted for this workflow.
-      # On GitHub the forge and the API are the same host, so it works. On any
-      # other forge they are not: the token is valid, for somewhere else, and
+      # `ubi:` tool. It defaults to the one the FORGE minted for this workflow,
+      # and on GitHub the forge and the API are the same host, so that works.
+      # On Forgejo they are not: the token is valid, for somewhere else, and
       # GitHub answers `401 Bad credentials` — which reads as an expired secret
       # rather than as a token offered to the wrong host.
       #
-      # Elsewhere it falls back to `MISE_GITHUB_TOKEN` if the forge carries one,
-      # and to unauthenticated requests if it does not. That limit is per IP and
-      # low, so a self-hosted runner installing tools often wants a real GitHub
-      # token in that secret; it reads public releases and needs no scopes.
+      # `FORGEJO_ACTIONS` is the discriminator because it is what the runner
+      # itself sets and GitHub never does. The obvious test — comparing
+      # `github.server_url` — does not work: on a forge configured to resolve
+      # actions from github.com, that context reports github.com too.
+      #
+      # There it falls back to `MISE_GITHUB_TOKEN` if the forge carries one, and
+      # to unauthenticated requests if it does not. That limit is per IP and low,
+      # so a self-hosted runner installing tools often wants a real GitHub token
+      # in that secret; it reads public releases and needs no scopes.
       #
       # Both places, because they are two different channels: the runner puts the
       # forge's token in the step ENVIRONMENT, and the action passes its own input
       # to mise. Overriding one leaves the other.
       env:
-        GITHUB_TOKEN: ${{ github.server_url == 'https://github.com' && github.token || env.MISE_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ env.FORGEJO_ACTIONS && env.MISE_GITHUB_TOKEN || github.token }}
       with:
-        github_token: ${{ github.server_url == 'https://github.com' && github.token || env.MISE_GITHUB_TOKEN }}
+        github_token: ${{ env.FORGEJO_ACTIONS && env.MISE_GITHUB_TOKEN || github.token }}
         # renovate: datasource=github-releases depName=jdx/mise
         version: 2026.8.5
         install: true
