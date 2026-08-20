@@ -139,6 +139,36 @@ func (h *Handlers) CreateOperator(
 	}, nil
 }
 
+// CheckRelation answers one relation question for a first-party caller.
+//
+// It is the non-Go door to the same Checker the services use (ADR-0304). The
+// analytics panel is the first caller: ADR-0700 requires the route group to make
+// an AUTHORITATIVE check in its render layer, and a TypeScript render layer cannot
+// call a Go library.
+//
+// A deny is a 200 with `allowed: false`, not an error. The caller is deciding what
+// to render, and an exception would make "you may not see this" indistinguishable
+// from "authz is down" — which are opposite things to show a user.
+func (h *Handlers) CheckRelation(
+	ctx context.Context, req *authzsdk.RelationCheck,
+) (*authzsdk.RelationDecision, error) {
+	allowed, err := h.checker.Allowed(ctx, req.Subject, req.Relation, req.Object)
+	if err != nil {
+		h.log.Error("check relation", "err", err, "object", req.Object)
+		return nil, apierr.Internal("failed to check relation")
+	}
+	h.log.LogAttrs(
+		ctx,
+		slog.LevelInfo,
+		"relation decision",
+		slog.String("subject", req.Subject),
+		slog.String("relation", req.Relation),
+		slog.String("object", req.Object),
+		slog.Bool("allowed", allowed),
+	)
+	return &authzsdk.RelationDecision{Allowed: allowed}, nil
+}
+
 // ListIdentities returns Kratos identities (product users and operators), flattened
 // from traits — the console's Users changelist (ADR-0401). Only authz may reach the
 // Kratos admin API (network-policies/30-ory.yaml), so the console fetches through

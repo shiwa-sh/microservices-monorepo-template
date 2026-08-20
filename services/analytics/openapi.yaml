@@ -35,6 +35,30 @@ paths:
             a client this platform does not control.
           content: { application/json: { schema: { $ref: "#/components/schemas/RecordResult" } } }
         default: { $ref: "#/components/responses/Error" }
+  /analytics/summary:
+    get:
+      operationId: summariseEvents
+      description: Event counts over a window, the aggregate every funnel question starts from.
+      tags: [analytics]
+      parameters:
+        - name: since
+          in: query
+          required: true
+          description: The start of the window.
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: One row per event name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EventSummary" }
+                # Served verbatim by the API mock (ADR-0600).
+                example:
+                  - { name: signup.started, occurrences: 128, sessions: 96 }
+                  - { name: signup.completed, occurrences: 71, sessions: 68 }
+        default: { $ref: "#/components/responses/Error" }
   /analytics/consent:
     put:
       operationId: recordConsent
@@ -166,6 +190,18 @@ components:
           description: Events discarded for want of a recorded grant. A non-zero value here is a client emitting without consent, which is worth seeing.
       # Served verbatim by the API mock (ADR-0600).
       example: { stored: 3, dropped: 0 }
+    EventSummary:
+      type: object
+      description: One event name's volume over the window.
+      required: [name, occurrences, sessions]
+      properties:
+        name: { type: string }
+        occurrences: { type: integer }
+        sessions:
+          type: integer
+          description: Distinct sessions, which is the number that answers "how many people" rather than "how many times".
+      # Served verbatim by the API mock (ADR-0600).
+      example: { name: signup.started, occurrences: 128, sessions: 96 }
     ConsentInput:
       type: object
       description: A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)).

@@ -83,11 +83,24 @@
         "noTernary": "off",
         // `type` for object shapes; the one Window-augmentation interface carries a biome-ignore.
         "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "type" } },
-        // Next.js route files co-export metadata/viewport.
+        // Next.js route files co-export route-segment config beside the component:
+        // metadata/viewport describe the document, and dynamic/revalidate/
+        // fetchCache/runtime describe how the segment renders. Both are Next's API
+        // rather than stray exports, and a route that must not be statically
+        // rendered — an authorization boundary, say — says so with `dynamic`.
         "useComponentExportOnlyModules": {
           "level": "error",
           "options": {
-            "allowExportNames": ["metadata", "generateMetadata", "viewport", "generateViewport"]
+            "allowExportNames": [
+              "metadata",
+              "generateMetadata",
+              "viewport",
+              "generateViewport",
+              "dynamic",
+              "revalidate",
+              "fetchCache",
+              "runtime"
+            ]
           }
         }
       }

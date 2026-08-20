@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// POST /authorize
 	Authorize(ctx context.Context, req *AuthorizeRequest) (AuthorizeRes, error)
+	// CheckRelation implements checkRelation operation.
+	//
+	// Check one relation for one subject against one object.
+	//
+	// POST /authorize/relation
+	CheckRelation(ctx context.Context, req *RelationCheck) (*RelationDecision, error)
 	// CreateOperator implements createOperator operation.
 	//
 	// Create an operator identity and grant the operator role.

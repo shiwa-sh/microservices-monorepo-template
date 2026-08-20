@@ -28,3 +28,18 @@ insert into events (
   id, session_id, identity_id, name, properties, device_class, occurred_at
 )
 values ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: SummariseEvents :many
+-- One row per event name over a window, with the distinct sessions that produced
+-- it. This is the shape every funnel question starts from, and it is a plain
+-- aggregate rather than a window function because the first question a panel
+-- answers is "what is happening at all".
+select
+  name,
+  count(*) as occurrences,
+  count(distinct session_id) as sessions
+from events
+where occurred_at >= $1
+group by name
+order by occurrences desc
+limit 50;

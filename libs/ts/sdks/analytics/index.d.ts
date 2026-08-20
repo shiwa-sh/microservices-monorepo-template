@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analytics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Event counts over a window, the aggregate every funnel question starts from. */
+        get: operations["summariseEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/analytics/consent": {
         parameters: {
             query?: never;
@@ -129,6 +146,20 @@ export interface components {
             /** @description Events discarded for want of a recorded grant. A non-zero value here is a client emitting without consent, which is worth seeing. */
             dropped: number;
         };
+        /**
+         * @description One event name's volume over the window.
+         * @example {
+         *       "name": "signup.started",
+         *       "occurrences": 128,
+         *       "sessions": 96
+         *     }
+         */
+        EventSummary: {
+            name: string;
+            occurrences: number;
+            /** @description Distinct sessions, which is the number that answers "how many people" rather than "how many times". */
+            sessions: number;
+        };
         /** @description A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)). */
         ConsentInput: {
             session_id: string;
@@ -209,6 +240,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    summariseEvents: {
+        parameters: {
+            query: {
+                /** @description The start of the window. */
+                since: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One row per event name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSummary"][];
                 };
             };
             default: components["responses"]["Error"];

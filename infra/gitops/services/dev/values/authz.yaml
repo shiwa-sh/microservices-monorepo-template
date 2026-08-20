@@ -33,7 +33,7 @@ migrations:
 # backend-to-backend rather than back through the edge.
 networkPolicy:
   allowFromGateway: false
-  allowFrom: [oathkeeper, lowdefy]
+  allowFrom: [oathkeeper, lowdefy, frontend]
 secrets:
   envFrom: [openfga-creds]
 env:

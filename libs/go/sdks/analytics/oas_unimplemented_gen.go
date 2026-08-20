@@ -40,6 +40,15 @@ func (UnimplementedHandler) RecordEvents(ctx context.Context, req *EventBatch) (
 	return r, ht.ErrNotImplemented
 }
 
+// SummariseEvents implements summariseEvents operation.
+//
+// Event counts over a window, the aggregate every funnel question starts from.
+//
+// GET /analytics/summary
+func (UnimplementedHandler) SummariseEvents(ctx context.Context, params SummariseEventsParams) (r []EventSummary, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NewError creates *ErrorStatusCode from error returned by handler.
 //
 // Used for common default response.

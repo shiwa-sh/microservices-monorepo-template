@@ -76,6 +76,48 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) error 
 	return err
 }
 
+const summariseEvents = `-- name: SummariseEvents :many
+select
+  name,
+  count(*) as occurrences,
+  count(distinct session_id) as sessions
+from events
+where occurred_at >= $1
+group by name
+order by occurrences desc
+limit 50
+`
+
+type SummariseEventsRow struct {
+	Name        string `json:"name"`
+	Occurrences int64  `json:"occurrences"`
+	Sessions    int64  `json:"sessions"`
+}
+
+// One row per event name over a window, with the distinct sessions that produced
+// it. This is the shape every funnel question starts from, and it is a plain
+// aggregate rather than a window function because the first question a panel
+// answers is "what is happening at all".
+func (q *Queries) SummariseEvents(ctx context.Context, occurredAt pgtype.Timestamptz) ([]SummariseEventsRow, error) {
+	rows, err := q.db.Query(ctx, summariseEvents, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SummariseEventsRow
+	for rows.Next() {
+		var i SummariseEventsRow
+		if err := rows.Scan(&i.Name, &i.Occurrences, &i.Sessions); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertConsent = `-- name: UpsertConsent :one
 insert into consent (session_id, identity_id, state, purpose_version, source)
 values ($1, $2, $3, $4, $5)

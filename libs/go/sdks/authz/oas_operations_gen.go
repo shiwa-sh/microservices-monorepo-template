@@ -7,6 +7,7 @@ type OperationName = string
 
 const (
 	AuthorizeOperation      OperationName = "Authorize"
+	CheckRelationOperation  OperationName = "CheckRelation"
 	CreateOperatorOperation OperationName = "CreateOperator"
 	GetIdentityOperation    OperationName = "GetIdentity"
 	ListIdentitiesOperation OperationName = "ListIdentities"

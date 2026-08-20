@@ -6,11 +6,18 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	GetConsent(ctx context.Context, sessionID string) (GetConsentRow, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) error
+	// One row per event name over a window, with the distinct sessions that produced
+	// it. This is the shape every funnel question starts from, and it is a plain
+	// aggregate rather than a window function because the first question a panel
+	// answers is "what is happening at all".
+	SummariseEvents(ctx context.Context, occurredAt pgtype.Timestamptz) ([]SummariseEventsRow, error)
 	// A decision replaces the previous one for the session and keeps the row, because
 	// withdrawal is a state rather than a deletion: erasing it would erase the evidence
 	// that consent was once given, which is what GDPR Art. 7(1) asks to be demonstrable.

@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/authorize/relation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Check one relation for one subject against one object. */
+        post: operations["checkRelation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/operators": {
         parameters: {
             query?: never;
@@ -144,6 +161,24 @@ export interface components {
             aal: string;
             /** @description The operator identity trait; "true" when set. */
             operator: string;
+        };
+        /** @description A single OpenFGA relation question, in the model's own vocabulary. */
+        RelationCheck: {
+            /** @description The subject, prefixed by its type — `user:<identity-id>`. */
+            subject: string;
+            /** @description The relation to test */
+            relation: string;
+            /** @description The object, prefixed by its type — `analytics_panel:funnels`. */
+            object: string;
+        };
+        /**
+         * @description The answer to one relation check.
+         * @example {
+         *       "allowed": true
+         *     }
+         */
+        RelationDecision: {
+            allowed: boolean;
         };
         /** @description Request body to create an operator. */
         OperatorInput: {
@@ -308,6 +343,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Identity"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    checkRelation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The relation to check. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelationCheck"];
+            };
+        };
+        responses: {
+            /** @description The decision. A deny is an answer, not an error. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationDecision"];
                 };
             };
             default: components["responses"]["Error"];

@@ -81,6 +81,31 @@ paths:
       responses:
         "200": { description: The updated identity., content: { application/json: { schema: { $ref: "#/components/schemas/Identity" } } } }
         default: { $ref: "#/components/responses/Error" }
+  /authorize/relation:
+    post:
+      operationId: checkRelation
+      # East-west only, and that is the decision rather than an oversight: this
+      # answers "may this subject do this to this object" for a first-party caller
+      # that has already established who the subject is. Exposing it at the edge
+      # would let a client ask about a subject that is not itself.
+      #
+      # It exists because a Checker is a Go library (libs/go/authz) and the
+      # frontend is not Go. ADR-0700's analytics panel must perform an
+      # AUTHORITATIVE check in the render layer rather than trust that a session
+      # exists, and this is how a non-Go caller reaches the same decision the
+      # services make.
+      x-audience: cluster
+      description: Check one relation for one subject against one object.
+      tags: [authorize]
+      requestBody:
+        required: true
+        description: The relation to check.
+        content: { application/json: { schema: { $ref: "#/components/schemas/RelationCheck" } } }
+      responses:
+        "200":
+          description: The decision. A deny is an answer, not an error.
+          content: { application/json: { schema: { $ref: "#/components/schemas/RelationDecision" } } }
+        default: { $ref: "#/components/responses/Error" }
   /operators:
     post:
       operationId: createOperator
@@ -187,6 +212,27 @@ components:
         tool:     { type: string, description: Ops dashboard slug such as grafana or hubble. }
         aal:      { type: string, description: authenticator_assurance_level from the session. }
         operator: { type: string, description: The operator identity trait; "true" when set. }
+    RelationCheck:
+      type: object
+      description: A single OpenFGA relation question, in the model's own vocabulary.
+      required: [subject, relation, object]
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          description: "The subject, prefixed by its type — `user:<identity-id>`."
+        relation: { type: string, minLength: 1, description: The relation to test, such as `view`. }
+        object:
+          type: string
+          minLength: 1
+          description: "The object, prefixed by its type — `analytics_panel:funnels`."
+    RelationDecision:
+      type: object
+      description: The answer to one relation check.
+      required: [allowed]
+      properties:
+        allowed: { type: boolean }
+      example: { allowed: true }
     OperatorInput:
       type: object
       description: Request body to create an operator.

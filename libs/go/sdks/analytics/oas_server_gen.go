@@ -26,6 +26,12 @@ type Handler interface {
 	//
 	// POST /analytics/events
 	RecordEvents(ctx context.Context, req *EventBatch) (*RecordResult, error)
+	// SummariseEvents implements summariseEvents operation.
+	//
+	// Event counts over a window, the aggregate every funnel question starts from.
+	//
+	// GET /analytics/summary
+	SummariseEvents(ctx context.Context, params SummariseEventsParams) ([]EventSummary, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

@@ -121,6 +121,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
+			case 's': // Prefix: "summary"
+
+				if l := len("summary"); len(elem) >= l && elem[0:l] == "summary" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "GET":
+						s.handleSummariseEventsRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, notAllowedParams{
+							allowedMethods: "GET",
+							allowedHeaders: nil,
+							acceptPost:     "",
+							acceptPatch:    "",
+						})
+					}
+
+					return
+				}
+
 			}
 
 		}
@@ -272,6 +297,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						r.operationID = "recordEvents"
 						r.operationGroup = ""
 						r.pathPattern = "/analytics/events"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+
+			case 's': // Prefix: "summary"
+
+				if l := len("summary"); len(elem) >= l && elem[0:l] == "summary" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "GET":
+						r.name = SummariseEventsOperation
+						r.summary = ""
+						r.operationID = "summariseEvents"
+						r.operationGroup = ""
+						r.pathPattern = "/analytics/summary"
 						r.args = args
 						r.count = 0
 						return r, true

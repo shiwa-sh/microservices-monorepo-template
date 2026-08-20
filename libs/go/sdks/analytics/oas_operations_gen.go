@@ -6,7 +6,8 @@ package analytics
 type OperationName = string
 
 const (
-	GetConsentOperation    OperationName = "GetConsent"
-	RecordConsentOperation OperationName = "RecordConsent"
-	RecordEventsOperation  OperationName = "RecordEvents"
+	GetConsentOperation      OperationName = "GetConsent"
+	RecordConsentOperation   OperationName = "RecordConsent"
+	RecordEventsOperation    OperationName = "RecordEvents"
+	SummariseEventsOperation OperationName = "SummariseEvents"
 )

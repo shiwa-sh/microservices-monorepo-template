@@ -19,6 +19,20 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: oathkeeper }
+        # The frontend, for `/sessions/whoami` on a PAGE render (ADR-0400).
+        #
+        # Page routes deliberately do not pass through Oathkeeper — its rules are
+        # written per API resource, a page matches none of them and gets a 404, and
+        # a catch-all rule would make two rules match and Oathkeeper answer 500
+        # (which is what lint:api-wildcard exists to prevent). So a page has no
+        # injected identity header, and resolving the session cookie to an identity
+        # is the frontend's own call to Kratos.
+        #
+        # Without this rule that call has nowhere to go: the shared service chart's
+        # ingressroute template has asserted this design in a comment for a while,
+        # and the policy never admitted it — so it worked under `next dev` on a
+        # laptop and would have hung in a pod.
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: frontend }
       toPorts:
         - ports: [{ port: "4433", protocol: TCP }]
     - fromEndpoints:

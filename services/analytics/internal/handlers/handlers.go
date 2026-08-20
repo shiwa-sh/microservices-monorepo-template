@@ -78,6 +78,34 @@ func (h *Handlers) RecordEvents(ctx context.Context, req *analytics.EventBatch) 
 	return &analytics.RecordResult{Stored: stored, Dropped: 0}, nil
 }
 
+// SummariseEvents answers the panel's first question: what is happening at all.
+//
+// It is read-only and carries no authorization of its own, which is deliberate and
+// is why the service is east-west (ADR-0700). The panel that calls it performs the
+// authoritative check in its render layer, against `analytics_panel:funnels`; this
+// service is not reachable from a browser, so there is no second caller to gate.
+func (h *Handlers) SummariseEvents(
+	ctx context.Context, params analytics.SummariseEventsParams,
+) ([]analytics.EventSummary, error) {
+	since := pgtype.Timestamptz{Time: params.Since.UTC(), Valid: true}
+	rows, err := h.q.SummariseEvents(ctx, since)
+	if err != nil {
+		observability.RecordError(ctx, err, observability.KindDependency)
+		h.log.Error("summarise events", "err", err)
+		return nil, apierr.Internal("failed to summarise events")
+	}
+	out := make([]analytics.EventSummary, 0, len(rows))
+	for _, row := range rows {
+		summary := analytics.EventSummary{
+			Name:        row.Name,
+			Occurrences: int(row.Occurrences),
+			Sessions:    int(row.Sessions),
+		}
+		out = append(out, summary)
+	}
+	return out, nil
+}
+
 // RecordConsent writes the decision and returns it as recorded.
 //
 // Every field is there to make the consent DEMONSTRABLE later (GDPR Art. 7(1)):

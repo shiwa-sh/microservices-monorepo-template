@@ -17,7 +17,11 @@ import { type NextRequest, NextResponse } from "next/server";
 const SESSION_COOKIE = "ory_kratos_session";
 
 // Route groups that require an authenticated Kratos session.
-const PROTECTED = ["/panel", "/devportal"];
+// `/analytics` is here for the session half only. The route group performs the
+// AUTHORITATIVE check itself (ADR-0700): this redirects someone with no session to
+// sign in, which is a better first experience than a 403, and the layout decides
+// whether a signed-in person may actually read funnels.
+const PROTECTED = ["/panel", "/devportal", "/analytics"];
 
 // The /auth/* pages and the Kratos flow each one starts. A Kratos browser flow
 // cannot begin on our side: Kratos has to set its CSRF cookie on the user's

@@ -4,6 +4,7 @@ package analytics
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-faster/errors"
 	"github.com/ogen-go/ogen/conv"
@@ -84,6 +85,64 @@ func decodeGetConsentParams(args [0]string, argsEscaped bool, r *http.Request) (
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "session_id",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// SummariseEventsParams is parameters of summariseEvents operation.
+type SummariseEventsParams struct {
+	// The start of the window.
+	Since time.Time
+}
+
+func unpackSummariseEventsParams(packed middleware.Parameters) (params SummariseEventsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "since",
+			In:   "query",
+		}
+		params.Since = packed[key].(time.Time)
+	}
+	return params
+}
+
+func decodeSummariseEventsParams(args [0]string, argsEscaped bool, r *http.Request) (params SummariseEventsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: since.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "since",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToDateTime(val)
+				if err != nil {
+					return err
+				}
+
+				params.Since = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "since",
 			In:   "query",
 			Err:  err,
 		}

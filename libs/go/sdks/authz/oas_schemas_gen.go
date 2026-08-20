@@ -447,6 +447,63 @@ func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
 }
 
+// A single OpenFGA relation question, in the model's own vocabulary.
+// Ref: #/components/schemas/RelationCheck
+type RelationCheck struct {
+	// The subject, prefixed by its type — `user:<identity-id>`.
+	Subject string `json:"subject"`
+	// The relation to test.
+	Relation string `json:"relation"`
+	// The object, prefixed by its type — `analytics_panel:funnels`.
+	Object string `json:"object"`
+}
+
+// GetSubject returns the value of Subject.
+func (s *RelationCheck) GetSubject() string {
+	return s.Subject
+}
+
+// GetRelation returns the value of Relation.
+func (s *RelationCheck) GetRelation() string {
+	return s.Relation
+}
+
+// GetObject returns the value of Object.
+func (s *RelationCheck) GetObject() string {
+	return s.Object
+}
+
+// SetSubject sets the value of Subject.
+func (s *RelationCheck) SetSubject(val string) {
+	s.Subject = val
+}
+
+// SetRelation sets the value of Relation.
+func (s *RelationCheck) SetRelation(val string) {
+	s.Relation = val
+}
+
+// SetObject sets the value of Object.
+func (s *RelationCheck) SetObject(val string) {
+	s.Object = val
+}
+
+// The answer to one relation check.
+// Ref: #/components/schemas/RelationDecision
+type RelationDecision struct {
+	Allowed bool `json:"allowed"`
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *RelationDecision) GetAllowed() bool {
+	return s.Allowed
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *RelationDecision) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
 // Handle to an async Temporal workflow run.
 // Ref: #/components/schemas/WorkflowHandle
 type WorkflowHandle struct {

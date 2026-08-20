@@ -507,6 +507,45 @@ func (s *EventProperties) init() EventProperties {
 	return m
 }
 
+// One event name's volume over the window.
+// Ref: #/components/schemas/EventSummary
+type EventSummary struct {
+	Name        string `json:"name"`
+	Occurrences int    `json:"occurrences"`
+	// Distinct sessions, which is the number that answers "how many people" rather than "how many times".
+	Sessions int `json:"sessions"`
+}
+
+// GetName returns the value of Name.
+func (s *EventSummary) GetName() string {
+	return s.Name
+}
+
+// GetOccurrences returns the value of Occurrences.
+func (s *EventSummary) GetOccurrences() int {
+	return s.Occurrences
+}
+
+// GetSessions returns the value of Sessions.
+func (s *EventSummary) GetSessions() int {
+	return s.Sessions
+}
+
+// SetName sets the value of Name.
+func (s *EventSummary) SetName(val string) {
+	s.Name = val
+}
+
+// SetOccurrences sets the value of Occurrences.
+func (s *EventSummary) SetOccurrences(val int) {
+	s.Occurrences = val
+}
+
+// SetSessions sets the value of Sessions.
+func (s *EventSummary) SetSessions(val int) {
+	s.Sessions = val
+}
+
 // NewOptEventBatchDeviceClass returns new OptEventBatchDeviceClass with value set to v.
 func NewOptEventBatchDeviceClass(v EventBatchDeviceClass) OptEventBatchDeviceClass {
 	return OptEventBatchDeviceClass{

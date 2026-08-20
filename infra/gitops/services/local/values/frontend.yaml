@@ -52,6 +52,15 @@ ingress: { enabled: true, host: dev.localtest.me, pathPrefix: "/" }
 migrations: { enabled: false }
 otel: { deployEnv: local }
 env:
+  # East-west targets for the cluster-audience services the analytics panel reads
+  # (ADR-0700). These have no /api route, so the edge origin above cannot reach
+  # them and the panel dials the Services directly.
+  ANALYTICS_URL: http://analytics-server.platform.svc.cluster.local
+  AUTHZ_URL: http://authz-server.platform.svc.cluster.local
+  # Kratos public, for resolving the session cookie to an identity on a page
+  # render. A page carries no injected identity header — see the note in the
+  # shared chart's ingressroute template for why.
+  KRATOS_PUBLIC_URL: http://ory-kratos-public.platform.svc.cluster.local
   # The browser's origin — the local edge maps host 8443 to Traefik's 443. next.config.mjs
   # derives the server-action CSRF allowlist from this, so it must carry the port.
   EDGE_PUBLIC_ORIGIN: https://dev.localtest.me:8443

@@ -22,8 +22,17 @@ export const operatorInputSchema = z.object({
   password: z.string().min(1),
 });
 
+export const relationCheckSchema = z.object({
+  object: z.string().min(1),
+  relation: z.string().min(1),
+  subject: z.string().min(1),
+});
+
 export const authorizeSchema = authorizeRequestSchema;
 export type AuthorizeInput = z.infer<typeof authorizeSchema>;
+
+export const checkRelationSchema = relationCheckSchema;
+export type CheckRelationInput = z.infer<typeof checkRelationSchema>;
 
 export const createOperatorSchema = operatorInputSchema;
 export type CreateOperatorInput = z.infer<typeof createOperatorSchema>;

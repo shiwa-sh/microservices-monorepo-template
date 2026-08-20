@@ -34,6 +34,12 @@ type Invoker interface {
 	//
 	// POST /authorize
 	Authorize(ctx context.Context, request *AuthorizeRequest) (AuthorizeRes, error)
+	// CheckRelation invokes checkRelation operation.
+	//
+	// Check one relation for one subject against one object.
+	//
+	// POST /authorize/relation
+	CheckRelation(ctx context.Context, request *RelationCheck) (*RelationDecision, error)
 	// CreateOperator invokes createOperator operation.
 	//
 	// Create an operator identity and grant the operator role.
@@ -175,6 +181,89 @@ func (c *Client) sendAuthorize(ctx context.Context, request *AuthorizeRequest) (
 
 	stage = "DecodeResponse"
 	result, err := decodeAuthorizeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// CheckRelation invokes checkRelation operation.
+//
+// Check one relation for one subject against one object.
+//
+// POST /authorize/relation
+func (c *Client) CheckRelation(ctx context.Context, request *RelationCheck) (*RelationDecision, error) {
+	res, err := c.sendCheckRelation(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendCheckRelation(ctx context.Context, request *RelationCheck) (res *RelationDecision, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("checkRelation"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/authorize/relation"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, CheckRelationOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/authorize/relation"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeCheckRelationRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeCheckRelationResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
