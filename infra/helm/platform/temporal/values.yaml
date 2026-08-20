@@ -9,6 +9,19 @@ temporal:
   # 1000 is the `temporal` user in both server and admin-tools images. `server`
   # already ran as it and simply never asserted runAsNonRoot, which is the field
   # that turns "we set a UID" into something the API server can check.
+  # Off, because this chart pins a 1.31 server (see Chart.yaml) and these exist
+  # only for 1.29-era images — upstream's own values say so.
+  #
+  # Leaving them on breaks the deployment under GitOps rather than merely adding
+  # a file. The shim ConfigMap is a Helm PRE-INSTALL HOOK, while the Deployments
+  # mount it for their whole life: with Helm the hook object lingers and the mount
+  # resolves, but Argo CD tracks a hook outside the application's resources and
+  # prunes it, so every server pod then sits in ContainerCreating on
+  # `configmap "temporal-shims" not found` — with the Application reporting
+  # Synced, because from Argo's side everything it tracks IS applied.
+  shims:
+    dockerize: false
+    elasticsearchTool: false
   server:
     securityContext:
       runAsNonRoot: true
