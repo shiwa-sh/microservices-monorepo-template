@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 157 |
-| Review-enforced | 305 |
-| **Total** | **462** |
+| Review-enforced | 307 |
+| **Total** | **464** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -357,7 +357,9 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. | review |
 | Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier. | review |
 | Production runs it outside the cluster. No object store holding production data runs on the cluster it serves. | review |
-| Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention. | review |
+| Production buckets have Object Lock enabled, with the lock window EQUAL to the backup retention — a longer window makes CNPG's retention deletes fail and the bucket grow without bound. | review |
+| Object Lock mode is COMPLIANCE on the backup bucket and GOVERNANCE on the telemetry and registry buckets. | review |
+| Erasure reaches live stores immediately and locked backups by expiry of the lock window, and that bound is disclosed. | review |
 | Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. | review |
 | Loki, Tempo, CNPG backups, and Pyroscope write to object storage rather than to a block volume. | review |
 
