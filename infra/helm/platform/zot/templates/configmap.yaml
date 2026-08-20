@@ -44,7 +44,16 @@ data:
           "name": "s3",
           "region": "{{ .Values.zot.storage.region }}",
           "bucket": "{{ .Values.zot.storage.bucket }}",
-          "regionendpoint": "{{ .Values.zot.storage.endpoint }}",
+          {{- /*
+          A URL, with the scheme. zot's storage driver is docker/distribution's,
+          whose `regionendpoint` the AWS SDK parses as an endpoint URL — a bare
+          `host:port` reads as a scheme-less URI and the driver gives up during
+          `parseStorage`, with an exit code and NO message after
+          `parsing storage and initializing`. Loki and Tempo take the same address
+          as `host:port` because their clients accept that form; the value here is
+          the same host and a different contract.
+          */}}
+          "regionendpoint": "{{ if .Values.zot.storage.secure }}https{{ else }}http{{ end }}://{{ .Values.zot.storage.endpoint }}",
           "secure": {{ .Values.zot.storage.secure }},
           "forcepathstyle": true
         }
