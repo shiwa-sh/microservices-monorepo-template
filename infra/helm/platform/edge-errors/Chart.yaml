@@ -1,0 +1,18 @@
+apiVersion: v2
+name: edge-errors
+description: |
+  The edge's error bodies, as RFC 9457 problem details (ADR-0305).
+
+  Oathkeeper denies a request with its own JSON shape — `{"error":{"code":…}}` —
+  and a service denies one with `application/problem+json`. The generated clients
+  have ONE error branch, and that only holds if the edge speaks the same dialect
+  as the thing behind it.
+
+  Oathkeeper cannot be configured into compliance: its `json` error handler takes
+  `verbose` and nothing else, with no body template. So the rewrite happens at
+  Traefik instead, whose `errors` middleware serves the body from a service while
+  keeping the original status code. This chart is that service — a static
+  responder holding one document per status.
+type: application
+version: 0.1.0
+appVersion: "1.37.0"

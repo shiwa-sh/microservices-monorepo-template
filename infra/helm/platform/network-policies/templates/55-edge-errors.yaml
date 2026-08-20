@@ -1,0 +1,27 @@
+{{- if .Values.edgeErrors.enabled }}
+## The edge's error responder (ADR-0305, ADR-0305's problem+json contract).
+##
+## Traefik is the only client, and it reaches this through a SUBREQUEST rather than
+## by proxying — the original request never arrives here. So the grant is to
+## kube-system, where Traefik terminates, and to nothing else.
+##
+## This policy is not optional decoration. The platform namespace is default-deny
+## (00-baseline.yaml), and without an ingress rule the subrequest simply hangs:
+## Traefik then serves `Gateway Timeout` as a plain-text body, having replaced a
+## correct error response with a worse one. Measured on the local tier — the
+## symptom is a 401 whose body says nothing about authentication.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: edge-errors
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: edge-errors
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        # Enforced on the pod's real containerPort, which the Service fronts on 80.
+        - ports: [{ port: "8080", protocol: TCP }]
+{{- end }}

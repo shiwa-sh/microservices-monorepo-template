@@ -1,0 +1,62 @@
+# Values namespaced under `edgeErrors:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions.
+edgeErrors:
+  enabled: true
+
+  # busybox httpd, which serves static files and maps an extension to a MIME type.
+  # That is the whole requirement: no templating, no request handling, no state.
+  # The alternative was a first-party service, which would mean an image to build,
+  # scan, sign and keep current for four static documents.
+  image:
+    repository: docker.io/library/busybox
+    tag: "1.37.0"
+    digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+    pullPolicy: IfNotPresent
+
+  # Two replicas. Every intercepted response makes a subrequest here, so this is in
+  # the path of every denial the edge issues — a single replica makes an ordinary
+  # rollout a window where denials fall back to Oathkeeper's dialect.
+  replicas: 2
+
+  port: 8080
+
+  resources:
+    requests: { cpu: 5m, memory: 16Mi }
+    limits: { memory: 32Mi }
+
+  # The statuses Traefik intercepts, and the title each one carries.
+  #
+  # `title` is stable and does not vary with the instance, which is what RFC 9457
+  # asks of it. There is no `detail`: a static document cannot know the instance,
+  # and inventing one would be worse than omitting an optional member.
+  #
+  # WHAT IS ABSENT MATTERS MORE THAN WHAT IS HERE. The middleware intercepts by
+  # STATUS and cannot see where the response came from, so every status listed here
+  # loses whatever body the origin sent — including a service's own.
+  #
+  #   404 is deliberately not intercepted. Services return it constantly and their
+  #   bodies carry a useful `detail` ("No product with that identifier"), which a
+  #   generic document would replace with less. The cost is that Oathkeeper's
+  #   no-rule-matched 404 keeps its own shape; that is an edge misconfiguration
+  #   rather than something a client handles.
+  #
+  #   401 and 403 ARE intercepted, and a service's own denial is replaced along with
+  #   the edge's. That is close to free: an authorization failure deliberately does
+  #   not explain itself, so there is little detail to lose and a reason not to send
+  #   it.
+  #
+  #   502, 503 and 504 can only come from the gateway — they mean the service was
+  #   never reached — so nothing is being replaced.
+  problems:
+    - status: 401
+      title: Unauthorized
+    - status: 403
+      title: Forbidden
+    - status: 429
+      title: Too Many Requests
+    - status: 502
+      title: Bad Gateway
+    - status: 503
+      title: Service Unavailable
+    - status: 504
+      title: Gateway Timeout

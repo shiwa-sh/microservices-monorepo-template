@@ -279,6 +279,11 @@ spec:
                   # (ADR-0200). Same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
+                  # The edge's RFC 9457 error bodies (ADR-0305). Beside ory
+                  # because Oathkeeper is what raises most of the responses it
+                  # rewrites, and every denial the edge issues makes a subrequest
+                  # here.
+                - { path: "infra/helm/platform/edge-errors" }
                   # The non-production mail sink Kratos's courier submits to
                   # (ADR-0307). Beside ory because it is only useful to it, and
                   # dropped by `mailpit.enabled: false` where a real relay exists.

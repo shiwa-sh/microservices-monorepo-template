@@ -1,0 +1,22 @@
+{{- if .Values.edgeErrors.enabled }}
+{{- /*
+A stable `edge-errors` name regardless of the release name: the Traefik Middleware
+in infra/gateway/middlewares.yaml addresses this Service by name, and under ArgoCD
+the release is `<env>-platform-edge-errors`.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-errors
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: edge-errors
+    app.kubernetes.io/part-of: platform
+spec:
+  selector:
+    app.kubernetes.io/name: edge-errors
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

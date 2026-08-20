@@ -43,3 +43,11 @@ alertmanager:
 # selecting a workload that does not exist is inert, and inert rules are how a
 # policy file stops being read.
 maddyEnabled: false
+
+# Mirrors the gate in the edge-errors chart (infra/helm/platform/edge-errors). Both
+# read the same per-env overlay, so one flag drops the responder and the rule that
+# admits Traefik to it together — a rule naming an endpoint that does not exist
+# selects nothing, but it is also a claim about the platform that stopped being
+# true.
+edgeErrors:
+  enabled: true

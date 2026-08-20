@@ -1,0 +1,74 @@
+{{- if .Values.edgeErrors.enabled }}
+{{- $ee := .Values.edgeErrors }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-errors
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: edge-errors
+    app.kubernetes.io/part-of: platform
+spec:
+  replicas: {{ $ee.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: edge-errors
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: edge-errors
+        app.kubernetes.io/part-of: platform
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: httpd
+          image: {{ $ee.image.repository }}:{{ $ee.image.tag }}@{{ $ee.image.digest }}
+          imagePullPolicy: {{ $ee.image.pullPolicy }}
+          # `-f` keeps it in the foreground, which is what makes the container's
+          # lifecycle the server's. A port above 1024 so no capability is needed to
+          # bind it — the pod holds none.
+          command:
+            - httpd
+            - -f
+            - -p
+            - {{ $ee.port | quote }}
+            - -h
+            - /www
+            - -c
+            - /www/httpd.conf
+          ports:
+            - name: http
+              containerPort: {{ $ee.port | int }}
+          # A TCP probe rather than an HTTP one. Every path this serves is an ERROR
+          # document, so an HTTP probe would have to treat some 4xx as healthy —
+          # which means it can no longer tell a served error from a broken server.
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: www
+              mountPath: /www
+          resources:
+            {{- toYaml $ee.resources | nindent 12 }}
+      volumes:
+        - name: www
+          configMap:
+            name: edge-errors
+{{- end }}
