@@ -469,7 +469,7 @@ run = "bash scripts/format-shell.sh"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -512,6 +512,13 @@ run = "bash scripts/lint-openapi.sh"
 # is absent from that environment with nothing to notice — how authz ended up
 # undeployed in dev while Oathkeeper called it by DNS.
 run = "bash scripts/lint-service-contract.sh"
+
+[tasks."lint:service-databases"]
+# ADR-0300: a service that ships migrations has a database to run them against.
+# The CNPG bootstrap list is hand-written and runs once, so a missing line is only
+# discovered when the pod crashloops in a deployed environment — which is after
+# review, after merge, and after the cluster was created.
+run = "bash scripts/lint-service-databases.sh"
 
 [tasks."lint:ports"]
 # Local port registry gate (ADR-0205): ports unique, every service registered, and

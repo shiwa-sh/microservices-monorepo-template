@@ -34,6 +34,12 @@ cluster:
   # CNPG provisions one app database (`database`/`owner`) per Cluster; the
   # platform needs one per service plus kratos/temporal/openfga, so the rest
   # are created via postInitApplicationSQL, owned by the same app role.
+  #
+  # These run ONCE, at cluster bootstrap. Adding a line here does nothing to a
+  # cluster that already exists — a service whose database is missing fails to
+  # start, and the fix is a manual `CREATE DATABASE` against the running cluster,
+  # not a re-sync. `lint:service-databases` is what stops a new service reaching a
+  # deployed environment without its line being here in the first place.
   initdb:
     database: orders
     owner: dev
@@ -52,6 +58,7 @@ cluster:
       - "CREATE DATABASE kratos OWNER dev"
       - "CREATE DATABASE temporal OWNER dev"
       - "CREATE DATABASE temporal_visibility OWNER dev"
+      - "CREATE DATABASE analytics OWNER dev"
       - "CREATE DATABASE openfga OWNER dev"
   # The read-only role's login half (ADR-0401, ADR-0202). CNPG reconciles the
   # password from the Secret rather than from a values field, so rotating it is
