@@ -33,6 +33,12 @@ runs:
       # and to unauthenticated requests if it does not. That limit is per IP and
       # low, so a self-hosted runner installing tools often wants a real GitHub
       # token in that secret; it reads public releases and needs no scopes.
+      #
+      # Both places, because they are two different channels: the runner puts the
+      # forge's token in the step ENVIRONMENT, and the action passes its own input
+      # to mise. Overriding one leaves the other.
+      env:
+        GITHUB_TOKEN: ${{ github.server_url == 'https://github.com' && github.token || env.MISE_GITHUB_TOKEN }}
       with:
         github_token: ${{ github.server_url == 'https://github.com' && github.token || env.MISE_GITHUB_TOKEN }}
         # renovate: datasource=github-releases depName=jdx/mise
