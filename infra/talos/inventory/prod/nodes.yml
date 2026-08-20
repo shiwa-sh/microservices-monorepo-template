@@ -1,0 +1,27 @@
+# The committed inventory of pre-provided Talos nodes (ADR-0200).
+#
+# ADR-0200 has two provisioning modes and this is the one that skips Terraform:
+# the machines already exist, already run Talos, and are reachable on its API.
+# `terraform apply` creates the same set for a project that owns its infrastructure
+# and then writes its addresses here.
+#
+# Pre-provided means pre-provided TALOS. A node running anything else is a
+# reprovision, not a configuration step — there is no converge path onto a running
+# general-purpose distribution.
+#
+# Host names follow `{project}-{env}-{role}[-{n}]` (ADR-0003), and `lint:naming`
+# parses every one of them against that grammar. `example` is the placeholder
+# project slug this template ships with; replace it at instantiation, in every
+# surface at once.
+#
+# All three are `cp`. This is a three-node control plane with etcd on every member,
+# not one server and two workers.
+nodes:
+  example-prod-cp-1: { address: 203.0.113.31, role: controlplane }
+  example-prod-cp-2: { address: 203.0.113.32, role: controlplane }
+  example-prod-cp-3: { address: 203.0.113.33, role: controlplane }
+
+# The address `talosctl` and the Kubernetes clients dial. A load balancer over all
+# three, or DNS round-robin; never one member's address, which turns that member
+# into a single point of failure for a cluster that has none.
+endpoint: https://kube.example.com:6443

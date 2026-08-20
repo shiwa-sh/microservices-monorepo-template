@@ -1,0 +1,89 @@
+{{- if .Values.localPath.enabled }}
+{{- $lp := .Values.localPath }}
+{{- /*
+One replica. The provisioner is a controller, not a data path: it creates the
+directory and gets out of the way, and the volume stays mounted whether or not this
+pod is running. A second replica would race the first for the same PVC.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-path-provisioner
+  namespace: local-path
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: local-path-provisioner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: local-path-provisioner
+        app.kubernetes.io/part-of: platform
+      annotations:
+        # Roll the pod when the config changes. The provisioner re-reads the
+        # ConfigMap, but the helper-pod template is read at startup.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: local-path-provisioner
+      # The provisioner has to write into the node's own directory tree, which is
+      # what the hostPath below is, and only the node it is scheduled on. That is
+      # the privilege this component cannot be built without, and why it runs in a
+      # namespace of its own — PSA's unit is the namespace, so one workload needing
+      # hostPath would otherwise set the floor for everything beside it.
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      containers:
+        - name: local-path-provisioner
+          image: {{ $lp.image.repository }}:{{ $lp.image.tag }}@{{ $lp.image.digest }}
+          imagePullPolicy: {{ $lp.image.pullPolicy }}
+          command:
+            - local-path-provisioner
+            - --debug
+            - start
+            - --config=/etc/config/config.json
+            - --service-account-name=local-path-provisioner
+            - --provisioner-name=rancher.io/local-path
+            - --helper-pod-file=/etc/config/helperPod.yaml
+            - --configmap-name=local-path-config
+          env:
+            # The namespace the helper Pod is created in, which the RoleBinding
+            # scopes the pod-create grant to.
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CONFIG_MOUNT_PATH
+              value: /etc/config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+            - name: data
+              mountPath: {{ $lp.path }}
+          resources:
+            {{- toYaml $lp.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: local-path-config
+        - name: data
+          hostPath:
+            path: {{ $lp.path }}
+            # `DirectoryOrCreate`, not `Directory`: on a freshly provisioned node
+            # nothing has created this path yet, and `Directory` makes the pod fail
+            # to start on exactly the node that most needs a provisioner.
+            type: DirectoryOrCreate
+{{- end }}

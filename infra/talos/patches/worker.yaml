@@ -1,0 +1,13 @@
+# The worker role's machine config (ADR-0200), applied on top of common.yaml.
+#
+# No worker exists on day one. This document is what ADR-0200's scaling trigger
+# applies when sustained load calls for one: adding capacity is a config apply
+# against a new node, not a topology change, because the control plane stays at
+# three and no workload is pinned anywhere.
+#
+# A worker's config carries no `cluster.network` or `cluster.proxy` block. Those
+# decide what the CLUSTER runs and are the control plane's to state; a worker
+# joining an existing cluster inherits both.
+machine:
+  nodeLabels:
+    node-role.kubernetes.io/worker: ""

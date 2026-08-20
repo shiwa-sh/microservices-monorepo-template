@@ -1,9 +1,52 @@
 cilium:
   # kube-proxy is not installed (ADR-0206), so the agent addresses the API server
   # directly rather than through a Service.
+  #
+  # KubePrism (ADR-0200): a per-node load balancer over every control-plane
+  # endpoint, which Talos serves on loopback at 7445. The agent survives losing
+  # whichever control plane it was pointed at, and a node running no API server of
+  # its own still has an address that resolves — which `127.0.0.1:6443` is not.
+  #
+  # The laptop tier is the exception and overrides this back to the API server's
+  # own loopback address, because kind is not Talos and has no KubePrism. That
+  # override lives in scripts/cilium-install.sh rather than in the local overlay:
+  # a CNI has to exist before any pod schedules, so both local tiers install this
+  # chart IMPERATIVELY and the ApplicationSet never renders it there.
   kubeProxyReplacement: true
-  k8sServiceHost: 127.0.0.1
-  k8sServicePort: 6443
+  k8sServiceHost: localhost
+  k8sServicePort: 7445
+
+  # ADR-0200's third invariant: a pod gets no more kernel surface than it needs,
+  # and the agent is a pod. Upstream's default capability set includes SYS_MODULE,
+  # which lets the agent `modprobe` on a host that is missing a module — a
+  # capability that on Talos cannot work (the module set is fixed at image build,
+  # and anything extra is an Image Factory schematic, see infra/talos/) and that
+  # elsewhere lets a container load code into the kernel.
+  #
+  # The list is spelled in full because it REPLACES upstream's rather than
+  # subtracting from it; dropping one entry means naming the rest. Verified on both
+  # tiers with the agent running: no capability below is optional, and SYS_MODULE
+  # is not needed by either.
+  securityContext:
+    capabilities:
+      ciliumAgent:
+        - CHOWN
+        - KILL
+        - NET_ADMIN
+        - NET_RAW
+        - IPC_LOCK
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - PERFMON
+        - BPF
+        - DAC_OVERRIDE
+        - FOWNER
+        - SETGID
+        - SETUID
+      cleanCiliumState:
+        - NET_ADMIN
+        - SYS_ADMIN
+        - SYS_RESOURCE
 
   ipam:
     mode: kubernetes

@@ -1,0 +1,16 @@
+{{- if .Values.localPath.enabled }}
+{{- $sc := .Values.localPath.storageClass }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $sc.name }}
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+  annotations:
+    storageclass.kubernetes.io/is-default-class: {{ $sc.default | quote }}
+provisioner: rancher.io/local-path
+volumeBindingMode: {{ $sc.volumeBindingMode }}
+reclaimPolicy: {{ $sc.reclaimPolicy }}
+allowVolumeExpansion: {{ $sc.allowVolumeExpansion }}
+{{- end }}

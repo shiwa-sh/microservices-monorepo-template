@@ -88,6 +88,19 @@ collect_images() {
     printf '%s' "$rendered" | yq -r '
       .. | select(has("template")) | .template.spec.containers // [] | .[] | .image // ""
     ' 2>/dev/null || true
+    # An image inside a ConfigMap VALUE. A controller that builds pods from a
+    # template it reads at runtime keeps that template as a string, so no walk over
+    # the document structure can reach it — the local-path provisioner's helper pod
+    # is the case that taught this, and the failure is quiet: Kyverno rejects the
+    # helper, the directory is never created, and the symptom is a PVC that stays
+    # Pending with nothing in the provisioner's log naming a policy.
+    #
+    # Only `image:` keys, and only in ConfigMap data, so this reads the embedded
+    # documents without treating every string in the chart as a candidate.
+    printf '%s' "$rendered" | yq -r '
+      select(.kind == "ConfigMap") | .data // {} | to_entries | .[] | .value
+    ' 2>/dev/null | grep -oE '^[[:space:]]*image:[[:space:]]*\S+' |
+      sed -E 's/^[[:space:]]*image:[[:space:]]*//' || true
   } | grep -E '^[a-z0-9][a-z0-9._-]*(:[0-9]+)?(/[a-z0-9._/-]+)+(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]+)?$' || true
 }
 

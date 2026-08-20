@@ -1,0 +1,54 @@
+# The control-plane role's machine config (ADR-0200), applied on top of common.yaml.
+#
+# All three nodes carry this. Day one is a three-node control plane with etcd on
+# every member and every workload scheduled across the same set; a worker joins
+# later with patches/worker.yaml and changes nothing here.
+cluster:
+  # Cilium is the CNI and there is no kube-proxy (ADR-0206). Both of these must be
+  # set BEFORE the cluster bootstraps.
+  #
+  # Setting them on a running cluster does not undo what bootstrap already did:
+  # Talos applies its default manifests once and then leaves them, so flannel and
+  # kube-proxy keep running while the config claims neither exists. Two CNIs then
+  # contend for the dataplane, which presents as intermittent pod-to-pod failure
+  # rather than as an error. On an existing cluster the DaemonSets have to be
+  # deleted explicitly after the patch.
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
+
+  # Day one has no separate worker set, so the control plane carries the workloads.
+  # ADR-0200's scaling trigger adds workers under sustained pressure; this stays
+  # true when they arrive, because nothing is pinned to a node.
+  allowSchedulingOnControlPlanes: true
+
+  # Talos's own node-discovery service talks to a Sidero-hosted registry. The
+  # cluster is discoverable from its own inventory (infra/talos/inventory/), so
+  # this is a third-party dependency in the bootstrap path buying nothing.
+  discovery:
+    enabled: false
+
+  apiServer:
+    # ADR-0300's audit trail starts at the API server. Without a policy it records
+    # metadata for nothing, and the first time anyone wants to know who deleted a
+    # resource is after it was deleted.
+    auditPolicy:
+      apiVersion: audit.k8s.io/v1
+      kind: Policy
+      rules:
+        # Secret and ConfigMap bodies carry the values they exist to protect, so
+        # the request is recorded and its contents are not.
+        - level: Metadata
+          resources:
+            - group: ""
+              resources: [secrets, configmaps]
+        - level: RequestResponse
+          verbs: [create, update, patch, delete]
+        - level: Metadata
+
+  etcd:
+    # etcd listens on the private network only. The default binds the first
+    # address it finds, which on a host with a public interface is the public one.
+    advertisedSubnets: [10.0.0.0/8]

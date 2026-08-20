@@ -35,9 +35,12 @@ argocd = "3.4.4"
 cilium-cli = "0.19.4"
 terraform = "1.15.6"
 kind = "0.32.0"
-# ansible is NOT pinned here — it is an operator-only island, scoped to
-# infra/ansible/.mise.toml so the prod bootstrap tool (and the Python it drags in)
-# never installs for a dev running lint/test/cluster:full. See that file.
+# talosctl configures every node in a provisioned environment (ADR-0200). Pinned
+# here rather than scoped to an island: it is a single static binary, and unlike
+# the bootstrap tool it replaced it drags in no Python for a dev running
+# lint/test/cluster:full. The version tracks the Talos release the machine configs
+# under infra/talos/ are written against.
+talosctl = "1.13.5"
 
 # Dependency updates & template propagation (ADR-0106). Both run on a developer or
 # CI machine and never inside a cluster workload. renovate is an npm package, so it
@@ -542,7 +545,7 @@ run = "go run ./tools/lint-money"
 
 [tasks."lint:naming"]
 # The resource-name grammar (ADR-0003): `{project}-{env}-{role}[-{n}]` across the
-# Ansible inventory, the sops recipients, and the GitOps overlays, with the role
+# Talos inventory, the sops recipients, and the GitOps overlays, with the role
 # vocabulary read from the ADR's own table. Nothing in the cluster can check this —
 # a provider accepts any name it can encode.
 run = "go run ./tools/lint-naming"

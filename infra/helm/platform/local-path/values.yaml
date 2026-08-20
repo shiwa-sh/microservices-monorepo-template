@@ -1,0 +1,60 @@
+# Values namespaced under `localPath:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions. A
+# top-level key here would be read by every OTHER chart's render of the same file,
+# and this chart would ignore the per-environment override that names it.
+localPath:
+  # The laptop tiers do not use this chart. kind ships its own local-path
+  # provisioner and its own `standard` StorageClass, so enabling this there means
+  # two provisioners racing for the same default annotation — the environment
+  # overlays turn it on (infra/gitops/platform/<env>/values.yaml).
+  enabled: false
+
+  image:
+    repository: rancher/local-path-provisioner
+    tag: "v0.0.37"
+    # Pinned by digest (ADR-0104). The tag above is what a human reads; this is
+    # what is pulled, and the two are checked against each other by
+    # `lint:floating-tags`.
+    digest: sha256:e757967a5ec338f6a9b371c5a9688bedaa8c3578ea3dd4db329ea0084be0a86f
+    pullPolicy: IfNotPresent
+
+  # The helper image the provisioner runs as a short-lived Pod to create and
+  # remove each volume's directory. It needs `mkdir`, `rm` and nothing else.
+  #
+  # Fully qualified, unlike most entries here. Kyverno's allow-list matches an
+  # image against `<repository>:*`, so the string in the POD SPEC has to be the
+  # string in the list — and a bare `busybox` is a Docker Hub shorthand the
+  # generator that builds that list does not recognise as a repository.
+  helperImage:
+    repository: docker.io/library/busybox
+    tag: "1.37.0"
+    digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+
+  # Where volumes live on the node. `/var` is the ONLY writable path on a Talos
+  # node — everything else is a read-only image — and this directory is bind-mounted
+  # into the kubelet by infra/talos/patches/common.yaml. The two must agree: a
+  # provisioner writing somewhere the kubelet cannot see produces a PV that binds
+  # and a pod that never mounts it.
+  path: /var/mnt/local-path
+
+  # This becomes the cluster's DEFAULT StorageClass, which is what makes an
+  # unannotated PVC resolve at all. Nothing else claims the role in a provisioned
+  # environment.
+  storageClass:
+    name: local-path
+    default: true
+    # `WaitForFirstConsumer`, never `Immediate`. The volume is a directory on ONE
+    # node, so binding before the scheduler has placed the pod picks the node at
+    # random and the pod is then pinned to wherever the PV happened to land — which
+    # is how a pod ends up Pending forever against a node that cannot take it.
+    volumeBindingMode: WaitForFirstConsumer
+    # Deleting a PVC deletes the directory. `Retain` would leave node disks filling
+    # with orphans that nothing is tracking.
+    reclaimPolicy: Delete
+    # A directory cannot grow on request. Saying so here makes the failure a clear
+    # API rejection rather than a resize that reports success and changes nothing.
+    allowVolumeExpansion: false
+
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }

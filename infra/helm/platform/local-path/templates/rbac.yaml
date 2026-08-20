@@ -1,0 +1,85 @@
+{{- if .Values.localPath.enabled }}
+{{- /*
+The provisioner watches PVCs cluster-wide and creates PVs, so its permissions are
+cluster-scoped by nature. It also creates a helper Pod per volume in its own
+namespace, which is the one write it makes to something other than storage objects.
+*/}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: local-path-provisioner
+  namespace: local-path
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+rules:
+  - apiGroups: [""]
+    resources: [nodes, persistentvolumeclaims, configmaps, pods, pods/log]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get, list, watch, create, patch, update, delete]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list, watch]
+  # The helper Pod that makes and removes each volume's directory. Namespaced to
+  # this chart's own namespace by the RoleBinding below rather than granted
+  # cluster-wide: pod-create everywhere is a much larger grant than this needs.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: local-path-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: local-path-provisioner
+    namespace: local-path
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: local-path-provisioner
+  namespace: local-path
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch, create, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: local-path-provisioner
+  namespace: local-path
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: local-path-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: local-path-provisioner
+    namespace: local-path
+{{- end }}

@@ -9,9 +9,9 @@
 //
 // # What it reads
 //
-//	infra/ansible/inventory/<env>/hosts.yml   the host names, which become the
-//	                                          machine names, the SSH aliases, and
-//	                                          the Kubernetes node names
+//	infra/talos/inventory/<env>/nodes.yml     the node names, which become the
+//	                                          machine names and the Kubernetes
+//	                                          node names
 //	.sops.yaml                                the env token in every recipient
 //	                                          anchor and path rule
 //	infra/gitops/platform/<env>/              the per-environment overlay directories
@@ -45,7 +45,7 @@ import (
 
 const adrFile = "docs/adr/0003-naming-and-identifiers.md"
 
-const inventoryDir = "infra/ansible/inventory"
+const inventoryDir = "infra/talos/inventory"
 
 const sopsFile = ".sops.yaml"
 
@@ -145,8 +145,8 @@ func parseRoles(path string) (map[string]bool, error) {
 	return roles, nil
 }
 
-// checkInventories walks every Ansible inventory and parses each host name against
-// the grammar. The env comes from the directory, so a host in inventory/dev naming
+// checkInventories walks every node inventory and parses each node name against the
+// grammar. The env comes from the DIRECTORY, so a node in inventory/dev naming
 // itself `staging` is a finding rather than a matter of opinion.
 func checkInventories(roles map[string]bool) []string {
 	var problems []string
@@ -175,7 +175,7 @@ func checkInventories(roles map[string]bool) []string {
 			problems = append(problems, problem)
 			continue
 		}
-		path := filepath.Join(inventoryDir, env, "hosts.yml")
+		path := filepath.Join(inventoryDir, env, "nodes.yml")
 		hosts, err := inventoryHosts(path)
 		if err != nil {
 			failf("%v", err)
@@ -208,8 +208,8 @@ func checkInventories(roles map[string]bool) []string {
 	return problems
 }
 
-// inventoryHosts reads the host keys out of an Ansible inventory, at whatever depth
-// the groups nest them.
+// inventoryHosts reads the node names out of an inventory: the keys of the top-level
+// `nodes` mapping.
 func inventoryHosts(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -229,7 +229,7 @@ func inventoryHosts(path string) ([]string, error) {
 		}
 		if n.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(n.Content); i += 2 {
-				if n.Content[i].Value == "hosts" && n.Content[i+1].Kind == yaml.MappingNode {
+				if n.Content[i].Value == "nodes" && n.Content[i+1].Kind == yaml.MappingNode {
 					for j := 0; j < len(n.Content[i+1].Content); j += 2 {
 						hosts = append(hosts, n.Content[i+1].Content[j].Value)
 					}
@@ -241,6 +241,13 @@ func inventoryHosts(path string) ([]string, error) {
 		}
 	}
 	walk(&root)
+	// An inventory that yields no names is a FAILURE, not a pass. The file exists,
+	// so something names nodes in it; a walk that finds none has been pointed at a
+	// shape it does not understand, and reporting success would mean the grammar
+	// stopped being checked without anyone being told.
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("%s: no `nodes` mapping — the grammar cannot be checked", path)
+	}
 	return hosts, nil
 }
 

@@ -1,6 +1,6 @@
-# The k6 island (ADR-0601). Same containment idiom as test/e2e/.mise.toml (Node) and
-# infra/ansible/.mise.toml (Ansible): the tool is pinned NEXT TO the only code
-# that uses it, not in the root [tools], so a developer running `lint`, `test` or
+# The k6 island (ADR-0601). Same containment idiom as test/e2e/.mise.toml (Node)
+# and apps/admin (Lowdefy's pnpm): the tool is pinned NEXT TO the only code that
+# uses it, not in the root [tools], so a developer running `lint`, `test` or
 # `cluster:full` never installs a load generator they are not using.
 #
 # Unlike the e2e island, this one adds no runtime. k6 is a single static Go binary

@@ -23,18 +23,24 @@ if h -n kube-system status cilium >/dev/null 2>&1 &&
   exit 0
 fi
 
-# k8sServiceHost stays 127.0.0.1 (chart default in values.yaml): the agent runs
-# hostNetwork on the node, and kind serves the API at loopback there. Do NOT pin
-# it to the node's Docker IP — docker reshuffles those addresses across restarts,
-# so a pinned IP points the agent at the wrong container and the CNI never starts
-# (connection refused to :6443).
+# The API server address is the ONE value this tier overrides. The chart points the
+# agent at KubePrism (localhost:7445), which is Talos's per-node control-plane load
+# balancer and does not exist on kind. Here the agent runs hostNetwork on the node
+# and kind serves the API at loopback, so that is the address.
+#
+# Do NOT pin it to the node's Docker IP — docker reshuffles those addresses across
+# restarts, so a pinned IP points the agent at the wrong container and the CNI never
+# starts (connection refused to :6443), with no pod able to schedule.
 echo "→ installing Cilium (apiserver 127.0.0.1:6443)"
 helm dependency update infra/helm/platform/cilium >/dev/null
 
-# Local runs the chart as-is, including WireGuard transparent encryption (ADR-0206)
-# for east-west PII posture — same datapath as prod, so no local/prod parity gap.
+# Otherwise local runs the chart as-is, including WireGuard transparent encryption
+# (ADR-0206) for east-west PII posture and the reduced agent capability set — same
+# datapath as prod, so no local/prod parity gap.
 h upgrade --install cilium infra/helm/platform/cilium -n kube-system \
   --set cilium.operator.replicas=1 \
+  --set cilium.k8sServiceHost=127.0.0.1 \
+  --set cilium.k8sServicePort=6443 \
   --timeout 5m
 
 echo "→ waiting for the node to go Ready (Cilium up)…"

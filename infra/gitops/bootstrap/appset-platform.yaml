@@ -68,6 +68,14 @@ spec:
                   # labelled after its pods are admitted governs nothing, because
                   # PSA is an admission check.
                 - { path: "infra/helm/platform/namespaces" }
+                  # The default StorageClass (ADR-0200). Base tier, and ahead of
+                  # the data tier by construction: a PVC created before a default
+                  # StorageClass exists stays Pending with no class to resolve, and
+                  # nothing re-binds it when one appears. Talos ships no
+                  # provisioner, so without this every stateful chart hangs at its
+                  # first volume. The laptop tier leaves it off — kind brings its
+                  # own.
+                - { path: "infra/helm/platform/local-path" }
                   # Admission control (ADR-0104). In the BASE tier because a
                   # policy that arrives after the workloads it gates has already
                   # missed them: admission is evaluated once, at creation.

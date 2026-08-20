@@ -18,6 +18,7 @@ policies:
     - docker.io/grafana/loki
     - docker.io/grafana/tempo
     - docker.io/kiwigrid/k8s-sidecar
+    - docker.io/library/busybox
     - docker.io/oryd/kratos
     - docker.io/oryd/oathkeeper
     - docker.io/traefik
@@ -48,6 +49,7 @@ policies:
     - quay.io/jetstack/cert-manager-controller
     - quay.io/jetstack/cert-manager-startupapicheck
     - quay.io/jetstack/cert-manager-webhook
+    - rancher/local-path-provisioner
     - reg.kyverno.io/kyverno/background-controller
     - reg.kyverno.io/kyverno/cleanup-controller
     - reg.kyverno.io/kyverno/kyverno

@@ -1,0 +1,24 @@
+# The Image Factory schematic (ADR-0200, ADR-0104).
+#
+# Talos ships no package manager: anything outside the base image is a SYSTEM
+# EXTENSION baked into a custom installer image. That image is a build artefact
+# like any other, so the recipe is committed and the result is pinned by digest.
+#
+# To build it, POST this document to the factory and keep the id it returns:
+#
+#   curl -X POST --data-binary @infra/talos/schematic.yaml \
+#     https://factory.talos.dev/schematics
+#
+# The id is a content hash of this file: the same document always yields the same
+# id, from anyone's machine, which is what makes the pin below reproducible rather
+# than a record of one person's upload. Changing this file changes the id, and the
+# `installerImage` in patches/common.yaml has to move with it.
+customization:
+  systemExtensions:
+    officialExtensions:
+      # iSCSI + util-linux tools. Required by any CSI driver that attaches block
+      # devices, which is every one this platform might later adopt; the local-path
+      # provisioner does not need it, but a node that cannot mount a volume is
+      # discovered during an incident rather than during a migration.
+      - siderolabs/iscsi-tools
+      - siderolabs/util-linux-tools

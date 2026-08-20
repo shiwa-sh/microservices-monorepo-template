@@ -45,6 +45,19 @@ namespaces:
       the node-level OTel collector tails /var/log/pods through a hostPath and binds
       the node's OTLP ports, neither of which `baseline` permits. It runs alone so
       the exception covers one workload.
+  - name: local-path
+    # The local-path provisioner, alone (ADR-0200). It writes each volume's
+    # directory into the node's own filesystem through a hostPath and runs as root
+    # to do it — a provisioner that cannot create a directory it does not own is
+    # not a provisioner. `baseline` forbids hostPath, and PSA's unit is the
+    # namespace, so this sits apart for the same reason the OTel collector does:
+    # the privilege is scoped to the one workload that needs it rather than to
+    # everything that would otherwise share a namespace with it.
+    enforce: privileged
+    reason: >-
+      the local-path provisioner creates each volume's directory on the node
+      through a hostPath and runs as root, neither of which `baseline` permits.
+      It runs alone so the exception covers one workload.
   - name: kyverno
     # Admission control lives apart from what it admits (ADR-0104, ADR-0200):
     # Kyverno excludes its own namespace from every policy, because a webhook that

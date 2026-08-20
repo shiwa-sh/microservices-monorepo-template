@@ -6,7 +6,7 @@ This directory is synced by the `dev-secrets` Application (the `secrets` Applica
 
 ## Adopt
 
-1. Generate the `dev` cluster age key and replace the `cluster_dev` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` / the Ansible bootstrap role).
+1. Generate the `dev` cluster age key and replace the `cluster_dev` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` and `infra/talos/README.md` — on Talos it rides in the SOPS-encrypted machine config as an inline manifest, because there is no host filesystem to place it on).
 2. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/dev/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_dev` + engineers + ops-recovery.
 3. Commit. Argo delivers it and the operator materialises the Secrets.
 

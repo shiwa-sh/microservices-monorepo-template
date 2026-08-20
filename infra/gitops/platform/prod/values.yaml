@@ -122,3 +122,9 @@ lowdefy:
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/admin
     tag: "0000000000000000000000000000000000000000"   # pinned + digested by promote-on-release
+
+# Talos ships no storage provisioner and nothing else claims the default
+# StorageClass here (ADR-0200), so this is what an unannotated PVC resolves to.
+# The laptop tier leaves it off — kind brings its own.
+localPath:
+  enabled: true

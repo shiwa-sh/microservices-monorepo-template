@@ -1,0 +1,19 @@
+apiVersion: v2
+name: local-path
+description: |
+  The default StorageClass for provisioned environments (ADR-0200): a node-local
+  directory per PersistentVolume, provisioned on first use.
+
+  Talos ships nothing. A distribution like k3s bundles a provisioner, and ADR-0200
+  accepts losing that bundle precisely so the component is CHOSEN rather than
+  inherited — this chart is that choice made explicit.
+
+  Why first-party templates rather than upstream's: upstream publishes its chart
+  from a git tree rather than a released index, so there is no versioned artefact to
+  depend on and pin (ADR-0104). Vendoring four small manifests is less machinery
+  than vendoring a chart, and the config below is the part that actually needs
+  saying — the data directory has to be under /var, the only writable path a Talos
+  node has.
+type: application
+version: 0.1.0
+appVersion: "v0.0.37"

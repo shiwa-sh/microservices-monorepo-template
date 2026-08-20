@@ -1,0 +1,67 @@
+# Machine config applied to every node, whatever its role (ADR-0200).
+#
+# This is not a playbook. There is no converge step and no drift to correct: the
+# machine config IS the node, and the two cannot diverge because there is no
+# interface through which they could. What a hardening role used to assert — no
+# root SSH, no password auth — is not asserted here because Talos has no SSH, no
+# shell, and no user accounts to log in as.
+machine:
+  install:
+    # The disk Talos installs itself to. `/dev/sda` is the common case on plain
+    # compute; a node whose root device is an NVMe names it here instead, which is
+    # the one value in this file that is genuinely per-fleet.
+    disk: /dev/sda
+    # The custom installer built from infra/talos/schematic.yaml, pinned by digest
+    # (ADR-0104) rather than by tag. A tag is a moving target, and an installer
+    # image is the one artefact that decides what the node IS.
+    image: factory.talos.dev/metal-installer/<schematic-id>@sha256:<digest>
+    # An upgrade keeps the machine's data partition; only a reprovision wipes it.
+    wipe: false
+
+  features:
+    rbac: true
+    stableHostname: true
+    # KubePrism (ADR-0206): a per-node load balancer over every control-plane
+    # endpoint, served on loopback. Cilium's agent points here rather than at any
+    # one API server, so losing a control plane does not take the CNI with it.
+    kubePrism:
+      enabled: true
+      port: 7445
+
+  # KubeSpan is OFF — the third of ADR-0200's Cilium invariants. It builds a
+  # WireGuard mesh between nodes at the OS layer, and Cilium already encrypts all
+  # east-west pod traffic with WireGuard (ADR-0206). Two mesh implementations over
+  # one link is double encapsulation, halved MTU, and two places to look when a
+  # packet goes missing.
+  network:
+    kubespan:
+      enabled: false
+
+  # The sysctls the platform depends on. `ip_forward` and the bridge netfilter
+  # knobs are Kubernetes' own requirements; the inotify limits are the ones a node
+  # running many pods exhausts silently — the symptom is a container that never
+  # starts with no error naming the cause.
+  sysctls:
+    net.ipv4.ip_forward: "1"
+    net.bridge.bridge-nf-call-iptables: "1"
+    fs.inotify.max_user_watches: "524288"
+    fs.inotify.max_user_instances: "8192"
+
+  kubelet:
+    extraArgs:
+      # Evict before the node wedges rather than after. The default hard limit
+      # leaves no room between "disk is filling" and "kubelet cannot write".
+      eviction-hard: "memory.available<256Mi,nodefs.available<10%"
+    # local-path-provisioner keeps its data under /var, the only writable path on
+    # a Talos node, and the kubelet has to see the same tree the pods bind-mount.
+    extraMounts:
+      - destination: /var/mnt/local-path
+        type: bind
+        source: /var/mnt/local-path
+        options: [bind, rshared, rw]
+
+  # Time is a correctness dependency, not a nicety: etcd leases, certificate
+  # validity and every audit record are ordered by it.
+  time:
+    disabled: false
+    servers: [time.cloudflare.com]

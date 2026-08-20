@@ -1,0 +1,54 @@
+{{- if .Values.localPath.enabled }}
+{{- $lp := .Values.localPath }}
+{{- /*
+The provisioner reads its node-to-path mapping and its helper scripts from this
+ConfigMap, and re-reads them on change — so a path change is a ConfigMap edit
+rather than a restart.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-path-config
+  namespace: local-path
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    app.kubernetes.io/part-of: platform
+data:
+  # `nodePathMap` with the DEFAULT_PATH_FOR_NON_LISTED_NODES entry applies one path
+  # to every node, present and future. Listing nodes individually would mean an
+  # inventory that has to be edited before a node can host a volume, and a node
+  # added under ADR-0200's scaling trigger would silently provision nothing.
+  config.json: |
+    {
+      "nodePathMap": [
+        {
+          "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+          "paths": ["{{ $lp.path }}"]
+        }
+      ]
+    }
+
+  # The helper Pod's command. `-p` so a re-run after a partial failure succeeds
+  # rather than erroring on a directory that is already there.
+  setup: |
+    #!/bin/sh
+    set -eu
+    mkdir -p "$VOL_DIR"
+  # `$VOL_DIR` is the volume's own directory, never the parent: a teardown that
+  # walked up one level would delete every other volume on the node.
+  teardown: |
+    #!/bin/sh
+    set -eu
+    rm -rf "$VOL_DIR"
+
+  helperPod.yaml: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: helper-pod
+    spec:
+      containers:
+        - name: helper-pod
+          image: {{ $lp.helperImage.repository }}:{{ $lp.helperImage.tag }}@{{ $lp.helperImage.digest }}
+          imagePullPolicy: {{ $lp.image.pullPolicy }}
+{{- end }}
