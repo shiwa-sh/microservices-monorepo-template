@@ -11,6 +11,14 @@ import (
 )
 
 type Querier interface {
+	// Rows in the events table from a point in time, for the deferral trigger that
+	// watches the store's growth (ADR-0700, docs/reference/deferral-register.md).
+	//
+	// Bounded by `occurred_at` rather than counting the whole table: `events` is
+	// partitioned by month, so a bounded count touches the current partition and a
+	// `count(*)` over everything would scan every month ever written — which is the
+	// cost this metric exists to warn about, paid on every scrape.
+	CountEventsSince(ctx context.Context, occurredAt pgtype.Timestamptz) (int64, error)
 	// Each session's FIRST occurrence of each named step within the window.
 	//
 	// The ordering that makes a funnel a funnel is not done here. This returns one row

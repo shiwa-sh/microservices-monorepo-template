@@ -18,6 +18,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+	"go.opentelemetry.io/otel/metric"
+
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
@@ -26,6 +29,7 @@ import (
 	analytics "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/analytics"
 	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/funnels"
 	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/handlers"
+	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/store"
 )
 
 const serviceName = "analytics"
@@ -60,6 +64,16 @@ func run() error {
 		return fmt.Errorf("funnels: %w", err)
 	}
 	slog.Info("funnel definitions loaded", "count", defs.Len())
+
+	// The store's growth, as a gauge (ADR-0700). This is the series the deferral
+	// register's ClickHouse row was waiting on: the trigger is "the events table
+	// sustaining more than about 10M rows per month", and until something emitted
+	// it the row read `uncollected` — measurable in principle, gathered by nothing.
+	//
+	// Scoped to the CURRENT MONTH, which is both what the trigger asks and what
+	// keeps the query cheap: `events` is partitioned by month, so this touches one
+	// partition rather than scanning every month ever written.
+	registerStorageGauge(store.New(db))
 
 	// No OpenFGA client. The panel that reads this store is authorised in the render
 	// layer against the marketing group (ADR-0700); the write path here is reached
@@ -115,4 +129,23 @@ func envOr(key, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+// registerStorageGauge publishes the current month's event-row count.
+//
+// Scoped to the current MONTH, which is both what ADR-0700's trigger asks and what
+// keeps the query cheap: `events` is partitioned by month, so this reads one
+// partition rather than scanning every month ever written.
+func registerStorageGauge(q *store.Queries) {
+	observability.ObservableGauge(
+		"analytics_events_rows_current_month",
+		func(ctx context.Context) (int64, error) {
+			now := time.Now().UTC()
+			start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+			return q.CountEventsSince(ctx, pgtype.Timestamptz{Time: start, Valid: true})
+		},
+		metric.WithDescription(
+			"Rows in the events table for the current month, for ADR-0700's storage-growth trigger.",
+		),
+	)
 }

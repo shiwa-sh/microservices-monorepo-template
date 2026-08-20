@@ -89,3 +89,34 @@ groups:
             the registry's config (docs/reference/deferral-register.md). Check
             which image before reaching for the seam: a failing pull of a
             first-party image is a different problem entirely.
+
+  - name: deferral.analytics
+    rules:
+      # ADR-0700's storage-growth trigger: the events table sustaining more than
+      # about 10M rows per month is the point at which a column store earns its
+      # place and Postgres stops being the obvious answer.
+      #
+      # The series comes from the analytics service, which reads the CURRENT
+      # MONTH's partition on each metric export. This row was `uncollected` in the
+      # register until then — measurable in principle, gathered by nothing — which
+      # is the state that reads as covered while nobody writes the rule.
+      #
+      # `max` rather than `sum`: every replica of the service observes the same
+      # table, so summing would multiply the row count by the replica count and
+      # fire the trigger at a third of the real volume.
+      #
+      # `for: 24h` because this is a capacity signal, not an incident. A month that
+      # crosses the line on its last day is not the same as a month that has been
+      # over it for a week, and only the second is worth a ticket.
+      - alert: AnalyticsStorageGrowthTrigger
+        expr: |
+          max(analytics_events_rows_current_month) > 10000000
+        for: 24h
+        labels: { severity: ticket }
+        annotations:
+          summary: "The analytics store has passed ADR-0700's column-store trigger"
+          description: >-
+            The events table is holding more than 10M rows this month, which is the
+            volume ADR-0700 names as the point to reconsider Postgres. This is a
+            capacity review, not an outage — read the deferral register's ClickHouse
+            row before changing anything.

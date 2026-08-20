@@ -217,6 +217,48 @@ func Counter(name string, opts ...metric.Int64CounterOption) metric.Int64Counter
 	return c
 }
 
+// ObservableGauge registers a gauge whose value is READ on each export rather than
+// pushed by the caller.
+//
+// This is the right shape for a quantity that already exists somewhere and is
+// expensive to compute — a table's row count, a queue's depth — because the SDK
+// decides how often to ask. A counter would be wrong (the value is not a sum of
+// events) and a manually-set gauge would need its own ticker, which is a second
+// schedule to reason about.
+//
+// The callback runs on the exporter's own goroutine with the export context, so it
+// must respect that context and must not block: a slow callback delays every metric
+// in the batch, not just this one.
+func ObservableGauge(
+	name string,
+	observe func(context.Context) (int64, error),
+	opts ...metric.Int64ObservableGaugeOption,
+) {
+	meter := otel.Meter("service")
+	g, err := meter.Int64ObservableGauge(name, opts...)
+	if err != nil {
+		panic("observability.ObservableGauge(" + name + "): " + err.Error())
+	}
+	_, err = meter.RegisterCallback(
+		func(ctx context.Context, o metric.Observer) error {
+			v, err := observe(ctx)
+			if err != nil {
+				// Reported, not returned: returning an error from a callback
+				// aborts the whole export batch, so one unreadable gauge would
+				// take every other metric in the process with it.
+				RecordError(ctx, err, KindDependency)
+				return nil
+			}
+			o.ObserveInt64(g, v)
+			return nil
+		},
+		g,
+	)
+	if err != nil {
+		panic("observability.ObservableGauge(" + name + ") callback: " + err.Error())
+	}
+}
+
 func serveAdmin(addr string) {
 	mux := http.NewServeMux()
 	// Liveness is SHALLOW — "the process is running", never a dependency check.

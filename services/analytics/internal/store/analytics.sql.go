@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countEventsSince = `-- name: CountEventsSince :one
+select count(*)::bigint as rows_since
+from events
+where occurred_at >= $1
+`
+
+// Rows in the events table from a point in time, for the deferral trigger that
+// watches the store's growth (ADR-0700, docs/reference/deferral-register.md).
+//
+// Bounded by `occurred_at` rather than counting the whole table: `events` is
+// partitioned by month, so a bounded count touches the current partition and a
+// `count(*)` over everything would scan every month ever written — which is the
+// cost this metric exists to warn about, paid on every scrape.
+func (q *Queries) CountEventsSince(ctx context.Context, occurredAt pgtype.Timestamptz) (int64, error) {
+	row := q.db.QueryRow(ctx, countEventsSince, occurredAt)
+	var rows_since int64
+	err := row.Scan(&rows_since)
+	return rows_since, err
+}
+
 const funnelStepFirstSeen = `-- name: FunnelStepFirstSeen :many
 select
   session_id,

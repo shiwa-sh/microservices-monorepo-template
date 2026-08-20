@@ -2,6 +2,10 @@
 # Preload every platform image into the node BEFORE the imperative bring-up needs
 # them (OPT-IN, proxied networks only).
 #
+# Works on both tiers, by different means: `kind load` into the inner loop's node,
+# and a push to the local registry for the full tier, which has no load path. See
+# import_image below.
+#
 # The sibling cluster:unwedge is REACTIVE — it rescues Argo-synced pods stuck in
 # ImagePullBackOff. But cluster:full's imperative head (cilium-install, then the
 # ArgoCD install) BLOCKS on `helm --wait` rollouts BEFORE Argo ever runs, so if
@@ -17,9 +21,40 @@
 # this — cluster:full only runs it when CLUSTER_PRELOAD=1.
 set -euo pipefail
 
-CLUSTER="${CLUSTER:-platform}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
+
+CLUSTER="$(cluster_name)"
+
+# How an image reaches the node differs by tier, and on the full tier there is no
+# load path at all — a Talos node holds nothing the cluster did not PULL.
+#
+# So the full tier's preload is a push: the image is fetched on the host, where the
+# proxy is configured and the pull is serial, then pushed to the local registry.
+# The nodes reach it because infra/talos/local/patch.yaml mirrors quay.io, ghcr.io,
+# registry.k8s.io and docker.io at that registry, with upstream fallback left on.
+#
+# The repository path is preserved across the push — `quay.io/argoproj/argocd`
+# becomes `registry.localhost:5000/argoproj/argocd` — because a containerd mirror
+# requests the SAME path from the mirror endpoint. Rewriting the path would produce
+# a registry full of images no node ever asks for.
+LOCAL_REGISTRY="127.0.0.1:5000"
+
+import_image() { # <ref>
+  local ref="$1"
+  if [ "$(cluster_tier)" != "full" ]; then
+    kind load docker-image "$ref" --name "$CLUSTER" >/dev/null
+    return
+  fi
+  local path="${ref#*/}" # strip the registry host
+  case "${ref%%/*}" in
+  *.* | *:*) ;;               # had a host
+  *) path="library/${ref}" ;; # bare name → Docker Hub's implicit library/
+  esac
+  docker tag "$ref" "${LOCAL_REGISTRY}/${path}"
+  docker push -q "${LOCAL_REGISTRY}/${path}" >/dev/null
+}
 
 # cilium + argocd are the two charts cluster:full installs imperatively (helm
 # --wait) before Argo, so a wedged pull there stalls the whole bring-up; the rest
@@ -102,7 +137,7 @@ for img in "${want[@]}"; do
       docker tag "$img" "$no_digest" && import_ref="$no_digest"
     fi
   fi
-  kind load docker-image "$import_ref" --name "$CLUSTER" >/dev/null || {
+  import_image "$import_ref" || {
     echo "    ✗ import failed: $import_ref"
     failed+=("$img")
   }

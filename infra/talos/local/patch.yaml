@@ -66,6 +66,35 @@ machine:
       registry.localhost:5000:
         endpoints:
           - http://registry.localhost:5000
+      # Upstream registries, mirrored to the LOCAL one first (ADR-0600, and the
+      # Talos half of docs/guide/http-proxy.md).
+      #
+      # This is the replacement for `kind load`. A Talos node holds no image the
+      # cluster did not pull, so on a slow or restricted network every bootstrap
+      # image crosses the proxy — and concurrently, which is how `TLS handshake
+      # timeout` from quay.io stalls the Argo CD rollout. Measured: Cilium's images
+      # got through, Argo's did not.
+      #
+      # `mise run cluster:preload` pulls those images on the HOST, where the proxy
+      # is already configured and the pull is serial, and pushes them here. The node
+      # then fetches them over the docker network at local speed.
+      #
+      # Fallback to the upstream registry is DELIBERATELY left on (no
+      # `skipFallback`): an image nobody preloaded still resolves, slowly, instead
+      # of failing. The mirror is an accelerator, not an allow-list — Kyverno is the
+      # allow-list (ADR-0104).
+      quay.io:
+        endpoints:
+          - http://registry.localhost:5000
+      ghcr.io:
+        endpoints:
+          - http://registry.localhost:5000
+      registry.k8s.io:
+        endpoints:
+          - http://registry.localhost:5000
+      docker.io:
+        endpoints:
+          - http://registry.localhost:5000
     config:
       registry.localhost:5000:
         tls:
