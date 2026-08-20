@@ -12,8 +12,8 @@ import (
 )
 
 const createProduct = `-- name: CreateProduct :one
-insert into products (id, name, price, currency, price_cents)
-values ($1, $2, $3, $4, ($3::numeric * 100)::integer)
+insert into products (id, name, price, currency)
+values ($1, $2, $3, $4)
 returning id, name, price, currency
 `
 
@@ -31,9 +31,6 @@ type CreateProductRow struct {
 	Currency string         `json:"currency"`
 }
 
-// The write still fills price_cents alongside price: the column is not dropped yet
-// (see the migration), it is NOT NULL, and a row inserted without it would fail.
-// The follow-up migration that drops it removes this too.
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (CreateProductRow, error) {
 	row := q.db.QueryRow(ctx, createProduct,
 		arg.ID,
@@ -132,7 +129,7 @@ func (q *Queries) ListProducts(ctx context.Context) ([]ListProductsRow, error) {
 }
 
 const updateProduct = `-- name: UpdateProduct :one
-update products set name = $2, price = $3, currency = $4, price_cents = ($3::numeric * 100)::integer
+update products set name = $2, price = $3, currency = $4
 where id = $1
 returning id, name, price, currency
 `

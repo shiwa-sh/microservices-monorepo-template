@@ -12,8 +12,8 @@ import (
 )
 
 const createCharge = `-- name: CreateCharge :one
-insert into charges (id, order_id, amount, currency, status, idempotency_key, amount_cents)
-values ($1, $2, $3, $4, 'pending', $5, ($3::numeric * 100)::integer)
+insert into charges (id, order_id, amount, currency, status, idempotency_key)
+values ($1, $2, $3, $4, 'pending', $5)
 returning id, order_id, amount, currency, status
 `
 
@@ -33,8 +33,6 @@ type CreateChargeRow struct {
 	Status   string         `json:"status"`
 }
 
-// amount_cents is written from the money columns until the follow-up migration
-// drops it: the column is still NOT NULL, and nothing reads it any more.
 func (q *Queries) CreateCharge(ctx context.Context, arg CreateChargeParams) (CreateChargeRow, error) {
 	row := q.db.QueryRow(ctx, createCharge,
 		arg.ID,

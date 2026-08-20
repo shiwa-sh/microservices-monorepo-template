@@ -54,6 +54,27 @@ done
 
 [ "$found" -gt 0 ] || fail "no services with migrations found — the check would pass vacuously"
 
+# Migration VERSIONS must be unique within a service.
+#
+# dbmate keys `schema_migrations` by the numeric prefix, so two files sharing one
+# makes the second insert violate the primary key — and the chain cannot be applied
+# to a FRESH database at all. It is invisible on an existing one, because the
+# version is already recorded, which is why this reached the repository: payment
+# carried two files at `20260814000001` and its migrations had never been run from
+# empty.
+for dir in services/*/migrations/; do
+  svc="$(basename "$(dirname "$dir")")"
+  [ "${svc#_}" = "$svc" ] || continue
+  dupes="$(find "$dir" -maxdepth 1 -name '*.sql' -printf '%f\n' 2>/dev/null |
+    sed -E 's/_.*//' | sort | uniq -d)"
+  if [ -n "$dupes" ]; then
+    for v in $dupes; do
+      warn "${svc}: two migrations share version ${v} — dbmate cannot apply this to a fresh database"
+    done
+    rc=1
+  fi
+done
+
 if [ "$rc" -eq 0 ]; then
   ok "every schema-owning service has a database (${found} checked)"
 fi

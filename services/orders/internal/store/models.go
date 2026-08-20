@@ -9,12 +9,11 @@ import (
 )
 
 type Order struct {
-	ID         pgtype.UUID        `json:"id"`
-	ProductID  pgtype.UUID        `json:"product_id"`
-	Quantity   int32              `json:"quantity"`
-	TotalCents int32              `json:"total_cents"`
-	Status     string             `json:"status"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ID        pgtype.UUID        `json:"id"`
+	ProductID pgtype.UUID        `json:"product_id"`
+	Quantity  int32              `json:"quantity"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	// pii:identifier
 	OwnerID pgtype.Text `json:"owner_id"`
 	// pii:none

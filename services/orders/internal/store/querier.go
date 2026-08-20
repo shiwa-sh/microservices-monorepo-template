@@ -11,8 +11,7 @@ import (
 )
 
 type Querier interface {
-	// total_cents is still written because the column is NOT NULL until the follow-up
-	// migration drops it; the order starts at zero either way.
+	// The order starts at a zero total; the saga sets it once the price is known.
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error)
 	GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error)

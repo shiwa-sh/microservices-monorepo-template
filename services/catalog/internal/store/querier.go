@@ -11,9 +11,6 @@ import (
 )
 
 type Querier interface {
-	// The write still fills price_cents alongside price: the column is not dropped yet
-	// (see the migration), it is NOT NULL, and a row inserted without it would fail.
-	// The follow-up migration that drops it removes this too.
 	CreateProduct(ctx context.Context, arg CreateProductParams) (CreateProductRow, error)
 	DeleteProduct(ctx context.Context, id pgtype.UUID) error
 	GetProduct(ctx context.Context, id pgtype.UUID) (GetProductRow, error)

@@ -1,8 +1,6 @@
 -- name: CreateCharge :one
--- amount_cents is written from the money columns until the follow-up migration
--- drops it: the column is still NOT NULL, and nothing reads it any more.
-insert into charges (id, order_id, amount, currency, status, idempotency_key, amount_cents)
-values ($1, $2, $3, $4, 'pending', $5, ($3::numeric * 100)::integer)
+insert into charges (id, order_id, amount, currency, status, idempotency_key)
+values ($1, $2, $3, $4, 'pending', $5)
 returning id, order_id, amount, currency, status;
 
 -- name: ListCharges :many

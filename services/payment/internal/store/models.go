@@ -11,7 +11,6 @@ import (
 type Charge struct {
 	ID             pgtype.UUID        `json:"id"`
 	OrderID        pgtype.UUID        `json:"order_id"`
-	AmountCents    int32              `json:"amount_cents"`
 	Status         string             `json:"status"`
 	IdempotencyKey string             `json:"idempotency_key"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`

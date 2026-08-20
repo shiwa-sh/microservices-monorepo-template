@@ -9,10 +9,9 @@ import (
 )
 
 type Product struct {
-	ID         pgtype.UUID        `json:"id"`
-	Name       string             `json:"name"`
-	PriceCents int32              `json:"price_cents"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	// pii:none
 	Price pgtype.Numeric `json:"price"`
 	// pii:none

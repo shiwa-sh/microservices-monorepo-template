@@ -12,8 +12,8 @@ import (
 )
 
 const createOrder = `-- name: CreateOrder :one
-insert into orders (id, product_id, quantity, total, currency, status, owner_id, org_id, idempotency_key, total_cents)
-values ($1, $2, $3, 0, $4, 'pending', $5, $6, $7, 0)
+insert into orders (id, product_id, quantity, total, currency, status, owner_id, org_id, idempotency_key)
+values ($1, $2, $3, 0, $4, 'pending', $5, $6, $7)
 on conflict (id) do nothing
 returning id, product_id, quantity, total, currency, status
 `
@@ -37,8 +37,7 @@ type CreateOrderRow struct {
 	Status    string         `json:"status"`
 }
 
-// total_cents is still written because the column is NOT NULL until the follow-up
-// migration drops it; the order starts at zero either way.
+// The order starts at a zero total; the saga sets it once the price is known.
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error) {
 	row := q.db.QueryRow(ctx, createOrder,
 		arg.ID,
@@ -180,7 +179,7 @@ func (q *Queries) ListOrders(ctx context.Context) ([]ListOrdersRow, error) {
 }
 
 const setOrderTotal = `-- name: SetOrderTotal :exec
-update orders set total = $2, currency = $3, total_cents = ($2::numeric * 100)::integer
+update orders set total = $2, currency = $3
 where id = $1
 `
 
