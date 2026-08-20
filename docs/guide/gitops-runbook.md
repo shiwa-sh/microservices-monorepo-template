@@ -67,6 +67,8 @@ broken. Each of these was diagnosed the long way at least once.
 | etcd stuck `Preparing`, waiting on a service that is Running | The **etcd spec is missing**. The waiting list is static and names every precondition, not the unmet one. A bootstrap issued before a post-apply reboot writes a spec that dies with the old instance |
 | Pod `ContainerCreating` with **no pull events at all** | A **volume**, not an image. A missing secret or a hostPath the kubelet was never given mounts forever without an error |
 | `403 Forbidden` pulling `registry.k8s.io/etcd`, cluster never bootstraps | A **proxy**, and the machine config does not carry it ([`http-proxy`](http-proxy.md)) |
+| An admission webhook times out, and other webhooks work | The webhook pod **predates the current CNI**. Replacing the CNI leaves the endpoints of already-running pods stale, and only the pods nothing has restarted since are affected. Roll the deployment |
+| A replica join retries forever with `no route to host` | **Network policy**, not routing. `no route to host` is what a Cilium drop looks like to the caller; `hubble observe --verdict DROPPED` names the rule's absence in one line |
 
 **The habit that saves the most time: verify the dataplane with a pod.**
 

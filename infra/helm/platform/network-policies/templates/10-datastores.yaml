@@ -30,6 +30,21 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
+    # The cluster talking to ITSELF. A replica joins by connecting to the primary
+    # on 5432, and streams from it on the same port for as long as it lives — so
+    # both the instance pods and the `<cluster>-<n>-join` Job pods CNPG runs to
+    # bootstrap them belong here. Both carry `cnpg.io/cluster`; the Job pods do
+    # not carry `podRole: instance`, which is why the selector is the cluster
+    # label rather than the pod role.
+    #
+    # A single-instance cluster never exercises this, so the rule is missing
+    # exactly until the first replica — where it appears as a join Job retrying
+    # forever and a Cluster stuck in `Creating a new replica`, with the drop
+    # visible only in Hubble.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, cnpg.io/cluster: postgres }
+      toPorts:
+        - ports: [{ port: "5432", protocol: TCP }]
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: cloudnative-pg }
       toPorts:
