@@ -35,7 +35,18 @@ spec:
         - {{ . | quote }}
         {{- end }}
       {{- end }}
+      # The owner is named ONCE, in `initdb.owner`, and every statement below is
+      # rendered from it. Spelling it into the SQL as well is a duplication that
+      # fails silently: CNPG creates the role the superuser Secret names, and a
+      # `CREATE DATABASE … OWNER <other>` then aborts the whole
+      # postInitApplicationSQL run. What that looks like is a Postgres that came
+      # up healthy with exactly one database, and every consumer failing its own
+      # connection with a message about ITS database or ITS password.
       postInitApplicationSQL:
+        {{- $owner := .Values.cluster.initdb.owner }}
+        {{- range .Values.cluster.initdb.databases }}
+        - {{ printf "CREATE DATABASE %s OWNER %s" . $owner | quote }}
+        {{- end }}
         {{- range .Values.cluster.initdb.postInitApplicationSQL }}
         - {{ . | quote }}
         {{- end }}

@@ -3,8 +3,8 @@
 #
 #   mise run lint:service-databases
 #
-# CNPG creates one database per Cluster and the rest come from
-# `postInitApplicationSQL` in infra/helm/platform/postgres/values.yaml. That list is
+# CNPG creates one database per Cluster and the rest come from `initdb.databases`
+# in infra/helm/platform/postgres/values.yaml. That list is
 # hand-written, it runs ONCE at bootstrap, and nothing else references it — so a new
 # service can be built, tested locally against a database its own migrations
 # created, and reach a deployed environment where the database does not exist.
@@ -26,6 +26,8 @@ VALUES="infra/helm/platform/postgres/values.yaml"
 declared="$(
   {
     yq -r '.cluster.initdb.database // ""' "$VALUES"
+    yq -r '.cluster.initdb.databases // [] | .[]' "$VALUES"
+    # Anything created by a hand-written statement rather than by that list.
     yq -r '.cluster.initdb.postInitApplicationSQL // [] | .[]' "$VALUES" |
       sed -nE 's/^[[:space:]]*CREATE DATABASE[[:space:]]+([a-z0-9_]+).*/\1/p'
   } | grep -vE '^\s*$' | sort -u

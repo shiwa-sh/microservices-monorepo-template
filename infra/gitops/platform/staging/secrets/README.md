@@ -30,6 +30,8 @@ spec:
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
+    # `username` has to be the role `cluster.initdb.owner` names in the postgres
+    # chart, and the same string every DSN below uses. Three places, one role.
     - name: postgres-superuser
       type: kubernetes.io/basic-auth
       stringData:

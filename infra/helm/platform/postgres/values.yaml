@@ -42,6 +42,12 @@ cluster:
   # deployed environment without its line being here in the first place.
   initdb:
     database: orders
+    # ONE role owns every database, and its name appears in three places that have
+    # to agree: here, the `username` of the `postgres-superuser` Secret, and the
+    # user in every DSN the same SopsSecret carries. CNPG creates the role this
+    # field names; a DSN naming a different one gets
+    # `password authentication failed`, which reads as a wrong password rather
+    # than as a role that was never created.
     owner: dev
     secretName: postgres-superuser
     # Cluster-global, so it belongs at bootstrap rather than in any one service's
@@ -51,19 +57,20 @@ cluster:
     # database by each service's migrations, because that changes with the schema.
     postInitSQL:
       - "CREATE ROLE readonly NOLOGIN"
-    postInitApplicationSQL:
-      - "CREATE DATABASE catalog OWNER dev"
-      - "CREATE DATABASE orgs OWNER dev"
-      - "CREATE DATABASE payment OWNER dev"
-      - "CREATE DATABASE kratos OWNER dev"
-      - "CREATE DATABASE temporal OWNER dev"
-      - "CREATE DATABASE temporal_visibility OWNER dev"
-      - "CREATE DATABASE analytics OWNER dev"
-      - "CREATE DATABASE openfga OWNER dev"
-      # The forge's database (ADR-0102). Created even though the forgejo chart is
-      # disabled by default: this list runs ONCE at bootstrap, so a database that
-      # is not created here cannot be created later by enabling a chart.
-      - "CREATE DATABASE forgejo OWNER dev"
+    # One line per database. The chart renders each into a CREATE DATABASE owned
+    # by `owner` above, so the role is named in one place — see the template for
+    # what naming it twice costs.
+    databases:
+      - catalog
+      - orgs
+      - payment
+      - kratos
+      - temporal
+      - temporal_visibility
+      - analytics
+      - openfga
+    # Anything that is not a plain database creation. Runs after them.
+    postInitApplicationSQL: []
   # The read-only role's login half (ADR-0401, ADR-0202). CNPG reconciles the
   # password from the Secret rather than from a values field, so rotating it is
   # re-encrypting one SopsSecret entry.
