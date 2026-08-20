@@ -259,3 +259,40 @@ spec:
           port: 8025
   tls:
     secretName: wildcard-ops-tls
+---
+# The registry (ADR-0105), and the one origin at the edge that is NOT gated on an
+# operator session.
+#
+# Everything else here is a browser tool, so forward-auth to Oathkeeper is the
+# right gate. A registry client is not a browser: `docker login`, containerd and
+# BuildKit speak the OCI distribution spec's own Basic/Bearer challenge and follow
+# no redirect to a login page. Putting the ops chain in front of this route makes
+# every push and every pull fail with an HTML redirect the client cannot read.
+#
+# What guards it instead is zot's own htpasswd (`ci` may push, `cluster` may pull,
+# anonymous gets nothing — ADR-0105), which is an authentication the client can
+# actually satisfy. That is why the host is `registry.<host>` rather than
+# `registry.ops.<host>`: the `ops.` label is the scope of the operator cookie
+# (ADR-0306), and an origin that never sees that cookie must not sit inside it.
+#
+# Pulls BY THE CLUSTER do not come through here at all — a kubelet reaches the
+# Service directly, which is what the `host`/`remote-node` ingress allow in the
+# network policy is for. This route exists for the pipeline that pushes, and for a
+# person debugging what is in the registry.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: registry
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^registry\..+`)
+      middlewares:
+        - name: security-headers
+      services:
+        - name: zot
+          port: 5000
+  tls:
+    secretName: wildcard-tls

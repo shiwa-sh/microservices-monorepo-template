@@ -86,6 +86,16 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Mailpit | `mailpit.ops.<host>` | **non-prod only** — the mail sink's viewer ([ADR-0307](0307-outbound-email.md)) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the sole exposed surface of that component |
 
+### The one origin outside both tiers
+
+| Origin | Gate |
+| --- | --- |
+| `registry.<host>` | the registry's own credentials ([ADR-0105](0105-image-registry.md)), never the operator session |
+
+A registry client is not a browser. `docker login`, containerd and BuildKit speak the OCI distribution spec's own authentication challenge and follow no redirect to a login page, so forward-auth in front of this origin fails every push and every pull with a document the client cannot read. The origin sits outside the `ops.` label for the reason the label exists: it never sees the operator cookie, so it must not be inside its scope.
+
+The cluster's own pulls do not use this origin at all — a kubelet reaches the Service directly. It exists for the pipeline that pushes and for a person inspecting what was pushed.
+
 **A component exposing several UIs gets one origin, not several.** SeaweedFS ships a master UI, a filer UI, and an admin UI; only the admin UI is routed. The others are diagnostic surfaces reached the way any unrouted surface is reached, because an origin per internal view multiplies CSP, rate-limit, and session surface for no operator capability that the admin UI lacks. The production instance runs outside the cluster ([ADR-0200](0200-cluster-topology.md)), so it has no `ops.<host>` origin at all and its administration is not an edge concern.
 
 ### Why the `ops.` label is load-bearing
