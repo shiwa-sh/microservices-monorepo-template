@@ -4,7 +4,7 @@
       "url": [
         "https://dev.localtest.me:8443/",
         "https://dev.localtest.me:8443/auth/login",
-        "https://dev.localtest.me:8443/devportal"
+        "https://dev.localtest.me:8443/auth/registration"
       ],
       "numberOfRuns": 3,
       "chromePath": "",

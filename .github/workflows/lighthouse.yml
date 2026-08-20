@@ -11,6 +11,24 @@
 # frontend is deployable as its production container, so the origin is now the
 # inner-loop floor plus two additions — a fraction of the full tier's cost, and the
 # production bundle rather than a dev server's.
+#
+# WHICH ROUTES ARE MEASURED, and why `/devportal` is not among them. That slot was
+# measuring the login page a second time: `proxy.ts` redirects `/devportal` to
+# `/auth/login` when unauthenticated, and Lighthouse always is. So the budget had
+# never seen the heaviest route in the app — the Scalar spec renderer, 4.3 MiB of
+# JavaScript — while appearing to.
+#
+# The fix is a public route that renders rather than a session for Lighthouse. A
+# session would mean provisioning and refreshing credentials inside the gate,
+# making a performance budget depend on the identity stack; when that broke, the
+# symptom would be a red performance gate. `/auth/registration` is the other half
+# of the entry funnel and renders anonymously, so the three slots now measure three
+# distinct pages.
+#
+# `/devportal` is therefore UNMEASURED, and that is a smaller gap than it looks: it
+# is an internal documentation surface behind a session, not a page a user's first
+# impression rests on. Measuring it needs a session, and that is the decision to
+# revisit if it is ever served publicly.
 name: lighthouse
 
 on:

@@ -76,6 +76,45 @@ tempo:
 grafana:
   replicas: 2
 
+# ── Resource governance, sized for a multi-node production tier (ADR-0204) ──
+#
+# The chart's caps are computed against the single-node local tier, where the whole
+# platform shares one machine. Production runs three Postgres instances, two of each
+# observability backend and two replicas per service, so the same caps would reject
+# pods during an ordinary deploy — and a ResourceQuota rejects pod CREATION, which
+# surfaces as an unrelated change failing to roll out.
+#
+# Doubled rather than computed: `mise run lint:resource-governance` reports
+# utilisation against these on every CI run, so the number can be tightened
+# deliberately once a production render exists to measure. Guessing tighter now
+# would be guessing.
+resourceQuotas:
+  platform:
+    enabled: true
+    requestsCPU: "16"
+    requestsMemory: 32Gi
+    limitsMemory: 96Gi
+  argocd:
+    enabled: true
+    requestsCPU: "4"
+    requestsMemory: 8Gi
+    limitsMemory: 16Gi
+
+# ── PodDisruptionBudgets, for the components this tier actually scales out ──
+#
+# Enabled ONLY where this file sets two replicas above. `minAvailable: 1` in front
+# of a single-replica workload permits zero disruptions and makes `kubectl drain`
+# hang indefinitely — so a PDB switched on ahead of the replica count does not
+# protect a component, it strands a node.
+#
+# Temporal's three and OpenFGA stay off here because this file does not scale them;
+# they are the next ones to enable, and each needs its replica count raised first.
+podDisruptionBudgets:
+  loki:
+    enabled: true
+  tempo:
+    enabled: true
+
 # Lowdefy admin console (ADR-0401): the one repo-built platform image. Pinned to
 # the release commit by digest on a CalVer release (promote-on-release), the same
 # immutable-identity guarantee every prod service gets.
