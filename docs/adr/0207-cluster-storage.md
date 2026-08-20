@@ -104,6 +104,40 @@ Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a
 
 Restore is rehearsed quarterly by a Temporal `Schedule` ([ADR-0302](0302-temporal.md)) that opens a tracking issue. The recovery objectives those backups are held to are [ADR-0200](0200-cluster-topology.md)'s.
 
+## Who provisions the production store
+
+**The template does not, and that is a decision rather than an omission.**
+
+[ADR-0200](0200-cluster-topology.md) already makes Terraform per-project and skips
+it entirely where infrastructure is pre-provided. Shipping a reference module for
+the object store would reverse that for one component: a module has to name a
+provider, and naming one picks a cloud on every adopter's behalf — for the single
+component this ADR says must sit outside the cluster and outside its failure domain.
+An adopter on a different provider would then delete a module rather than fill in a
+blank, which is worse than being handed nothing.
+
+So provisioning the store is a **per-project obligation**. What the template owes in
+exchange is a requirement precise enough to satisfy without guessing, which is this:
+
+| Requirement | Why it is not negotiable |
+| --- | --- |
+| Outside the cluster's failure domain | A store on the cluster it backs cannot survive the loss it exists to survive |
+| S3-compatible, addressed by endpoint and credentials | That is the whole interface the platform uses; anything meeting it works |
+| Versioning enabled | Object Lock requires it, and without it an overwrite is a deletion |
+| Object Lock, COMPLIANCE on the backup bucket | The lock's threat model is a valid credential in the wrong hands |
+| Lock window EQUAL to backup retention | Longer makes CNPG's retention deletes fail and the bucket grow without bound |
+| Reachable from the cluster over TLS | The production store is not on the pod network |
+
+An adopter who satisfies that table has discharged K2 on any provider, including a
+rack in an office. One who cannot is told exactly which line they failed.
+
+**The gap this leaves is verification, not provisioning.** Nothing in the platform
+checks that the configured bucket has versioning and a correctly-sized lock
+window — an adopter can point at a bucket with neither and every backup will appear
+to succeed, right up until the restore that needed them. That check belongs in the
+platform because it is the platform's requirement, and it is the honest remaining
+work here.
+
 ## Consequences
 
 ### Positive

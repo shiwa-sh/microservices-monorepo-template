@@ -2,6 +2,8 @@
 
 The template's day-one path assumes **pre-provided nodes** (ADR-0200): the machine configs under `infra/talos/` are applied to hosts already running Talos, named in a committed inventory (`infra/talos/inventory/<env>/nodes.yml`). There is **no default Terraform run**, and no bucket is Terraform-created — Loki/Tempo durability and CNPG backups point at an existing S3-compatible bucket by endpoint + credentials (via SOPS-decrypted Secrets, ADR-0202).
 
+**The production object store is the same story, deliberately** ([ADR-0207](../../docs/adr/0207-cluster-storage.md)). It must sit outside the cluster's failure domain, and the template ships no module to create it — a module names a provider, and that would pick a cloud for every adopter. ADR-0207 states the requirements the bucket must meet instead; satisfy them with Terraform, a console, or a rack.
+
 `terraform` stays available as a latent tool in `.mise.toml`. A project that provisions its **own** infrastructure adds a provider module here and wires it in:
 
 ```text
