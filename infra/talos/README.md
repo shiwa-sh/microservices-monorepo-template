@@ -67,15 +67,22 @@ undo what they already did to the node:
 
 - flannel's CNI config is disabled by Cilium (renamed `.cilium_bak`) and its
   `flannel.1` interface lingers.
-- **kube-proxy's iptables NAT rules remain, and nothing maintains them.** Under
-  Cilium's eBPF kube-proxy replacement those stale rules still intercept ClusterIP
-  traffic, so every pod-to-Service connection blackholes while `cilium-dbg status`
-  reports `KubeProxyReplacement: True` and `Cluster health: 3/3`. Measured on a
-  converted cluster: a test pod could reach neither `10.96.0.1:443` nor DNS, and
-  Argo CD's pre-install job failed on an API timeout that named nothing relevant.
+- **kube-proxy's iptables NAT rules remain, and nothing maintains them.** Talos has
+  no shell to flush them from, so a node reboot is the flush — roll them one at a
+  time, since they are etcd members.
 
-Talos has no shell to flush iptables from, so **the node reboot is the flush** —
-roll them one at a time, since they are etcd members.
+**Verify with a POD, not with `cilium-dbg`.** A broken dataplane here reports itself
+as healthy: on a converted cluster whose Cilium RBAC had been deleted, every agent
+kept serving from cached credentials and `cilium-dbg status` showed
+`KubeProxyReplacement: True`, `Cilium: Ok` and `Cluster health: 3/3 reachable` while
+no pod could reach a Service at all. The failure surfaced only as an unrelated-looking
+symptom — Argo CD's pre-install job timing out against `10.96.0.1:443` — and only a
+test pod distinguished the two:
+
+```sh
+kubectl run t --image=busybox --restart=Never -- \
+  sh -c 'wget -T10 -O/dev/null https://10.96.0.1:443/version; nslookup kubernetes.default'
+```
 
 **Bootstrap with these documents from the start and none of this applies**: neither
 flannel nor kube-proxy is ever created, so there is nothing to delete and nothing
