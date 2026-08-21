@@ -136,19 +136,25 @@ argo-cd:
   # track, not cluster size — plus server-side diff (configs.params above), which
   # adds a dry-run apply per resource. Measured: OOMKilled at 512Mi with 39
   # Applications on a three-node cluster.
+  #
+  # MEMORY only. The measurement above is a memory one, and a CPU request is a
+  # scheduling claim rather than a ceiling: naming one nobody measured buys a pod
+  # that will not schedule on a small node in exchange for nothing. The namespace
+  # LimitRange defaults the CPU request, as it does for every container that omits
+  # one (ADR-0204).
   controller:
     replicas: 1
     resources:
-      requests: { cpu: "250m", memory: "512Mi" }
+      requests: { memory: "512Mi" }
       limits: { memory: "2Gi" }
   # The repo server renders every chart in the fleet, each render holding a
   # dependency tree in memory.
   repoServer:
     resources:
-      requests: { cpu: "100m", memory: "256Mi" }
+      requests: { memory: "256Mi" }
       limits: { memory: "1Gi" }
   applicationSet:
     replicas: 1
     resources:
-      requests: { cpu: "50m", memory: "128Mi" }
+      requests: { memory: "128Mi" }
       limits: { memory: "512Mi" }
