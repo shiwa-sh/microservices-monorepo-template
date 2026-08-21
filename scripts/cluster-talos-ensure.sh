@@ -185,9 +185,9 @@ PATCH
   talosctl cluster create docker \
     --name "$NAME" \
     --workers "$WORKERS" \
-    --memory "$CP_MEMORY" \
+    --memory-controlplanes "$CP_MEMORY" \
     --memory-workers "$WORKER_MEMORY" \
-    --cpus "$CP_CPUS" \
+    --cpus-controlplanes "$CP_CPUS" \
     --cpus-workers "$WORKER_CPUS" \
     --image "ghcr.io/siderolabs/talos:v${TALOS_VERSION}" \
     --kubernetes-version "$K8S_VERSION" \
