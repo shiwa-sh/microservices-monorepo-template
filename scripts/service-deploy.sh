@@ -85,7 +85,7 @@ fi
 # created `deployment/postgres` next to a healthy CNPG cluster and then failed
 # waiting for it to roll out, so the service it was asked to deploy never got built.
 if [ "$(cluster_tier)" = "full" ]; then
-  detail "full tier: dependencies come from the platform charts, not stand-ins"
+  echo "→ full tier: dependencies come from the platform charts, not stand-ins"
   deps=""
 fi
 for dep in $deps; do
