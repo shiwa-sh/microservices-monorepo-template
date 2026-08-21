@@ -50,6 +50,18 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | Third-party images | pulled from upstream and pinned by digest ([ADR-0104](0104-supply-chain-security.md)). The registry does not proxy them by default |
 | Retention | untagged manifests unreferenced by a signature or an environment's values are garbage-collected on a schedule |
 
+### Where the pipeline pushes
+
+The registry the pipeline pushes to is **configuration, not a constant**. A project generated from this template has a forge and no cluster, so the default is the forge's own registry; a deployment that runs zot re-points the pipeline by setting two forge variables and two secrets, and no workflow is edited.
+
+| Setting | Default | Set it to |
+| --- | --- | --- |
+| `IMAGE_REGISTRY` | `ghcr.io` | the registry's origin ([ADR-0306](0306-trust-tiers-and-urls.md)) |
+| `IMAGE_REPOSITORY` | the forge repository path | the path images live under |
+| `REGISTRY_USERNAME` / `REGISTRY_PASSWORD` | the forge's own token | the push identity above |
+
+This is the same property the thin-YAML rule buys for build logic ([ADR-0102](0102-source-control-and-ci.md)): moving is a re-target rather than a rewrite. A registry that could only ever be the forge's would make the pipeline the thing that has to change when the platform grows its own.
+
 **Scanning is not the registry's job.** [ADR-0104](0104-supply-chain-security.md) makes it a merge gate in CI. zot can run a scanner; it stays off, so the concern stays in one place ([ADR-0000](0000-platform-foundations.md), principle 5).
 
 ### Mirroring upstream images is deferred
@@ -132,4 +144,5 @@ it does not remove the proxy.
 - Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI.
 - Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](0104-supply-chain-security.md)). `(ref: OCI 1.1)`
 - Vulnerability scanning runs in CI, not in the registry.
+- The registry the pipeline pushes to is set by forge variables, never written into a workflow.
 - Deployments reference images by digest ([ADR-0103](0103-release-and-versioning.md)). `(enforced: Kyverno)`

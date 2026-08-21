@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 157 |
-| Review-enforced | 307 |
-| **Total** | **464** |
+| Review-enforced | 308 |
+| **Total** | **465** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -216,6 +216,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI. | review |
 | Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](../adr/0104-supply-chain-security.md)). | standard: OCI 1.1 |
 | Vulnerability scanning runs in CI, not in the registry. | review |
+| The registry the pipeline pushes to is set by forge variables, never written into a workflow. | review |
 | Deployments reference images by digest ([ADR-0103](../adr/0103-release-and-versioning.md)). | admission: Kyverno |
 
 ## ADR-0106 — Dependency Updates & Template Propagation

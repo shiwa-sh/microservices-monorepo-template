@@ -11,6 +11,15 @@ permissions:
   contents: read
   packages: write
 
+# WHERE IMAGES GO. `ghcr.io` and the forge's own repository path are the defaults,
+# because a project generated from this template has a GitHub origin and no cluster
+# yet (ADR-0102). A deployment that runs its own registry (ADR-0105) sets these as
+# forge variables and this workflow re-targets without an edit — which is the same
+# property the thin-YAML rule buys for the build logic.
+env:
+  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
+  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || github.repository }}
+
 jobs:
   affected:
     if: ${{ !github.event.repository.is_template }}
@@ -47,9 +56,12 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.IMAGE_REGISTRY }}
+          # The forge's own token works for the forge's own registry, which is the
+          # default. A registry that is a separate component — zot — has its own
+          # push identity (ADR-0105), and these two secrets are where it goes.
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Build & push ${{ matrix.service }}-${{ matrix.cmd }}
         id: build
         uses: docker/build-push-action@v6
@@ -65,7 +77,7 @@ jobs:
             BUILD_VERSION=dev
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
           push: true
-          tags: ghcr.io/${{ github.repository }}/${{ matrix.service }}-${{ matrix.cmd }}:${{ github.sha }}
+          tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.service }}-${{ matrix.cmd }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # By DIGEST, not by the tag just pushed: cosign resolves a tag itself, and a
@@ -80,7 +92,7 @@ jobs:
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run ci:sign -- "ghcr.io/${{ github.repository }}/${{ matrix.service }}-${{ matrix.cmd }}@${{ steps.build.outputs.digest }}"
+        run: mise run ci:sign -- "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.service }}-${{ matrix.cmd }}@${{ steps.build.outputs.digest }}"
 
   # Apps are single images (no server/worker split), so they get their own matrix
   # rather than joining the Go-service one — but both are driven by the same
@@ -106,9 +118,12 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.IMAGE_REGISTRY }}
+          # The forge's own token works for the forge's own registry, which is the
+          # default. A registry that is a separate component — zot — has its own
+          # push identity (ADR-0105), and these two secrets are where it goes.
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - id: ctx
         run: mise run ci:build-context -- "${{ matrix.app }}" >> "$GITHUB_OUTPUT"
       - name: Build & push ${{ matrix.app }}
@@ -119,7 +134,7 @@ jobs:
           file: apps/${{ matrix.app }}/Dockerfile
           build-args: SERVICE_VERSION=${{ github.sha }}
           push: true
-          tags: ghcr.io/${{ github.repository }}/${{ matrix.app }}:${{ github.sha }}
+          tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.app }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Sign, SBOM, provenance
@@ -132,4 +147,4 @@ jobs:
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run ci:sign -- "ghcr.io/${{ github.repository }}/${{ matrix.app }}@${{ steps.build.outputs.digest }}"
+        run: mise run ci:sign -- "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.app }}@${{ steps.build.outputs.digest }}"
