@@ -51,6 +51,8 @@ spec:
       stringData:
         preshared_key: ""
         datastore_uri: ""
+    - name: analytics-db
+      stringData: { DATABASE_URL: "" }
     - name: catalog-db
       stringData: { DATABASE_URL: "" }
     - name: orders-db

@@ -20,6 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 VALUES="infra/helm/platform/postgres/values.yaml"
+LOCAL_SECRET="infra/gitops/platform/local/secrets/platform.enc.yaml"
 [ -f "$VALUES" ] || fail "$VALUES not found"
 
 # The bootstrap database plus every one created afterwards.
@@ -52,6 +53,26 @@ for dir in services/*/; do
     warn "${svc} ships migrations but no database named '${svc}' is created in ${VALUES}"
     rc=1
   fi
+
+  # A DATABASE IS HALF OF IT. The other half is the Secret carrying its DSN: the
+  # service chart mounts `<service>-db`, so a service with a database and no Secret
+  # entry fails at CreateContainerConfigError — a message that names the Secret and
+  # not the list it is missing from. `analytics` shipped exactly that way, absent
+  # from the local file and from every environment's skeleton at once.
+  #
+  # The encrypted file is greppable on purpose: `.sops.yaml` encrypts only the
+  # VALUES (`encrypted_regex: ^(data|stringData)$`), so the secretTemplate NAMES
+  # stay in clear text and this needs no key and no decryption.
+  if ! grep -q "name: ${svc}-db" "$LOCAL_SECRET"; then
+    warn "${svc} owns a schema but ${LOCAL_SECRET} carries no ${svc}-db Secret"
+    rc=1
+  fi
+  for readme in infra/gitops/platform/*/secrets/README.md; do
+    if ! grep -q "name: ${svc}-db" "$readme"; then
+      warn "${svc} owns a schema but ${readme} documents no ${svc}-db entry"
+      rc=1
+    fi
+  done
 done
 
 [ "$found" -gt 0 ] || fail "no services with migrations found — the check would pass vacuously"
