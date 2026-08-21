@@ -58,6 +58,16 @@ spec:
                   # Admission control (ADR-0104). In the BASE tier because a
                   # policy that arrives after the workloads it gates has already
                   # missed them: admission is evaluated once, at creation.
+                  # The default StorageClass. The FULL local tier is Talos in
+                  # Docker (ADR-0600) and Talos ships no provisioner, so without
+                  # this there is no StorageClass at all and every PVC stays
+                  # Pending — Postgres, SeaweedFS, Loki, Prometheus and Tempo all
+                  # sit unschedulable with `pod has unbound immediate
+                  # PersistentVolumeClaims`, which names the claim and not the
+                  # missing provisioner. The INNER loop is kind, which brings its
+                  # own; that is the tier the chart's "laptop tiers do not use
+                  # this" note is about.
+                - { path: "infra/helm/platform/local-path" }
                 - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }

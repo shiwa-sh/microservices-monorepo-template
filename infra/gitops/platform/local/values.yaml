@@ -191,3 +191,9 @@ policies:
   # A deployed environment enforces, because nothing there deploys from a working
   # tree.
   validationFailureAction: Audit
+
+# Talos ships no storage provisioner and the full local tier is Talos in Docker
+# (ADR-0600), so this is what an unannotated PVC resolves to there. Inert on the
+# inner loop: kind brings its own provisioner and never installs this chart.
+localPath:
+  enabled: true

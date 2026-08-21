@@ -3,10 +3,13 @@
 # top-level key here would be read by every OTHER chart's render of the same file,
 # and this chart would ignore the per-environment override that names it.
 localPath:
-  # The laptop tiers do not use this chart. kind ships its own local-path
-  # provisioner and its own `standard` StorageClass, so enabling this there means
-  # two provisioners racing for the same default annotation — the environment
-  # overlays turn it on (infra/gitops/platform/<env>/values.yaml).
+  # Off by default; every tier that needs it turns it on in its own overlay.
+  #
+  # The INNER loop is the one exception that must leave it off: kind ships its own
+  # local-path provisioner and its own `standard` StorageClass, so enabling it
+  # there means two provisioners racing for the same default annotation. The full
+  # local tier is Talos in Docker and ships no provisioner, so it needs this as
+  # much as a deployed environment does.
   enabled: false
 
   image:
