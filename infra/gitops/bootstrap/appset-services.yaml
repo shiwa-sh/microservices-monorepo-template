@@ -47,7 +47,11 @@ spec:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
   template:
     metadata:
-      name: "{{ .env }}-service-{{ .path.filenameNormalized }}"
+      # `filenameNormalized` keeps the extension, so it produces
+      # `dev-service-orders.yaml` — a resource whose name says which FILE generated
+      # it rather than which service it deploys, against the `<env>-<tier>-
+      # <component>` naming ADR-0201 fixes. Trimming it is the whole fix.
+      name: '{{ .env }}-service-{{ trimSuffix ".yaml" .path.filename }}'
       labels:
         env: "{{ .env }}"
         app.kubernetes.io/part-of: services
