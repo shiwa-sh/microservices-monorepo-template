@@ -15,6 +15,13 @@ libs/ts/
 # Repo plumbing not needed to compile a service.
 docs/
 infra/
+# …except the funnel definitions, which this image BAKES IN (see the Dockerfile's
+# COPY of infra/analytics/funnels.yaml). An exclusion that swallows a file the
+# Dockerfile copies does not fail at review or at lint — it fails at build, as
+# `failed to compute cache key: failed to calculate checksum`, which names neither
+# the file nor this list. Re-include what is needed rather than narrowing `infra/`,
+# so a new plumbing directory stays out by default.
+!infra/analytics/
 scripts/
 tools/
 .github/
