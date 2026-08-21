@@ -49,6 +49,21 @@ seaweedfs:
   # same secret the consumers read, so the store and its clients cannot drift apart.
   credentialsSecret: object-storage-root
 
+  # A SECOND login in front of the admin UI, on top of the operator session the
+  # edge already required. Off, for the reason Grafana and Argo CD are also served
+  # without one (ADR-0306): the only route to this origin is `seaweedfs.ops.<host>`,
+  # where Oathkeeper has already proved an AAL2 operator holding the dashboard
+  # grant — and the network policy admits port 23646 from the gateway alone, so
+  # there is no second way in for a second password to guard.
+  #
+  # What it costs to leave on is not theoretical: another credential to generate,
+  # rotate, store and find, protecting a door that is already locked.
+  #
+  # `weed` reads an absent `-admin.password` as "auth disabled", so turning this on
+  # is the only case that needs `ADMIN_PASSWORD` in the store's Secret at all.
+  adminAuth:
+    enabled: false
+
   persistence:
     size: 5Gi
     # Unset means the cluster's default StorageClass, which is what every tier
