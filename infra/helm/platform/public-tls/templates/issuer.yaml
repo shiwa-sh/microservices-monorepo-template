@@ -31,8 +31,14 @@ metadata:
 spec:
   secretName: wildcard-tls
   issuerRef: { name: letsencrypt, kind: ClusterIssuer }
+  # The apex as well as the wildcard: `*.example.com` does NOT cover
+  # `example.com` — a wildcard matches exactly one label — and the product tier is
+  # served at the apex (ADR-0306). Without it the edge falls back to Traefik's own
+  # certificate there, so the site the platform exists to serve is the one origin
+  # with a name mismatch, while every ops subdomain is fine.
   dnsNames:
     - "*.{{ $host }}"
+    - "{{ $host }}"
 ---
 # Ops-tier wildcard (ADR-0306). The product wildcard covers one label, so the
 # two-labels-deep ops tools (`{tool}.ops.<host>`) need their own certificate.
