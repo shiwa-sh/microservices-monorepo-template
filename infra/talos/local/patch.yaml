@@ -47,6 +47,20 @@ machine:
       evictionHard:
         nodefs.available: 3%
         imagefs.available: 3%
+    # The same mount the deployed nodes get (infra/talos/patches/common.yaml), and
+    # for the same reason: local-path-provisioner keeps its data under /var, the one
+    # writable path on a Talos node, and the kubelet has to see the same tree the
+    # pods bind-mount.
+    #
+    # Without it the provisioner never starts — `mkdir /var/mnt/local-path:
+    # read-only file system` — so there is no StorageClass, and every stateful
+    # component sits Pending on `pod has unbound immediate PersistentVolumeClaims`,
+    # which names the claim rather than the mount.
+    extraMounts:
+      - destination: /var/mnt/local-path
+        type: bind
+        source: /var/mnt/local-path
+        options: [bind, rshared, rw]
 
   features:
     kubePrism:
