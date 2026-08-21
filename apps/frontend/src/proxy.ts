@@ -113,14 +113,26 @@ export function proxy(req: NextRequest) {
   // Already signed in, and asking for a flow that only makes sense signed out.
   // Answering here rather than letting Kratos answer keeps the user inside the app
   // and keeps whatever `return_to` the URL carries; Kratos would discard it.
-  if (flowKind && hasSession && SIGNED_IN_HAS_NO_FLOW.has(authSegment)) {
+  //
+  // **Unless the URL carries a flow id.** A signed-in user IS sent back here with
+  // one for the case this rule would otherwise break: step-up. An operator with a
+  // second factor logs in with a password, gets an aal1 session, and Kratos issues
+  // an aal2 login flow — so the browser arrives at /auth/login WITH a session and
+  // WITH a flow, and bouncing it home means the second factor can never be
+  // presented. The symptom is a login that appears to succeed and lands on the
+  // home page, with every ops origin still answering 401.
+  //
+  // A flow id is Kratos deciding this flow is wanted, and that decision outranks
+  // this shortcut.
+  const hasFlow = req.nextUrl.searchParams.get("flow") !== null;
+  if (flowKind && hasSession && !hasFlow && SIGNED_IN_HAS_NO_FLOW.has(authSegment)) {
     const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? "/";
     return NextResponse.redirect(new URL(back, req.url));
   }
 
   // An /auth/* page with no flow id yet: send the browser to Kratos to start one.
   // With a flow id, fall through — the page renders it server-side.
-  if (flowKind && !req.nextUrl.searchParams.get("flow")) {
+  if (flowKind && !hasFlow) {
     const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
     const returnTo = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
     if (returnTo) {
