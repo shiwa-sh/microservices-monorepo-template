@@ -112,3 +112,17 @@ spec:
     # `{status}` is substituted by Traefik with the intercepted status code, so one
     # rule serves every document without a middleware per status.
     query: "/{status}.json"
+---
+# Strips `/auth` before the request reaches Kratos, whose own paths start at the
+# root (`/self-service/...`). The prefix exists so the identity API shares the
+# product origin — a login flow on a second origin is a second cookie scope
+# (ADR-0306).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-auth
+  namespace: platform
+spec:
+  stripPrefix:
+    prefixes:
+      - /auth

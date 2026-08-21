@@ -296,3 +296,35 @@ spec:
           port: 5000
   tls:
     secretName: wildcard-tls
+---
+# The identity API (ADR-0304, ADR-0305). Kratos's self-service endpoints, on the
+# PRODUCT origin under `/auth`, because the session cookie is the product origin's.
+#
+# This route lived only in the local tier's edge file, so a deployed environment
+# had a login PAGE and nowhere for it to submit: the page redirects the browser to
+# `/auth/self-service/login/browser` to start a flow, and that path 404'd — which
+# reads as a broken frontend rather than a missing route. Every tier syncs this
+# directory, so it belongs here.
+#
+# The UI pages under `/auth/login` and friends are deliberately NOT matched: they
+# are the frontend's, and fall through to it.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kratos-public
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: PathPrefix(`/auth/self-service`) || PathPrefix(`/auth/.well-known`) || PathPrefix(`/auth/sessions`)
+      middlewares:
+        # Rate-limited: this is the surface a credential-stuffing attempt aims at.
+        - name: strip-auth
+        - name: auth-ratelimit
+        - name: security-headers
+      services:
+        - name: ory-kratos-public
+          port: 80
+  tls:
+    secretName: wildcard-tls

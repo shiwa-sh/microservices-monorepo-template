@@ -7,18 +7,6 @@
 # like hubble.ops.dev.localtest.me. Applied by scripts/cluster-full.sh
 # (NOT infra/gateway, which ArgoCD syncs to prod).
 ---
-# Kratos serves its endpoints at root; serve.public.base_url only advertises the
-# /auth/ path (infra/gitops/platform/local/values.yaml), so the edge strips it.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-auth
-  namespace: platform
-spec:
-  stripPrefix:
-    prefixes:
-      - /auth
----
 # Selector-less Service for the host `next dev`. There is no host-alias record for
 # the host, so cluster-full.sh attaches an EndpointSlice pointing at the docker
 # bridge gateway (the host) on :3000 — the only host IP routable from pods.
@@ -32,29 +20,6 @@ spec:
     - name: http
       port: 3000
       targetPort: 3000
----
-# Kratos self-service API + session/well-known endpoints → ory-kratos-public.
-# Strip /auth and rate-limit the auth-sensitive surface. The UI pages themselves
-# (/auth/login …) are NOT matched here; they fall through to the frontend below.
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: kratos-public
-  namespace: platform
-spec:
-  entryPoints: [websecure]
-  routes:
-    - kind: Rule
-      match: PathPrefix(`/auth/self-service`) || PathPrefix(`/auth/.well-known`) || PathPrefix(`/auth/sessions`)
-      middlewares:
-        - name: strip-auth
-        - name: auth-ratelimit
-        - name: security-headers
-      services:
-        - name: ory-kratos-public
-          port: 80
-  tls:
-    secretName: wildcard-tls
 ---
 # Catch-all → host `next dev`. This is the LAST RESORT: an explicit low priority,
 # not Traefik's default rule-length ordering, is what guarantees it. Without it the
