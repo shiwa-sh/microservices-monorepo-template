@@ -103,7 +103,16 @@ machine:
       docker.io:
         endpoints:
           - http://registry.localhost:5000
-    config:
-      registry.localhost:5000:
-        tls:
-          insecureSkipVerify: true
+    # NO `config:` BLOCK FOR THE MIRROR. The endpoint above is `http://`, so a TLS
+    # config for it is not merely redundant — Talos refuses the combination:
+    #
+    #   failed to resolve reference "registry.k8s.io/etcd:v3.6.12":
+    #   TLS config specified for non-HTTPS registry: "registry.localhost:5000"
+    #
+    # And it refuses it at RESOLVE time, for every image whose registry is mirrored
+    # here — which includes the kubelet and etcd. So the node never starts, the API
+    # server never answers, and the bring-up reports a timeout waiting for etcd:
+    # nothing in that chain mentions TLS, a registry, or this file.
+    #
+    # An `insecureSkipVerify` here was pointless in the best case: there is no
+    # certificate to skip verifying on a plaintext endpoint.
