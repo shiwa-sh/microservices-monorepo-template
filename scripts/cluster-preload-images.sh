@@ -95,6 +95,32 @@ render() { # <chart>
   esac
 }
 
+# THE NODE'S OWN IMAGES come first, and they are a different class from the charts
+# below: the kubelet, the API server, etcd and pause are pulled by Talos during
+# BOOTSTRAP, before Kubernetes exists at all. A chart image that cannot be pulled
+# leaves a pod in ImagePullBackOff, which is visible and recoverable; one of these
+# leaves `etcd` and `kubelet` in `Preparing`, the API server never answers, and
+# every tool reports a timeout against a cluster that never came up.
+#
+# `talosctl image default` is the list for the pinned Talos version, so this tracks
+# a version bump the same way the chart list tracks an image bump — by asking
+# rather than by being told.
+declare -a node_images=()
+if [ "$(cluster_tier)" = "full" ]; then
+  mapfile -t node_images < <(talosctl image default 2>/dev/null || true)
+  if [ "${#node_images[@]}" -gt 0 ]; then
+    echo "→ warming the node's own bootstrap images (${#node_images[@]})"
+    for ref in "${node_images[@]}"; do
+      [ -n "$ref" ] || continue
+      docker pull -q "$ref" >/dev/null 2>&1 || {
+        echo "  ! $ref: pull failed"
+        continue
+      }
+      import_image "$ref"
+    done
+  fi
+fi
+
 echo "→ deriving image list from charts: ${charts[*]}"
 declare -a want=()
 for c in "${charts[@]}"; do
