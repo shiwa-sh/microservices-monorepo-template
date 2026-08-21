@@ -252,6 +252,14 @@ spec:
                   # (ADR-0200). Same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
+                  # The edge's error responder (ADR-0305). Not optional locally:
+                  # the `problem-json-errors` middleware in infra/gateway names this
+                  # Service, both tiers sync that directory, and Traefik DROPS a
+                  # router whose middleware cannot be built. So without it every
+                  # ops route answers 404 — `kubernetes service not found:
+                  # platform/edge-errors` appears only in Traefik's own log, and
+                  # the panel looks unrouted rather than unbacked.
+                - { path: "infra/helm/platform/edge-errors" }
                   # The non-production mail sink Kratos's courier submits to
                   # (ADR-0307). Beside ory because it is only useful to it, and
                   # dropped by `mailpit.enabled: false` where a real relay exists.
