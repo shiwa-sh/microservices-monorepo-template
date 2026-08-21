@@ -56,12 +56,18 @@ seaweedfs:
     storageClassName: ""
 
   # ADR-0204. Measured 2026-08-19 in a container running these exact flags: 73 MiB
-  # resident and 0.3% of one core at idle, with the five buckets created. Idle is all
-  # that measurement covers — dev-tier load on this component is a handful of Loki
-  # chunk pushes a minute — so the limit is set for headroom rather than derived.
+  # resident and 0.3% of one core at idle, with the five buckets created.
+  #
+  # **Idle is not the sizing case, and 512Mi was set from it.** The load that
+  # decides this limit is an IMAGE PUSH: the registry writes an image's layers to
+  # this store as multipart uploads, several parts in flight, and the buffers are
+  # proportional to the layers rather than to the request rate a dashboard shows.
+  # At 512Mi the store was OOMKilled mid-push — and the failure surfaces entirely
+  # in the registry's log, as `connection refused` to a Service whose pod is
+  # Running again by the time anyone looks.
   resources:
-    requests: { cpu: "50m", memory: "128Mi" }
-    limits: { memory: "512Mi" }
+    requests: { cpu: "50m", memory: "256Mi" }
+    limits: { memory: "1.5Gi" }
 
   # No phone-home: the master reports anonymous cluster statistics to
   # telemetry.seaweedfs.com by default, which default-deny egress would drop anyway.
