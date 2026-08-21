@@ -131,13 +131,30 @@ REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"
 BUILD_ID=(--build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local
   --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)")
-for svc in authz catalog orders orgs payment; do
-  build_push "${svc}-server" "services/${svc}/Dockerfile" . \
-    --build-arg SERVICE="${svc}" --build-arg APP_CMD=server "${BUILD_ID[@]}"
-done
-for svc in orders orgs payment; do
-  build_push "${svc}-worker" "services/${svc}/Dockerfile" . \
-    --build-arg SERVICE="${svc}" --build-arg APP_CMD=worker "${BUILD_ID[@]}"
+# DERIVED from the values files, not listed here. The services ApplicationSet
+# generates one Application per file in that directory, so a file with no image
+# built for it is an Application that syncs and then sits in ImagePullBackOff —
+# and the tier is "full" in name only. A hand-written list drifts the moment a
+# service is added or grows a worker, and it did: `analytics` shipped without a
+# server build and `authz` grew a worker without one, so a clean `cluster:full`
+# produced two stuck Applications and the fix looked like a missing `cluster:add`
+# rather than a missing line here.
+#
+# `server.enabled` defaults to true and `worker.enabled` to false, matching the
+# service chart's own defaults (infra/helm/service/values.yaml).
+for values in infra/gitops/services/local/values/*.yaml; do
+  svc="$(basename "$values" .yaml)"
+  # Apps are not services: they have their own Dockerfile, context and build args,
+  # and are built explicitly below.
+  [ -f "services/${svc}/Dockerfile" ] || continue
+  if [ "$(yq -r '.server.enabled // true' "$values")" = "true" ]; then
+    build_push "${svc}-server" "services/${svc}/Dockerfile" . \
+      --build-arg SERVICE="${svc}" --build-arg APP_CMD=server "${BUILD_ID[@]}"
+  fi
+  if [ "$(yq -r '.worker.enabled // false' "$values")" = "true" ]; then
+    build_push "${svc}-worker" "services/${svc}/Dockerfile" . \
+      --build-arg SERVICE="${svc}" --build-arg APP_CMD=worker "${BUILD_ID[@]}"
+  fi
 done
 build_push admin apps/admin/Dockerfile apps/admin
 # The frontend is a deployable service with a values file, so the services
