@@ -54,15 +54,23 @@ spec:
   egress:
     - toEntities: [world]
       toPorts:
-        - ports: [{ port: "443", protocol: TCP }]
+        - ports:
+            - { port: "443", protocol: TCP }
+            - { port: "53", protocol: UDP }
+            - { port: "53", protocol: TCP }
 {{- end }}
 {{- if .Values.publicTls.enabled }}
 ---
 ## cert-manager, when the environment issues PUBLIC certificates (ADR-0205).
 ##
-## An ACME issuer talks to two places on the internet and neither is optional: the
-## CA's directory and order endpoints, and the DNS provider's API that answers the
-## DNS-01 challenge. Both are 443 to `world`.
+## An ACME issuer talks to three places on the internet and none is optional: the
+## CA's directory and order endpoints, the DNS provider's API that answers the
+## DNS-01 challenge, and — on **53** rather than 443 — the AUTHORITATIVE
+## nameservers, which cert-manager queries directly to confirm the record it just
+## wrote has propagated. That last one is not the cluster's own resolver and is
+## not covered by the baseline's CoreDNS allow, so leaving it out parks every
+## challenge in `Waiting for DNS-01 challenge propagation: dial tcp …:53: i/o
+## timeout` — a message about the DNS provider, from a policy in this cluster.
 ##
 ## Gated on the same flag as the issuer itself, so an environment using the local
 ## self-signed CA keeps cert-manager with no world egress at all — the issuer it
@@ -84,5 +92,8 @@ spec:
   egress:
     - toEntities: [world]
       toPorts:
-        - ports: [{ port: "443", protocol: TCP }]
+        - ports:
+            - { port: "443", protocol: TCP }
+            - { port: "53", protocol: UDP }
+            - { port: "53", protocol: TCP }
 {{- end }}
