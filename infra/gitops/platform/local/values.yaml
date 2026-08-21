@@ -50,6 +50,9 @@ kratos:
         # session-less visit to /panel or /devportal 400s into the error flow.
         allowed_return_urls:
           - https://dev.localtest.me:8443/
+          # The ops origins too, so a denied panel request returns to that panel
+          # after login (the redirect handler in infra/auth/oathkeeper carries it).
+          - https://*.ops.dev.localtest.me:8443/
         flows:
           error:        { ui_url: https://dev.localtest.me:8443/auth/error }
           login:        { ui_url: https://dev.localtest.me:8443/auth/login }

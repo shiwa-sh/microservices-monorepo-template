@@ -160,8 +160,12 @@ kratos:
           base_url: "https://prod.example.com/auth/"
       selfservice:
         default_browser_return_url: https://prod.example.com/
+        # The apex, and every ops origin. The ops entry is what makes a denied
+        # panel request return to that panel after login: Oathkeeper puts the
+        # origin in `return_to`, and Kratos follows it only if it is listed here.
         allowed_return_urls:
           - https://prod.example.com/
+          - https://*.ops.prod.example.com/
         flows:
           error:        { ui_url: https://prod.example.com/auth/error }
           login:        { ui_url: https://prod.example.com/auth/login }

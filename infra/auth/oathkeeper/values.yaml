@@ -81,6 +81,17 @@ oathkeeper:
             enabled: true
             config:
               to: https://dev.example.com/auth/login
+              # Carry where the operator was going. Without it every denied request
+              # arrives at the login page with no memory of its origin, so a
+              # successful login lands on the apex and the operator navigates back
+              # by hand — worst exactly when it matters, following a deep link from
+              # an alert into one panel.
+              #
+              # The URL this produces must also be allow-listed in Kratos's
+              # `allowed_return_urls`, which is per environment because it names
+              # the host (infra/gitops/platform/<env>/values.yaml). Kratos rejects
+              # an unlisted `return_to` rather than following it.
+              return_to_query_param: return_to
               when:
                 - error: [unauthorized, forbidden]
                   request: { header: { accept: ["text/html"] } }
