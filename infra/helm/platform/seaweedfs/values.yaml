@@ -50,19 +50,27 @@ seaweedfs:
   credentialsSecret: object-storage-root
 
   # A SECOND login in front of the admin UI, on top of the operator session the
-  # edge already required. Off, for the reason Grafana and Argo CD are also served
-  # without one (ADR-0306): the only route to this origin is `seaweedfs.ops.<host>`,
-  # where Oathkeeper has already proved an AAL2 operator holding the dashboard
-  # grant — and the network policy admits port 23646 from the gateway alone, so
-  # there is no second way in for a second password to guard.
+  # edge already required (ADR-0306). Grafana and Argo CD are served without one,
+  # and this component would be too if it could: the only route to this origin is
+  # `seaweedfs.ops.<host>`, where Oathkeeper has already proved an AAL2 operator
+  # holding the dashboard grant, and the network policy admits port 23646 from the
+  # gateway alone.
   #
-  # What it costs to leave on is not theoretical: another credential to generate,
-  # rotate, store and find, protecting a door that is already locked.
+  # **It cannot.** `weed`'s own help says `-admin.password` empty means "auth is
+  # disabled", and for `weed mini` that is not what happens: measured on 4.41, the
+  # admin UI redirects to `/login` regardless, serves a form, and rejects an empty
+  # password with a CSRF error. So the flag is passed and a credential exists.
   #
-  # `weed` reads an absent `-admin.password` as "auth disabled", so turning this on
-  # is the only case that needs `ADMIN_PASSWORD` in the store's Secret at all.
+  # What follows from that is how to treat the credential: it guards nothing the
+  # edge has not already guarded, so it is not a secret to protect — it is a form
+  # to satisfy. Give it something memorable and write it down where operators look.
+  # A generated password here buys no security and costs a lookup during an
+  # incident. The username is `admin` (weed's default).
+  #
+  # Left as a toggle rather than hardcoded: if a later release honours the empty
+  # case, turning this off is the whole change.
   adminAuth:
-    enabled: false
+    enabled: true
 
   persistence:
     size: 5Gi
