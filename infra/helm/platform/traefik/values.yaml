@@ -26,3 +26,15 @@ traefik:
       nodePort: 30080
     websecure:
       nodePort: 30443
+      # An image push is the longest request that crosses this edge: one streamed
+      # layer, on one connection, for as long as the client's link needs
+      # (ADR-0105). Upstream's defaults are minutes, which is right for an API and
+      # wrong for a registry — and the failure is not a timeout message at either
+      # end. The client sees `unexpected EOF` and retries forever; the registry
+      # logs an incomplete upload. Whichever hop cuts first decides, so this and
+      # zot's own timeouts are set together.
+      transport:
+        respondingTimeouts:
+          readTimeout: 10m
+          writeTimeout: 10m
+          idleTimeout: 3m
