@@ -96,6 +96,10 @@ A registry client is not a browser. `docker login`, containerd and BuildKit spea
 
 The cluster's own pulls do not use this origin at all — a kubelet reaches the Service directly. It exists for the pipeline that pushes and for a person inspecting what was pushed.
 
+**A tool behind the ops gate does not ask for a second password.** Every origin under `ops.<host>` is reached only through Oathkeeper, which has already proved an AAL2 operator holding that tool's grant, and each tool's own port is admitted from the gateway alone. A tool's built-in login therefore guards a door that is already locked, while adding a credential to generate, rotate, store and find. So Grafana serves with its anonymous role, Argo CD serves anonymously with `policy.default: role:admin`, and the SeaweedFS admin UI runs with its own auth disabled.
+
+The requirement this places on such a tool is the real one: it must be unreachable except through the edge. That is the network policy's job, and a tool whose port is admitted from anywhere else is a tool that still needs its own login.
+
 **A component exposing several UIs gets one origin, not several.** SeaweedFS ships a master UI, a filer UI, and an admin UI; only the admin UI is routed. The others are diagnostic surfaces reached the way any unrouted surface is reached, because an origin per internal view multiplies CSP, rate-limit, and session surface for no operator capability that the admin UI lacks. The production instance runs outside the cluster ([ADR-0200](0200-cluster-topology.md)), so it has no `ops.<host>` origin at all and its administration is not an edge concern.
 
 ### Why the `ops.` label is load-bearing

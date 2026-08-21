@@ -100,6 +100,7 @@ Browser-side calls need none of this: the client uses a relative `/api`, which i
 | `mise run cluster:remove -- <name>` | uninstall **and restore Argo auto-sync** |
 | `mise run cluster:stop` / `cluster:delete` | stop, keeping the image cache; or delete |
 | `mise run cluster:heal` | recover a cluster wedged after a host reboot |
+| `mise run talos:dashboard` | the full tier's node dashboard — service state, logs and live load, over the NODE api, so it answers when the cluster does not |
 | `mise run cluster:unwedge` | recover stalled image pulls ([http-proxy](../guide/http-proxy.md)) |
 | `mise run e2e` / `e2e:smoke` | browser acceptance suites ([ADR-0601](../adr/0601-testing-strategy.md)) |
 | `mise run perf` / `perf:smoke` / `perf:stress` / `perf:seed` | load suites ([perf runbook](../guide/performance-runbook.md)) |

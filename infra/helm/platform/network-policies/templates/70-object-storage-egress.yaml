@@ -9,7 +9,11 @@
 ## Loki and Tempo push chunks/traces to the bucket (ADR-0207) and so need egress on
 ## 443. Prometheus keeps a local TSDB and needs none.
 ##
-## These rules are the platform's only world egress. Kratos briefly had one too,
+## World egress is granted in exactly three places, and this file holds two of them:
+## these object-store rules, and cert-manager's ACME rule below. The third is the
+## registry's pull-through mirror (15-object-storage.yaml), which is the one
+## component whose whole purpose is to reach upstream so nothing else has to.
+## Kratos briefly had one too,
 ## for the HaveIBeenPwned breach check; ADR-0304 turned that check off by default
 ## and 30-ory.yaml carries the recipe for putting it back per env.
 apiVersion: cilium.io/v2

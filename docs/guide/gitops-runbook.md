@@ -69,6 +69,11 @@ broken. Each of these was diagnosed the long way at least once.
 | `403 Forbidden` pulling `registry.k8s.io/etcd`, cluster never bootstraps | A **proxy**, and the machine config does not carry it ([`http-proxy`](http-proxy.md)) |
 | An admission webhook times out, and other webhooks work | The webhook pod **predates the current CNI**. Replacing the CNI leaves the endpoints of already-running pods stale, and only the pods nothing has restarted since are affected. Roll the deployment |
 | A replica join retries forever with `no route to host` | **Network policy**, not routing. `no route to host` is what a Cilium drop looks like to the caller; `hubble observe --verdict DROPPED` names the rule's absence in one line |
+| An Application reports **OutOfSync while `argocd app diff` prints nothing** | A **mutating webhook** and a client-side diff. The live object carries fields no chart rendered, so the diff never converges — and because a tier gates on every Application being Synced, one such resource holds every later wave shut. `controller.diff.server.side` ([ADR-0201](../adr/0201-gitops.md)) |
+| Applications look Synced but are hours **stale**, and a refresh annotation is never consumed | The **application controller is restarting**, usually OOM. `status.reconciledAt` falling behind is the tell; every Application keeps its last status while nothing reconciles |
+| An admission webhook times out **intermittently**, and works after a restart | The API server reaches a pod from its own node's address, which Cilium classifies as `host` or `remote-node` — **never** `kube-apiserver`. A policy admitting only that entity works exactly when the webhook shares a node with the caller |
+| Every ops panel answers **404** while the routes exist | Traefik **drops a router whose middleware cannot be built**. The reason appears only in Traefik's log — `kubernetes service not found: platform/edge-errors` — and the panel looks unrouted rather than unbacked |
+| A registry push retries layers forever with `unexpected EOF` | A **timeout on one of the hops**. An image push is the longest request the edge carries; whichever of Traefik or the registry cuts first decides, so both are set together ([ADR-0105](../adr/0105-image-registry.md)) |
 
 **The habit that saves the most time: verify the dataplane with a pod.**
 

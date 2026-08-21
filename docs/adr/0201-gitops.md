@@ -103,7 +103,7 @@ Four ApplicationSets per environment, ordered by sync wave on the root app-of-ap
 | `0` | `platform-base` | sops-operator, cert-manager, network-policies | — |
 | `1` | secrets | the per-env `SopsSecret` | base — the operator and its CRD are up |
 | `2` | `platform-data` | postgres, seaweedfs | secrets — credentials decrypted |
-| `3` | `platform-core` | observability, ory, temporal, openfga, pgweb, headlamp, lowdefy | data — live Postgres, buckets exist |
+| `3` | `platform-core` | observability, ory, temporal, openfga, pgweb, headlamp, lowdefy, public-tls | data — live Postgres, buckets exist |
 | `4` | gateway | Traefik middlewares and cross-cutting IngressRoutes | core |
 | `5` | services | one Application per service, from a git-directory generator over the values files | gateway |
 
@@ -113,9 +113,13 @@ Managing either through this set also breaks it. Every generated Application tar
 
 **Why the waves inside one set are inert:** Applications a single ApplicationSet generates are created by the ApplicationSet controller rather than synced as a parent's resources, so Argo never sequences them among themselves and applies them concurrently. Ordering exists only at the granularity of a root-app-of-apps child, which is why each tier is its own set.
 
+**What makes the gates reachable at all: the diff is the API server's.** Every Application here syncs with `ServerSideApply`, and the cluster runs mutating webhooks — CNPG defaults a `Cluster`, Kyverno mutates pods — so the live object legitimately carries fields no chart rendered. A client-side diff calls that drift permanently, the Application never reports Synced, and because a tier is Healthy only when every Application it generated is **Synced and Healthy**, one such resource holds its wave shut and no later tier ever runs. `controller.diff.server.side` diffs against the API server's dry-run instead. The symptom without it is an Application reporting OutOfSync while `argocd app diff` prints nothing.
+
 **What makes the waves real gates:** default ApplicationSet health reflects only successful templating. A custom health check on the `ApplicationSet` kind walks `.status.resources` and reports Progressing until every generated Application is Synced and Healthy, so wave 3 blocks until waves 0 through 2 are up.
 
 A companion health check on the CNPG `Cluster` kind makes the data-to-core gate honest — without it Argo reports the unknown CRD Healthy the instant it applies, and core starts against a Postgres that is not ready. Charts within a tier are still concurrent and must tolerate that.
+
+Each service Application layers the environment's `shared.yaml` before that service's own values file, so a setting true of every service in an environment — the registry's pull credential, for one — is declared once instead of per service. A default repeated eight times is a default one service will eventually be missing.
 
 A new service appears in dev the moment its values file lands in `master`, with no Argo configuration change. **This is what keeps onboarding cost flat as the fleet grows.**
 
