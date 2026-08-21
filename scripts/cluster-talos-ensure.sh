@@ -63,15 +63,33 @@ fi
 # Cilium CRDs". Nothing in that chain mentions disk. Measured on this machine at
 # 89% full.
 #
-# The threshold is the kubelet's default of 10% free, with headroom: the platform's
-# images are several GB and are pulled after this check passes.
+# TWO NUMBERS, because they mean different things.
+#
+# 90% is the kubelet's own line: its default eviction threshold is 10% free, so at
+# or above that the nodes take the taint whatever this script thinks. That is a
+# WARNING rather than a refusal — a laptop that lives near full still deserves the
+# chance to bring the platform up, and the images already on disk may be most of
+# what the run needs.
+#
+# 95% is where it stops being worth trying: the platform's images are several GB
+# and are pulled AFTER this check passes, so the run would spend those minutes to
+# arrive at the failure anyway.
+#
+# Measured on this machine at 89% full: the operator never scheduled, the CRDs were
+# never registered, and every agent fatalled five minutes later on "Unable to find
+# all Cilium CRDs" — a message that names neither disk nor the operator.
 avail_pct="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
-if [ "$avail_pct" -ge 85 ]; then
+if [ "$avail_pct" -ge 95 ]; then
   fail "the host filesystem is ${avail_pct}% full; Talos nodes share it and will take
   disk-pressure taints, which stops the Cilium operator scheduling and makes every
   agent fatal on missing CRDs. Free space first:
     docker image prune -af && docker volume prune -af
     mise run cluster:delete          # the inner-loop cluster, if it is not in use"
+elif [ "$avail_pct" -ge 90 ]; then
+  warn "the host filesystem is ${avail_pct}% full, past the kubelet's 10%-free
+  eviction threshold. If the nodes take disk-pressure taints, the Cilium operator
+  will not schedule and every agent fatals on \"Unable to find all Cilium CRDs\" —
+  a message that names neither disk nor the operator. Continuing anyway."
 fi
 
 # The registry container is host-level and shared with the inner loop: it survives
