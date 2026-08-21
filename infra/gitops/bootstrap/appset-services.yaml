@@ -64,6 +64,12 @@ spec:
         path: infra/helm/service
         helm:
           valueFiles:
+            # Env-wide first, then the service's own, which therefore wins. What
+            # belongs in the shared file is anything true of every service in the
+            # environment — the registry's pull credential, for one. Repeating it
+            # per service is how one of them ends up without it, and the symptom is
+            # an ImagePullBackOff on the service nobody edited.
+            - "../../gitops/services/{{ .env }}/shared.yaml"
             - "../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:

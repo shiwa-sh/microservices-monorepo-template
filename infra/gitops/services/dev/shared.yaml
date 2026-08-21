@@ -1,0 +1,8 @@
+# Settings shared by every service in the dev environment (ADR-0201). Layered
+# before each service's own values file, so anything here is a default a service
+# may override rather than a rule it cannot.
+#
+# The registry authenticates every pull (ADR-0105) and a kubelet holds no
+# credential of its own; the Secret is delivered by this environment's SopsSecret.
+imagePullSecrets:
+  - name: registry-pull
