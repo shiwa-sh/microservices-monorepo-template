@@ -126,39 +126,28 @@ incident.
 ## Pulling from the platform's own registry
 
 The registry authenticates every pull (ADR-0105): an anonymous client gets nothing.
-A **kubelet** is such a client, and it holds no credential unless the node is given
-one — so the whole platform runs on images the node cannot fetch, and the failure
-names the wrong thing:
+A **kubelet** is such a client, so every workload running a first-party image needs
+a pull credential, delivered as an `imagePullSecret` from the environment's
+`SopsSecret` and named in that chart's values.
 
-```text
-Failed to pull image "registry.example.com/platform/admin@sha256:…":
-  pull access denied, repository does not exist or may require authorization:
-  authorization failed: no basic auth credentials
-```
-
-`repository does not exist` is first in that sentence and is not what happened.
-
-The credential belongs in the machine config, beside the proxy settings below, for
-the same reason: a node inherits nothing.
+**The node cannot hold it instead, and the attempt looks like it worked.** Talos
+takes registry credentials in the machine config:
 
 ```yaml
 machine:
   registries:
     config:
       registry.example.com:
-        auth:
-          username: cluster        # the PULL identity — ADR-0105 keeps push separate
-          password: "…"
+        auth: { username: cluster, password: "…" }
 ```
 
-Two consequences worth knowing before choosing this over per-namespace pull
-secrets. It covers **every** pod on the node, including ones whose chart has no
-`imagePullSecrets` field to set — which is most upstream charts. And it is the same
-place the pull-through mirror is configured, so pointing the node at zot for
-upstream images and giving it the credential are one edit rather than two.
-
-The machine config is SOPS-encrypted (see above), so the password is not in
-plaintext in the repository.
+That is written faithfully into the node's containerd configuration, and
+**containerd 2 ignores it**: once a `config_path` for hosts.d is set — which Talos
+sets — the deprecated `registry.configs.*.auth` block is no longer consulted, and
+hosts.toml has no field for credentials. The pull then fails with
+`no basic auth credentials` on a node whose configuration visibly contains them,
+and `talosctl read /etc/cri/conf.d/01-registries.part` shows the password sitting
+there unused. Reach for the pull secret first.
 
 ## Behind a proxy
 

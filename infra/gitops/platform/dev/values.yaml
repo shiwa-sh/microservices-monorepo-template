@@ -30,6 +30,9 @@ tempo:
 # ghcr and promoted by git SHA on merge (promote-on-merge), exactly like the Go
 # services and the frontend. Local uses the local registry (platform/local/values.yaml).
 lowdefy:
+  # The registry this environment pulls from authenticates every pull (ADR-0105).
+  imagePullSecrets:
+    - name: registry-pull
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/admin
     tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge

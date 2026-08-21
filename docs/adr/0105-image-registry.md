@@ -46,7 +46,7 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | Registry | **zot**, one instance per environment, configured by a committed file |
 | Storage backend | the object storage in [ADR-0207](0207-cluster-storage.md). Image data is never on a node volume |
 | Artefacts | OCI 1.1 referrers hold the cosign signature, SBOM, and provenance from [ADR-0104](0104-supply-chain-security.md) |
-| Authentication | pipeline credentials push; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)). The pull credential is held by the NODE, in its machine config ([ADR-0200](0200-cluster-topology.md)) — a kubelet is the client, and one that covers every pod beats a pull secret per namespace |
+| Authentication | pipeline credentials push; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)). The pull credential reaches workloads as an `imagePullSecret`, not as node configuration — containerd 2 ignores the node's registry auth once a hosts.d config path is set, which Talos always sets ([infra/talos](../../infra/talos/README.md)) |
 | Third-party images | pulled from upstream and pinned by digest ([ADR-0104](0104-supply-chain-security.md)). The registry does not proxy them by default |
 | Retention | untagged manifests unreferenced by a signature or an environment's values are garbage-collected on a schedule |
 

@@ -186,3 +186,8 @@ networkPolicy:
   # one dependency that is not in this service's own namespace, so it is the one
   # egress rule that has to name a namespace rather than rely on the platform one.
   otelAgentNamespace: otel-agent
+
+# Pull credentials for the registry this service's image lives in (ADR-0105).
+# Empty for a registry that serves anonymously — the local tier's does. A deployed
+# environment names the Secret its SopsSecret carries.
+imagePullSecrets: []

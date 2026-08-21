@@ -14,6 +14,10 @@ lowdefy:
     tag: ""               # local → "local"; prod → git SHA
     pullPolicy: IfNotPresent
 
+  # Empty where the registry needs no credential (the local tier's registry is
+  # anonymous). A deployed environment names the Secret its SopsSecret carries.
+  imagePullSecrets: []
+
   replicas: 2
   service:
     port: 3000

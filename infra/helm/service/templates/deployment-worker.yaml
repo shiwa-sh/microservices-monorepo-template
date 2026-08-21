@@ -62,6 +62,14 @@ spec:
       labels: {{- include "service.selector" . | nindent 8 }}
         component: worker
     spec:
+      {{- with .Values.imagePullSecrets }}
+      # The registry authenticates every pull (ADR-0105) and a kubelet holds no
+      # credential of its own. Node-level auth is not the alternative: containerd 2
+      # ignores it once a hosts.d config path is set, and the pull then fails with
+      # `no basic auth credentials` on a node whose configuration contains them.
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ include "service.fullname" . }}
       # ADR-0204 eviction order. Declared explicitly (not inherited) because the
       # PriorityClass globalDefault is platform-critical — product workloads must sit

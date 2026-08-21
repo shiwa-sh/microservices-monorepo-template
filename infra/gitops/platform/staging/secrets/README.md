@@ -21,6 +21,13 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
+    # The registry pull credential (ADR-0105), as a docker config. Every chart
+    # running a first-party image names this Secret in `imagePullSecrets`; a
+    # kubelet has no credential of its own and the node cannot hold one.
+    - name: registry-pull
+      type: kubernetes.io/dockerconfigjson
+      stringData:
+        .dockerconfigjson: ""
     # The DNS-01 solver's credential (ADR-0205). Without it the public issuer
     # never becomes Ready and no wildcard certificate is ever issued.
     - name: cloudflare-api-token
