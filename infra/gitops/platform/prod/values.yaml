@@ -143,3 +143,55 @@ publicTls:
   envHost: prod.example.com
   acme:
     email: ops@example.com
+
+# Identity, at this environment's host. The canonical auth config (infra/auth) is
+# written against a placeholder, and every one of these is a URL a BROWSER is sent
+# to — so an environment that does not override them redirects its operators to a
+# domain it does not own, and the failure is a login page that never loads rather
+# than anything naming the wrong host.
+#
+# TOTP and WebAuthn are domain-bound on top of that: a second factor enrolled
+# against the wrong relying party cannot be presented to this one.
+kratos:
+  kratos:
+    config:
+      serve:
+        public:
+          base_url: "https://prod.example.com/auth/"
+      selfservice:
+        default_browser_return_url: https://prod.example.com/
+        allowed_return_urls:
+          - https://prod.example.com/
+        flows:
+          error:        { ui_url: https://prod.example.com/auth/error }
+          login:        { ui_url: https://prod.example.com/auth/login }
+          registration: { ui_url: https://prod.example.com/auth/register }
+          recovery:     { ui_url: https://prod.example.com/auth/recovery }
+          verification: { ui_url: https://prod.example.com/auth/verification }
+          settings:     { ui_url: https://prod.example.com/auth/settings }
+        methods:
+          totp:
+            config:
+              issuer: prod.example.com
+          webauthn:
+            config:
+              rp:
+                id: prod.example.com
+                display_name: Platform
+                origins: ["https://prod.example.com"]
+      # The ops tools are served at their own origins under `ops.<host>`
+      # (ADR-0306), so the session cookie has to cover the whole host rather than
+      # the apex alone.
+      session:
+        cookie:
+          domain: prod.example.com
+
+# Where Oathkeeper sends an unauthenticated browser request (ADR-0305).
+oathkeeper:
+  oathkeeper:
+    config:
+      errors:
+        handlers:
+          redirect:
+            config:
+              to: https://prod.example.com/auth/login
