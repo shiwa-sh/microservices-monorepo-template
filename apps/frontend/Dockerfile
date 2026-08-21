@@ -17,6 +17,14 @@ COPY libs/ts/id/package.json libs/ts/id/
 COPY libs/ts/money/package.json libs/ts/money/
 COPY libs/ts/observability/package.json libs/ts/observability/
 COPY libs/ts/schemas/package.json libs/ts/schemas/
+# The generated SDKs are a GLOB member (`libs/ts/sdks/*`) and are committed like
+# every other generated artefact, so bun resolves each one and needs its manifest
+# here. They cannot be enumerated the way the members above are: a service added by
+# `mise run new-service` brings a new SDK with it, and a list would be one more
+# place to remember. Copying the tree costs an install-cache miss whenever an SDK
+# changes, which is the cheaper of the two failures — the other one is
+# `@sdks/<name>@workspace:* failed to resolve`, minutes into an image build.
+COPY libs/ts/sdks/ libs/ts/sdks/
 RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
 
 FROM oven/bun:${BUN_VERSION}-alpine AS build
