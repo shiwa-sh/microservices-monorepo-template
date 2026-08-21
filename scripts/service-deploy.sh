@@ -76,6 +76,18 @@ deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-
 if [ "$KIND" = service ]; then
   deps="${deps} dep:db-secrets"
 fi
+# ONLY ON THE INNER LOOP. A `dep:*` is a lightweight STAND-IN — a plain Postgres,
+# `temporal server start-dev`, an in-memory OpenFGA (ADR-0600) — and the full tier
+# already runs the real component, deployed by Argo from the same charts production
+# uses. Applying a stand-in there does not add a missing dependency: it adds a
+# SECOND database beside CNPG's, in the same namespace, for a service whose values
+# point at the real one. Measured: `cluster:add -- analytics` on the full tier
+# created `deployment/postgres` next to a healthy CNPG cluster and then failed
+# waiting for it to roll out, so the service it was asked to deploy never got built.
+if [ "$(cluster_tier)" = "full" ]; then
+  detail "full tier: dependencies come from the platform charts, not stand-ins"
+  deps=""
+fi
 for dep in $deps; do
   bash scripts/dep-apply.sh "${dep#dep:}"
 done
