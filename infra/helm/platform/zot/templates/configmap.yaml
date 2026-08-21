@@ -67,9 +67,15 @@ data:
         `unexpected EOF` and an endless retry loop; what the registry logs is an
         i/o timeout reading from its own peer, which reads as a network fault
         rather than as its own deadline.
+
+        A DURATION STRING, never a bare number. These are Go durations, so a JSON
+        number is nanoseconds: `600` is 600ns, every request past the first byte
+        dies instantly, and the edge in front reports 502 while the registry's own
+        log shows it answering. Larger is not safer here — it is six hundred
+        millionths of a second.
         */}}
-        "readTimeout": {{ .Values.zot.http.readTimeoutSeconds }},
-        "writeTimeout": {{ .Values.zot.http.writeTimeoutSeconds }},
+        "readTimeout": "{{ .Values.zot.http.readTimeout }}",
+        "writeTimeout": "{{ .Values.zot.http.writeTimeout }}",
         "address": "0.0.0.0",
         "port": "{{ .Values.zot.service.port }}",
         "auth": { "htpasswd": { "path": "/etc/zot-auth/htpasswd" } },
