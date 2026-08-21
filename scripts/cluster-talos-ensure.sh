@@ -20,6 +20,13 @@ NAME="$(cluster_name)"
 CTX="$(cluster_ctx)"
 REGISTRY="registry.localhost"
 WORKERS="${TALOS_WORKERS:-2}"
+# Overridable, because how much a laptop can spare is the laptop's business. The
+# defaults are what the FULL tier needs; the inner loop (cluster:base) runs far
+# less and can be given less through these.
+CP_MEMORY="${TALOS_CP_MEMORY:-4096}"
+WORKER_MEMORY="${TALOS_WORKER_MEMORY:-4096}"
+CP_CPUS="${TALOS_CP_CPUS:-2}"
+WORKER_CPUS="${TALOS_WORKER_CPUS:-2}"
 # The subnet is pinned rather than left to the provisioner's default, because the
 # proxy patch below needs the gateway's address before the network exists.
 SUBNET="${TALOS_SUBNET:-10.5.0.0/24}"
@@ -164,9 +171,24 @@ PATCH
   # coredns checks when `cni: name: none` is set, and the create returns with the
   # nodes still NotReady. Measured: the run prints
   # `waiting for all k8s nodes to report ready: SKIP` and exits 0.
+  # NODE SIZE. `talosctl cluster create` defaults to 2 GB and 2 CPUs per node, which
+  # is smaller than this platform is: the control plane alone runs etcd, the API
+  # server, the scheduler, the controller manager, Cilium and Argo CD's controller.
+  # At the default the container sits pegged at its memory cap and the API server
+  # starts timing out — which surfaces as `TLS handshake timeout` from kubectl and
+  # `unable to decode an event from the watch stream: http2: client connection lost`
+  # from anything watching, neither of which mentions memory.
+  #
+  # Measured on a 31 GB host: control plane at 1.98 GiB of a 2 GiB cap with 39
+  # Applications synced. The workers hold the workloads and need the same room.
+  # ADR-0600 already says the full tier costs laptop RAM; this is the number.
   talosctl cluster create docker \
     --name "$NAME" \
     --workers "$WORKERS" \
+    --memory "$CP_MEMORY" \
+    --memory-workers "$WORKER_MEMORY" \
+    --cpus "$CP_CPUS" \
+    --cpus-workers "$WORKER_CPUS" \
     --image "ghcr.io/siderolabs/talos:v${TALOS_VERSION}" \
     --kubernetes-version "$K8S_VERSION" \
     --subnet "$SUBNET" \
