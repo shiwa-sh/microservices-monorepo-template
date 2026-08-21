@@ -1,6 +1,20 @@
 ## Admission/conversion webhooks are called BY the Kubernetes API server. Without
 ## these allows a namespace-wide default-deny silently breaks cert issuance and
 ## CNPG cluster reconciliation (the apiserver → webhook call times out).
+##
+## `host` and `remote-node` sit beside `kube-apiserver` for the reason 00-baseline
+## gives for the opposite direction: an API server running ON a cluster node
+## reaches a pod from that node's own address, which Cilium classifies as `host`
+## when it is the same node and `remote-node` when it is not — and that identity
+## takes precedence over `kube-apiserver`. With only `kube-apiserver` here, the
+## call is admitted exactly when the webhook pod happens to share a node with the
+## API server instance that made it.
+##
+## That intermittency is the whole difficulty. A webhook that works right after a
+## restart and times out an hour later reads as a flaky pod, and every layer
+## reports healthy: the pod is Running, the Service has endpoints, and the error
+## surfaces in a THIRD component's log as a failure to write its own resource.
+## Hubble names it in one line — `(remote-node) <> …:10250 Policy denied DROPPED`.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -11,7 +25,7 @@ spec:
       app.kubernetes.io/name: webhook
       app.kubernetes.io/instance: cert-manager
   ingress:
-    - fromEntities: [kube-apiserver]
+    - fromEntities: [kube-apiserver, host, remote-node]
       toPorts:
         - ports: [{ port: "10250", protocol: TCP }]
 ---
@@ -24,7 +38,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: cloudnative-pg
   ingress:
-    - fromEntities: [kube-apiserver]
+    - fromEntities: [kube-apiserver, host, remote-node]
       toPorts:
         - ports: [{ port: "9443", protocol: TCP }]
 ---
@@ -44,6 +58,6 @@ spec:
     matchLabels:
       app.kubernetes.io/name: temporal-worker-controller
   ingress:
-    - fromEntities: [kube-apiserver]
+    - fromEntities: [kube-apiserver, host, remote-node]
       toPorts:
         - ports: [{ port: "9443", protocol: TCP }]
