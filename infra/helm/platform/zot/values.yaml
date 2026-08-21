@@ -96,6 +96,13 @@ zot:
   service:
     port: 5000
 
+  # Seconds a single request may take. Sized for the largest layer this platform
+  # pushes rather than for the API calls that dominate the count — see the
+  # configmap for what the default does to a push.
+  http:
+    readTimeoutSeconds: 600
+    writeTimeoutSeconds: 600
+
   # ADR-0204. The registry is on the critical path for pod starts, so the limit is
   # the one that decides whether a scale-up succeeds; it is set for a concurrent
   # multi-layer pull rather than for the idle case.

@@ -59,6 +59,17 @@ data:
         }
       },
       "http": {
+        {{- /*
+        An image push is a LONG request. A layer arrives as one streamed PATCH and
+        zot writes it through to object storage as it goes, so the request lasts as
+        long as the slowest of the client link and the store — and upstream's
+        60-second default cuts a large layer mid-stream. What the client sees is
+        `unexpected EOF` and an endless retry loop; what the registry logs is an
+        i/o timeout reading from its own peer, which reads as a network fault
+        rather than as its own deadline.
+        */}}
+        "readTimeout": {{ .Values.zot.http.readTimeoutSeconds }},
+        "writeTimeout": {{ .Values.zot.http.writeTimeoutSeconds }},
         "address": "0.0.0.0",
         "port": "{{ .Values.zot.service.port }}",
         "auth": { "htpasswd": { "path": "/etc/zot-auth/htpasswd" } },
