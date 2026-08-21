@@ -21,6 +21,7 @@ cd "$ROOT"
 
 VALUES="infra/helm/platform/postgres/values.yaml"
 LOCAL_SECRET="infra/gitops/platform/local/secrets/platform.enc.yaml"
+PG_POLICY="infra/helm/platform/network-policies/templates/10-datastores.yaml"
 [ -f "$VALUES" ] || fail "$VALUES not found"
 
 # The bootstrap database plus every one created afterwards.
@@ -65,6 +66,15 @@ for dir in services/*/; do
   # stay in clear text and this needs no key and no decryption.
   if ! grep -q "name: ${svc}-db" "$LOCAL_SECRET"; then
     warn "${svc} owns a schema but ${LOCAL_SECRET} carries no ${svc}-db Secret"
+    rc=1
+  fi
+  # AND THE THIRD PIECE: reaching the database. Postgres selects its own endpoint,
+  # so its policy is the complete caller list — a schema-owning service missing from
+  # it connects to a ClusterIP that answers nothing, and the migration init
+  # container fails with `connect: connection timed out`, which names an address.
+  # `analytics` was missing here too.
+  if ! grep -q "app.kubernetes.io/name: ${svc} }" "$PG_POLICY"; then
+    warn "${svc} owns a schema but ${PG_POLICY} does not admit it to Postgres"
     rc=1
   fi
   for readme in infra/gitops/platform/*/secrets/README.md; do
