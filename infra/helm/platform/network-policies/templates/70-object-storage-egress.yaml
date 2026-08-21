@@ -56,3 +56,33 @@ spec:
       toPorts:
         - ports: [{ port: "443", protocol: TCP }]
 {{- end }}
+{{- if .Values.publicTls.enabled }}
+---
+## cert-manager, when the environment issues PUBLIC certificates (ADR-0205).
+##
+## An ACME issuer talks to two places on the internet and neither is optional: the
+## CA's directory and order endpoints, and the DNS provider's API that answers the
+## DNS-01 challenge. Both are 443 to `world`.
+##
+## Gated on the same flag as the issuer itself, so an environment using the local
+## self-signed CA keeps cert-manager with no world egress at all — the issuer it
+## runs never leaves the cluster.
+##
+## Without it the ClusterIssuer reports
+## `Failed to register ACME account: … i/o timeout`, which reads as Let's Encrypt
+## being unreachable rather than as this cluster declining to reach it. Every
+## certificate then stays `False` with no challenge object ever created, because
+## registration precedes the order.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cert-manager-acme-egress
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+  egress:
+    - toEntities: [world]
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+{{- end }}

@@ -63,3 +63,10 @@ forgejo:
 # default; an environment that turns that extension off should turn this off with
 # it, so the registry keeps no egress it does not use.
 registryMirror: true
+
+# Whether this environment issues PUBLIC certificates (ADR-0205), which decides
+# whether cert-manager may reach the CA and the DNS provider. Off by default and
+# turned on by the same per-env value that turns the issuer on, so the two cannot
+# disagree.
+publicTls:
+  enabled: false
