@@ -122,5 +122,33 @@ argo-cd:
     # IPv4-reachable) so redis doesn't wedge on IPv6-less networks.
     image:
       repository: public.ecr.aws/docker/library/redis
-  controller: { replicas: 1 }
-  applicationSet: { replicas: 1 }
+  # ADR-0204. The chart declares no resources at all, so without these every Argo
+  # component runs on the namespace LimitRange's 512Mi default — including the
+  # application controller, which is the one process that makes GitOps happen.
+  #
+  # **What that failure looks like is not a crash.** The controller OOMs, restarts,
+  # reconciles for a while, OOMs again; meanwhile every Application keeps its last
+  # status, so the UI shows a fleet of Synced+Healthy apps that are synced to a
+  # commit from hours ago. The tell is `status.reconciledAt` falling behind, and a
+  # refresh annotation that stays on the object because nothing consumed it.
+  #
+  # What decides the number is the number of Applications and the resources they
+  # track, not cluster size — plus server-side diff (configs.params above), which
+  # adds a dry-run apply per resource. Measured: OOMKilled at 512Mi with 39
+  # Applications on a three-node cluster.
+  controller:
+    replicas: 1
+    resources:
+      requests: { cpu: "250m", memory: "512Mi" }
+      limits: { memory: "2Gi" }
+  # The repo server renders every chart in the fleet, each render holding a
+  # dependency tree in memory.
+  repoServer:
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits: { memory: "1Gi" }
+  applicationSet:
+    replicas: 1
+    resources:
+      requests: { cpu: "50m", memory: "128Mi" }
+      limits: { memory: "512Mi" }
