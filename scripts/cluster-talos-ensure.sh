@@ -32,6 +32,14 @@ WORKER_CPUS="${TALOS_WORKER_CPUS:-2}"
 SUBNET="${TALOS_SUBNET:-10.5.0.0/24}"
 GATEWAY="${SUBNET%.*/*}.1"
 CP_IP="${SUBNET%.*/*}.2"
+# The registry shares the cluster network (see the attach step) and gets a PINNED
+# address high in the subnet, clear of the nodes. Left to IPAM it takes the lowest
+# free address, and after a host reboot that is the control plane's: docker starts
+# `--restart=always` containers before anything else, so the registry claims .2 and
+# the control plane then fails to start with "failed to set up container
+# networking: Address already in use" — which names neither the registry nor the
+# address.
+REG_IP="${SUBNET%.*/*}.200"
 # Pinned, and pinned to the same version the deployed machine configs are written
 # against (infra/talos/). A local tier on a different Talos than production is a
 # tier that cannot answer the question it exists to answer.
@@ -105,6 +113,22 @@ if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
   step "creating local registry container '${REGISTRY}:5000'"
   docker run -d --restart=always --name "$REGISTRY" \
     -p 127.0.0.1:5000:5000 registry:2 >/dev/null
+fi
+
+# Move the registry off a node's address BEFORE any node starts. An attachment from
+# an earlier run carries whatever address IPAM gave it then, and a reboot re-races
+# it against the nodes; re-attaching is the only way to change one.
+registry_net_ip() {
+  docker inspect "$REGISTRY" \
+    --format "{{with index .NetworkSettings.Networks \"${NAME}\"}}{{.IPAddress}}{{end}}" 2>/dev/null
+}
+if docker network inspect "$NAME" >/dev/null 2>&1; then
+  cur_reg_ip="$(registry_net_ip)"
+  if [ -n "$cur_reg_ip" ] && [ "$cur_reg_ip" != "$REG_IP" ]; then
+    step "re-pinning ${REGISTRY} from ${cur_reg_ip} to ${REG_IP} on the ${NAME} network"
+    docker network disconnect "$NAME" "$REGISTRY"
+    docker network connect --ip "$REG_IP" "$NAME" "$REGISTRY"
+  fi
 fi
 
 # A container is not a cluster. A create that failed part way leaves containers and
@@ -220,8 +244,8 @@ fi
 if docker network inspect "$NAME" >/dev/null 2>&1; then
   if ! docker inspect "$REGISTRY" --format \
     '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | grep -qw "$NAME"; then
-    step "attaching ${REGISTRY} to the ${NAME} docker network"
-    docker network connect "$NAME" "$REGISTRY"
+    step "attaching ${REGISTRY} to the ${NAME} docker network at ${REG_IP}"
+    docker network connect --ip "$REG_IP" "$NAME" "$REGISTRY"
   fi
 fi
 
