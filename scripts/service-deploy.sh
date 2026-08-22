@@ -122,44 +122,22 @@ done
 
 # publish_image — get a locally built image onto the ACTIVE TIER's nodes.
 #
-# The two tiers need different mechanisms, and the difference is not incidental:
+# One mechanism for both tiers, because both are kind (ADR-0600): `kind load
+# docker-image` copies from the host's image store straight into every node of the
+# named cluster, so a three-node tier needs no registry round trip and no pull
+# credential for an image that already exists on this machine.
 #
-#   inner loop (kind)  `kind load docker-image` copies from the host's image store
-#                      straight into the node. Fast, and there is nothing to
-#                      reconcile from git here, so directness costs nothing.
-#
-#   full tier (Talos)  there is no load path. A Talos node holds no image the
-#                      cluster did not pull, and there is no host store to share —
-#                      so the image is PUSHED to the local registry and the kubelet
-#                      pulls it, which is the path a deployed environment uses
-#                      (ADR-0600). The registry is plain HTTP, which the nodes
-#                      accept because infra/talos/local/patch.yaml declares it as a
-#                      mirror; without that the pull fails on a TLS handshake
-#                      against a plaintext endpoint.
-#
-# The push address is 127.0.0.1:5000 and the pull address is registry.localhost:5000
-# — the same registry under two names. Docker treats loopback as insecure so the
-# push needs no daemon.json, and blobs are keyed by repository path, so the two
-# names never have to agree.
+# This is the imperative path, where there is nothing to reconcile from git. What
+# Argo deploys still comes from the local registry by a `registry.localhost:5000`
+# reference, exactly as a deployed environment pulls from its own registry — that
+# path is cluster:full's build_push, not this one.
 publish_image() {
-  local ref="$1"
-  if [ "$(cluster_tier)" = "full" ]; then
-    docker tag "$ref" "127.0.0.1:5000/${ref}"
-    docker push -q "127.0.0.1:5000/${ref}" >/dev/null
-    return
-  fi
-  kind load docker-image "$ref" --name "$(cluster_name)" >/dev/null
+  kind load docker-image "$1" --name "$(cluster_name)" >/dev/null
 }
 
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
-# On the full tier the pod pulls by the registry name the NODES resolve, not by the
-# bare image name the host built — a bare name would send the kubelet to Docker Hub.
 REPO="${IMAGE}"
 WORKER_REPO="${SVC}-worker"
-if [ "$(cluster_tier)" = "full" ]; then
-  REPO="registry.localhost:5000/${IMAGE}"
-  WORKER_REPO="registry.localhost:5000/${SVC}-worker"
-fi
 SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 
 # Build identity baked into the image (ADR-0103): the working-tree SHA (+ -dirty

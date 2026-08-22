@@ -82,14 +82,16 @@ The restart is the durable fix; the stamp survives only until the node is recrea
 
 ## Step 3 — Export the proxy before the first cluster bring-up
 
-Export it in the shell you bring a cluster up from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`. kind cannot inject the proxy into the cluster node, so a proxied machine preloads images on the host instead:
+Export it in the shell you bring a cluster up from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`:
 
 ```sh
 export HTTPS_PROXY=http://127.0.0.1:8118
-CLUSTER_PRELOAD=1 mise run cluster:full
+mise run cluster:full
 ```
 
-`cluster:preload` host-pulls the platform images — through the Docker daemon proxy, which handles large TLS blobs fine — and `kind load`s them into the node, so the node's containerd never has to reach the proxy. Anything that still wedges later (a chart bump pulling an image preload has not seen) is rescued by `mise run cluster:unwedge`, the same host-pull + load keyed to the stuck pods.
+kind cannot inject the proxy into a cluster node, and it does not need to: the nodes mirror every upstream registry at the local zot, which is a host container and reaches the proxy through the Docker daemon's own configuration (step 1). One component holds egress for images, so the node's containerd never talks to the proxy at all ([ADR-0105](../adr/0105-image-registry.md)). Because zot caches on first request, nothing has to be preloaded and no image list has to be maintained.
+
+Anything that still wedges — a proxy that truncates one large layer mid-pull — is rescued by `mise run cluster:unwedge`, which host-pulls what is stuck, `kind load`s it, and restarts the waiting pods.
 
 One more interaction, found the hard way: the Docker daemon's own proxy environment (step 1) IS inherited by the kind node container. Docker's embedded DNS answers a node with its IPv6 ULA (`fc00::/7`) address first, and if the daemon's `NO_PROXY` does not include that range, the node's own kubectl/kubelet dial the API server THROUGH the proxy and fail with EOF — which aborts `kind create` itself before the cluster is usable. Include `fc00::/7` in the daemon's `NO_PROXY` (the example in step 1 shows the range).
 
@@ -189,11 +191,13 @@ go `Unknown` with `failed to list refs: ... EOF` against GitHub. That is the rol
 the removal — confirm with `git ls-remote` from inside the repo-server, then clear it with
 `--hard-refresh` for the same caching reason as above.
 
-Everything below reads the inner loop's node ([ADR-0600](../adr/0600-local-development-loop.md)). The full tier is provisioned from a machine config, which carries its own proxy and registry-mirror settings, so its node name and its recovery path differ.
+Everything below reads a local kind node. Both local tiers are kind ([ADR-0600](../adr/0600-local-development-loop.md)), so the node name is the only thing that differs between them.
 
 ## Talos nodes — the machine config, not the shell
 
-The steps above configure a **kind** node, which inherits a good deal from the host
+This section is about **deployed** environments ([ADR-0200](../adr/0200-cluster-topology.md)); no local tier applies a machine config.
+
+The steps above configure a kind node, which inherits a good deal from the host
 docker daemon. A Talos node inherits nothing: there is no shell, no daemon
 configuration, and no environment to export into. The proxy is part of the machine
 config or it does not exist.
@@ -209,19 +213,18 @@ machine:
 Two things catch people, and both were measured rather than guessed:
 
 **`127.0.0.1` is the node.** A proxy on your host's loopback is not reachable from
-inside a node container by that address; use the address the node can route to — the
-docker network's gateway for the local tier, a routable address for real hardware.
+inside a node by that address; use the address the node can route to — a routable
+address for real hardware.
 
 **`no_proxy` must carry the pod and service CIDRs.** Without them the kubelet, the
 API server and every pod-to-pod call go out through the proxy, which fails
 differently and later than a missing proxy does.
 
-**The failure never mentions the proxy.** Without this the node reports
+**The failure never mentions the proxy.** Without this a node reports
 `403 Forbidden` fetching `registry.k8s.io/etcd`, etcd never leaves `Preparing`, and
-`talosctl cluster create` times out on "waiting for etcd to be healthy" — which
-reads as a broken cluster rather than a blocked network. That is the single most
-expensive way to learn this, and it is why `cluster-talos-ensure.sh` injects the
-block automatically from the host's own proxy environment.
+the bootstrap times out on "waiting for etcd to be healthy" — which reads as a
+broken cluster rather than a blocked network. Measured, and the most expensive way
+to learn it.
 
 ## Stalled image pulls
 
@@ -238,10 +241,4 @@ Docker resumes and retries reliably where containerd does not, which is why the 
 
 On a network whose registry blocks **digest** pulls, so that only tags resolve, pre-pull the platform images by tag and `kind load docker-image` them. The upstream charts pin images by digest ([ADR-0104](../adr/0104-supply-chain-security.md)), which is what fails.
 
-**On the full tier there is no `kind load`.** A Talos node holds no image the cluster did not pull, so the equivalent is to put the image in a registry the node can reach:
-
-```sh
-TIER=full mise run cluster:preload   # host-pull, then push to the local registry
-```
-
-The nodes resolve it because `infra/talos/local/patch.yaml` mirrors the upstream registries at that address. Longer term the same job is zot's: as a pull-through cache it fetches on first request, so nothing has to be preloaded at all ([ADR-0105](../adr/0105-image-registry.md)).
+`kind load` works on both tiers, so this recovery is the same wherever it is needed. Pass `--name` to reach the full tier's cluster.

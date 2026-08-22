@@ -195,8 +195,11 @@ policies:
   # tree.
   validationFailureAction: Audit
 
-# Talos ships no storage provisioner and the full local tier is Talos in Docker
-# (ADR-0600), so this is what an unannotated PVC resolves to there. Inert on the
-# inner loop: kind brings its own provisioner and never installs this chart.
+# OFF locally, and this is the one component whose local source differs from the
+# deployed one (ADR-0600). Both local tiers are kind, which ships a provisioner and
+# a default StorageClass; installing this chart beside it puts TWO provisioners on
+# one default annotation, and which of them serves an unannotated PVC is then a
+# race. A deployed environment runs the chart, because Talos ships no provisioner
+# (ADR-0207).
 localPath:
-  enabled: true
+  enabled: false

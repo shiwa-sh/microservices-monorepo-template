@@ -85,6 +85,7 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | pgweb | `pgweb.ops.<host>` | read-only break-glass |
 | Mailpit | `mailpit.ops.<host>` | **non-prod only** — the mail sink's viewer ([ADR-0307](0307-outbound-email.md)) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the sole exposed surface of that component |
+| zot console | `zot.ops.<host>` | the registry's catalogue; carries its own credential after the edge gate ([ADR-0105](0105-image-registry.md)) |
 
 ### The one origin outside both tiers
 
@@ -93,6 +94,26 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | `registry.<host>` | the registry's own credentials ([ADR-0105](0105-image-registry.md)), never the operator session |
 
 A registry client is not a browser. `docker login`, containerd and BuildKit speak the OCI distribution spec's own authentication challenge and follow no redirect to a login page, so forward-auth in front of this origin fails every push and every pull with a document the client cannot read. The origin sits outside the `ops.` label for the reason the label exists: it never sees the operator cookie, so it must not be inside its scope.
+
+### The local environment's host name
+
+A local tier fills the `envHost` slot like any other environment ([ADR-0205](0205-environment-parity.md)), so the grammar above holds unchanged and only the domain differs. That domain is **`dev.localtest.me`**, and the label is load-bearing: it is the environment slot, not a local marker, which is what keeps the local values file the same shape as a deployed one. It also scopes the operator session cookie, and a cookie on a bare shared domain is sent to every other project using it.
+
+The field splits into two families, and each buys the same property at a different price.
+
+| Option | Standing | What it costs |
+| --- | --- | --- |
+| **`localtest.me`** (also `lvh.me`, `vcap.me`) | none — an ordinary registration | **Chosen.** Real public DNS wildcard to `127.0.0.1`, so it resolves identically on every machine and every client with no setup. The price is a dependency on someone else's domain *(reasoned)* |
+| `.test` | RFC 6761 §6.2, reserved for testing | Guaranteed never to collide, and specified to answer **NXDOMAIN** — so it resolves only where a wildcard resolver is installed. That setup is per machine and differs by operating system |
+| `.localhost` | RFC 6761 §6.3, the strongest specification of the three: resolvers **SHOULD** return the loopback address | Rejected. The specification is a SHOULD and implementations disagree: measured on a developer machine, Go's resolver returns `no such host` for a name under `.localhost` while `getent` answers `::1` — with no IPv4. A perf suite written in Go therefore cannot reach the edge |
+| `nip.io`, `sslip.io` | none | Encodes an IP in the name, which answers a question a loopback edge does not ask. The right answer if the tier ever moves to a routable address |
+| `.internal` | ICANN-reserved, never delegated; no IETF standard | Same resolver requirement as `.test`, with less precedent |
+
+**Zero setup is the property being bought.** A name that resolves everywhere makes the domain invisible to a newcomer, and an invisible domain is the best onboarding property available. The standing risk is that the domain is a registration rather than a reservation, and that risk is not hypothetical — `xip.io`, the most widely adopted member of this family, was withdrawn after its whole domain was classified as social-engineering content, which is a hazard of the redirect pattern rather than of one operator. **The trigger to move is that class of loss, and the destination is `.test`**, which keeps the grammar; `.localhost` is not a destination, because it carries the same migration cost while keeping a resolution problem.
+
+**The registry is the exception, and it is not on this surface at all.** `registry.localhost:5000` is a docker container name resolved by the container runtime's embedded DNS, not a host name resolved by a browser. The distinction is the client: inside a node, `127.0.0.1` is the node, so any name resolving to loopback sends an image pull to the wrong place. It also cannot sit behind the edge, because the edge's own image has to be pulled before the edge exists ([ADR-0105](0105-image-registry.md)). A `.localhost` name is right here for the same reason it is wrong above — nothing browses it, and the only resolver that has to agree is the container runtime's.
+
+**The console is the same backend on the other side of that line.** `zot.ops.<host>` serves the catalogue to a browser and takes the full ops chain; this origin serves the distribution API to a client that cannot pass one. One process, two origins, and the gate is chosen by which kind of client arrives rather than by which port answers. The console still meets zot's own htpasswd afterwards, because that policy is one configuration for one process: the alternative is an anonymous read policy, which would open every pull here to make a page load there.
 
 The cluster's own pulls do not use this origin at all — a kubelet reaches the Service directly. It exists for the pipeline that pushes and for a person inspecting what was pushed.
 

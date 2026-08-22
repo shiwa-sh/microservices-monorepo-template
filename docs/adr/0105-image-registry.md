@@ -79,8 +79,8 @@ docker.io, quay.io, ghcr.io and registry.k8s.io — fetching an image on first
 request and keeping it.
 
 The reason is not registry performance, it is **egress surface**. Every layer that
-pulls an image otherwise needs its own network configuration: each Talos node, each
-kind node, each build host. On a proxied or firewalled network that is the same
+pulls an image otherwise needs its own network configuration: each deployed node,
+each local kind node, each build host. On a proxied or firewalled network that is the same
 credential and the same allow-list entry maintained in four places, and the failure
 when one is missed does not mention the network — a Talos node reports
 `403 Forbidden` fetching etcd and the cluster never bootstraps, or Traefik sits in
@@ -93,9 +93,11 @@ firewall rule.
 | Option | Verdict |
 | --- | --- |
 | **zot's `sync` extension, `onDemand`** | **Chosen.** zot is already the registry, so this is configuration rather than a new component, and it handles all four upstreams in one instance. Nothing has to be preloaded and no image list has to be derived or kept current *(reasoned)* |
-| A push-filled mirror | Works, and the platform keeps it as `mise run cluster:preload` for the local tiers. It needs a list of images derived from the charts, and that list is the part that rots — an image nobody thought to add falls back to the upstream and the mirror bought nothing |
+| A push-filled mirror | Works, and it is what the local tiers ran before this. It needs a list of images derived from the charts, and that list is the part that rots: an image nobody thought to add falls back to the upstream and the mirror bought nothing. Measured — a Job's image behind a chart's `if` was invisible to the derivation, and the pull it fell back to failed |
 | `registry:2` as a pull-through cache | The obvious tool and it cannot do this: it proxies exactly **one** upstream per instance, so four upstreams is four registries to run |
 | Per-node proxy configuration, no mirror | Correct, and it is the same configuration repeated in four places — every one of which has to be right, and none of which says so when it is not |
+
+**The local tiers run the same registry, as a host container.** A laptop's mirror is zot rather than a second product, so the mirroring above is the mirroring a developer gets and the image path is not a place the environments differ ([ADR-0205](0205-environment-parity.md)). It sits beside the cluster rather than inside it: the in-cluster instance stores its images in the object store, and cannot serve the images the object store's own pods need to start. Two deltas are local-only and both are properties of a throwaway host container — its storage is a directory rather than a bucket, and it serves anonymously, because a credential on a laptop mirror guards nothing and every pull would carry it.
 
 **Fallback to the upstream registry stays enabled.** An image the mirror does not
 have still resolves, slowly, rather than failing — the mirror is an accelerator,
@@ -125,7 +127,8 @@ it does not remove the proxy.
 
 - **The registry is on the critical path for pod starts.** A registry outage stalls scale-ups and node replacements for uncached images. Mitigated by object-storage-backed statelessness, which makes recovery a redeploy.
 - **zot is a younger project than Harbor**, with a smaller operator population. Accepted under principle 4 on exit cost: images are re-pushable and the OCI API is the interface. **The exit cost is not the whole cost.** The operator population is a second, independent price — nobody arriving has debugged this component before, so the first incident is also the first hour anyone has spent inside it. That is the same class of cost [ADR-0200](0200-cluster-topology.md) accepts openly for Talos, and it is paid at the worst moment rather than at adoption.
-- **No web UI worth the name.** Inspecting an image is a `crane` or `cosign` call. Accepted: image inspection is an engineer's task, not an operator's dashboard ([ADR-0501](0501-operator-uis-and-dashboards.md)).
+- **The console reads; it does not administer.** zot's `ui` and `search` extensions serve the catalogue at `zot.ops.<host>` ([ADR-0306](0306-trust-tiers-and-urls.md)), which answers "what is in the registry" without a shell. Projects, quotas and retention remain committed files with no screen that writes one, and scripted inspection is a `crane` or `cosign` call. CVE scanning is a sub-key of the same extension and is off: it pulls a vulnerability database on a schedule, and scanning belongs to the merge gate ([ADR-0203](0203-policy-enforcement.md)).
+- **The console is a second login.** zot's access policy is one configuration for one process, so a browser that cleared the ops gate then meets the same htpasswd the distribution API uses. An anonymous read policy would remove the prompt and open every pull on `registry.<host>` to do it.
 - **Robot credentials are long-lived** where the forge cannot mint short-lived ones, which is the same constraint [ADR-0102](0102-source-control-and-ci.md) records for signing identity.
 
 ### What would change this decision
@@ -134,7 +137,7 @@ it does not remove the proxy.
 | --- | --- |
 | The forge is replaced | **None.** No forge's bundled registry is eligible, whichever forge it is, for the coupling reason above |
 | Multi-tenancy, quotas, or replication becomes a requirement | **Decisive.** Those are the capabilities Harbor was rejected for carrying, and needing one of them means the concern grew past what a single-instance registry answers |
-| The registry needs an administrative console for a non-engineer | **Decisive**, and it is the accepted absence stated above rather than a discovered gap |
+| The registry needs an administrative console for a non-engineer | **Decisive.** The console above reads the catalogue; a surface that writes projects, quotas or retention is the capability Harbor was rejected for carrying |
 | Scanning is wanted at the registry rather than in CI | **None.** [ADR-0203](0203-policy-enforcement.md) assigns provenance to admission and scanning to the merge gate; moving it here would be a policy-layer change, not a registry choice |
 | The image estate outgrows one instance per environment | **None** on the component, decisive on its topology: zot mirrors in the same config file, which is the recorded seam |
 
@@ -142,6 +145,8 @@ it does not remove the proxy.
 
 - Images are stored in a self-hosted zot registry backed by object storage.
 - Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI.
+- The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](0306-trust-tiers-and-urls.md)).
+- Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else.
 - Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](0104-supply-chain-security.md)). `(ref: OCI 1.1)`
 - Vulnerability scanning runs in CI, not in the registry.
 - The registry the pipeline pushes to is set by forge variables, never written into a workflow.

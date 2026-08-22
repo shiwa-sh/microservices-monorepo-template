@@ -13,8 +13,8 @@
 # Teardown: mise run cluster:stop (stop) / mise run cluster:delete (delete).
 set -euo pipefail
 
-# The full tier runs on Talos, not kind (ADR-0600). Set BEFORE the context library
-# is sourced: it resolves the cluster name and kube context from this, and a
+# The full tier is its own cluster (ADR-0600). Set BEFORE the context library is
+# sourced: it resolves the cluster name and kube context from this, and a
 # cluster:full that resolved to the inner loop's context would install the whole
 # platform onto the wrong cluster.
 export TIER=full
@@ -37,18 +37,35 @@ ac() { KUBECONFIG="$AC_KUBECONFIG" argocd --core "$@"; }
 
 # 1. Cluster + CNI (a CNI must exist before Argo's pods can schedule).
 #
-# The Talos provisioner installs Cilium itself, and it has to: this tier's machine
-# config carries `cni: name: none`, so the nodes never go Ready — and
-# `talosctl cluster create` never returns — until a CNI is delivered. There is no
-# separate cilium-install step here for that reason.
+# The cluster is created without one — `disableDefaultCNI` in the tier's kind config
+# — so the nodes stay NotReady until Cilium is installed, and nothing schedules
+# before it. Both steps are the inner loop's, run against this tier's cluster.
 bash scripts/cluster-dispatch.sh ensure
-# On a proxied network the node's containerd can wedge pulling the large Cilium /
-# ArgoCD images through privoxy, stalling the `helm --wait` steps below (which run
-# before Argo, so cluster:unwedge can't rescue them). CLUSTER_PRELOAD=1 warms those
-# images on the host first. Off by default — clean networks never need it.
-if [ "${CLUSTER_PRELOAD:-0}" = "1" ]; then
-  echo "→ CLUSTER_PRELOAD=1: preloading bootstrap-critical images"
-  bash scripts/cluster-preload-images.sh
+bash scripts/cilium-install.sh
+
+# 1b. Kyverno's admission webhook, on a cluster that already has one.
+#
+#     Step 1 re-installs Cilium on every run, which cycles the pod network and
+#     restarts the Kyverno pods with it. Their ValidatingWebhookConfiguration is
+#     `failurePolicy: Fail`, so while the admission controller is unready EVERY
+#     apply in the cluster is rejected — and the next one here is ArgoCD's
+#     pre-upgrade hook Job. The whole `helm upgrade` then fails on
+#     `failed calling webhook "validate.kyverno.svc-fail": connect: connection
+#     refused`, which names a webhook and a port and nothing that suggests waiting.
+#
+#     A first bring-up has no kyverno namespace and skips this; Argo installs it
+#     later, in its own wave.
+if k get ns kyverno >/dev/null 2>&1; then
+  echo "→ waiting for the Kyverno admission webhook to serve"
+  k -n kyverno rollout status deploy/kyverno-admission-controller --timeout=300s
+  # The rollout is the DEPLOYMENT's view. The webhook is reachable only once the
+  # Service has a ready endpoint behind it, which lags the pod going Ready — and it
+  # is the endpoint the API server dials.
+  for _ in $(seq 1 60); do
+    [ -n "$(k -n kyverno get endpointslice -l kubernetes.io/service-name=kyverno-svc \
+      -o jsonpath='{.items[*].endpoints[?(@.conditions.ready==true)].addresses[0]}' 2>/dev/null)" ] && break
+    sleep 2
+  done
 fi
 
 # 2. ArgoCD (it cannot sync itself into existence). Excluded from the local
@@ -169,66 +186,6 @@ build_push admin apps/admin/Dockerfile apps/admin
 build_push frontend apps/frontend/Dockerfile . \
   --build-arg "SERVICE_VERSION=${REV}" \
   --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' infra/gitops/services/local/values/frontend.yaml)"
-
-# 3d. Hand the inner loop's stand-ins back to GitOps.
-#
-#     `cluster:base` (ADR-0600) runs a throwaway Postgres Deployment named
-#     `postgres` and writes `kratos-secrets` imperatively, with a dsn pointing at
-#     it. This tier brings CNPG (`postgres-rw`), network policies that permit only
-#     that path, and the same Secret from the SOPS bundle carrying the CNPG dsn.
-#     Left alone, the transition ends badly and silently:
-#
-#       - the sops-operator refuses to adopt a Secret it did not create
-#         ("Child secret is not owned by controller"), so the dsn stays the base one
-#       - Kratos keeps dialling `postgres`, which the policies now deny
-#       - every Kratos admin call hangs to its timeout, which surfaces as `mise run
-#         e2e` failing in the identity bootstrap with a bare 60s timeout
-#
-#     So the stand-in goes, and the imperative Secret with it. Both are deleted BY
-#     NAME. The label `cluster:base` selects on (`local.platform/component=base`)
-#     is also on the Namespace, so handing that selector to `delete` takes the whole
-#     platform down — the one thing this step must not do.
-#
-#     What is deliberately left alone: the `ory` and `cert-manager` Helm releases
-#     the base tier installs. Argo adopts their resources through ServerSideApply
-#     and reconciles them to the same charts, so the release records are inert
-#     bookkeeping. Uninstalling them would delete workloads Argo is about to
-#     recreate, for no gain.
-#     All THREE stand-ins, not just Postgres. `dep:temporal` and `dep:openfga` are
-#     opt-in on the inner loop, so whether they exist depends on what someone ran
-#     there — and the one that bites is the quiet one: the stand-in Deployment and
-#     the chart's carry different `spec.selector` values, which is IMMUTABLE, so
-#     ArgoCD retries the update twenty times and gives up with "field is immutable".
-#     The app then sits OutOfSync forever, the root app never leaves its wave, and
-#     nothing says why. Measured on openfga, after Postgres alone had been handled.
-for stand_in in postgres temporal openfga; do
-  if k -n "$NS" get deploy "$stand_in" >/dev/null 2>&1; then
-    echo "→ removing the inner loop's ${stand_in} stand-in (the platform chart owns it here)"
-    k -n "$NS" delete "deploy/${stand_in}" "svc/${stand_in}" --ignore-not-found >/dev/null
-  fi
-done
-k -n "$NS" delete cm/postgres-initdb --ignore-not-found >/dev/null
-if k -n "$NS" get secret kratos-secrets >/dev/null 2>&1 &&
-  [ -z "$(k -n "$NS" get secret kratos-secrets -o jsonpath='{.metadata.ownerReferences}')" ]; then
-  echo "→ handing kratos-secrets back to the sops-operator"
-  k -n "$NS" delete secret kratos-secrets >/dev/null
-  # The operator reconciles on SopsSecret changes, not on the disappearance of a
-  # child Secret, so a restart is what makes it look again. No-op when it is not
-  # installed yet, which is the case on a cluster that never ran the base tier.
-  k -n "$NS" rollout restart deploy/sops-operator-sops-secrets-operator >/dev/null 2>&1 || true
-
-  # Kratos reads the dsn from the Secret through the environment, which is fixed at
-  # pod start — so the running pod is still on the base dsn until it is replaced.
-  # Wait (briefly) for the operator to put the Secret back, so the new pod starts
-  # with it rather than into a CreateContainerConfigError it would retry out of.
-  if k -n "$NS" get deploy ory-kratos >/dev/null 2>&1; then
-    for _ in $(seq 1 30); do
-      k -n "$NS" get secret kratos-secrets >/dev/null 2>&1 && break
-      sleep 2
-    done
-    k -n "$NS" rollout restart deploy/ory-kratos >/dev/null
-  fi
-fi
 
 # 4. Local root App-of-Apps → Argo discovers the local appsets + apps from git.
 echo "→ applying local root application"

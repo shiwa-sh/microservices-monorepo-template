@@ -20,8 +20,11 @@
 # has a working, explicit escape hatch without polluting the clean-network setup.
 set -euo pipefail
 
-CLUSTER="${CLUSTER:-platform}"
 source "$(dirname "$0")/lib/cluster-ctx.sh"
+# The ACTIVE TIER's cluster, not a hardcoded name. Both tiers are kind (ADR-0600),
+# so `kind load` is the import path for either — but loading into the wrong cluster
+# imports the image somewhere the stuck pod cannot see, and reports success.
+CLUSTER="$(cluster_name)"
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
 # Every image referenced by a container that is currently failing to pull, across

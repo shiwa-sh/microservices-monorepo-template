@@ -2,7 +2,7 @@
 # Install Cilium as the CNI on the local cluster (ADR-0206). A CNI must exist
 # before any pod (including ArgoCD) can schedule, so this runs imperatively for
 # both local tiers and is excluded from the local platform ApplicationSet. kind
-# declines kube-proxy at create time (kubeProxyMode: none in infra/local/kind.yaml),
+# declines kube-proxy at create time (kubeProxyMode: none in the tier's kind config),
 # so the chart's default kubeProxyReplacement=true applies. One operator replica (the default 2 needs 2 nodes for anti-affinity).
 # Idempotent (helm upgrade --install).
 set -euo pipefail
@@ -25,13 +25,23 @@ fi
 
 # The API server address is the ONE value this tier overrides. The chart points the
 # agent at KubePrism (localhost:7445), which is Talos's per-node control-plane load
-# balancer and does not exist on kind. Here the agent runs hostNetwork on the node
-# and kind serves the API at loopback, so that is the address.
+# balancer and exists only in a deployed environment (ADR-0206).
 #
-# Do NOT pin it to the node's Docker IP — docker reshuffles those addresses across
-# restarts, so a pinned IP points the agent at the wrong container and the CNI never
-# starts (connection refused to :6443), with no pod able to schedule.
-echo "→ installing Cilium (apiserver 127.0.0.1:6443)"
+# The address here is the CONTROL PLANE NODE'S CONTAINER NAME, and both halves of
+# that matter:
+#
+#   - not `127.0.0.1`, because loopback is the API server on the control-plane node
+#     ONLY. On the full tier's workers nothing listens there, so their agents never
+#     connect, those nodes never go Ready, and the failure reads as a broken CNI
+#     rather than as a wrong address.
+#   - not the node's docker IP, because docker reshuffles those across restarts and
+#     a pinned IP then points the agent at whatever container took the address.
+#
+# The name resolves through docker's embedded DNS on the kind network, from the host
+# network namespace the agent runs in — the same resolution path that lets a node
+# reach `registry.localhost`, and it needs no CNI to work.
+APISERVER="$(cluster_name)-control-plane"
+echo "→ installing Cilium (apiserver ${APISERVER}:6443)"
 helm dependency update infra/helm/platform/cilium >/dev/null
 
 # Otherwise local runs the chart as-is, including WireGuard transparent encryption
@@ -39,7 +49,7 @@ helm dependency update infra/helm/platform/cilium >/dev/null
 # datapath as prod, so no local/prod parity gap.
 h upgrade --install cilium infra/helm/platform/cilium -n kube-system \
   --set cilium.operator.replicas=1 \
-  --set cilium.k8sServiceHost=127.0.0.1 \
+  --set "cilium.k8sServiceHost=${APISERVER}" \
   --set cilium.k8sServicePort=6443 \
   --timeout 5m
 

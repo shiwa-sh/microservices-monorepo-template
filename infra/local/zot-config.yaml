@@ -1,0 +1,85 @@
+# The LOCAL registry (ADR-0105, ADR-0600). The same implementation every deployed
+# environment runs, as a host container beside the kind clusters — so the image path
+# is not a place the environments differ.
+#
+# YAML rather than JSON because zot rejects a config carrying keys it does not know,
+# including a comment key, and this file's reasons have to live somewhere a reader
+# will find them.
+#
+# Two deltas from the deployed configuration, both properties of a throwaway
+# container on a laptop:
+#
+#   - storage is a directory, not the object store. The in-cluster instance cannot
+#     serve the images the object store's own pods need in order to start.
+#   - there is NO accessControl block, so it serves anonymously. A credential here
+#     guards nothing, and every push, every pull and every node would carry it.
+distSpecVersion: "1.1.1"
+
+storage:
+  rootDirectory: /var/lib/zot
+  # Off: it rewrites blobs as hard links, which buys nothing on a cache that is
+  # rebuilt by re-pulling.
+  dedupe: false
+  gc: true
+  gcDelay: 1h
+  gcInterval: 24h
+
+http:
+  address: 0.0.0.0
+  port: "5000"
+  # An image push is a LONG request: a layer arrives as one streamed PATCH, so the
+  # request lasts as long as the slowest of the client link and the disk. These are
+  # Go durations — a bare number would be nanoseconds.
+  readTimeout: 10m
+  writeTimeout: 10m
+  # Accepts Docker's manifest media types. Without it a push uploads every blob and
+  # the registry then rejects the manifest with `manifest invalid` — at the last
+  # step of a long upload, which reads as a registry defect. `docker buildx` emits
+  # those media types unless told otherwise.
+  compat: [docker2s2]
+
+log:
+  level: info
+
+extensions:
+  # The console, at http://registry.localhost:5000 — "is this image cached yet" as a
+  # page rather than a curl. `search` is not decoration: the UI is a client of it and
+  # renders an empty catalogue without it.
+  ui:
+    enable: true
+  search:
+    enable: true
+  # PULL-THROUGH MIRRORING (ADR-0105). This is what makes preloading unnecessary:
+  # zot fetches an image from the upstream on first request and keeps it, so the
+  # nodes hold no egress and no derived image list has to be maintained — the list
+  # being the part that rots.
+  #
+  # Docker Hub is onDemand ONLY and must never be polled: it rate-limits pulls and
+  # does not support catalog listing, so a poll spends the rate limit finding that out.
+  sync:
+    enable: true
+    downloadDir: /var/lib/zot/sync
+    registries:
+      - urls: ["https://registry-1.docker.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://quay.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://ghcr.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://registry.k8s.io"]
+        onDemand: true
+        tlsVerify: true
+      # The charts pull from six hosts, not four. These two were invisible while
+      # `cluster:preload` pushed every image by hand; without it, an unmirrored
+      # host falls through to a direct pull — and the node's inherited proxy points
+      # at 127.0.0.1, which inside a node is the node. The failure names a proxy
+      # connection refused, and nothing about a missing mirror.
+      - urls: ["https://public.ecr.aws"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://reg.kyverno.io"]
+        onDemand: true
+        tlsVerify: true

@@ -63,8 +63,15 @@ The **Auth** column is the always-on coarse gate: the `operator` claim plus an A
 | `pgweb.ops.dev.localtest.me:8443` | pgweb — read-only database inspector | none |
 | `mailpit.ops.dev.localtest.me:8443` | Mailpit — the mail sink's viewer, non-prod only | none |
 | `seaweedfs.ops.dev.localtest.me:8443` | SeaweedFS admin UI, non-prod only | **yes** — see below |
+| `zot.ops.dev.localtest.me:8443` | zot console — the registry catalogue, tags, and what the mirror has cached | **yes** — the registry's own pull credential |
 
-Grafana and Argo CD trust the edge and serve anonymously, so an operator who clears the gate lands straight on the tool. **The SeaweedFS admin UI is the exception**: it carries its own credential rather than trusting the edge, so it prompts for the pre-seeded local one after the edge gate. Its master and filer UIs are not routed ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)); reach them by port-forward.
+Grafana and Argo CD trust the edge and serve anonymously, so an operator who clears the gate lands straight on the tool. **Two tools carry their own credential instead** and prompt for it after the edge gate: the SeaweedFS admin UI takes the pre-seeded local one, and the zot console takes the registry's `cluster` pull user. zot's access policy is one configuration for one process, so the credential that guards `registry.dev.localtest.me:8443` against anonymous pulls is the one the console asks for ([ADR-0105](../adr/0105-image-registry.md)). Read it with `kubectl -n platform get secret zot-credentials -o jsonpath='{.data.htpasswd}' | base64 -d` — the local bundle's password is the committed throwaway one.
+
+**Two zots run locally, and they answer different questions.** The console above is the platform's own registry, in-cluster and backed by the object store — the component a deployed environment runs. The one the cluster pulls from is the host container at `http://registry.localhost:5000`, which mirrors the upstream registries and holds the repo's own images; it serves its console at that address with no login, so "is this image cached yet" is a page rather than a `curl`.
+
+**Why that one is not on `localtest.me`.** Every origin in the table above is reached by a browser on the host, where `*.localtest.me` resolves to `127.0.0.1` and the edge answers. The registry is reached by a **node's containerd**, and inside a node container `127.0.0.1` is the node itself — so a `localtest.me` name would send every image pull to the wrong place. `registry.localhost` is the registry container's own name, which docker's embedded DNS resolves to its address from any container on the network. It also cannot go through the edge: Traefik's own image has to be pulled before Traefik can route anything.
+
+SeaweedFS's master and filer UIs are not routed either ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)); reach them by port-forward.
 
 Mailpit holds every message the Kratos courier submits, so it is where a verification or recovery mail is read; production keeps no such store ([ADR-0307](../adr/0307-outbound-email.md)).
 
@@ -100,7 +107,6 @@ Browser-side calls need none of this: the client uses a relative `/api`, which i
 | `mise run cluster:remove -- <name>` | uninstall **and restore Argo auto-sync** |
 | `mise run cluster:stop` / `cluster:delete` | stop, keeping the image cache; or delete |
 | `mise run cluster:heal` | recover a cluster wedged after a host reboot |
-| `mise run talos:dashboard` | the full tier's node dashboard — service state, logs and live load, over the NODE api, so it answers when the cluster does not |
 | `mise run cluster:unwedge` | recover stalled image pulls ([http-proxy](../guide/http-proxy.md)) |
 | `mise run e2e` / `e2e:smoke` | browser acceptance suites ([ADR-0601](../adr/0601-testing-strategy.md)) |
 | `mise run perf` / `perf:smoke` / `perf:stress` / `perf:seed` | load suites ([perf runbook](../guide/performance-runbook.md)) |

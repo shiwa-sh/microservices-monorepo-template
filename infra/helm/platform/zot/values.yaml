@@ -93,6 +93,22 @@ zot:
     pushUser: ci
     pullUser: cluster
 
+  # The web console (ADR-0306). zot serves the UI and the search API it reads from
+  # on the SAME port as the distribution API, so this adds a browser surface to a
+  # listener that already exists rather than a second one.
+  #
+  # It is reached at `zot.ops.<host>` behind the ops forward-auth, never at
+  # `registry.<host>`: that origin stays outside the ops label because a registry
+  # client follows no redirect to a login page (ADR-0306).
+  #
+  # `search` is not decoration — the UI is a client of it and renders an empty
+  # catalogue without it. zot's CVE scanning is a sub-key of the same extension and
+  # is deliberately left off: it downloads a vulnerability database on a schedule,
+  # which is egress this component would otherwise not need, and scanning images is
+  # admission control's job (ADR-0104).
+  console:
+    enabled: true
+
   service:
     port: 5000
 

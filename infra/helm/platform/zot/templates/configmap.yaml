@@ -94,15 +94,31 @@ data:
         },
         "compat": ["docker2s2"]
       },
-      "log": { "level": "info" }{{ if .Values.zot.sync.enabled }},
-      {{- /*
-      The sync extension, making zot a pull-through cache for the upstreams
-      (ADR-0105). Anonymous pulls of a MIRRORED image still pass through the
-      accessControl above, so the pull identity is the same one the cluster already
-      uses — mirroring does not open a second, unauthenticated door into the
-      registry.
-      */}}
+      "log": { "level": "info" }{{ if or .Values.zot.console.enabled .Values.zot.sync.enabled }},
       "extensions": {
+        {{- if .Values.zot.console.enabled }}
+        {{- /*
+        The console (ADR-0306), and the search extension it is a client of. Both,
+        or neither: `ui` alone renders a page whose every query 404s, which reads
+        as an empty registry rather than as a missing extension.
+
+        The accessControl above is unchanged by this, which is the point — the UI
+        is served by the same authenticated endpoint as the API, so a browser that
+        cleared the edge still presents the registry's own pull credential. No
+        anonymousPolicy is added to make the console convenient; that would open
+        every pull on `registry.<host>` at the same time.
+        */}}
+        "ui": { "enable": true },
+        "search": { "enable": true }{{ if .Values.zot.sync.enabled }},{{ end }}
+        {{- end }}
+        {{- if .Values.zot.sync.enabled }}
+        {{- /*
+        The sync extension, making zot a pull-through cache for the upstreams
+        (ADR-0105). Anonymous pulls of a MIRRORED image still pass through the
+        accessControl above, so the pull identity is the same one the cluster already
+        uses — mirroring does not open a second, unauthenticated door into the
+        registry.
+        */}}
         "sync": {
           "enable": true,
           {{- /*
@@ -125,6 +141,7 @@ data:
           "downloadDir": "{{ .Values.zot.sync.downloadDir }}",
           "registries": {{ toJson .Values.zot.sync.registries }}
         }
+        {{- end }}
       }{{ end }}
     }
 {{- end }}

@@ -30,7 +30,7 @@ seed:
   # infra/auth/oathkeeper/access-rules.json) and they match the ops hostnames
   # one-for-one: ADR-0306 names every origin after its tool, so `grafana.ops.<host>`
   # is gated by `dashboard:grafana`. One vocabulary, no translation table.
-  dashboards: [lowdefy, hubble, grafana, argocd, temporal, seaweedfs, headlamp, pgweb, mailpit]
+  dashboards: [lowdefy, hubble, grafana, argocd, temporal, seaweedfs, headlamp, pgweb, mailpit, zot]
   # Service-account identities granted group:operator#member. The Lowdefy admin
   # console (ADR-0401) calls services east-west asserting X-User-Id: admin-console;
   # this grant lets that identity pass the services' operator write-gate.

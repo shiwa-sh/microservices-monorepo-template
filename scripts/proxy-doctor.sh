@@ -140,7 +140,7 @@ fi
 step "step 3 — the shell you run cluster:full from"
 if [[ -n "${HTTPS_PROXY:-${https_proxy:-}}" ]]; then
   ok "HTTPS_PROXY is exported here"
-  detail "bring a cluster up with: CLUSTER_PRELOAD=1 mise run cluster:full"
+  detail "bring a cluster up with: mise run cluster:full"
 else
   gap "HTTPS_PROXY is not exported in this shell"
   detail "  export HTTPS_PROXY=$PROXY"

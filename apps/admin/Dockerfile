@@ -34,8 +34,23 @@ WORKDIR /app
 #
 # pnpm 10+ hard-fails (ERR_PNPM_IGNORED_BUILDS) when a dependency's build script is
 # blocked; the Lowdefy server's deps (sharp, @sentry/cli) need theirs, so allow them.
+#
+# The network settings are for the install `lowdefy build` runs ITSELF further down
+# (its installServer spawns pnpm), which is the longest fetch in this image. Behind a
+# slow proxy a single stalled request fails the whole build, and the failure names
+# only "Dependency installation failed": measured cutting out at 242s, 340s and 390s
+# on three runs, against 442s for the same install when it is allowed to finish.
+# pnpm's defaults give a request one retry and a 60s ceiling; these give it five and
+# ten minutes, and the lower concurrency leaves the proxy fewer parallel TLS sessions
+# to stall on — the same explicit-retry treatment the cluster scripts give it.
 ARG PNPM_VERSION=10.18.2
-RUN npm install -g pnpm@${PNPM_VERSION} && pnpm config set dangerously-allow-all-builds true
+RUN npm install -g pnpm@${PNPM_VERSION} \
+  && pnpm config set dangerously-allow-all-builds true \
+  && pnpm config set fetch-retries 5 \
+  && pnpm config set fetch-retry-mintimeout 10000 \
+  && pnpm config set fetch-retry-maxtimeout 120000 \
+  && pnpm config set fetch-timeout 600000 \
+  && pnpm config set network-concurrency 4
 COPY . .
 # Lowdefy's own `@lowdefy/server` fetch (a raw axios GET to registry.npmjs.org,
 # not npm's client) reliably gets "socket hang up"/400 through this project's

@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 157 |
-| Review-enforced | 308 |
-| **Total** | **465** |
+| Review-enforced | 312 |
+| **Total** | **469** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -214,6 +214,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Images are stored in a self-hosted zot registry backed by object storage. | review |
 | Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI. | review |
+| The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)). | review |
+| Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](../adr/0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else. | review |
 | Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](../adr/0104-supply-chain-security.md)). | standard: OCI 1.1 |
 | Vulnerability scanning runs in CI, not in the registry. | review |
 | The registry the pipeline pushes to is set by forge variables, never written into a workflow. | review |
@@ -662,11 +664,13 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles. | review |
-| The inner loop runs on kind and the full tier runs on Talos in Docker, as two clusters with two contexts. Neither tier's bring-up alters the other. | review |
-| The full tier's nodes take the same machine config a deployed environment's nodes take, so it runs etcd, no kube-proxy, Cilium as an inline manifest, and the committed Traefik chart ([ADR-0200](../adr/0200-cluster-topology.md), [ADR-0206](../adr/0206-cluster-networking.md)). It carries no distribution divergence, and a divergence introduced there is a defect. | review |
-| The inner loop's divergence from a deployed environment is node count alone. Its cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
-| Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy: in the machine config for the full tier, imperatively for the inner loop. No Cilium value differs by tier. | review |
-| Images reach the full tier through a local registry, so Argo CD pulls a tag as it does in a deployed environment. Node-resident images are the inner loop's path only. | review |
+| Both local tiers run on kind, as two clusters with two contexts. Neither tier's bring-up alters the other, and no local tier shares a cluster with another. | review |
+| Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built, and a difference introduced between them is a defect. | review |
+| No local tier exercises the cross-node datapath. Service routing between nodes and the WireGuard encryption [ADR-0206](../adr/0206-cluster-networking.md) enables are first exercised in a deployed environment. | review |
+| Every local cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
+| No local tier applies a machine config. The delivery mechanism [ADR-0206](../adr/0206-cluster-networking.md) decides is exercised in a deployed environment, and `infra/talos/` carries no local variant. | review |
+| Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy, installed imperatively before Argo CD exists. No Cilium value differs by tier. | review |
+| Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation a deployed environment runs ([ADR-0105](../adr/0105-image-registry.md)), so the local image path is not a second product. | review |
 | What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint:service-contract, lint:service-deps` in CI |
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. | `lint:ports` in CI |

@@ -35,11 +35,11 @@ argocd = "3.4.4"
 cilium-cli = "0.19.4"
 terraform = "1.15.6"
 kind = "0.32.0"
-# talosctl configures every node in a provisioned environment (ADR-0200). Pinned
-# here rather than scoped to an island: it is a single static binary, and unlike
-# the bootstrap tool it replaced it drags in no Python for a dev running
-# lint/test/cluster:full. The version tracks the Talos release the machine configs
-# under infra/talos/ are written against.
+# talosctl configures every node in a PROVISIONED environment (ADR-0200); no local
+# tier applies a machine config (ADR-0600), so nothing in the dev loop calls it.
+# Pinned here rather than scoped to an island: it is a single static binary and
+# drags in nothing for a dev running lint/test. The version tracks the Talos release
+# the machine configs under infra/talos/ are written against.
 talosctl = "1.13.5"
 
 # Dependency updates & template propagation (ADR-0106). Both run on a developer or
@@ -169,26 +169,14 @@ run = "bun install --frozen-lockfile"
 [tasks."cluster:ensure"]
 # Ensure the ACTIVE TIER's cluster exists and is running (create-or-start).
 #
-# There are two clusters, because the two tiers run different distributions
-# (ADR-0600): the inner loop on kind, the full tier on Talos in Docker. `TIER=full`
-# selects the second; the default is the inner loop, which is the common case.
+# There are two clusters, both on kind (ADR-0600): the inner loop on one node and
+# the full tier on three. `TIER=full` selects the second; the default is the inner
+# loop, which is the common case.
 #
 # They share the edge's host ports and are therefore alternatives rather than
 # peers — bringing one up while the other runs is refused with the command to stop
 # it, instead of a bind error from inside a half-created cluster.
 run = "bash scripts/cluster-dispatch.sh ensure"
-
-[tasks."cluster:talos"]
-# The full tier's provisioner, run directly. `TIER=full mise run cluster:ensure`
-# reaches the same script; this exists so the Talos path is discoverable by name.
-hide = true
-run = "TIER=full bash scripts/cluster-talos-ensure.sh"
-
-[tasks."talos:dashboard"]
-# The node dashboard for the local tier (ADR-0200). Talos has no web UI; this is
-# the view that exists — service state, logs and live resource use, over the node
-# API rather than the Kubernetes one, so it still answers when the cluster does not.
-run = "bash scripts/talos-dashboard.sh"
 
 [tasks."cluster:cilium"]
 # Install Cilium as the CNI (ADR-0200). Needs the cluster first. Internal plumbing
@@ -316,15 +304,6 @@ run = "bash scripts/cluster-unwedge-images.sh"
 #   mise run proxy:doctor -- --fix   # apply the non-root fixes
 # Exits 0 and says so on a direct network.
 run = "bash scripts/proxy-doctor.sh"
-
-[tasks."cluster:preload"]
-# OPT-IN, proxied networks only: PROACTIVELY host-pull + kind-load the
-# bootstrap-critical images (Cilium, ArgoCD) before cluster:full's imperative
-# `helm --wait` head can wedge on them — the gap cluster:unwedge (reactive, pods
-# only) cannot cover. Image list is derived from the charts, not hardcoded.
-# `PRELOAD_ALL=1` also warms the Argo-synced platform apps. cluster:full runs this
-# automatically only when CLUSTER_PRELOAD=1.
-run = "bash scripts/cluster-preload-images.sh"
 
 [tasks."argo:pause"]
 # Open a live-patch window: ArgoCD selfHeal reverts any direct edit to a synced

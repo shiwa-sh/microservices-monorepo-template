@@ -260,6 +260,39 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
+# zot's console (ADR-0105, ADR-0306). The SAME backend as the `registry` route
+# below, on a second origin with a different gate — which is the whole point of
+# separating them. A browser reaching the catalogue is an operator and belongs
+# behind the ops chain; a containerd pulling from it is not and cannot pass one.
+#
+# The console still meets zot's own htpasswd after the edge gate, because the
+# accessControl the registry origin depends on is one config for one process
+# (ADR-0105). That is a second login, and the alternative — an anonymousPolicy to
+# smooth it over — would open every pull on `registry.<host>` to reach it.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-zot
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^zot\.ops\..+`)
+      middlewares:
+        # First in the chain: middlewares wrap the ones after them, so a denial
+        # raised by forward-auth below is only visible to something listed above
+        # it (ADR-0305).
+        - name: problem-json-errors
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: zot
+          port: 5000
+  tls:
+    secretName: wildcard-ops-tls
+---
 # The registry (ADR-0105), and the one origin at the edge that is NOT gated on an
 # operator session.
 #

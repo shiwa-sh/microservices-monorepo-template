@@ -2,15 +2,16 @@
 # Resolve the local cluster's identity (ADR-0600). Source it, don't execute:
 #   source "$(dirname "$0")/lib/cluster-ctx.sh"
 #
-# There are TWO local clusters, because the two tiers run different distributions:
+# There are TWO local clusters, both on kind (ADR-0600):
 #
-#   base  the inner loop, on kind          context `kind-<name>`
-#   full  the platform, on Talos in Docker context `admin@<name>`
+#   base  the inner loop      cluster `<name>`
+#   full  the whole platform  cluster `<name>-full`
 #
-# One cluster cannot serve both — a tier is a distribution here, not a set of
-# workloads — so each owns its own cluster, its own context and its own lifecycle.
-# Every script resolves through these functions rather than hardcoding a prefix,
-# which is what stops `mise run cluster:delete` in one tier taking the other with it.
+# A tier is a set of workloads, not a distribution and not a node count: both are a
+# single kind node. They are two
+# clusters rather than one so neither bring-up disturbs the other, and every script
+# resolves through these functions rather than hardcoding a name — which is what
+# stops `mise run cluster:delete` in one tier taking the other with it.
 #
 # The tier comes from TIER, defaulting to the inner loop: the common case is a
 # developer running one service, and the full tier is entered deliberately.
@@ -50,13 +51,15 @@ cluster_name() {
 
 # cluster_ctx — prints the kube context name for the active tier.
 #
-# The two provisioners name their contexts differently and neither is configurable:
-# kind prefixes `kind-`, and talosctl writes `admin@<cluster>`. That asymmetry is
-# the reason this function exists.
-cluster_ctx() {
-  if [ "$TIER" = "full" ]; then
-    printf 'admin@%s' "$(cluster_name)"
-  else
-    printf 'kind-%s' "$(cluster_name)"
-  fi
-}
+# kind prefixes its context with `kind-` and that prefix is not configurable, so the
+# context is never the cluster name. Callers ask for it here rather than assembling
+# it, which is the whole reason this function survives now that one provisioner
+# serves both tiers.
+cluster_ctx() { printf 'kind-%s' "$(cluster_name)"; }
+
+# cluster_kind_config — prints the kind config both tiers are created from.
+#
+# ONE file, because the tiers no longer differ in node shape (ADR-0600): each is a
+# single node, and what separates them is which workloads run there. A second config
+# would be two files to keep identical.
+cluster_kind_config() { printf 'infra/local/kind.yaml'; }
