@@ -17,6 +17,13 @@ argo-cd:
       # Application that reports OutOfSync while `argocd app diff` prints
       # nothing.
       controller.diff.server.side: "true"
+      # A wave gated on an ApplicationSet is gated on the health check below, which
+      # reads .status.resources — written by the ApplicationSet controller on its own
+      # requeue, default 3 minutes. At that default every such wave costs a full tick
+      # AFTER its workloads are already Healthy, and a local full tier has three of
+      # them on the way up. The reconciliation cost is a re-template of one generator
+      # over a directory listing.
+      applicationsetcontroller.requeue.after: 20s
     cm:
       timeout.reconciliation: "60s"
       # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator

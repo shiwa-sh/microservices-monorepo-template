@@ -141,7 +141,7 @@ stop)
     exit 0
   fi
   mapfile -t nodes < <(kind get nodes --name "$name")
-  step "stopping '${name}' — ${#nodes[@]} node(s), image cache preserved"
+  step "stopping '${name}' — ${#nodes[@]} node(s), image cache pr eserved"
   printf '%s\n' "${nodes[@]}" | xargs -r docker stop >/dev/null
   ok "stopped; resume with '$(up_hint)'"
   ;;
