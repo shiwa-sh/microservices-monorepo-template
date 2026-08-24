@@ -239,7 +239,21 @@ stage_cluster() {
 
   if ! kind get clusters 2>/dev/null | grep -qx "$name"; then
     step "creating kind cluster '${name}' from ${KIND_CONFIG}"
-    kind create cluster --name "$name" --config "$KIND_CONFIG"
+    # The node inherits the daemon's proxy environment. Docker's embedded resolver
+    # answers the node's own name with its IPv6 ULA first, so without fc00::/7 in the
+    # daemon's NO_PROXY the node's kubeadm dials the API server through the proxy and
+    # kind aborts on an EOF that names neither. Read the daemon rather than the shell:
+    # this is the daemon's configuration, and it is the one place the value must be.
+    if ! kind create cluster --name "$name" --config "$KIND_CONFIG"; then
+      local daemon_noproxy
+      daemon_noproxy="$(docker info --format '{{.NoProxy}}' 2>/dev/null || true)"
+      if [ -n "$(docker info --format '{{.HTTPSProxy}}' 2>/dev/null || true)" ] &&
+        [[ ",${daemon_noproxy}," != *,fc00::/7,* ]]; then
+        detail "the docker daemon is proxied and its NO_PROXY lacks fc00::/7, which is"
+        detail "how this fails: run 'mise run proxy:setup' and apply the root step"
+      fi
+      fail "kind could not create '${name}'"
+    fi
   else
     local n stopped=0
     mapfile -t nodes < <(kind get nodes --name "$name")
