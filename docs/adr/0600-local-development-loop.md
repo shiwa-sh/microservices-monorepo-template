@@ -266,7 +266,7 @@ Three escape hatches cover uncommitted infra:
 | --- | --- |
 | Chart or values | `platform:deploy -- <chart>` pauses Argo auto-sync on that one app and `helm upgrade`s from the working tree |
 | GitOps wiring — sync-waves, ApplicationSets, App defs | push a branch and point the local root app's `targetRevision` at it, exercising the real delivery path |
-| Machine config, CNI, or CRD | `cluster:down` plus a fresh `cluster:up full`, which is how a machine-config change reaches a deployed node too. Hot-swapping a CNI on a live cluster blips networking — inherent to the component, not a tooling gap |
+| Machine config, CNI, or CRD | `cluster:down -- full` plus a fresh `cluster:up -- full`, which is how a machine-config change reaches a deployed node too. Hot-swapping a CNI on a live cluster blips networking — inherent to the component, not a tooling gap |
 
 `cluster:remove` reverses `cluster:add` **and restores Argo auto-sync**, which the add path paused.
 

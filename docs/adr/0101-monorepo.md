@@ -186,9 +186,13 @@ The two long-running service tasks are named for the process type they start, ma
 | Shape | Use when | Examples |
 | --- | --- | --- |
 | `activity:target` | one activity fans out across many targets, with an umbrella task | `lint:go`, `lint:ts`, `lint:md` under `lint`; `format:*`; `gen:openapi`, `gen:sqlc` under `gen` |
-| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`/`stop`/`delete`, `service:deploy`/`undeploy`, `db:migrate`, `ops:grant` |
+| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`/`stop`/`down`, `service:deploy`/`undeploy`, `db:migrate`, `ops:grant` |
 
 Forcing one shape on both scatters a family: `stop:cluster` and `delete:cluster` split the cluster lifecycle, and `ts:format` breaks the `format` umbrella. Use `activity:` only where a real umbrella exists. Graph-only plumbing that exists solely as a `depends` node is marked `hide = true`.
+
+**What a task acts on is an argument.** An environment variable carries the machine's environment — a proxy address, a kubeconfig path — which is the same for every invocation from that shell. The thing one invocation acts on is an operand, and it belongs in the argument list: `mise run cluster:down -- full` names its target on the line that ran it, where `TIER=full mise run cluster:down` puts it in shell state that outlives the command and aims the next destructive verb at the wrong cluster. A script may export a variable to pass context to a subprocess it starts; that is internal plumbing, not the interface.
+
+An operand a task accepts is validated against a closed set, and an unrecognised one is fatal. Silently falling back to the default is how a typo deletes the tier the operator was not naming.
 
 ### Every executable is pinned, in one of two places
 
@@ -326,6 +330,8 @@ Each step is its own ADR when triggered.
 - The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR.
 - Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. `(CI: lint:service-contract)`
 - A task name is `group:member`, grouped by the axis worth listing together.
+- What a task acts on is an argument, never an environment variable: `mise run cluster:down -- full`. Environment variables carry the machine's environment, and a variable a script exports for its own subprocesses is not an interface. `(ref: clig.dev, POSIX Utility Conventions)`
+- A task validates its operand against a closed set and fails on an unrecognised one, rather than falling back to a default.
 - Every external tool is pinned: developer and CI tools in `.mise.toml`, runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint:floating-tags)`
 - A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci:gen)`
 - A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci:affected)`

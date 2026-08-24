@@ -46,7 +46,7 @@ Revert the `sed` before merging — `master` is the committed default (choice a)
 
 ## CNI / CRD-operator changes (e.g. Cilium)
 
-Prefer `mise run cluster:down` + a fresh `cluster:up full` **with** the change over an in-place upgrade — hot-swapping a CNI on a live cluster blips networking. This is inherent to the component, not a tooling gap.
+Prefer `mise run cluster:down -- full` + a fresh `cluster:up -- full` **with** the change over an in-place upgrade — hot-swapping a CNI on a live cluster blips networking. This is inherent to the component, not a tooling gap.
 
 ## Troubleshooting: `local-root` never converges after `cluster:stop`
 

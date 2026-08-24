@@ -28,13 +28,17 @@ FORCE="${FORCE:-}"
 # against whatever the current kube-context happens to be.
 case "${TIER:=base}" in
 base | full) ;;
-*) fail "TIER=${TIER} is not a tier — use \"base\" or \"full\"" ;;
+*) fail "'${TIER}' is not a tier — use \"base\" or \"full\"" ;;
 esac
 # Exported, because stages shell out to scripts that resolve the context from it.
 # Unexported, `identity-seed.sh` seeds the inner loop while the full tier waits.
 export TIER
 
 cluster_tier() { printf '%s' "$TIER"; }
+# The tier is an argument, so a message naming a command names its tier too.
+up_hint() {
+  if [ "$TIER" = full ]; then printf 'mise run cluster:up -- full'; else printf 'mise run cluster:up'; fi
+}
 # The full tier's name carries the tier, so `docker ps` and `kubectl config
 # get-contexts` both say which cluster is which.
 cluster_name() {
@@ -218,7 +222,7 @@ stage_cluster() {
     docker inspect -f '{{.State.Running}}' "${other}-control-plane" 2>/dev/null | grep -qx true; then
     fail "cluster '${other}' is running and holds the edge ports 8080/8443.
   Run one tier at a time:
-    TIER=$([ "$TIER" = full ] && echo base || echo full) mise run cluster:stop"
+    mise run cluster:stop -- $([ "$TIER" = full ] && echo base || echo full)"
   fi
 
   if ! kind get clusters 2>/dev/null | grep -qx "$name"; then

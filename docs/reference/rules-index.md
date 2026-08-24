@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 158 |
-| Review-enforced | 313 |
-| **Total** | **471** |
+| Machine-enforced | 159 |
+| Review-enforced | 314 |
+| **Total** | **473** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -152,6 +152,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. | review |
 | Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. | `lint:service-contract` in CI |
 | A task name is `group:member`, grouped by the axis worth listing together. | review |
+| What a task acts on is an argument, never an environment variable: `mise run cluster:down -- full`. Environment variables carry the machine's environment, and a variable a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
+| A task validates its operand against a closed set and fails on an unrecognised one, rather than falling back to a default. | review |
 | Every external tool is pinned: developer and CI tools in `.mise.toml`, runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint:floating-tags` in CI |
 | A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. | `ci:gen` in CI |
 | A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. | `ci:affected` in CI |

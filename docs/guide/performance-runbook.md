@@ -24,7 +24,7 @@ mise run perf:soak          # ~30min sustained, for leak detection
 mise run perf:seed -- --clean   # remove the seeded rows
 ```
 
-`--clean` removes seeded **products** only. A `checkout` run also creates real orders and real Temporal workflow executions, and those carry no marker separating them from a human's — roughly 1,700 orders per `stress` run. They are left in place on purpose rather than guessed at by timestamp; if the accumulated volume starts to matter, recreate the environment (`mise run cluster:down && mise run cluster:up -- full`).
+`--clean` removes seeded **products** only. A `checkout` run also creates real orders and real Temporal workflow executions, and those carry no marker separating them from a human's — roughly 1,700 orders per `stress` run. They are left in place on purpose rather than guessed at by timestamp; if the accumulated volume starts to matter, recreate the environment (`mise run cluster:down -- full && mise run cluster:up -- full`).
 
 Knobs (all optional):
 

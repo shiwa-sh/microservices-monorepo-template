@@ -177,7 +177,8 @@ run = "bun install --frozen-lockfile"
 #   mise run cluster:up -- full     the whole platform, synced from committed master
 #                                   by ArgoCD, which owns every ordering concern.
 # The tiers share the edge's host ports, so they are alternatives: bringing one up
-# while the other runs is refused, with the command to stop it.
+# while the other runs is refused, with the command to stop it. Every tier-scoped
+# task names its tier the same way — `-- base` or `-- full`, defaulting to base.
 run = "bash scripts/cluster.sh up"
 
 # ── Opt-in dependency components ──────────────────────────────────────────────
@@ -250,11 +251,13 @@ run = "bash scripts/cluster.sh glue"
 # Halt the tier's nodes but KEEP them: the image cache and volumes survive, so the
 # next cluster:up resumes without re-pulling. Also how you hand the edge ports to
 # the other tier.
+#   mise run cluster:stop -- full
 run = "bash scripts/cluster.sh stop"
 
 [tasks."cluster:down"]
 # Delete the tier's cluster and its image cache. The registry container survives —
 # it is host-level, shared by both tiers (ADR-0105).
+#   mise run cluster:down -- full
 run = "bash scripts/cluster.sh down"
 
 [tasks."cluster:heal"]

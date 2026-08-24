@@ -2,10 +2,10 @@
 # The local cluster, one entrypoint (ADR-0600). Stages live in lib/cluster.sh.
 #
 #   cluster.sh up [base|full]     create, resume or repair the tier
-#   cluster.sh stop               halt the nodes, keep the image cache
-#   cluster.sh down               delete the cluster
-#   cluster.sh heal               restart the nodes and rebuild the datapath
-#   cluster.sh status             what is running, and where to reach it
+#   cluster.sh stop [base|full]   halt the nodes, keep the image cache
+#   cluster.sh down [base|full]   delete the cluster
+#   cluster.sh heal [base|full]   restart the nodes and rebuild the datapath
+#   cluster.sh status [base|full] what is running, and where to reach it
 #   cluster.sh add <name>         one service, app or platform chart, from the working tree
 #   cluster.sh remove <name>      the same, uninstalled and handed back to GitOps
 #   cluster.sh glue [name port]   re-stamp the host edge glue
@@ -103,14 +103,24 @@ classify() { # <name> → service | app | chart
 VERB="${1:-up}"
 shift || true
 
+# The tier names the cluster, so every verb that acts on one takes it the same way.
+# `add`, `remove` and `glue` are excluded: their first argument is a name, and a
+# service called `full` would otherwise be read as a tier. TIER stays the fallback.
 case "$VERB" in
-up)
+up | stop | down | heal | status)
   case "${1:-}" in
   base | full)
     TIER="$1"
     shift
     ;;
+  "") ;;
+  *) fail "'$1' is not a tier — use \"base\" or \"full\"" ;;
   esac
+  ;;
+esac
+
+case "$VERB" in
+up)
   step "bringing up the ${TIER} tier as cluster '$(cluster_name)'"
   run_stages "${PRELUDE[@]}"
   case "$TIER" in
@@ -132,7 +142,7 @@ stop)
   mapfile -t nodes < <(kind get nodes --name "$name")
   step "stopping '${name}' — ${#nodes[@]} node(s), image cache preserved"
   printf '%s\n' "${nodes[@]}" | xargs -r docker stop >/dev/null
-  ok "stopped; resume with 'mise run cluster:up'"
+  ok "stopped; resume with '$(up_hint)'"
   ;;
 
 down)
@@ -164,7 +174,7 @@ heal)
   k -n kube-system rollout restart deploy/coredns >/dev/null
   k -n kube-system rollout status deploy/coredns --timeout=180s ||
     fail "CoreDNS is still not Ready — the Cilium datapath is wedged deeper than a
-  restart clears. Recreate the cluster: mise run cluster:down && mise run cluster:up"
+  restart clears. Recreate the cluster: mise run cluster:down -- ${TIER} && $(up_hint)"
   run_stages glue
   ok "heal complete — pods can reach the API again"
   ;;
@@ -173,7 +183,7 @@ status)
   name="$(cluster_name)"
   step "tier ${TIER} · cluster '${name}' · context $(cluster_ctx)"
   if ! kind get clusters 2>/dev/null | grep -qx "$name"; then
-    warn "not created — run 'mise run cluster:up'"
+    warn "not created — run '$(up_hint)'"
     exit 0
   fi
   detail "registry: $(docker inspect -f '{{.State.Status}}' "$REGISTRY" 2>/dev/null || echo absent) (${REGISTRY}:5000)"
