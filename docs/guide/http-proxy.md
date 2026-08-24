@@ -80,20 +80,30 @@ kubectl --context kind-${CLUSTER:-platform} -n kube-system rollout restart deplo
 
 The restart is the durable fix; the stamp survives only until the node is recreated.
 
-## Step 3 — Export the proxy before the first cluster bring-up
+## Step 3 — The environment `cluster:up` runs kind in
 
-Export it in the shell you bring a cluster up from, written as **your host** sees it — a loopback proxy stays `127.0.0.1`:
+`mise run proxy:setup` writes `infra/local/proxy.local.env`, and `scripts/lib/cluster.sh` loads it, so every cluster command runs with this machine's egress and no cluster script names a proxy. The file is machine-local and gitignored. Nothing has to be exported by hand:
 
 ```sh
-export HTTPS_PROXY=http://127.0.0.1:8118
 mise run cluster:up -- full
 ```
 
-kind cannot inject the proxy into a cluster node, and it does not need to: the nodes pull only from the local zot, which is a host container and reaches the proxy through the Docker daemon's own configuration (step 1). One component holds egress for images, so the node's containerd never talks to the proxy at all ([ADR-0105](../adr/0105-image-registry.md)).
+**It exists because kind reads the proxy variables from its own environment.** The node's kubeadm dials the API server *by name* — `https://<cluster>-control-plane:6443` — and no CIDR in a `NO_PROXY` list exempts a hostname, so that call goes to the proxy and dies. kind is the only thing that can prevent it: when it sees the variables it takes them over and appends what the node needs, the node's own name included.
 
-`cluster:up` fills that registry before it creates the cluster, so a proxy that cannot reach an upstream fails while warming, naming the image, rather than as an `ImagePullBackOff` twenty minutes into a sync.
+```text
+no_proxy=fc00:f853:ccd:e793::/64,172.19.0.0/16,localhost,127.0.0.1,10.96.0.0/16,
+         10.244.0.0/16,<cluster>-control-plane,.svc,.svc.cluster,.svc.cluster.local
+```
 
-One more interaction, found the hard way: the Docker daemon's own proxy environment (step 1) IS inherited by the kind node container. Docker's embedded DNS answers a node with its IPv6 ULA (`fc00::/7`) address first, and if the daemon's `NO_PROXY` does not include that range, the node's own kubectl/kubelet dial the API server THROUGH the proxy and fail with EOF — which aborts `kind create` itself before the cluster is usable. Include `fc00::/7` in the daemon's `NO_PROXY` (the example in step 1 shows the range).
+Without them, the node still receives a proxy — the docker CLI injects `proxies.default` from `~/.docker/config.json` (step 2) into every container it creates — but that value carries no node name, and `kind create` aborts partway through:
+
+```text
+✗ Starting control-plane 🕹️
+ERROR: failed to create cluster: failed to remove control plane taint: ...
+Get "https://<cluster>-control-plane:6443/api?timeout=32s": EOF
+```
+
+The address written here is the **host's**, because everything that reads the file runs on the host. Images are unaffected either way: `cluster:up` fills the local zot before it creates the cluster and the nodes pull only from there, so a proxy that cannot reach an upstream fails while warming, naming the image, rather than as an `ImagePullBackOff` twenty minutes into a sync ([ADR-0105](../adr/0105-image-registry.md)).
 
 ## Step 4 — Proxy Argo CD's repo-server, for git and chart repositories
 

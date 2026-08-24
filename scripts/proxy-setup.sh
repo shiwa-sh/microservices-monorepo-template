@@ -36,6 +36,8 @@ gap() {
 # embedded DNS answers the node with its IPv6 ULA first, and without it the node's
 # kubelet dials the API server THROUGH the proxy and `kind create` aborts.
 PROXY_VALUES='infra/local/proxy.local.yaml'
+PROXY_ENV='infra/local/proxy.local.env'
+DAEMON_DROPIN='/etc/systemd/system/docker.service.d/http-proxy.conf'
 NO_PROXY_VALUE='10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,.svc,.svc.cluster.local,.cluster.local,127.0.0.1,localhost,.localtest.me'
 
 PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
@@ -80,17 +82,42 @@ if ! command -v docker >/dev/null 2>&1; then
   gap "docker not found; steps 1-4 cannot be checked"
 else
   daemon_proxy="$(docker info --format '{{.HTTPSProxy}}' 2>/dev/null || true)"
-  daemon_no="$(docker info --format '{{.NoProxy}}' 2>/dev/null || true)"
   if [[ -z "$daemon_proxy" ]]; then
     gap "the daemon has no HTTPS proxy — image pulls go direct and hang"
     NEEDS_ROOT=1
-  elif [[ "$daemon_no" != *"fc00::/7"* ]]; then
-    gap "daemon NO_PROXY is missing fc00::/7 — 'kind create' aborts with an EOF"
-    detail "currently: ${daemon_no:-<empty>}"
-    NEEDS_ROOT=1
   else
-    ok "daemon proxied, NO_PROXY covers fc00::/7"
+    ok "daemon proxied at ${daemon_proxy}"
+    # `docker info` reports daemon.json's `proxies` block, which overrides the systemd
+    # drop-in silently. Two sources that disagree is the configuration most likely to
+    # be edited in the copy that has no effect.
+    if [[ -f /etc/docker/daemon.json ]] && jq -e '.proxies' /etc/docker/daemon.json >/dev/null 2>&1 &&
+      [[ -f "$DAEMON_DROPIN" ]]; then
+      detail "both /etc/docker/daemon.json and ${DAEMON_DROPIN} set one — daemon.json is what you see above"
+    fi
   fi
+fi
+
+step "step 1b — the environment cluster:up runs kind in"
+# kind reads the proxy variables from its own environment, and is the only thing that
+# can add the node's name to the node's NO_PROXY. The node's kubeadm dials the API
+# server BY NAME, and no CIDR exempts a hostname, so without this `kind create` sends
+# that call to the proxy and aborts on an EOF. The address is the host's, because
+# everything that reads this file runs on the host.
+if ((APPLY)); then
+  mkdir -p "$(dirname "$PROXY_ENV")"
+  cat >"$PROXY_ENV" <<EOF
+# Written by \`mise run proxy:setup\`. Machine-local, and absent on a direct network.
+# scripts/lib/cluster.sh loads it, so every cluster command runs with this machine's
+# egress without naming a proxy anywhere in the cluster scripts.
+HTTP_PROXY=${PROXY}
+HTTPS_PROXY=${PROXY}
+NO_PROXY=${NO_PROXY_VALUE}
+EOF
+  ok "wrote ${PROXY_ENV} — cluster:up loads it"
+elif [[ -f "$PROXY_ENV" ]]; then
+  ok "${PROXY_ENV} present"
+else
+  gap "no ${PROXY_ENV} — 'kind create' will abort on an EOF from the node's own API call"
 fi
 
 step "step 2 — docker build (RUN steps inside a build container)"

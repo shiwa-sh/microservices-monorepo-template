@@ -87,3 +87,4 @@ core.*
 
 # Written by proxy:setup — this machine's egress route into the cluster.
 infra/local/proxy.local.yaml
+infra/local/proxy.local.env
