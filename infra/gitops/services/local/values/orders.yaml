@@ -7,7 +7,7 @@ name: orders
 image:
   repository: registry.localhost:5000/orders-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
+  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
 worker:
   enabled: true
   image:

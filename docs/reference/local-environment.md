@@ -101,13 +101,12 @@ Browser-side calls need none of this: the client uses a relative `/api`, which i
 | `mise run dev:frontend` | run the frontend dev server against the edge |
 | `mise run db:migrate` | apply every service's migrations to the local database |
 | `mise run auth:seed` | seed the committed test identities |
-| `mise run cluster:base` | the local floor |
-| `mise run cluster:full` | the real charts at single replica, via Argo CD |
+| `mise run cluster:up` | the local floor |
+| `mise run cluster:up -- full` | the real charts at single replica, via Argo CD |
 | `mise run cluster:add -- <name>` | build, import, and deploy one service or platform chart |
 | `mise run cluster:remove -- <name>` | uninstall **and restore Argo auto-sync** |
-| `mise run cluster:stop` / `cluster:delete` | stop, keeping the image cache; or delete |
+| `mise run cluster:stop` / `cluster:down` | stop, keeping the image cache; or delete |
 | `mise run cluster:heal` | recover a cluster wedged after a host reboot |
-| `mise run cluster:unwedge` | recover stalled image pulls ([http-proxy](../guide/http-proxy.md)) |
 | `mise run e2e` / `e2e:smoke` | browser acceptance suites ([ADR-0601](../adr/0601-testing-strategy.md)) |
 | `mise run perf` / `perf:smoke` / `perf:stress` / `perf:seed` | load suites ([perf runbook](../guide/performance-runbook.md)) |
 | `mise run lint` / `format` | every language, including Markdown |

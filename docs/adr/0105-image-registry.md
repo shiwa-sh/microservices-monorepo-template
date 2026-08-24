@@ -47,7 +47,7 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | Storage backend | the object storage in [ADR-0207](0207-cluster-storage.md). Image data is never on a node volume |
 | Artefacts | OCI 1.1 referrers hold the cosign signature, SBOM, and provenance from [ADR-0104](0104-supply-chain-security.md) |
 | Authentication | pipeline credentials push; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)). The pull credential reaches workloads as an `imagePullSecret`, not as node configuration — containerd 2 ignores the node's registry auth once a hosts.d config path is set, which Talos always sets ([infra/talos](../../infra/talos/README.md)) |
-| Third-party images | pulled from upstream and pinned by digest ([ADR-0104](0104-supply-chain-security.md)). The registry does not proxy them by default |
+| Third-party images | pinned by digest ([ADR-0104](0104-supply-chain-security.md)) and served through the registry's `sync` extension, which mirrors every upstream the platform pulls from |
 | Retention | untagged manifests unreferenced by a signature or an environment's values are garbage-collected on a schedule |
 
 ### Where the pipeline pushes
@@ -64,56 +64,33 @@ This is the same property the thin-YAML rule buys for build logic ([ADR-0102](01
 
 **Scanning is not the registry's job.** [ADR-0104](0104-supply-chain-security.md) makes it a merge gate in CI. zot can run a scanner; it stays off, so the concern stays in one place ([ADR-0000](0000-platform-foundations.md), principle 5).
 
-### Mirroring upstream images is deferred
+### Mirroring the upstream registries
 
-| Field | Value |
-| --- | --- |
-| **Trigger** | an upstream registry rate-limits or removes a pinned digest the cluster depends on |
-| **Seam** | ✓ zot supports pull-through mirroring in the same config file. Enabling it changes registry configuration and image references, not the deploy path |
-| **Cost if adopted late** | a bootstrap depends on upstream availability, which [`docs/guide/http-proxy.md`](../guide/http-proxy.md) already documents as a failure mode on restricted networks |
+zot is also a **pull-through cache** for every upstream the platform pulls from, and on the local tiers it is the **only** source: each upstream is mirrored at the one address, none is configured as a fallback endpoint, and `cluster:up` fills the cache before it creates the cluster.
 
-## Mirroring the upstream registries
-
-zot is also a **pull-through cache** for the registries the platform pulls from —
-docker.io, quay.io, ghcr.io and registry.k8s.io — fetching an image on first
-request and keeping it.
-
-The reason is not registry performance, it is **egress surface**. Every layer that
-pulls an image otherwise needs its own network configuration: each deployed node,
-each local kind node, each build host. On a proxied or firewalled network that is the same
-credential and the same allow-list entry maintained in four places, and the failure
-when one is missed does not mention the network — a Talos node reports
-`403 Forbidden` fetching etcd and the cluster never bootstraps, or Traefik sits in
-`ContainerCreating` while quay.io times out mid-handshake. Both were measured
-during this platform's own bring-up.
-
-Pointing every node at zot collapses that to one component with egress and one
-firewall rule.
+The reason is egress surface rather than registry performance. Every layer that pulls an image otherwise carries its own network configuration — each deployed node, each local kind node, each build host — so on a proxied network one credential and one allow-list entry are maintained once per puller, and the failure when one is missed never names the network: a node reports `403 Forbidden` fetching etcd and never bootstraps, or Traefik sits in `ContainerCreating` while an upstream times out mid-handshake. Pointing every node at zot collapses that to one component with egress and one firewall rule.
 
 | Option | Verdict |
 | --- | --- |
-| **zot's `sync` extension, `onDemand`** | **Chosen.** zot is already the registry, so this is configuration rather than a new component, and it handles all four upstreams in one instance. Nothing has to be preloaded and no image list has to be derived or kept current *(reasoned)* |
-| A push-filled mirror | Works, and it is what the local tiers ran before this. It needs a list of images derived from the charts, and that list is the part that rots: an image nobody thought to add falls back to the upstream and the mirror bought nothing. Measured — a Job's image behind a chart's `if` was invisible to the derivation, and the pull it fell back to failed |
-| `registry:2` as a pull-through cache | The obvious tool and it cannot do this: it proxies exactly **one** upstream per instance, so four upstreams is four registries to run |
-| Per-node proxy configuration, no mirror | Correct, and it is the same configuration repeated in four places — every one of which has to be right, and none of which says so when it is not |
+| **zot's `sync` extension in `onDemand` mode, filled ahead of the cluster** | **Chosen.** zot is the registry already, so this is configuration rather than a component, and one instance serves every upstream *(reasoned)* |
+| `onDemand` alone, filled by the cluster's own pulls | zot copies a whole image before it answers the manifest request that triggered it, so a cold pull costs tens of seconds. A bring-up asks for its images at once: zot saturates, every pull exceeds containerd's deadline, and the pods back off while zot goes on caching images nothing waits for. Most of a full tier's pods sit in `ImagePullBackOff` against a registry that is answering correctly — re-derived by emptying the cache directory and running `cluster:up full` *(measured)* |
+| A push-filled mirror | It needs a list of images derived from the charts, and a hand-maintained list rots: an image nobody adds falls back to the upstream and the mirror bought nothing. An image behind a chart's conditional is invisible to any derivation that does not render the chart |
+| `registry:2` as a pull-through cache | The obvious tool, and it proxies exactly **one** upstream per instance, so each upstream is another registry to run |
+| Per-node proxy configuration, no mirror | Correct, and it is the same configuration repeated once per puller — every copy of which has to be right, and none of which says so when it is not |
 
 **The local tiers run the same registry, as a host container.** A laptop's mirror is zot rather than a second product, so the mirroring above is the mirroring a developer gets and the image path is not a place the environments differ ([ADR-0205](0205-environment-parity.md)). It sits beside the cluster rather than inside it: the in-cluster instance stores its images in the object store, and cannot serve the images the object store's own pods need to start. Two deltas are local-only and both are properties of a throwaway host container — its storage is a directory rather than a bucket, and it serves anonymously, because a credential on a laptop mirror guards nothing and every pull would carry it.
 
-**Fallback to the upstream registry stays enabled.** An image the mirror does not
-have still resolves, slowly, rather than failing — the mirror is an accelerator,
-not an allow-list. The allow-list is Kyverno's
-([ADR-0104](0104-supply-chain-security.md)), and that separation is deliberate: a
-cache that silently became an authorization boundary would be one nobody could
-safely flush.
+**The cache is filled before the cluster exists, and the local nodes have no fallback.** `cluster:up` warms zot from a generated list, sequentially, with nothing waiting on it, and the nodes then read locally. A miss fails loudly and names the image instead of becoming a slow direct pull that differs per machine.
 
-**Docker Hub is `onDemand` only and must never be polled.** It rate-limits pulls
-and does not support catalog listing, so a scheduled sync walks a catalog that is
-not there and spends the rate limit discovering that.
+An upstream second endpoint cannot serve as the safety net it resembles: containerd falls through to the next endpoint only on a fast failure, and a saturated mirror fails by timing out, which ends the pull. What it delivers is an image path that varies with the network, so none is configured.
 
-**What this does not do.** It covers image pulls. The BUILD path still needs egress
-for base images and language modules, and non-image traffic — ACME, mail delivery,
-DMARC reports — is untouched. This reduces the number of layers that need a proxy;
-it does not remove the proxy.
+**This is not an authorization boundary.** The allow-list is Kyverno's ([ADR-0104](0104-supply-chain-security.md)), and that separation is deliberate: a cache that silently became an authorization boundary would be one nobody could safely flush. Being the only *route* is a determinism property; what may run is still admission's question.
+
+**The warm list is generated, never written by hand**, which is what disqualifies the push-filled mirror above rather than the mirroring itself. `mise run gen:image-allowlist` renders every chart and emits both Kyverno's repository allow-list and `infra/local/image-refs.txt`, the full references the warm reads. One render, two outputs, drift-checked in CI, so the warm set cannot fall behind the charts and an image behind a chart's conditional is as visible as any other.
+
+**Docker Hub is `onDemand` only and is never polled.** It rate-limits pulls and does not support catalog listing, so a scheduled sync walks a catalog that is not there and spends the rate limit discovering it.
+
+**Image pulls are the whole of what this covers, and not all of them.** `kind` downloads its node image through the host's docker, and the build path needs egress for base images and language modules. Non-image traffic — chart repositories, the git remote Argo syncs, ACME, mail delivery, DMARC reports — is untouched. This reduces the number of layers that need a proxy; it removes neither the proxy nor the network from a local bring-up.
 
 ## Consequences
 
@@ -147,6 +124,8 @@ it does not remove the proxy.
 - Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI.
 - The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](0306-trust-tiers-and-urls.md)).
 - Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else.
+- The local nodes pull from that registry and from nowhere else: no upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster.
+- The warm set is generated from the charts alongside Kyverno's allow-list, never hand-written. `(CI: lint:image-allowlist)`
 - Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](0104-supply-chain-security.md)). `(ref: OCI 1.1)`
 - Vulnerability scanning runs in CI, not in the registry.
 - The registry the pipeline pushes to is set by forge variables, never written into a workflow.

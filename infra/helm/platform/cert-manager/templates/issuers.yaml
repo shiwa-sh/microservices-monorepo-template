@@ -4,7 +4,7 @@
 # only the issuer differs. Locally a local ROOT CA mints the wildcard secrets the
 # edge consumes (wildcard-tls, wildcard-ops-tls) in the platform namespace, where
 # the IngressRoutes resolve them. This replaces the imperative openssl block the
-# old scripts/cluster-full.sh used.
+# old scripts/cluster.sh used.
 #
 # ── Why a CA chain and not a self-signed leaf ─────────────────────────────────
 # This used to be `selfSigned: {}` issuing the wildcard directly. A self-signed

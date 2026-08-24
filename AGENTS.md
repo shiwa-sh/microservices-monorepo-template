@@ -47,7 +47,7 @@ The set is large and each task class needs a small part of it. Grep the Rules se
 
 ## Working in the repo
 
-- The task runner is `mise` (root `.mise.toml`); commands are `mise run <task>`. `mise run cluster:base` / `cluster:full` bring up the local cluster ([ADR-0600](docs/adr/0600-local-development-loop.md)).
+- The task runner is `mise` (root `.mise.toml`); commands are `mise run <task>`. `mise run cluster:up` / `cluster:up full` bring up the local cluster ([ADR-0600](docs/adr/0600-local-development-loop.md)).
 - Tools are pinned and installed by `mise`; a shell with mise inactive resolves a bare tool call (`kubectl`, `helm`, `go`, `bun`, …) from `PATH` — usually the home folder, at an unpinned version. Activate mise (`mise activate`, or its shims) before calling a pinned tool by name; `mise run <task>` activates the toolchain for that task's duration, a bare tool call does not.
 - Generated code is committed and drift-checked in CI ([ADR-0000](docs/adr/0000-platform-foundations.md), [ADR-0303](docs/adr/0303-api-contracts-and-lifecycle.md)); regenerate with `mise run gen`, do not hand-edit generated files.
 - ArgoCD reconciles the cluster from `master`; a working-tree change is invisible in-cluster until pushed ([ADR-0201](docs/adr/0201-gitops.md)). To test uncommitted work on the full tier, pause Argo CD first with `mise run argo:pause` and resume it with `mise run argo:resume` when done — while paused the cluster silently stops tracking `master`, so never leave it paused.

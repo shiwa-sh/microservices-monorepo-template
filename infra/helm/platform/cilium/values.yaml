@@ -9,7 +9,7 @@ cilium:
   #
   # The laptop tier is the exception and overrides this back to the API server's
   # own loopback address, because kind is not Talos and has no KubePrism. That
-  # override lives in scripts/cilium-install.sh rather than in the local overlay:
+  # override lives in scripts/lib/cluster.sh rather than in the local overlay:
   # a CNI has to exist before any pod schedules, so both local tiers install this
   # chart IMPERATIVELY and the ApplicationSet never renders it there.
   kubeProxyReplacement: true

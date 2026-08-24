@@ -1,4 +1,4 @@
-# Local overrides for `cluster:full`, consumed the same way the ArgoCD
+# Local overrides for `cluster:up full`, consumed the same way the ArgoCD
 # ApplicationSet consumes dev/staging/prod values (ADR-0205): local diverges from
 # prod only through this overlay, layered over each platform chart's own values.
 # Locally the local platform ApplicationSet (infra/gitops/local-bootstrap) syncs
@@ -7,7 +7,7 @@
 # --- Cilium (CNI): kind declines kube-proxy at create time, so the chart default
 # kubeProxyReplacement=true applies with no override. One operator replica (the
 # default 2 needs 2 nodes for anti-affinity). Cilium itself is installed
-# imperatively by cluster:full before Argo runs and is excluded from the local
+# imperatively by cluster:up full before Argo runs and is excluded from the local
 # platform ApplicationSet, but these values keep parity if it is synced.
 cilium:
   operator:
@@ -151,7 +151,7 @@ grafana:
 
 # --- Lowdefy admin console (ADR-0401) -------------------------------------
 # Repo-built image: pulled from the local registry (the CI stand-in) at the
-# stable `local` tag; Always so a cluster:full re-run picks up a rebuild.
+# stable `local` tag; Always so a cluster:up full re-run picks up a rebuild.
 # Namespaced under `lowdefy:` to avoid colliding with the openfga chart's
 # top-level `image` (both charts share this overlay).
 lowdefy:

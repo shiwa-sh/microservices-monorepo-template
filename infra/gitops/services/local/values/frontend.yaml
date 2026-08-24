@@ -10,7 +10,7 @@
 # none of them is local-only sugar:
 #   1. EDGE_ORIGIN split into public/internal (src/lib/server-fetch/server.ts) —
 #      the pod dials :443, the browser's CSRF allowlist needs :8443.
-#   2. A CoreDNS rewrite (scripts/coredns-rewrite.sh) so dev.localtest.me
+#   2. A CoreDNS rewrite (scripts/lib/cluster.sh) so dev.localtest.me
 #      resolves to Traefik in-cluster instead of the pod's own loopback.
 #   3. A real local CA (infra/helm/platform/cert-manager/templates/issuers.yaml)
 #      so the edge cert can be TRUSTED rather than have verification disabled.
@@ -25,13 +25,13 @@ image:
   # services ApplicationSet generates the frontend's Application from, so a bare
   # node-resident `frontend:local` means the full tier pulls from Docker Hub, gets
   # `insufficient_scope`, and sits in ImagePullBackOff until someone runs
-  # `cluster:add -- frontend` by hand. cluster:full builds and pushes this tag.
+  # `cluster:add -- frontend` by hand. cluster:up full builds and pushes this tag.
   #
   # `cluster:add` still works: it overrides repository and tag with a timestamped
   # node-resident image, which is the point of that path.
   repository: registry.localhost:5000/frontend
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
+  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
 worker: { enabled: false }
 server:
   port: 3000

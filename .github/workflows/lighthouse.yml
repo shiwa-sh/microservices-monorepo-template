@@ -6,7 +6,7 @@
 #
 # It used to live in the nightly e2e job for one reason: Lighthouse measures a
 # RENDERED page, the frontend's server components fetch through the edge at render
-# time, and the only origin that existed was `cluster:full`. Two things changed.
+# time, and the only origin that existed was `cluster:up full`. Two things changed.
 # The API mock (ADR-0600) serves `/api` from the committed contract, and the
 # frontend is deployable as its production container, so the origin is now the
 # inner-loop floor plus two additions — a fraction of the full tier's cost, and the
@@ -55,8 +55,8 @@ jobs:
       # The floor: real Traefik, real cert-manager, real Kratos and Oathkeeper.
       # `/auth/login` is one of the measured URLs, so the identity stack has to be
       # the real one — there is no page to measure without it.
-      - name: Bring up cluster:base
-        run: mise run cluster:base
+      - name: Bring up cluster:up
+        run: mise run cluster:up
 
       # The production container, not `next dev`. A bundle budget measured against a
       # development server measures unminified output and means nothing.
@@ -92,4 +92,4 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: mise run cluster:delete
+        run: mise run cluster:down

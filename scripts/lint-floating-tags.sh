@@ -14,7 +14,11 @@ scan() {
   local hits
   # word-splitting the path list into separate grep args is intentional here.
   # shellcheck disable=SC2068
-  hits=$(grep -RInE --exclude-dir=node_modules "$pattern" $@ 2>/dev/null || true)
+  # image-refs.txt is GENERATED from the charts (scripts/gen-image-allowlist.sh). A
+  # floating tag there is an upstream chart's choice, restated — this gate is on the
+  # values a human writes, and the generated file has to keep the reference the chart
+  # actually renders or the registry warm would miss the image the node then cannot pull.
+  hits=$(grep -RInE --exclude-dir=node_modules --exclude=image-refs.txt "$pattern" $@ 2>/dev/null || true)
   if [[ -n "$hits" ]]; then
     echo "✗ $label:"
     echo "$hits" | sed 's/^/    /'

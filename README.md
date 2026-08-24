@@ -179,7 +179,7 @@ Every tool here also carries a row in [`docs/tool-register.md`](docs/tool-regist
 | Task runner | `mise` | [0101](docs/adr/0101-monorepo.md) |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) |
 | Cloud resources | Terraform, per project, skipped where infrastructure is pre-provided | [0200](docs/adr/0200-cluster-topology.md) |
-| Cluster | upstream Kubernetes on etcd in every tier — shipped by Talos from the full local tier upward, by kind for the inner loop | [0200](docs/adr/0200-cluster-topology.md), [0600](docs/adr/0600-local-development-loop.md) |
+| Cluster | upstream Kubernetes on etcd in every tier, on kind for both local tiers | [0200](docs/adr/0200-cluster-topology.md), [0600](docs/adr/0600-local-development-loop.md) |
 | Deploy | Argo CD, the only mechanism; one shared Helm chart, per-env values | [0201](docs/adr/0201-gitops.md) |
 | Network / policy | Cilium + Hubble, WireGuard, default-deny | [0206](docs/adr/0206-cluster-networking.md) |
 | Policy enforcement | Kyverno at admission, PSA `restricted`, CiliumNetworkPolicy, CI lints | [0203](docs/adr/0203-policy-enforcement.md) |
@@ -217,9 +217,9 @@ mise install                    # pinned toolchain from .mise.toml
 mise run setup                  # git hooks
 mise run secrets:age            # generate your age key (ADR-0202)
 
-# Local clusters — the same charts as production, on two tiers
-mise run cluster:base           # kind: the floor — edge, identity, Postgres, mocks
-mise run cluster:full           # Talos in Docker: the whole platform, including observability
+# Local cluster — the same charts as production, on two tiers
+mise run cluster:up             # the floor: edge, identity, Postgres, mocks
+mise run cluster:up -- full     # the whole platform, ArgoCD-driven, incl. observability
 
 # Inner loop on one service — native process, no image build
 cd services/catalog

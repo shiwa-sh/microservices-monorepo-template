@@ -28,7 +28,7 @@ const EMAIL = `signup-${Date.now()}@e2e.localtest.me`;
 // The registrant's assertable link to their org is therefore the OpenFGA admin
 // tuple (org:<id>#admin@user:<id>), which is also dual-write leg 2 — the exact seam
 // this test guards. Local forward port 18080 (not 8080: the local edge maps host 8080 to the
-// edge); the key is the cluster:full preshared key.
+// edge); the key is the cluster:up full preshared key.
 const PERSONAL_ORG_NAME = "Personal workspace";
 const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);
 const OPENFGA_TOKEN = process.env.OPENFGA_TOKEN ?? "localdevkey";

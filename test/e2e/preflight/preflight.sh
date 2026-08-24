@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # e2e readiness gate (ADR-0601). Runs before the browser suite as a fast failure
-# *localiser*, not an acceptance test: if this is red, cluster:full is not up, so a
+# *localiser*, not an acceptance test: if this is red, cluster:up full is not up, so a
 # red e2e reads "infra down" rather than "app broken". Two cheap classes of check:
 #   1. the dashboards' backing deploys report an available replica, and
 #   2. the edge auth layer is live — an ops origin answers with a deny (401/403) or
@@ -62,7 +62,7 @@ edge_gates pgweb
 edge_gates mailpit
 
 if [ "$failed" -gt 0 ]; then
-  printf '\npreflight: %d check(s) failed — cluster:full is not ready (infra down, not app broken)\n' "$failed" >&2
+  printf '\npreflight: %d check(s) failed — cluster:up full is not ready (infra down, not app broken)\n' "$failed" >&2
   exit 1
 fi
 printf '\npreflight: all checks passed\n'

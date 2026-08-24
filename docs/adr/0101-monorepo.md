@@ -186,7 +186,7 @@ The two long-running service tasks are named for the process type they start, ma
 | Shape | Use when | Examples |
 | --- | --- | --- |
 | `activity:target` | one activity fans out across many targets, with an umbrella task | `lint:go`, `lint:ts`, `lint:md` under `lint`; `format:*`; `gen:openapi`, `gen:sqlc` under `gen` |
-| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:ensure`/`stop`/`delete`, `service:deploy`/`undeploy`, `db:migrate`, `ops:grant` |
+| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`/`stop`/`delete`, `service:deploy`/`undeploy`, `db:migrate`, `ops:grant` |
 
 Forcing one shape on both scatters a family: `stop:cluster` and `delete:cluster` split the cluster lifecycle, and `ts:format` breaks the `format` umbrella. Use `activity:` only where a real umbrella exists. Graph-only plumbing that exists solely as a `depends` node is marked `hide = true`.
 

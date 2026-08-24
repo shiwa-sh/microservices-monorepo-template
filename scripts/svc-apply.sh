@@ -36,10 +36,9 @@ set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
 source "$(dirname "$0")/lib/ports.sh"
-source "$(dirname "$0")/lib/preflight.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

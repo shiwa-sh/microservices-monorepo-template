@@ -1,4 +1,4 @@
-# Shared activity gate for the nightly cluster:full suites (e2e.yml, perf.yml).
+# Shared activity gate for the nightly cluster:up full suites (e2e.yml, perf.yml).
 #
 # Both nightlies cost a ~17min full-platform bring-up. Re-running them against a
 # commit that already passed last night buys nothing: the code is identical, so a

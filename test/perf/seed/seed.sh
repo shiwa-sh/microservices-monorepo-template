@@ -25,7 +25,7 @@ cd "$(cd "$(dirname "$0")/../.." && pwd)"
 source scripts/lib/log.sh
 
 CLUSTER="${CLUSTER:-platform}"
-source scripts/lib/cluster-ctx.sh
+source scripts/lib/cluster.sh
 NS="platform"
 PREFIX="perf-"
 
@@ -35,7 +35,7 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 # the pod (postgres-1 → postgres-2) and a hardcoded name silently seeds nothing.
 primary="$(k get pods -l 'cnpg.io/instanceRole=primary' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
 if [ -z "$primary" ]; then
-  fail "no CNPG primary found in namespace ${NS} — is the full tier up? (mise run cluster:full)"
+  fail "no CNPG primary found in namespace ${NS} — is the full tier up? (mise run cluster:up -- full)"
 fi
 
 # psql over the pod's local socket as the superuser: no port-forward, no

@@ -1,5 +1,5 @@
 # ADR-0204 guardrails. Every number here has a measured basis, taken on
-# 2026-07-26 from cluster:full under the ADR-0601 load suite (browse @160 VUs,
+# 2026-07-26 from cluster:up full under the ADR-0601 load suite (browse @160 VUs,
 # checkout @40 VUs). Re-derive with `mise run perf:stress` + the `load-test`
 # Grafana dashboard's cost table rather than by taste.
 

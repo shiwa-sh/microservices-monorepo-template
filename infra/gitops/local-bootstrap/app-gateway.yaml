@@ -3,7 +3,7 @@
 # app-gateway.yaml applies, synced locally by the local root-app. The host-specific
 # local edge glue (edge-auth.yaml, and the
 # frontend-dev EndpointSlice pointing at the docker-bridge gateway IP) is NOT here —
-# it depends on per-machine state and stays in the imperative tail of cluster:full.
+# it depends on per-machine state and stays in the imperative tail of cluster:up full.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

@@ -71,7 +71,7 @@ All four guardrails live in `infra/helm/platform/resource-governance/`, ordered 
 
 ### Sizings are measured, not estimated
 
-Every number is taken from `cluster:full` under the [ADR-0601](0601-testing-strategy.md) load suite and is re-derivable from the `load-test` dashboard. The measurements that changed decisions:
+Every number is taken from `cluster:up full` under the [ADR-0601](0601-testing-strategy.md) load suite and is re-derivable from the `load-test` dashboard. The measurements that changed decisions:
 
 | Workload | Measured peak | Consequence |
 | --- | --- | --- |

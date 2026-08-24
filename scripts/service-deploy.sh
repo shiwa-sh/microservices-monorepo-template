@@ -18,13 +18,12 @@
 #
 # If the full tier (ArgoCD) manages this service, its auto-sync is paused first so
 # self-heal does not revert your local image; re-enable with:
-#   argocd app set local-service-<svc> --sync-policy automated   (or just cluster:full)
+#   argocd app set local-service-<svc> --sync-policy automated   (or just cluster:up full)
 set -euo pipefail
 
-source "$(dirname "$0")/lib/argo.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -130,7 +129,7 @@ done
 # This is the imperative path, where there is nothing to reconcile from git. What
 # Argo deploys still comes from the local registry by a `registry.localhost:5000`
 # reference, exactly as a deployed environment pulls from its own registry — that
-# path is cluster:full's build_push, not this one.
+# path is cluster:up full's build_push, not this one.
 publish_image() {
   kind load docker-image "$1" --name "$(cluster_name)" >/dev/null
 }
@@ -191,7 +190,7 @@ echo "→ helm upgrade ${SVC} (working-tree image ${TAG})"
 # --take-ownership: when the full tier normally manages this service, its resources
 # are owned by ArgoCD (Server-Side Apply), not a Helm release. Helm 4 refuses to
 # adopt them without this flag. Auto-sync is already paused above, so taking
-# ownership for the local override is safe; a re-run of cluster:full restores GitOps.
+# ownership for the local override is safe; a re-run of cluster:up full restores GitOps.
 h upgrade --install "$SVC" infra/helm/service -n "$NS" -f "$VALUES" \
   --take-ownership --force-conflicts --set image.pullPolicy=IfNotPresent "${SET[@]}" --timeout 5m
 k rollout restart "deploy/${SVC}-server"

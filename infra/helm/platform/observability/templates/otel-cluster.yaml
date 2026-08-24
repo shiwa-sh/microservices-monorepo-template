@@ -92,7 +92,7 @@ subjects:
         #
         # ephemeral-storage is included on purpose: it is the node filesystem the
         # kubelet evicts on, and this cluster deliberately pins eviction-hard to
-        # 2% (scripts/cluster-ensure.sh), which means kubelet gives almost no
+        # 2% (scripts/cluster.sh), which means kubelet gives almost no
         # warning of its own.
         allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage, pods]
       # Platform-component exporters (ADR-0501 follow-up): postgres (the CNPG

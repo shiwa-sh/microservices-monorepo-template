@@ -40,7 +40,7 @@ An expired silence is deleted from the file rather than extended. Extending one 
 ## Bring up the full platform locally
 
 ```sh
-mise run cluster:full     # the real charts at single replica, via Argo CD from master
+mise run cluster:up -- full     # the real charts at single replica, via Argo CD from master
 ```
 
 This is the mechanism the deployed clusters use ([ADR-0600](../adr/0600-local-development-loop.md)). To exercise **uncommitted** GitOps wiring, see [gitops-local](gitops-local.md).

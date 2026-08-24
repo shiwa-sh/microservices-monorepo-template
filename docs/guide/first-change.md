@@ -4,7 +4,7 @@
 
 One worked change — **adding a field to a service** — walked through every gate it passes. The change is deliberately small, because the point is not the field. The point is that a two-line edit to an OpenAPI file touches eight mechanisms, and knowing which one is talking to you is most of what makes this platform fast to work in rather than slow.
 
-**What you need first:** a local floor. `mise run cluster:base`, and [`../dev-loop.md`](../dev-loop.md) if it does not come up.
+**What you need first:** a local floor. `mise run cluster:up`, and [`../dev-loop.md`](../dev-loop.md) if it does not come up.
 
 ## The change
 

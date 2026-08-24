@@ -1,7 +1,7 @@
 # The k6 island (ADR-0601). Same containment idiom as test/e2e/.mise.toml (Node)
 # and apps/admin (Lowdefy's pnpm): the tool is pinned NEXT TO the only code that
 # uses it, not in the root [tools], so a developer running `lint`, `test` or
-# `cluster:full` never installs a load generator they are not using.
+# `cluster:up full` never installs a load generator they are not using.
 #
 # Unlike the e2e island, this one adds no runtime. k6 is a single static Go binary
 # that executes the scenarios on its own embedded JS engine (Sobek) — there is no
@@ -32,7 +32,7 @@ bash run.sh checkout smoke
 [tasks.load]
 # The steady baseline. This is the number nightly runs track over time; changing
 # the `load` profile's shape invalidates that history (test/perf/lib/config.js).
-description = "Steady-state baseline against cluster:full (~3min per scenario)"
+description = "Steady-state baseline against cluster:up full (~3min per scenario)"
 run = """
 bash run.sh browse load
 bash run.sh checkout load

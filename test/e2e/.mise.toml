@@ -33,7 +33,7 @@ npm run install:browsers
 # The edge (*.localtest.me) must be hit directly, never through a dev HTTPS_PROXY;
 # the in-cluster port-forwards are loopback. Belt-and-suspenders for both cases.
 [tasks.test]
-# Full browser acceptance + visual suite against a running cluster:full (ADR-0601).
+# Full browser acceptance + visual suite against a running cluster:up full (ADR-0601).
 # Nightly + pre-release in CI; never part of ci:affected.
 env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
 run = "npm run test"

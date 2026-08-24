@@ -1,5 +1,5 @@
 # Local root App-of-Apps (ADR-0201, ADR-0205). Applied imperatively ONCE by
-# `mise run cluster:full` (scripts/cluster-full.sh's replacement). It is the local
+# `mise run cluster:up -- full` (scripts/cluster.sh's replacement). It is the local
 # counterpart to bootstrap/root-application.yaml.
 #
 # It lives in a SIBLING directory to bootstrap/ on purpose: the prod root-app

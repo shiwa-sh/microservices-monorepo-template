@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Add ONE opt-in local dependency component on top of `cluster:base` (ADR-0205,
+# Add ONE opt-in local dependency component on top of `cluster:up` (ADR-0205,
 # ADR-0600). Backs the `dep:*` mise tasks, which services declare for themselves:
 #
 #   # services/orders/.mise.toml
@@ -27,10 +27,9 @@
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/preflight.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

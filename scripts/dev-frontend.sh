@@ -16,7 +16,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -26,7 +26,7 @@ CA_FILE="${CA_DIR}/local-ca.crt"
 
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
-# Re-extract every run: a cluster:delete mints a new CA, and a stale file would
+# Re-extract every run: a cluster:down mints a new CA, and a stale file would
 # fail verification in a way that looks like a code problem.
 if k -n "$NS" get secret local-ca-tls >/dev/null 2>&1; then
   mkdir -p "$CA_DIR"
@@ -34,7 +34,7 @@ if k -n "$NS" get secret local-ca-tls >/dev/null 2>&1; then
   export NODE_EXTRA_CA_CERTS="$CA_FILE"
   detail "trusting the local CA from ${CA_FILE}"
 else
-  warn "local-ca-tls not found — is cluster:base up? TLS calls to the edge will fail"
+  warn "local-ca-tls not found — is cluster:up up? TLS calls to the edge will fail"
 fi
 
 # Run through the island's own mise config (apps/frontend/.mise.toml) so the

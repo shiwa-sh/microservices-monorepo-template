@@ -21,7 +21,7 @@ source "$(dirname "$0")/lib/log.sh"
 source "$(dirname "$0")/lib/ports.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -114,7 +114,7 @@ spec:
     secretName: wildcard-tls
 EOF
 
-bash scripts/cluster-edge-glue.sh "$SVC" "$PORT"
+bash scripts/cluster.sh glue "$SVC" "$PORT"
 
 cat <<EOF
 

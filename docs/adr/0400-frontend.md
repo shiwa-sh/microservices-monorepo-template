@@ -251,7 +251,7 @@ The browser side of [ADR-0500](0500-observability.md) is wired here.
 
 The build produces standalone output and the container runs it under Bun, from a multi-stage Dockerfile whose runtime stage installs no Node ([ADR-0100](0100-language-and-runtime.md)). The image deploys through the shared service chart with route-group ingress paths in the environment's values.
 
-Locally, the dev server runs against `cluster:base` and is reached through the edge. Work on authenticated surfaces uses the real Traefik, Kratos, and Oathkeeper with application data served by the API mock ([ADR-0600](0600-local-development-loop.md)). **The app's auth path is identical to production** — there is no development-only session, bypass, or environment-conditional branch in the session path.
+Locally, the dev server runs against `cluster:up` and is reached through the edge. Work on authenticated surfaces uses the real Traefik, Kratos, and Oathkeeper with application data served by the API mock ([ADR-0600](0600-local-development-loop.md)). **The app's auth path is identical to production** — there is no development-only session, bypass, or environment-conditional branch in the session path.
 
 ## Consequences
 

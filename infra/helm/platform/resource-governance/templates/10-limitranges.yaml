@@ -2,7 +2,7 @@
 LimitRange per namespace (ADR-0204) — the safety net that makes "every container
 declares resources" true without forking every third-party chart.
 
-Measured basis (2026-07-26, cluster:full + the ADR-0601 load suite): 41 of 58
+Measured basis (2026-07-26, cluster:up full + the ADR-0601 load suite): 41 of 58
 containers declared NOTHING. Almost all of them are vendored charts we do not own
 — Cilium, ArgoCD, cert-manager, Traefik, hubble, sops-operator, local-path. Adding
 requests to each would mean carrying a values override per chart forever. A

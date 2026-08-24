@@ -69,7 +69,7 @@ Every encrypted file has exactly three, declared in `.sops.yaml` at the repo roo
 
 **The local tier is the exemption, and it is bounded by that same file.** No bootstrap step materialises a key for a cluster whose lifetime is a `mise` task, so the local private key is committed at `infra/gitops/platform/local/age.key` and its creation rule names that key as the sole recipient. What makes it safe is not the key's secrecy but what it opens: throwaway values in a cluster holding no real data ([ADR-0205](0205-environment-parity.md)). A real credential encrypted to it is a leak, not a shortcut. The preview tier borrows the same path for the same reason.
 
-**The committed key is per project, not per template.** A template that ships one local key ships a default credential to every project generated from it, and the reasoning above — that the key is throwaway — does not travel with the copy. `cluster:base` therefore mints a fresh local key on first use and re-encrypts the local bundle to it (`mise run secrets:age:local`), so the shared key stops opening a project the moment anyone runs its cluster. This is not a second exemption; it is what keeps the first one bounded to one repository.
+**The committed key is per project, not per template.** A template that ships one local key ships a default credential to every project generated from it, and the reasoning above — that the key is throwaway — does not travel with the copy. `cluster:up` therefore mints a fresh local key on first use and re-encrypts the local bundle to it (`mise run secrets:age:local`), so the shared key stops opening a project the moment anyone runs its cluster. This is not a second exemption; it is what keeps the first one bounded to one repository.
 
 Those per-env files reach the cluster through the `secrets` ApplicationSet at sync-wave 1 — after the base-tier operator, before the data tier that consumes the Secrets ([ADR-0201](0201-gitops.md)).
 
@@ -88,7 +88,7 @@ Service authors reference secrets by Kubernetes Secret name in Helm values, exac
 
 ### Local decryption
 
-`mise run secrets:age` once, after which `cluster:base` and any `sops decrypt` work without further configuration. Running against a real environment's secrets:
+`mise run secrets:age` once, after which `cluster:up` and any `sops decrypt` work without further configuration. Running against a real environment's secrets:
 
 ```sh
 sops exec-env infra/gitops/platform/dev/secrets/platform.enc.yaml -- mise run -C services/<svc> server

@@ -4,11 +4,11 @@
 # edge, https://dev.localtest.me:8443, is what keeps the ory_kratos_session cookie
 # on the host Oathkeeper checks for the gated routes. The cookie is domain-scoped
 # to dev.localtest.me (set in the kratos values), so it also covers subdomains
-# like hubble.ops.dev.localtest.me. Applied by scripts/cluster-full.sh
+# like hubble.ops.dev.localtest.me. Applied by scripts/cluster.sh
 # (NOT infra/gateway, which ArgoCD syncs to prod).
 ---
 # Selector-less Service for the host `next dev`. There is no host-alias record for
-# the host, so cluster-full.sh attaches an EndpointSlice pointing at the docker
+# the host, so scripts/cluster.sh attaches an EndpointSlice pointing at the docker
 # bridge gateway (the host) on :3000 — the only host IP routable from pods.
 apiVersion: v1
 kind: Service

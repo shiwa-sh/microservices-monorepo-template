@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Mint a Kratos session token for a registered identity so you can hit
 # authenticated endpoints locally (ADR-0305, ADR-0304). Requires the full tier
-# (Ory) up (mise run cluster:full). Drives the native (API) login flow against the
+# (Ory) up (mise run cluster:up -- full). Drives the native (API) login flow against the
 # Kratos public API via a port-forward and prints the session token.
 #
 #   mise run auth:token -- <email>      # password read from KRATOS_PASSWORD or prompt
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 NS="platform"
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 

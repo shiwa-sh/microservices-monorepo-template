@@ -7,7 +7,7 @@
 #   - infra/auth/kratos/identity-schemas/user.v1.json
 #                                              → --set-file kratos.kratos.identitySchemas."user.v1.json"
 #   - infra/auth/oathkeeper/access-rules.json  → --set-file oathkeeper.oathkeeper.accessRules
-# scripts/cluster-full.sh wires the local path; the platform ApplicationSet wires
+# scripts/cluster.sh wires the local path; the platform ApplicationSet wires
 # the deployed path (valueFiles + fileParameters). A CI lint (mise run
 # lint:auth-inline) fails if any of these are re-inlined into this file.
 

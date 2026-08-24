@@ -19,7 +19,7 @@ run = "bash ../../scripts/env-ensure.sh"
 
 # Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
 # Declare them here, with the service — the service knows its own dependencies and
-# a named profile never can. mise resolves the graph: the shared cluster:base edge
+# a named profile never can. mise resolves the graph: the shared cluster:up edge
 # is deduped, independent components come up in parallel, and each one fast-exits
 # when already Ready. Trim this list to what the service actually reads: drop
 # dep:temporal if it has no worker, dep:postgres if it has no DATABASE_URL.

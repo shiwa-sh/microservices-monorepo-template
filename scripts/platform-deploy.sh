@@ -3,18 +3,18 @@
 # infra-iteration case (e.g. changing Ory or the observability chart and testing
 # before pushing). Pauses ArgoCD auto-sync on that one app so self-heal does not
 # revert you, then helm-upgrades the chart from the working tree with the local
-# values overlay. Re-enable sync when done (or just re-run cluster:full).
+# values overlay. Re-enable sync when done (or just re-run cluster:up full).
 #
 #   mise run platform:deploy -- <chart>     # e.g. ory, observability, openfga
 #
 # For GitOps-wiring changes (sync-waves, ApplicationSets, App defs) helm cannot
 # exercise the delivery path — push a branch and point the local root-app
-# targetRevision at it instead. For CNI/CRD changes (Cilium) prefer cluster:delete
-# + a fresh cluster:full over an in-place upgrade.
+# targetRevision at it instead. For CNI/CRD changes (Cilium) prefer cluster:down
+# + a fresh cluster:up full over an in-place upgrade.
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -83,7 +83,7 @@ echo "→ helm upgrade ${CHART} from the working tree"
 h dependency update "$CHART_DIR" >/dev/null
 # --take-ownership: platform charts are normally owned by ArgoCD (Server-Side
 # Apply), not a Helm release; Helm 4 refuses to adopt them without this flag. Sync
-# is paused above, so this is safe for the local override; cluster:full restores it.
+# is paused above, so this is safe for the local override; cluster:up full restores it.
 # Value-file order matches the ApplicationSet: the auth overlays first, the
 # per-env overlay last so it wins. extra_args therefore precedes the local values.
 h upgrade --install "$CHART" "$CHART_DIR" -n "$NS" \

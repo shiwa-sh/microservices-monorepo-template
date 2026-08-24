@@ -12,7 +12,7 @@ cert-manager:
 #
 # ArgoCD does not need this: sync-waves on the objects below order them after the
 # CRDs, which is why the full tier has always worked. An imperative install has no
-# waves, so scripts/cluster-base.sh installs twice — once with this false to land
+# waves, so scripts/cluster.sh installs twice — once with this false to land
 # the CRDs and the controller, then again with it true.
 issuers:
   enabled: true

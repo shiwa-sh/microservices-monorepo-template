@@ -1,7 +1,7 @@
 # Wrapper around the upstream traefik chart (ADR-0305) — the edge controller every
 # environment runs. kind ships no ingress controller, so both local tiers install
 # this chart.
-# One Traefik configuration in the repo, installed by scripts/traefik-install.sh
+# One Traefik configuration in the repo, installed by scripts/lib/cluster.sh
 # imperatively for the local tiers — its IngressRoute/Middleware CRDs must exist
 # before the gateway Application applies any route, which is the same reason Cilium
 # is imperative. A deployed environment installs the same chart through its own

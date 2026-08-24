@@ -11,7 +11,7 @@ How to run a load test, how to read it, and how to record a baseline. The decisi
 
 ## Prerequisites
 
-A running full tier: `mise run cluster:full`. The first `mise run perf*` in a fresh checkout also needs `mise trust test/perf/.mise.toml`.
+A running full tier: `mise run cluster:up -- full`. The first `mise run perf*` in a fresh checkout also needs `mise trust test/perf/.mise.toml`.
 
 ## Run one
 
@@ -24,7 +24,7 @@ mise run perf:soak          # ~30min sustained, for leak detection
 mise run perf:seed -- --clean   # remove the seeded rows
 ```
 
-`--clean` removes seeded **products** only. A `checkout` run also creates real orders and real Temporal workflow executions, and those carry no marker separating them from a human's — roughly 1,700 orders per `stress` run. They are left in place on purpose rather than guessed at by timestamp; if the accumulated volume starts to matter, recreate the environment (`mise run cluster:delete && mise run cluster:full`).
+`--clean` removes seeded **products** only. A `checkout` run also creates real orders and real Temporal workflow executions, and those carry no marker separating them from a human's — roughly 1,700 orders per `stress` run. They are left in place on purpose rather than guessed at by timestamp; if the accumulated volume starts to matter, recreate the environment (`mise run cluster:down && mise run cluster:up -- full`).
 
 Knobs (all optional):
 
@@ -93,7 +93,7 @@ Compare like for like: same profile, same seed size, same tier.
 
 ### The Prometheus side of a baseline is not durable
 
-Prometheus's TSDB is an `emptyDir` on the local tier (the ADR-0500 POC floor), so **any rollout of the observability chart destroys all metric history** — `mise run platform:deploy -- observability` and a `cluster:delete` both wipe it, silently and instantly. A resource or capacity comparison that depends on querying "before" numbers out of Prometheus will therefore fail exactly when you redeploy to apply the change you are measuring.
+Prometheus's TSDB is an `emptyDir` on the local tier (the ADR-0500 POC floor), so **any rollout of the observability chart destroys all metric history** — `mise run platform:deploy -- observability` and a `cluster:down` both wipe it, silently and instantly. A resource or capacity comparison that depends on querying "before" numbers out of Prometheus will therefore fail exactly when you redeploy to apply the change you are measuring.
 
 The `test/perf/results/*.json` summaries are files and survive, which is why they are the authoritative record. Copy them somewhere before a redeploy, and write the pod-level peaks into the PR (or the values comment) rather than assuming you can re-query them.
 

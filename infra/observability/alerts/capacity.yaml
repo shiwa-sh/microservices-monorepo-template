@@ -19,7 +19,7 @@
 # kube-state-metrics — both would duplicate the above under a second set of names.
 #
 # Thresholds are deliberately EARLIER than kubelet's own. This cluster pins
-# eviction-hard to 2% and image-gc-high to 98% (scripts/cluster-ensure.sh) so a
+# eviction-hard to 2% and image-gc-high to 98% (scripts/cluster.sh) so a
 # near-full developer disk does not evict the platform — which also means kubelet
 # will not warn in time. These rules are the warning.
 groups:

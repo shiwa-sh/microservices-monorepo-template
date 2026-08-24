@@ -4,7 +4,7 @@
 // hand-seeded state and no SMTP dependency.
 //
 // Split of responsibility (single source of truth):
-//   - cluster:full bring-up seeds the OpenFGA store + model + the static
+//   - cluster:up full bring-up seeds the OpenFGA store + model + the static
 //     dashboard->group:operator grants (platform policy; see scripts/cluster-full.sh).
 //   - this bootstrap creates the Kratos identities, runs the post-registration
 //     process for each, and writes the one relation that can only exist at test
@@ -23,7 +23,7 @@ const OPENFGA_PORT = 8080;
 // host 8080 -> the edge loadbalancer (Traefik), so binding 8080 here would collide
 // with the edge and requests would hit Traefik (404) instead of OpenFGA.
 const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);
-// Local/CI cluster:full preshared key (infra secret openfga-creds). Override for a
+// Local/CI cluster:up full preshared key (infra secret openfga-creds). Override for a
 // deployed target.
 const OPENFGA_TOKEN = process.env.OPENFGA_TOKEN ?? "localdevkey";
 

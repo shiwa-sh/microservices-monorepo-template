@@ -1,6 +1,6 @@
 # Local Platform ApplicationSets (ADR-0201, ADR-0205). Identical to
 # bootstrap/appset-platform.yaml except each list generator carries a single
-# { env: local } element, and the base tier omits cilium + argocd — cluster:full
+# { env: local } element, and the base tier omits cilium + argocd — cluster:up full
 # installs those imperatively before Argo can run (a CNI must exist before any pod
 # schedules; Argo cannot install itself), so Argo must not fight the imperative
 # releases.

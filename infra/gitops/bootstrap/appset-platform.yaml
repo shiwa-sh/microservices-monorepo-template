@@ -96,7 +96,7 @@ spec:
                 # Neither can be installed by the thing it is a prerequisite of:
                 # no pod schedules before the CNI exists, and Argo cannot apply
                 # its own first install. Both come up imperatively ahead of Argo
-                # (scripts/cilium-install.sh and cluster-full.sh / the equivalent
+                # (scripts/lib/cluster.sh and scripts/cluster.sh / the equivalent
                 # prod bootstrap), which is the one-time `kubectl apply` step
                 # ADR-0201 permits.
                 #

@@ -20,7 +20,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -71,7 +71,7 @@ done
 #
 # Idempotent twice over: the workflow id is derived from the identity, so Temporal
 # rejects a duplicate, and the activities are individually re-runnable.
-# Only where orgs is running. The inner-loop floor (cluster:base) is Postgres, the
+# Only where orgs is running. The inner-loop floor (cluster:up) is Postgres, the
 # edge and identity — no application services — so there is nothing to call there,
 # and a seed that insisted would fail the whole tier on a service it never claimed
 # to run. On that tier a seeded identity has no org until `cluster:add -- orgs`

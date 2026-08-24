@@ -72,11 +72,10 @@ extensions:
       - urls: ["https://registry.k8s.io"]
         onDemand: true
         tlsVerify: true
-      # The charts pull from six hosts, not four. These two were invisible while
-      # `cluster:preload` pushed every image by hand; without it, an unmirrored
-      # host falls through to a direct pull — and the node's inherited proxy points
-      # at 127.0.0.1, which inside a node is the node. The failure names a proxy
-      # connection refused, and nothing about a missing mirror.
+      # The charts pull from six hosts, not four. An unmirrored host falls through to
+      # a direct pull — and the node's inherited proxy points at 127.0.0.1, which
+      # inside a node is the node. The failure names a proxy connection refused, and
+      # nothing about a missing mirror.
       - urls: ["https://public.ecr.aws"]
         onDemand: true
         tlsVerify: true

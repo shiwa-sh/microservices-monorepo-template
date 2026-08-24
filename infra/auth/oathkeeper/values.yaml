@@ -1,6 +1,6 @@
 # Canonical Oathkeeper config (ADR-0305), the single source of truth — injected
 # into the Ory umbrella chart as a Helm values overlay (`-f` locally via
-# scripts/cluster-full.sh; ArgoCD `valueFiles` per env). The access rules are a
+# scripts/cluster.sh; ArgoCD `valueFiles` per env). The access rules are a
 # string artefact injected separately with `--set-file` (oathkeeper.accessRules →
 # /etc/rules/access-rules.json, referenced by access_rules.repositories below).
 #

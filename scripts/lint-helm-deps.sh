@@ -9,7 +9,7 @@
 # registers a repo once, every `build` after that works forever, and the failure
 # appears on the first clean runner — "Error: no repository definition for
 # https://charts.jetstack.io". That is what happened the first time CI ran
-# cluster:base, on a script that had worked on every machine that ever ran it.
+# cluster:up, on a script that had worked on every machine that ever ran it.
 #
 # So: a bare `build` is forbidden. Either use `update`, or fall back to it. This is a
 # static check on purpose — proving it dynamically means downloading charts on every

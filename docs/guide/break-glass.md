@@ -25,7 +25,7 @@ Right-sized for a small platform team — no separate operator IdP or PKI, which
    kubectl -n argocd   port-forward svc/argocd-server 8081:80
    ```
 
-   This procedure is already printed by the `scripts/cluster-full.sh` banner as the diagnose path; it is the sanctioned break-glass.
+   This procedure is already printed by the `scripts/cluster.sh` banner as the diagnose path; it is the sanctioned break-glass.
 
 ## Requirements on the break-glass path
 

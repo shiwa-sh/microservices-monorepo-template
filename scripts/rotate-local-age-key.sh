@@ -11,7 +11,7 @@
 # remembering the key is throwaway. The first person to encrypt something real to it
 # has no way to know that reasoning ever existed.
 #
-# So the key is rotated on first use. `cluster:base` calls this before it decrypts
+# So the key is rotated on first use. `cluster:up` calls this before it decrypts
 # anything, and a project that has already rotated is left alone.
 set -euo pipefail
 

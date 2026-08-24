@@ -23,7 +23,7 @@ Three accepted decisions depend on the second answer:
 - [ADR-0500](0500-observability.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) define the apparatus that observes saturation — the capacity row, the `ClusterCPURequestsCommitted` and `NodeMemoryPressure` alerts — and an alert nobody has seen fire is an alert nobody knows the shape of.
 - [ADR-0000](0000-platform-foundations.md)'s claim that **fixed platform cost dominates variable application cost** is quantitative, and this is what quantifies it.
 
-Measured on `cluster:full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At about one user the cost is entirely platform.
+Measured on `cluster:up full`, one node, during the e2e suite, and re-derivable from the `load-test` dashboard: **no business service appears among the top consumers of memory or CPU**, and the observability stack alone outweighs every service put together. At about one user the cost is entirely platform.
 
 The absolute footprint grows with the fleet and with log volume; the shape does not, which is what the tiering below rests on.
 
@@ -65,7 +65,7 @@ The absolute footprint grows with the fleet and with log volume; the shape does 
 
 | Option | Postgres, Temporal, OpenFGA come from | Fidelity to production | Cost per run | Verdict |
 | --- | --- | --- | --- | --- |
-| **`cluster:base` plus the service's declared components** | the same charts production runs ([ADR-0205](0205-environment-parity.md)) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** The dependencies are already declared per service for deployment, so the test environment is derived from the deploy manifest rather than described twice *(reasoned)* |
+| **`cluster:up` plus the service's declared components** | the same charts production runs ([ADR-0205](0205-environment-parity.md)) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** The dependencies are already declared per service for deployment, so the test environment is derived from the deploy manifest rather than described twice *(reasoned)* |
 | testcontainers-go | a container per dependency, started by the test process | plain images: no CNPG, no operator behaviour, no NetworkPolicy | one container set per package, torn down after | The industry default for Go service tests, and it would require each service to declare its dependencies a second time in Go. It also cannot exercise the operator-managed behaviour — failover, pooler, seeded authz model — that this platform's data tier has |
 | A shared long-lived test database | a persistent environment | high | none per run, and cross-test interference forever | State leaks between runs, and a failing test becomes a question about who else was running |
 | Mocks at the repository boundary | nothing | none — the SQL is never executed | fastest | It tests the code against its own assumptions about Postgres, which is the layer these tests exist to check |
@@ -96,10 +96,10 @@ Node is therefore sanctioned as a **test-only escape hatch**, scoped to the e2e 
 | Layer | Tool | Environment | Role |
 | --- | --- | --- | --- |
 | Unit / component | `go test`, `bun test` | none / `happy-dom` | logic and component shape in isolation |
-| Service integration | `go test` + generated SDK clients ([ADR-0303](0303-api-contracts-and-lifecycle.md)) | `cluster:base` plus the service's declared components | one service against real Postgres, Temporal, OpenFGA |
-| Preflight readiness | Go / shell | `cluster:full` | failure **localiser** — pods ready, ports open, Postgres and Oathkeeper reachable |
-| **Browser acceptance** | **Playwright** | `cluster:full` | **the gauge** — product journeys and operator dashboards behind a real AAL2 session |
-| Visual regression | Playwright `toHaveScreenshot` | `cluster:full` / static render | component shape against committed baselines |
+| Service integration | `go test` + generated SDK clients ([ADR-0303](0303-api-contracts-and-lifecycle.md)) | `cluster:up` plus the service's declared components | one service against real Postgres, Temporal, OpenFGA |
+| Preflight readiness | Go / shell | `cluster:up full` | failure **localiser** — pods ready, ports open, Postgres and Oathkeeper reachable |
+| **Browser acceptance** | **Playwright** | `cluster:up full` | **the gauge** — product journeys and operator dashboards behind a real AAL2 session |
+| Visual regression | Playwright `toHaveScreenshot` | `cluster:up full` / static render | component shape against committed baselines |
 
 Preflight runs before the browser suite so a red e2e reads immediately as "infra down" rather than "app broken". It is triage, not a competing acceptance test. The browser test is the final word.
 
@@ -107,7 +107,7 @@ Preflight runs before the browser suite so a red e2e reads immediately as "infra
 
 - **The mock-heavy integration tier a pyramid thickens has little left to catch.** Clients and validators are generated from the spec and drift-checked ([ADR-0303](0303-api-contracts-and-lifecycle.md)).
 - **The failures that cost this platform are cross-service and auth-shaped** — a header injected at the edge, an AAL2 session, an OpenFGA tuple. None is observable below the browser layer.
-- **The usual objection to a heavy top does not hold here.** `cluster:full` runs the same charts as production ([ADR-0205](0205-environment-parity.md)), so end-to-end is not running against a fiction.
+- **The usual objection to a heavy top does not hold here.** `cluster:up full` runs the same charts as production ([ADR-0205](0205-environment-parity.md)), so end-to-end is not running against a fiction.
 
 ### Load is a fourth concern, not a fifth layer
 
@@ -217,8 +217,8 @@ The CI gate is committed accepted-snapshot diffing against baselines in `test/e2
 - All e2e and visual tests live in the repo-root `test/e2e/` workspace under one Playwright config.
 - The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone.
 - Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests.
-- E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](0600-local-development-loop.md)).
-- Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code.
+- E2e runs against `cluster:up full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](0600-local-development-loop.md)).
+- Service integration tests run against `cluster:up` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code.
 - Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate.
 - E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state.
 - Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. `(CI: lint:node-scope)`

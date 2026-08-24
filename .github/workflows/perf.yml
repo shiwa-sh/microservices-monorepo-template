@@ -1,5 +1,5 @@
 # Load & performance (ADR-0601). Shares the e2e workflow's expensive prerequisite —
-# a running cluster:full — and the same reasoning about cadence, but answers a
+# a running cluster:up full — and the same reasoning about cadence, but answers a
 # different question: not "is it correct" but "what does it cost and where does it
 # break". These jobs are NOT part of ci:affected and never implicitly gate a merge.
 #
@@ -13,7 +13,7 @@
 # ADR-0500 service SLOs, and a CI runner is a noisy place to measure. Read a red
 # nightly next to the previous night's, not in isolation.
 #
-# NOTE: cluster:full is heavy (~16GB RAM) — the whole of a standard GitHub-hosted
+# NOTE: cluster:up full is heavy (~16GB RAM) — the whole of a standard GitHub-hosted
 # runner — and here it shares that runner with the load generator, so k6 and the
 # platform contend for the same cores. Absolute numbers from CI are not capacity
 # figures (ADR-0601);
@@ -64,8 +64,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      - name: Bring up cluster:full
-        run: mise run cluster:full
+      - name: Bring up cluster:up full
+        run: mise run cluster:up -- full
       # Seed before measuring: an empty catalog makes the read scenario a test of
       # nothing (test/perf/seed/seed.sh).
       - name: Seed bulk test data
@@ -81,7 +81,7 @@ jobs:
           retention-days: 30
       - name: Tear down
         if: always()
-        run: mise run cluster:delete
+        run: mise run cluster:down
 
   smoke:
     # Label-gated per-PR, same opt-in shape as e2e-smoke: an unlabeled PR never
@@ -98,8 +98,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      - name: Bring up cluster:full
-        run: mise run cluster:full
+      - name: Bring up cluster:up full
+        run: mise run cluster:up -- full
       - name: Seed bulk test data
         run: mise run perf:seed
       - name: Run the smoke profile
@@ -113,4 +113,4 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:delete
+        run: mise run cluster:down

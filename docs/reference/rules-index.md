@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 157 |
-| Review-enforced | 312 |
-| **Total** | **469** |
+| Machine-enforced | 158 |
+| Review-enforced | 313 |
+| **Total** | **471** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -216,6 +216,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI. | review |
 | The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)). | review |
 | Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](../adr/0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else. | review |
+| The local nodes pull from that registry and from nowhere else: no upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster. | review |
+| The warm set is generated from the charts alongside Kyverno's allow-list, never hand-written. | `lint:image-allowlist` in CI |
 | Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](../adr/0104-supply-chain-security.md)). | standard: OCI 1.1 |
 | Vulnerability scanning runs in CI, not in the registry. | review |
 | The registry the pipeline pushes to is set by forge variables, never written into a workflow. | review |
@@ -663,7 +665,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles. | review |
+| Local development runs two tiers: the `cluster:up` inner loop and `cluster:up full`. There are no named profiles. | review |
 | Both local tiers run on kind, as two clusters with two contexts. Neither tier's bring-up alters the other, and no local tier shares a cluster with another. | review |
 | Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built, and a difference introduced between them is a defect. | review |
 | No local tier exercises the cross-node datapath. Service routing between nodes and the WireGuard encryption [ADR-0206](../adr/0206-cluster-networking.md) enables are first exercised in a deployed environment. | review |
@@ -675,7 +677,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. | `lint:ports` in CI |
 | Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. | `lint:service-contract` in CI |
-| Argo CD is the engine for `cluster:full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly. | review |
+| Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly. | review |
 | API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source. | review |
 | The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used. | review |
 | The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers. | review |
@@ -697,8 +699,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | All e2e and visual tests live in the repo-root `test/e2e/` workspace under one Playwright config. | review |
 | The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone. | review |
 | Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests. | review |
-| E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
-| Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. | review |
+| E2e runs against `cluster:up full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
+| Service integration tests run against `cluster:up` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. | review |
 | Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate. | review |
 | E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state. | review |
 | Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. | `lint:node-scope` in CI |

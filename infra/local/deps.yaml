@@ -15,13 +15,13 @@
 # is what makes a component a SELECTION (ADR-0205): there is one manifest, and
 # nothing can drift from it.
 #
-# cluster:base takes `postgres` — Kratos needs a store, so every base has one.
+# cluster:up takes `postgres` — Kratos needs a store, so every base has one.
 # Everything else is opt-in, added by scripts/dep-apply.sh when a service
 # declares it (`dep:temporal`, `dep:openfga`, `dep:db-secrets` in the service's own
 # .mise.toml). There are no named profiles: what is up is base ∪ the declared
 # dependencies of whatever you are running.
 # --- Postgres (plain image, ephemeral) -------------------------------------
-# `kratos` is here because cluster:base runs the real Kratos against this stand-in
+# `kratos` is here because cluster:up runs the real Kratos against this stand-in
 # instead of CNPG (ADR-0600). Free either way — the pod has no volume, so initdb
 # re-runs on every start.
 apiVersion: v1

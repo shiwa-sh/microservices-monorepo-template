@@ -1,5 +1,5 @@
 # End-to-end + visual acceptance (ADR-0601). Every full-platform e2e shares one
-# expensive prerequisite — a running cluster:full — so cadence is set per
+# expensive prerequisite — a running cluster:up full — so cadence is set per
 # environment to amortise the bring-up, and these jobs are NOT part of ci:affected
 # (every e2e crosses service boundaries by nature):
 #   - full  — nightly + pre-release (and manual). Every dashboard + visual baseline.
@@ -8,7 +8,7 @@
 # The nightly is activity-gated (see the `gate` job): a dormant repo re-testing an
 # unchanged commit every night is noise, not signal.
 #
-# NOTE: cluster:full is heavy (~16GB RAM), which is the whole of a standard
+# NOTE: cluster:up full is heavy (~16GB RAM), which is the whole of a standard
 # GitHub-hosted runner (4 vCPU / 16GB). It does fit — the nightly perf lane brings
 # the full platform up on ubuntu-latest in ~17min — but with no headroom, so the
 # bring-up is the slowest and most fragile part of these jobs. A larger runner buys
@@ -60,8 +60,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      - name: Bring up cluster:full
-        run: mise run cluster:full
+      - name: Bring up cluster:up full
+        run: mise run cluster:up -- full
       - name: Install Playwright (Node island)
         run: mise run e2e:install
       - name: Run full e2e + visual suite
@@ -77,7 +77,7 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:delete
+        run: mise run cluster:down
 
   # Does this pull request pay for a bring-up? The `e2e-smoke` label says yes; so
   # does a change that spans more than one service, which is the class no test below
@@ -114,8 +114,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      - name: Bring up cluster:full
-        run: mise run cluster:full
+      - name: Bring up cluster:up full
+        run: mise run cluster:up -- full
       - name: Install Playwright (Node island)
         run: mise run e2e:install
       - name: Run smoke suite
@@ -131,4 +131,4 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:delete
+        run: mise run cluster:down

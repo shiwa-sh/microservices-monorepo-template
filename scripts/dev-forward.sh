@@ -4,14 +4,14 @@
 # reach them. Long-running
 # — run it in a separate terminal (or background) and leave it up while you iterate.
 #
-#   mise run cluster:base      # once: the local floor (a service's tasks do this for you)
+#   mise run cluster:up      # once: the local floor (a service's tasks do this for you)
 #   mise run dev:forward     # this script, in its own terminal
 #   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 OPENFGA_API_URL=http://localhost:18080 \
 #     go run ./services/orders/cmd/server   # run the service natively
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 NS="platform"
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 

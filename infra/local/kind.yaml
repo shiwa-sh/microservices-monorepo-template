@@ -12,11 +12,10 @@
 # kubelet from evicting the whole platform over a few spare GB; image-gc thresholds
 # at 98/80 stop the perpetual ImageGCFailed noise on a near-full developer disk).
 #
-# Proxied networks: kind cannot inject node environment, so
-# a proxied machine preloads images on the host instead — CLUSTER_PRELOAD=1 runs
-# cluster:preload (host docker pull + kind load docker-image), and
-# cluster:unwedge rescues anything that still wedges reactively. See
-# docs/dev-loop.md ("HTTP proxies").
+# Proxied networks: kind cannot inject node environment, and does not need to — the
+# node pulls every registry through the local zot, which holds the egress (ADR-0105).
+# `mise run proxy:setup` configures that one component. See docs/dev-loop.md
+# ("HTTP proxies").
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -39,20 +38,22 @@ nodes:
 networking:
   disableDefaultCNI: true
   kubeProxyMode: none
-# The local registry (ADR-0205 parity): a plain registry container on the kind
-# docker network (created by scripts/cluster-ensure.sh), the node pulls
-# repo-built images from registry.localhost:5000 exactly as a deployed tier pulls
-# from ghcr. The endpoint carries an explicit http:// scheme, which is how
-# containerd marks a registry as plain-HTTP.
+# The local registry (ADR-0205 parity): a zot container on the kind docker network
+# (created by scripts/cluster.sh). The node pulls repo-built images from
+# registry.localhost:5000 exactly as a deployed tier pulls from ghcr. The endpoint
+# carries an explicit http:// scheme, which is how containerd marks a registry as
+# plain-HTTP.
 #
-# The UPSTREAM registries are mirrored at the same address (ADR-0105). On a proxied
-# or firewalled network every layer that pulls an image otherwise needs its own
-# egress configuration — this node, the Talos nodes, the build host. Pointing them
-# all at one mirror means exactly one component talks to the internet for images.
+# THE REGISTRY IS THE ONLY SOURCE. Every upstream is mirrored at that one address
+# and NO upstream is listed as a fallback, so exactly one component talks to the
+# internet for images (ADR-0105). `cluster:up` fills it before creating the cluster,
+# so every pull below is a local read.
 #
-# containerd falls back to the upstream registry when a mirror does not have the
-# image, so this is an accelerator rather than an allow-list; Kyverno is the
-# allow-list (ADR-0104).
+# The fallbacks were removed rather than kept as a safety net. They could not act as
+# one: containerd falls through only on a fast failure, and a saturated mirror fails
+# by timing out, which ends the pull. What they did instead was hide a mirror miss
+# behind a slow direct pull, so the image path differed per machine and per network.
+# This is not an authorization boundary — Kyverno remains the allow-list (ADR-0104).
 #
 # `kind load` is unaffected and stays the fast path for repo-built images: it
 # copies from the host image store and never touches a registry.
@@ -61,14 +62,14 @@ containerdConfigPatches:
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.localhost:5000"]
       endpoint = ["http://registry.localhost:5000"]
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-      endpoint = ["http://registry.localhost:5000", "https://registry-1.docker.io"]
+      endpoint = ["http://registry.localhost:5000"]
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
-      endpoint = ["http://registry.localhost:5000", "https://quay.io"]
+      endpoint = ["http://registry.localhost:5000"]
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."ghcr.io"]
-      endpoint = ["http://registry.localhost:5000", "https://ghcr.io"]
+      endpoint = ["http://registry.localhost:5000"]
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
-      endpoint = ["http://registry.localhost:5000", "https://registry.k8s.io"]
+      endpoint = ["http://registry.localhost:5000"]
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."public.ecr.aws"]
-      endpoint = ["http://registry.localhost:5000", "https://public.ecr.aws"]
+      endpoint = ["http://registry.localhost:5000"]
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."reg.kyverno.io"]
-      endpoint = ["http://registry.localhost:5000", "https://reg.kyverno.io"]
+      endpoint = ["http://registry.localhost:5000"]

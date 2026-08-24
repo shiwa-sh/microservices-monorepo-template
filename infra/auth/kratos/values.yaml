@@ -1,6 +1,6 @@
 # Canonical Kratos config (ADR-0304), the single source of truth — injected into
 # the Ory umbrella chart as a Helm values overlay (`-f` locally via
-# scripts/cluster-full.sh; ArgoCD `valueFiles` per env). The identity schema is a
+# scripts/cluster.sh; ArgoCD `valueFiles` per env). The identity schema is a
 # string artefact injected separately with `--set-file` (it lands at
 # /etc/config/user.v1.json, referenced by identity.schemas[].url below).
 #

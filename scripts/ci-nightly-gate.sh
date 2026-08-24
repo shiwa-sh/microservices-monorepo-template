@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Decide whether tonight's cluster:full suite should run, as a forge step-output
+# Decide whether tonight's cluster:up full suite should run, as a forge step-output
 # assignment (ADR-0102, ADR-0601). Both nightlies cost a full-platform bring-up,
 # and re-running one against a commit that already passed buys nothing: the code
 # is identical, so a red is flake or upstream drift and a green is a result already
