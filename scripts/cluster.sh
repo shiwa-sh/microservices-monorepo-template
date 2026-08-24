@@ -135,8 +135,9 @@ stop)
   # of its own. Every node: stopping one of a multi-node cluster leaves the rest
   # holding memory for a cluster nobody is using.
   name="$(cluster_name)"
-  if ! kind get clusters 2>/dev/null | grep -qx "$name"; then
+  if ! cluster_exists "$name"; then
     ok "cluster '${name}' does not exist — nothing to stop"
+    other_tier_hint stop
     exit 0
   fi
   mapfile -t nodes < <(kind get nodes --name "$name")
@@ -147,6 +148,13 @@ stop)
 
 down)
   name="$(cluster_name)"
+  # kind exits 0 deleting a cluster that does not exist, so the check is here or the
+  # verb reports a deletion it never performed.
+  if ! cluster_exists "$name"; then
+    ok "cluster '${name}' does not exist — nothing to delete"
+    other_tier_hint down
+    exit 0
+  fi
   step "deleting kind cluster '${name}'"
   kind delete cluster --name "$name"
   ok "deleted '${name}' (the registry container survives — it is host-level)"
@@ -159,8 +167,10 @@ heal)
   # glue. Restarting the node re-runs its entrypoint cleanly; forcing those stages
   # rebuilds what the restart alone leaves stale.
   name="$(cluster_name)"
-  docker inspect "${name}-control-plane" >/dev/null 2>&1 ||
+  if ! docker inspect "${name}-control-plane" >/dev/null 2>&1; then
+    other_tier_hint heal
     fail "cluster '${name}' does not exist — nothing to heal"
+  fi
   step "restarting the nodes of '${name}'"
   kind get nodes --name "$name" | xargs -r docker restart >/dev/null
   # Poll before any RBAC-gated call: during the cold-start window the API server can
@@ -182,8 +192,9 @@ heal)
 status)
   name="$(cluster_name)"
   step "tier ${TIER} · cluster '${name}' · context $(cluster_ctx)"
-  if ! kind get clusters 2>/dev/null | grep -qx "$name"; then
+  if ! cluster_exists "$name"; then
     warn "not created — run '$(up_hint)'"
+    other_tier_hint status
     exit 0
   fi
   detail "registry: $(docker inspect -f '{{.State.Status}}' "$REGISTRY" 2>/dev/null || echo absent) (${REGISTRY}:5000)"

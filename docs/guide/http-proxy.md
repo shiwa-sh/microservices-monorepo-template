@@ -95,11 +95,13 @@ kind cannot inject the proxy into a cluster node, and it does not need to: the n
 
 One more interaction, found the hard way: the Docker daemon's own proxy environment (step 1) IS inherited by the kind node container. Docker's embedded DNS answers a node with its IPv6 ULA (`fc00::/7`) address first, and if the daemon's `NO_PROXY` does not include that range, the node's own kubectl/kubelet dial the API server THROUGH the proxy and fail with EOF — which aborts `kind create` itself before the cluster is usable. Include `fc00::/7` in the daemon's `NO_PROXY` (the example in step 1 shows the range).
 
-## Step 4 — Proxy Argo CD's repo-server, for chart repositories
+## Step 4 — Proxy Argo CD's repo-server, for git and chart repositories
+
+`mise run proxy:setup` writes this one to `infra/local/proxy.local.yaml`, and every `cluster:up -- full` applies it when installing Argo CD. That is why the file exists rather than a `kubectl patch`: the repo-server does not exist until a full tier has been brought up, so a fix that only patches a running Deployment fixes the *second* bring-up and hangs the first. The file is machine-local and gitignored — the address is your host's docker gateway.
 
 Steps 1–3 get **images** into the cluster. They do nothing for a workload that opens its own connection to the internet, and Argo CD's repo-server is exactly that: to render a chart with `dependencies:`, it runs `helm repo add` against each upstream repository from inside the pod. Preloaded images do not help, because nothing was pulling an image.
 
-The failure is quiet and easy to misattribute. The app reports `Unknown` with a `ComparisonError`, its already-running workloads stay `Healthy`, and every other app keeps syncing — git reaches GitHub through the node, so only charts with external `dependencies:` are affected. If the app is a wave gate, the root app-of-apps stalls behind it and the whole tier looks stuck for a reason that is nowhere near the tier.
+The failure is quiet and easy to misattribute. The app reports `Unknown` with a `ComparisonError` and its already-running workloads stay `Healthy`. The repo-server clones the git remote as well, so on a network that blocks it the root app itself never renders and the tier stops before any application appears. If the app is a wave gate, the root app-of-apps stalls behind it and the whole tier looks stuck for a reason that is nowhere near the tier.
 
 ```text
 ComparisonError  Failed to load target state: ... error building helm chart dependencies:

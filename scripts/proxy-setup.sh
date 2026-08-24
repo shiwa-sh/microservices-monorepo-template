@@ -35,6 +35,7 @@ gap() {
 # Cluster-internal traffic must stay direct. fc00::/7 is not optional: docker's
 # embedded DNS answers the node with its IPv6 ULA first, and without it the node's
 # kubelet dials the API server THROUGH the proxy and `kind create` aborts.
+PROXY_VALUES='infra/local/proxy.local.yaml'
 NO_PROXY_VALUE='10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,.svc,.svc.cluster.local,.cluster.local,127.0.0.1,localhost,.localtest.me'
 
 PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
@@ -127,11 +128,39 @@ else
   detail "sudo systemctl restart docker"
 fi
 
-step "step 4 — ArgoCD's repo-server (chart repositories, full tier only)"
-if ! kubectl get deploy argocd-repo-server -n argocd >/dev/null 2>&1; then
-  detail "no repo-server in this cluster — skipped"
-elif ! repo_want="$(addr_from_network kind)"; then
+step "step 4 — ArgoCD's repo-server (git and chart repositories, full tier only)"
+# The repo-server does not exist until a full tier has been brought up, so the value
+# is written to an overlay the argocd stage reads whenever it installs. That is what
+# lets this script run BEFORE the first cluster, which is the order it is documented
+# in — patching the live Deployment alone would only ever fix the second bring-up.
+if ! repo_want="$(addr_from_network kind)"; then
   gap "cannot read the kind network gateway"
+elif ((APPLY)); then
+  mkdir -p "$(dirname "$PROXY_VALUES")"
+  cat >"$PROXY_VALUES" <<EOF
+# Written by \`mise run proxy:setup\`. Machine-local: the address is this host's
+# docker gateway. Not committed, and absent on a direct network.
+argo-cd:
+  repoServer:
+    env:
+      - name: HTTPS_PROXY
+        value: ${repo_want}
+      - name: HTTP_PROXY
+        value: ${repo_want}
+      - name: NO_PROXY
+        value: ${NO_PROXY_VALUE}
+EOF
+  ok "wrote ${PROXY_VALUES} — every cluster:up full applies it"
+elif [[ -f "$PROXY_VALUES" ]]; then
+  ok "${PROXY_VALUES} present"
+else
+  gap "no ${PROXY_VALUES} — a full tier's repo-server will not reach git or the chart repositories"
+fi
+
+if ! kubectl get deploy argocd-repo-server -n argocd >/dev/null 2>&1; then
+  detail "no repo-server running — the overlay applies at the next cluster:up full"
+elif ! repo_want="$(addr_from_network kind)"; then
+  :
 else
   repo_have="$(kubectl -n argocd get deploy argocd-repo-server \
     -o jsonpath='{range .spec.template.spec.containers[0].env[?(@.name=="HTTPS_PROXY")]}{.value}{end}' 2>/dev/null || true)"

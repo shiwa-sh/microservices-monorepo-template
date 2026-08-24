@@ -84,3 +84,6 @@ core.*
 
 # Local-only working files, never committed (AGENTS.md)
 *.local.md
+
+# Written by proxy:setup — this machine's egress route into the cluster.
+infra/local/proxy.local.yaml

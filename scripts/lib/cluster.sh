@@ -41,8 +41,20 @@ up_hint() {
 }
 # The full tier's name carries the tier, so `docker ps` and `kubectl config
 # get-contexts` both say which cluster is which.
-cluster_name() {
-  if [ "$TIER" = full ]; then printf '%s-full' "$CLUSTER"; else printf '%s' "$CLUSTER"; fi
+cluster_name_of() {
+  if [ "$1" = full ]; then printf '%s-full' "$CLUSTER"; else printf '%s' "$CLUSTER"; fi
+}
+cluster_name() { cluster_name_of "$TIER"; }
+other_tier() { if [ "$TIER" = full ]; then printf 'base'; else printf 'full'; fi; }
+cluster_exists() { kind get clusters 2>/dev/null | grep -qx "$1"; }
+# A tier-scoped verb that found nothing says so, and names the tier that is up: the
+# tiers are alternatives, so "no such cluster" is usually the wrong tier named.
+other_tier_hint() {
+  local other
+  other="$(other_tier)"
+  cluster_exists "$(cluster_name_of "$other")" &&
+    detail "the ${other} tier is up — did you mean 'mise run cluster:${1} -- ${other}'?"
+  return 0
 }
 cluster_ctx() { printf 'kind-%s' "$(cluster_name)"; }
 
@@ -217,8 +229,8 @@ stage_cluster() {
   # The tiers share the edge's host ports, so they are alternatives. Name the
   # conflict rather than letting docker report a bind failure from inside a
   # half-created cluster.
-  other="$([ "$TIER" = full ] && printf '%s' "$CLUSTER" || printf '%s-full' "$CLUSTER")"
-  if kind get clusters 2>/dev/null | grep -qx "$other" &&
+  other="$(cluster_name_of "$(other_tier)")"
+  if cluster_exists "$other" &&
     docker inspect -f '{{.State.Running}}' "${other}-control-plane" 2>/dev/null | grep -qx true; then
     fail "cluster '${other}' is running and holds the edge ports 8080/8443.
   Run one tier at a time:
@@ -561,7 +573,12 @@ stage_argocd() {
 
   step "installing ArgoCD"
   chart_deps infra/helm/platform/argocd
-  h upgrade --install argocd infra/helm/platform/argocd -n argocd --create-namespace --timeout 8m
+  # Machine-local values, written by proxy:setup and absent on a direct network. The
+  # repo-server is the one component that reaches git and the chart repositories from
+  # inside the cluster, so it is the one that needs the host's egress route.
+  local overlay=()
+  [ -f infra/local/proxy.local.yaml ] && overlay=(-f infra/local/proxy.local.yaml)
+  h upgrade --install argocd infra/helm/platform/argocd -n argocd --create-namespace --timeout 8m "${overlay[@]}"
   k -n argocd rollout status deploy/argocd-server --timeout=300s
   k -n argocd rollout status deploy/argocd-repo-server --timeout=300s
   k -n argocd rollout status deploy/argocd-applicationset-controller --timeout=300s
