@@ -95,20 +95,25 @@ Adding a service is the service folder ([ADR-0101](0101-monorepo.md)) plus one v
 
 ### Fan-out and ordering
 
-Five ApplicationSets per environment, ordered by sync wave on the root app-of-apps.
+Five ApplicationSets per environment, ordered by sync wave on the root app-of-apps. **Each wave is named for the reason it must precede the next**, and a chart belongs to the last wave whose successors still resolve it — so the ladder is a claim a reader can check, chart by chart, rather than a layering to memorise.
 
-| Wave | Set | Components | Gated on |
+| Wave | Set | Components | Why it precedes the next |
 | --- | --- | --- | --- |
-| `-10` | AppProjects | per-env `AppProject`s | — |
-| `0` | `platform-base` | sops-operator, cert-manager, network-policies | — |
-| `1` | secrets | the per-env `SopsSecret` | base — the operator and its CRD are up |
-| `2` | `platform-data` | postgres, seaweedfs | secrets — credentials decrypted |
-| `3` | `platform-core` | zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal, openfga, public-tls | data — live Postgres, buckets exist |
-| `4` | gateway | Traefik middlewares and cross-cutting IngressRoutes | core |
-| `5` | services | one Application per service, from a git-directory generator over the values files | gateway |
-| `6` | `platform-ops` | observability, alertmanager, pgweb, headlamp, lowdefy | nothing — it is last on purpose |
+| `-10` | AppProjects | per-env `AppProject`s | an Application cannot cite a project that does not exist |
+| `0` | `platform-admission` | namespaces + PSA, kyverno, priority classes, resource-governance, network-policies, cert-manager, sops-operator, local-path | admission is evaluated once, at creation: a policy arriving later has already missed what it gates |
+| `1` | secrets | the per-env `SopsSecret` | the operator that decrypts it is up |
+| `2` | `platform-stores` | postgres, seaweedfs | every wave below reads one of them, and they need the decrypted credentials |
+| `3` | `platform-telemetry` | observability, alertmanager | `otel-agent` exports to `tempo` and `loki` **by name**, so the backends cannot follow the collector |
+| `4` | `platform-core` | zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal, openfga, public-tls | everything a service resolves by name |
+| `5` | gateway | Traefik middlewares and cross-cutting IngressRoutes | its `problem-json-errors` middleware names `edge-errors` |
+| `6` | services | one Application per service, from a git-directory generator over the values files | — |
+| `7` | `platform-consoles` | pgweb, headlamp, lowdefy | nothing resolves a console |
 
-**A wave holds only what a later wave resolves.** An operator console is a read surface over the platform ([ADR-0501](0501-operator-uis-and-dashboards.md)): no workload looks one up, and the gateway's ops routes are `IngressRoute`s that answer as soon as their backend appears. Placing them in the tier the services wave waits on made every service wait for the slowest dashboard, and put their pods on the node while the data-tier consumers were still electing. They are last instead, which costs nothing — a tier is Healthy when its Applications are, and no Application depends on these.
+**Two placements are worth stating, because the rule alone does not predict them.** `zot` sits in core although no DNS name resolves it: deployed nodes pull images from it, so it precedes anything that starts later, and it needs the wave-2 bucket. The mounted-config Applications — Prometheus rules, Grafana dashboards, Alertmanager silences — sit one wave *before* the tier that mounts them, because a pod whose ConfigMap volume is missing cannot start at all.
+
+**A wave holds only what a later wave resolves.** An operator console is a read surface over the platform ([ADR-0501](0501-operator-uis-and-dashboards.md)): no workload looks one up, and the gateway's ops routes are `IngressRoute`s that answer as soon as their backend appears. A wave that holds a console makes every later wave wait for a dashboard, and puts its pods on the node while the store's consumers are still electing.
+
+The rule cuts the other way too, and that is the half easier to get wrong: a component nothing resolves may still be late, but a component something resolves may never be. Telemetry is the case in point — the collector names its backends, so the backends precede it, and no reordering for speed may cross that edge.
 
 Cilium and Argo CD are in no tier, in any environment. Both are installed imperatively before Argo runs, which is the one-time bootstrap step this ADR permits: no pod schedules before the CNI exists, and Argo cannot apply its own first install.
 

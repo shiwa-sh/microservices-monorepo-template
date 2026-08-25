@@ -2,7 +2,8 @@
 # values files; one Application per service per environment, auto-onboarded
 # when its values file lands in master.
 #
-# sync-wave "5" holds this back until the whole platform tier (base "0", data "2",
+# sync-wave "6" holds this back until the whole platform tier (admission "0",
+# stores "2", telemetry "3", core "4"),
 # core "3" — each gated by a custom ApplicationSet health check, see
 # infra/helm/platform/argocd/values.yaml) and the gateway Application (wave "4")
 # are all Synced+Healthy. Services depend on both: platform for
@@ -16,7 +17,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: services
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]

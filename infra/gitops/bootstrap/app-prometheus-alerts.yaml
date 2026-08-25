@@ -20,6 +20,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: platform
   annotations:
+    # Wave 2: one before the telemetry tier that MOUNTS this ConfigMap. A volume
+    # its pod cannot find leaves that pod unstartable, so the config is delivered
+    # a wave early rather than beside the workload it configures.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default

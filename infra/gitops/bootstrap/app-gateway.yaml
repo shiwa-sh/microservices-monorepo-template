@@ -12,7 +12,7 @@ metadata:
     # CRDs (middlewares) before the per-service IngressRoutes that reference them.
     # Wave 4: after the whole platform tier (base 0 · data 2 · core 3), before
     # services (5). See infra/gitops/bootstrap/appset-platform.yaml for the ladder.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   # Shared edge config: a single Application across the fanned envs, so it has no
   # single env AppProject to belong to — it stays in `default`.
