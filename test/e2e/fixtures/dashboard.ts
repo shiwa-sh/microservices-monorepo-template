@@ -54,9 +54,9 @@ export async function expectAal1Forbidden(tool: string): Promise<void> {
 
 // The operator passes when the answer came from the TOOL rather than from the gate
 // in front of it. A 200 is that answer, and so is a redirect the tool sends to its
-// own origin: SeaweedFS's admin UI 307s `/` to its own `/login`, which is the shell
-// the sibling render test then asserts. Reading only the status would call that a
-// failure, having just proved the grant worked.
+// own origin — a tool that carries its own login sends one, and the shell it lands
+// on is what the sibling render test asserts. Reading only the status would call
+// that a failure, having just proved the grant worked.
 //
 // It cannot be confused with a denial. Oathkeeper answers this Accept with 401/403,
 // and its html branch redirects to the product apex's /auth/login — a different

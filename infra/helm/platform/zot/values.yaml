@@ -109,8 +109,43 @@ zot:
   console:
     enabled: true
 
+  # A login-free path to the console, on top of the ops gate (ADR-0306). Every
+  # other ops dashboard serves anonymously once the edge has proved an AAL2
+  # operator; the console cannot, because its access policy is one configuration
+  # for one process and the only anonymous lever — `anonymousPolicy: [read]` —
+  # opens every pull on `registry.<host>` at the same time (ADR-0105). zot has no
+  # per-route knob and neither Traefik nor Oathkeeper can inject a Secret-sourced
+  # header, so the credential is presented for the browser by a tiny reverse proxy
+  # in this pod (see the deployment). The `zot.ops` origin routes to it; the
+  # `registry.<host>` origin still reaches zot directly and is unchanged.
+  #
+  # The proxy authenticates as the `pullUser` above — the console needs read, which
+  # is what the pull identity already has, so this mints no second identity. The
+  # pre-encoded `Authorization` value is `consoleAuthorization` in the same Secret,
+  # and it MUST match that user's htpasswd password. On by default wherever the
+  # console is; a deployed environment that fronts the console differently turns it
+  # off here and the `zot.ops` route falls back to the console's own htpasswd.
+  consoleAuth:
+    enabled: true
+    image:
+      # Fully qualified: the allow-list generator collects only references that name
+      # a registry path, and the local warm set pulls by the same reference.
+      repository: docker.io/library/nginx
+      tag: "1.27-alpine"
+      pullPolicy: IfNotPresent
+    # ADR-0204. Measured on 1.27-alpine idle: ~6Mi resident, ~0 CPU. It adds one
+    # static header and streams the response; the request rate is an operator
+    # clicking a catalogue, not a pull.
+    resources:
+      requests: { cpu: "10m", memory: "32Mi" }
+      limits: { memory: "64Mi" }
+
   service:
     port: 5000
+    # The console proxy's port, the target of the `zot.ops` IngressRoute when
+    # `consoleAuth` is on. Distinct from `port` so the registry origin and the
+    # console origin reach different containers in the one pod.
+    consolePort: 5001
 
   # Seconds a single request may take. Sized for the largest layer this platform
   # pushes rather than for the API calls that dominate the count — see the

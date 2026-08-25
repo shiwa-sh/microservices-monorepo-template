@@ -65,11 +65,14 @@ spec:
     - fromEntities: [host, remote-node]
       toPorts:
         - ports: [{ port: "5000", protocol: TCP }]
-    # The gateway, for the push route an environment exposes to its pipeline.
+    # The gateway: 5000 for the push route an environment exposes to its pipeline,
+    # and 5001 for the console origin, whose login-free proxy rides in the zot pod
+    # on that port (zot chart `consoleAuth`, ADR-0306). The kubelet rule above stays
+    # 5000 only — a node pulls from the registry, never through the console.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
-        - ports: [{ port: "5000", protocol: TCP }]
+        - ports: [{ port: "5000", protocol: TCP }, { port: "5001", protocol: TCP }]
   {{- if .Values.registryMirror }}
   # Egress to the upstream registries, which is the MIRROR itself (ADR-0105): a
   # pull-through cache that cannot reach upstream is a cache that can only serve

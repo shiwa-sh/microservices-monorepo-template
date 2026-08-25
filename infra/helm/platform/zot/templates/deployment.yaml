@@ -31,6 +31,9 @@ spec:
         # is a ConfigMap update that the running registry never reads, and the
         # cluster reports Synced while serving the old rules.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if and .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
+        checksum/console-proxy: {{ include (print $.Template.BasePath "/console-proxy-config.yaml") . | sha256sum }}
+        {{- end }}
     spec:
       securityContext:
         runAsNonRoot: true
@@ -85,9 +88,52 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 30
           resources: {{ toYaml .Values.zot.resources | nindent 12 }}
+        {{- if and .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
+        # The console proxy (ADR-0306). It presents the pull identity's credential
+        # so an operator the edge already vouched for reaches the catalogue without
+        # a second login — see the chart's `consoleAuth` values for why this is a
+        # container rather than a header set at the edge.
+        - name: console-proxy
+          image: "{{ .Values.zot.consoleAuth.image.repository }}:{{ .Values.zot.consoleAuth.image.tag }}"
+          imagePullPolicy: {{ .Values.zot.consoleAuth.image.pullPolicy }}
+          env:
+            # The pre-encoded `Authorization` header, read into nginx's config by
+            # its entrypoint's envsubst step. It is the pull user's credential, so
+            # it never appears in a manifest — only in the Secret.
+            - name: CONSOLE_AUTHORIZATION
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.zot.credentialsSecret }}, key: consoleAuthorization }
+          ports:
+            - { name: console, containerPort: {{ .Values.zot.service.consolePort }} }
+          readinessProbe:
+            tcpSocket: { port: console }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # The template the entrypoint renders, and the writable directories a
+            # read-only root filesystem forces out of the image layer: the render
+            # target, nginx's temp paths, and its pid.
+            - { name: console-proxy-template, mountPath: /etc/nginx/templates }
+            - { name: console-proxy-conf, mountPath: /etc/nginx/conf.d }
+            - { name: console-proxy-cache, mountPath: /var/cache/nginx }
+            - { name: console-proxy-run, mountPath: /var/run }
+          resources: {{ toYaml .Values.zot.consoleAuth.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: config
           configMap: { name: zot }
+        {{- if and .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
+        - name: console-proxy-template
+          configMap: { name: zot-console-proxy }
+        - { name: console-proxy-conf, emptyDir: {} }
+        - { name: console-proxy-cache, emptyDir: {} }
+        - { name: console-proxy-run, emptyDir: {} }
+        {{- end }}
         - name: auth
           secret:
             secretName: {{ .Values.zot.credentialsSecret }}

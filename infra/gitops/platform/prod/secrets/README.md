@@ -84,11 +84,20 @@ spec:
     #
     #   htpasswd -nbB ci <push-password>
     #   htpasswd -nbB cluster <pull-password>
+    #
+    # `consoleAuthorization` is the pre-encoded header the console proxy sends so an
+    # operator is not asked for the pull credential a second time (ADR-0306). It
+    # MUST match the `cluster` password above:
+    #
+    #   printf 'cluster:<pull-password>' | base64   # -> Basic <that>
+    #
+    # Drop it if `zot.consoleAuth.enabled` is false for this environment.
     - name: zot-credentials
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
         htpasswd: ""
+        consoleAuthorization: ""
     # maddy's DKIM private key (ADR-0307). Its public half goes in the TXT record
     # at `<selector>._domainkey.mail.example.com`, and the two must be generated
     # together: maddy MINTS a key when this is absent, which yields an agent that

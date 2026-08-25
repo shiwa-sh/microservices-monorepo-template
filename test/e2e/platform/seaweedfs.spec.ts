@@ -1,8 +1,7 @@
 // SeaweedFS admin operator dashboard (ADR-0306, ADR-0207) — non-prod object store,
 // gated at seaweedfs.ops.<host> (dashboard:seaweedfs#view) and rendering behind a
-// real AAL2 operator session. Like the MinIO console this replaced, the admin UI
-// keeps its own login behind the Kratos gate, so the gauge asserts its shell
-// paints, not a post-login view.
+// real AAL2 operator session. The admin UI carries no login of its own, so the
+// edge gate is the only thing this asserts on the way in.
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,
@@ -31,9 +30,9 @@ test.describe("seaweedfs ops dashboard", () => {
     test("the admin UI paints at the subdomain root", async ({ page }) => {
       await page.goto(SEAWEEDFS);
       await expect(page).not.toHaveURL(/\/auth\/login/);
-      // Root redirects to the UI's own login, which titles itself "SeaweedFS
-      // Admin - Login" (verified against 4.41) — the shell painted, which is
-      // what the edge gate having passed looks like.
+      // The dashboard itself, titled "SeaweedFS Admin" (verified against 4.41):
+      // with `-admin.password` unset there is no login between the edge gate and
+      // the store's administration.
       await expect(page).toHaveTitle(/SeaweedFS Admin/, { timeout: 30_000 });
     });
   });

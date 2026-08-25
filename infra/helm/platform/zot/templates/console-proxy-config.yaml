@@ -1,0 +1,52 @@
+{{- if and .Values.zot.enabled .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
+{{- /*
+The console proxy's nginx config (ADR-0306, ADR-0105). It fronts zot's console on
+a second port and adds the one thing the browser cannot: the pull identity's
+`Authorization` header, so an operator the edge already vouched for is not asked
+for it a second time.
+
+`${CONSOLE_AUTHORIZATION}` is NOT a value in this file — nginx's entrypoint
+templates it in from the container's environment (`20-envsubst-on-templates.sh`
+renders `/etc/nginx/templates/*.template` into `/etc/nginx/conf.d`), and that env
+var is read from the Secret. So the credential reaches the header without ever
+appearing in this ConfigMap. nginx's own runtime variables ($host, $remote_addr,
+…) are not environment variables, so envsubst leaves them untouched.
+
+proxy_pass to loopback: the registry container listens on the same pod. Buffering
+off and HTTP/1.1 so the console's streamed responses and its search API's chunked
+replies pass through as they arrive rather than being staged whole.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-console-proxy
+  labels:
+    app: zot
+    app.kubernetes.io/name: zot
+    app.kubernetes.io/part-of: platform
+data:
+  default.conf.template: |
+    server {
+      listen {{ .Values.zot.service.consolePort }};
+      server_name _;
+
+      # The largest thing the console fetches is a page and a search response, not
+      # a layer — but keep the same generous ceilings the registry origin has so a
+      # big manifest listing is never the thing that times out.
+      proxy_read_timeout {{ .Values.zot.http.readTimeout }};
+      proxy_send_timeout {{ .Values.zot.http.writeTimeout }};
+      client_max_body_size 0;
+
+      location / {
+        proxy_pass http://127.0.0.1:{{ .Values.zot.service.port }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # The whole point of this proxy. A client-supplied Authorization is
+        # replaced, never merged, so a stale browser credential cannot reach zot.
+        proxy_set_header Authorization "${CONSOLE_AUTHORIZATION}";
+        proxy_buffering off;
+      }
+    }
+{{- end }}

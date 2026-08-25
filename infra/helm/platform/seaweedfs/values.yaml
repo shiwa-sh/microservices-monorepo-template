@@ -39,38 +39,41 @@ seaweedfs:
     - zot-images
 
   # The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a
-  # Secret this chart only names. The same Secret carries `ADMIN_PASSWORD` for the
-  # admin UI, which is a second credential rather than the same one: the UI
-  # administers the store and the S3 key reads and writes objects in it. `weed mini` reads that pair on first start and
+  # Secret this chart only names. `weed mini` reads that pair on first start and
   # creates the identity from it; until an identity exists the S3 endpoint answers
-  # every anonymous request with 403 (verified 2026-08-19 against 4.41).
+  # every anonymous request with 403 (verified 2026-08-19 against 4.41). The same
+  # Secret carries `ADMIN_PASSWORD`, which is read only when `adminAuth` below is
+  # on: the UI administers the store and the S3 key reads and writes objects in it.
   #
   # The pair is delivered by the per-environment SopsSecret (ADR-0202), which is the
   # same secret the consumers read, so the store and its clients cannot drift apart.
   credentialsSecret: object-storage-root
 
-  # A SECOND login in front of the admin UI, on top of the operator session the
-  # edge already required (ADR-0306). Grafana and Argo CD are served without one,
-  # and this component would be too if it could: the only route to this origin is
-  # `seaweedfs.ops.<host>`, where Oathkeeper has already proved an AAL2 operator
-  # holding the dashboard grant, and the network policy admits port 23646 from the
-  # gateway alone.
+  # NO second login in front of the admin UI. The edge has already proved an AAL2
+  # operator holding the dashboard grant (ADR-0306), the only route to this origin
+  # is `seaweedfs.ops.<host>`, and the network policy admits port 23646 from the
+  # gateway alone. A password here guards a door already guarded, and costs a
+  # credential lookup in the middle of an incident.
   #
-  # **It cannot.** `weed`'s own help says `-admin.password` empty means "auth is
-  # disabled", and for `weed mini` that is not what happens: measured on 4.41, the
-  # admin UI redirects to `/login` regardless, serves a form, and rejects an empty
-  # password with a CSRF error. So the flag is passed and a credential exists.
+  # Off means neither the flag nor the `ADMIN_PASSWORD` env below is passed, which
+  # is what `weed` documents as disabling auth and what it does: `startAdminServer`
+  # sets `authRequired` from `-admin.password` being non-empty, and when it is false
+  # the UI and API routes are registered without the session middleware and no
+  # `/login` route is registered at all. Measured against 4.41 with both dropped:
+  # `/` answers 200 with the dashboard, `/login` answers 404.
   #
-  # What follows from that is how to treat the credential: it guards nothing the
-  # edge has not already guarded, so it is not a secret to protect — it is a form
-  # to satisfy. Give it something memorable and write it down where operators look.
-  # A generated password here buys no security and costs a lookup during an
-  # incident. The username is `admin` (weed's default).
+  # `weed mini` persists the admin password into `/data/mini.options` on first
+  # start and reloads it on every start, so BOTH the flag and the env have to go —
+  # a config that still exports `ADMIN_PASSWORD` re-derives the password and rewrites
+  # the line, and the login returns. With both absent `weed` rewrites the file
+  # WITHOUT the line on the next start, so flipping this to false and rolling the
+  # pod disables auth even on a volume that once had it (verified 2026-08-25, 4.41).
   #
-  # Left as a toggle rather than hardcoded: if a later release honours the empty
-  # case, turning this off is the whole change.
+  # Kept as a toggle rather than deleted. On, the flag is passed `ADMIN_PASSWORD`
+  # from `credentialsSecret` and the username is `admin` (weed's default) — the
+  # shape an environment needs if it ever routes this origin without the ops gate.
   adminAuth:
-    enabled: true
+    enabled: false
 
   persistence:
     size: 5Gi
@@ -100,10 +103,9 @@ seaweedfs:
 
   service:
     s3Port: 8333
-    # The admin UI, and the only surface ADR-0306 routes. It authenticates on its
-    # own — `-admin.password` empty would disable that, and the edge gate would be
-    # the only thing between an operator session and the store's administration. The master and filer UIs
-    # are diagnostic and are reached by port-forward, so they get no Service port:
-    # an origin per internal view multiplies edge surface for no capability the
-    # admin UI lacks.
+    # The admin UI, and the only surface ADR-0306 routes. The ops gate in front of
+    # this origin is the whole gate on it (`adminAuth` above). The master and filer
+    # UIs are diagnostic and are reached by port-forward, so they get no Service
+    # port: an origin per internal view multiplies edge surface for no capability
+    # the admin UI lacks.
     adminPort: 23646

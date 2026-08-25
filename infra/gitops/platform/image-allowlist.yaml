@@ -19,6 +19,7 @@ policies:
     - docker.io/grafana/tempo
     - docker.io/kiwigrid/k8s-sidecar
     - docker.io/library/busybox
+    - docker.io/library/nginx
     - docker.io/oryd/kratos
     - docker.io/oryd/oathkeeper
     - docker.io/traefik
