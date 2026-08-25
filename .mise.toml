@@ -272,6 +272,12 @@ run = "bash scripts/cluster.sh heal"
 # the Argo applications or helm releases, and anything not Running.
 run = "bash scripts/cluster.sh status"
 
+[tasks."cluster:populate-zot"]
+# Mirror the first-party images into the full tier's in-cluster zot so its zot.ops
+# console is not empty (ADR-0105). Runs automatically as a stage of cluster:up full;
+# this is the on-demand form for re-filling it after a fresh push.
+run = "bash scripts/populate-zot.sh"
+
 # ── Behind a firewall ─────────────────────────────────────────────────────────
 # OPT-IN and separate from every command above: nothing in scripts/cluster.sh knows
 # a proxy exists, so a direct network never runs this.

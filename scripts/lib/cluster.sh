@@ -638,3 +638,13 @@ stage_rootapp() {
   done
   ok "all ArgoCD applications Synced + Healthy"
 }
+
+# Fill the in-cluster zot's catalogue with the first-party images (ADR-0105). The
+# nodes pull from the host container, so the in-cluster registry a deployed
+# environment runs would otherwise sit empty locally and its `zot.ops` console read
+# as broken. Best-effort: the console is a convenience and no pod's start depends on
+# it, so a copy failure warns and the bring-up carries on.
+stage_populatezot() {
+  bash "$(dirname "${BASH_SOURCE[0]}")/../populate-zot.sh" ||
+    warn "populate-zot did not complete — the in-cluster zot console may be empty (non-fatal)"
+}

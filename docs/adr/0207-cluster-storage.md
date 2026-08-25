@@ -69,6 +69,8 @@ Because that store holds the backups an operator credential can reach, driver 2 
 
 **Outside the cluster is a failure-domain requirement, not an implementation one.** No store placed on the cluster it serves is acceptable in production whatever it is — an objection separate from, and stronger than, the component-weight one that rejects Rook-Ceph for block storage above.
 
+**Placement follows whether the data must outlive the cluster.** This store holds the backups a rebuild reads, so its contents are irreplaceable — nothing regenerates a database's point-in-time history — and it goes off-cluster where recovery is real. The image registry sits the other way up ([ADR-0105](0105-image-registry.md)): its contents are reproducible — re-pushed by CI, or re-read from a surviving bucket — so it needs no independent survival and stays in-cluster. Store and registry differ by this rule rather than by inconsistency: **off-cluster exactly where the data cannot be regenerated, in-cluster otherwise.**
+
 **Production buckets enable Object Lock.** The store sits inside the same administrative boundary as the cluster whose backups it holds, and WORM retention is what keeps a compromised or mistaken credential from taking the recovery path with it.
 
 **The lock window EQUALS the backup retention — not "at least".** A longer lock is not the safer choice it looks like: CNPG deletes backups past their retention, and a lock outliving that retention makes every one of those deletes fail. The bucket then grows without bound while the operator logs delete errors nobody reads, which is a slower outage than the one the lock prevents. Equality is what makes the two agree.

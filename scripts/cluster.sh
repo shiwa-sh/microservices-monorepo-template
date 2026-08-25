@@ -26,7 +26,7 @@ require_tools docker kind kubectl helm
 # Every bring-up shares this floor; the tier adds to it.
 PRELUDE=(registry warm cluster cni coredns namespaces edge glue)
 STAGES_base=(postgres certs priority middlewares secrets ory identities)
-STAGES_full=(sopskey images argocd rootapp identities)
+STAGES_full=(sopskey images argocd rootapp populatezot identities)
 
 run_stages() {
   local stage
