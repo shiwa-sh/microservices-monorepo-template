@@ -38,7 +38,7 @@ Every decision below is defensible on its own, and no ADR composes them. This do
 
 **Two rows are unbounded, and they are the ones to change first.** An unbounded row is not a long detection time; it is the absence of detection, and the fault is found by its consequence rather than by a signal. Silent data corruption has no systematic detector at any budget this platform accepts.
 
-Alertmanager's own failure splits in two, and the split is the honest part. The common shape — routing broken while the cluster runs — is now detected, because the `Watchdog` has a consumer that does not travel through the pipeline it checks. The other shape is not, because that consumer runs in the cluster it watches and goes quiet with it. Closing it needs something outside the cluster, which is the paging concession [ADR-0502](../adr/0502-alerting-and-on-call.md) defers.
+Alertmanager's own failure splits in two, and the split is the honest part. The common shape — routing broken while the cluster runs — is now detected, because the `Watchdog` has a consumer that does not travel through the pipeline it checks. The other shape is not, because that consumer runs in the cluster it watches and goes quiet with it. Closing it needs a consumer outside that domain, and the `watchdogWebhook` receiver is the seam one attaches to ([ADR-0502](../adr/0502-alerting-and-on-call.md)). It ships wired to nothing, so the row stays unbounded until something is on it.
 
 **A failed check is not the same as a broken pipeline.** The Watchdog check shares a
 namespace with the thing it queries, so it also fails when Alertmanager is merely
