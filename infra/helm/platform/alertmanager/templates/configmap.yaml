@@ -38,12 +38,20 @@ data:
       routes:
         # The Watchdog is a heartbeat, not a condition (infra/observability/alerts/
         # watchdog.yaml). It is matched by name ahead of everything else and sent
-        # to the webhook: routing it by severity would put a message in the email
-        # box on every repeat interval forever, and a receiver that does that is
-        # muted by its recipient. The short repeat is the point — absence is the
-        # signal, so it has to be detectable in minutes rather than half a day.
+        # to its OWN receiver: routing it by severity would put a message in the
+        # email box on every repeat interval forever, and a receiver that does
+        # that is muted by its recipient. The short repeat is the point — absence
+        # is the signal, so it has to be detectable in minutes rather than half a
+        # day.
+        #
+        # Its own receiver rather than the page webhook, because the two carry
+        # opposite contracts. A page asserts a human acts; a heartbeat asserts
+        # nothing and is read only by its absence. Sharing one destination means
+        # whatever gets attached to `page` — a phone, a messenger channel —
+        # receives a contentless message every five minutes forever, which is how
+        # a channel stops being read before the first real page arrives.
         - matchers: ['alertname = "Watchdog"']
-          receiver: page-webhook
+          receiver: watchdog-heartbeat
           group_wait: 0s
           group_interval: 5m
           repeat_interval: 5m
@@ -67,6 +75,20 @@ data:
         email_configs:
           - to: {{ .Values.alertmanager.email.to | quote }}
             send_resolved: true
+      # The heartbeat's consumer, whose contract is inverted: it stays quiet while
+      # pings arrive and reports when they stop. Unset it delivers nowhere, and
+      # the in-cluster `alertmanager-watchdog-check` CronJob remains the only
+      # consumer — which catches a broken routing tree but not the cluster going
+      # down with its own watcher, since it shares that failure domain
+      # (ADR-0502, docs/reference/risk-register.md).
+      - name: watchdog-heartbeat
+        {{- if .Values.alertmanager.watchdogWebhook.url }}
+        webhook_configs:
+          # No `send_resolved`: this alert never resolves, so there is nothing to
+          # send. The heartbeat is the firing notification itself.
+          - url: {{ .Values.alertmanager.watchdogWebhook.url | quote }}
+            send_resolved: false
+        {{- end }}
       - name: page-webhook
         {{- if .Values.alertmanager.webhook.url }}
         webhook_configs:

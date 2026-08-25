@@ -62,8 +62,8 @@ Routing is a solved component the platform declines to run. Escalation is a genu
 | --- | --- |
 | Evaluation | **Prometheus**, from the committed rule files in [ADR-0500](0500-observability.md). Grafana alerting is not used |
 | Routing | **Alertmanager**, joining Core. Its routing tree, receivers, inhibitions, and silences are committed files reconciled by Argo ([ADR-0201](0201-gitops.md)) |
-| Default receivers | **email** through [ADR-0307](0307-outbound-email.md), and a **generic webhook** receiver that ships wired to nothing |
-| Severity | every rule carries `severity: page` or `severity: ticket`. `page` routes to the webhook, `ticket` routes to email |
+| Default receivers | **email** through [ADR-0307](0307-outbound-email.md), a **generic webhook** receiver, and a separate **heartbeat** receiver for the Watchdog. Both webhooks ship wired to nothing |
+| Severity | every rule carries `severity: page` or `severity: ticket`. `page` routes to the webhook, `ticket` routes to email. The Watchdog is matched by name ahead of both |
 | Escalation | **not shipped.** The webhook receiver is the seam a paging service attaches to |
 | Silences | a maintenance window is a committed silence, not a click in the Alertmanager UI (principle 1) |
 
@@ -105,7 +105,7 @@ This is a **deferral, not a bet**: the seam exists, and it is the receiver inter
 
 ### Negative / Risks
 
-- **Alertmanager joins Core**, adding a component whose own failure is silent. Its `Watchdog` alert — a rule that always fires and is expected to arrive continuously — is the standard answer, and a missing Watchdog is what a paging service watches for once one exists.
+- **Alertmanager joins Core**, adding a component whose own failure is silent. Its `Watchdog` alert is the standard answer: a **dead man's switch**, a rule that always fires, so only its absence carries information. A missing Watchdog is what a paging service watches for once one exists.
 - **Nothing pages anyone until the trigger fires.** This platform detects overnight incidents in the morning. That is a deliberate position, not an oversight: a rotation nobody is rostered onto is a page that wakes no one.
 - **Email as a `ticket` receiver depends on [ADR-0307](0307-outbound-email.md).** An outbound-mail failure degrades alerting, so mail-path alerts route to the webhook rather than to email.
 - **Alert fatigue is the failure mode**, and no component prevents it. The `page`/`ticket` rule is review-enforced, which is weaker than a linter.
@@ -119,3 +119,4 @@ This is a **deferral, not a bet**: the seam exists, and it is the receiver inter
 - Maintenance silences are committed, time-bounded, and expire on their own.
 - No on-call rotation is claimed until a paging receiver is attached to the webhook.
 - Alerts about the outbound-mail path do not route through email.
+- The Watchdog routes to its own heartbeat receiver, never to a receiver a human reads. A heartbeat delivered to a page destination is a contentless message on every repeat interval, which mutes the channel the pages arrive on.

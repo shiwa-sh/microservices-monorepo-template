@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 159 |
-| Review-enforced | 314 |
-| **Total** | **473** |
+| Review-enforced | 315 |
+| **Total** | **474** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -648,6 +648,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Maintenance silences are committed, time-bounded, and expire on their own. | review |
 | No on-call rotation is claimed until a paging receiver is attached to the webhook. | review |
 | Alerts about the outbound-mail path do not route through email. | review |
+| The Watchdog routes to its own heartbeat receiver, never to a receiver a human reads. A heartbeat delivered to a page destination is a contentless message on every repeat interval, which mutes the channel the pages arrive on. | review |
 
 ## ADR-0503 — Error Tracking
 

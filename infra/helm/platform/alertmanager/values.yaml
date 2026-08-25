@@ -40,6 +40,21 @@ alertmanager:
   webhook:
     url: ""
 
+  # The heartbeat path, and a SEPARATE seam from the webhook above. The Watchdog
+  # is a dead man's switch (ADR-0502): it fires every repeat interval forever, so
+  # a destination shared with `page` puts a contentless message in front of
+  # whoever is on call, every five minutes, between the alerts that matter. That
+  # is the alert fatigue ADR-0502 names as the failure mode.
+  #
+  # Its consumer is a machine with the inverted contract — quiet while pings
+  # arrive, loud when they stop (Dead Man's Snitch, Healthchecks.io, Cronitor, or
+  # any endpoint that times out). Empty here like the webhook: the seam ships
+  # wired to nothing, and the in-cluster watchdogCheck CronJob covers the
+  # "Alertmanager up but not routing" case either way. What only an external
+  # consumer covers is the cluster going down with its own watcher.
+  watchdogWebhook:
+    url: ""
+
   # Reconciles live silences to infra/observability/alertmanager/silences.yaml.
   # Ten minutes bounds how long a silence created in the UI survives, which is
   # what makes the runbook's "vanishes on the next reconcile" true.
