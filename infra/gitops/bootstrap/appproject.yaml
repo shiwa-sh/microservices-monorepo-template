@@ -22,6 +22,12 @@ spec:
   description: Dev environment — platform + services.
   sourceRepos:
     - https://github.com/tabmadi/microservices-monorepo-template.git
+      # Argo resolves a chart's `dependencies:` under the project's own permissions,
+      # so a repo a chart pulls from is a source of this project even though no
+      # Application names it. Both temporal-worker-controller charts declare an OCI
+      # dependency there; without this the render fails PermissionDenied, and Argo
+      # caches that failure — so the wave stays shut long after the cause is gone.
+    - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }
   clusterResourceWhitelist:
@@ -42,6 +48,12 @@ spec:
   description: Staging environment — platform + services.
   sourceRepos:
     - https://github.com/tabmadi/microservices-monorepo-template.git
+      # Argo resolves a chart's `dependencies:` under the project's own permissions,
+      # so a repo a chart pulls from is a source of this project even though no
+      # Application names it. Both temporal-worker-controller charts declare an OCI
+      # dependency there; without this the render fails PermissionDenied, and Argo
+      # caches that failure — so the wave stays shut long after the cause is gone.
+    - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }
   clusterResourceWhitelist:
@@ -70,6 +82,12 @@ spec:
   description: Prod environment — platform + services.
   sourceRepos:
     - https://github.com/tabmadi/microservices-monorepo-template.git
+      # Argo resolves a chart's `dependencies:` under the project's own permissions,
+      # so a repo a chart pulls from is a source of this project even though no
+      # Application names it. Both temporal-worker-controller charts declare an OCI
+      # dependency there; without this the render fails PermissionDenied, and Argo
+      # caches that failure — so the wave stays shut long after the cause is gone.
+    - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }
   clusterResourceWhitelist:
