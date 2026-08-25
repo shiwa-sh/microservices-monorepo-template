@@ -23,7 +23,7 @@
     {
       "type": "stat",
       "title": "Firing alerts",
-      "description": "Count of Prometheus alerts currently firing (alerts-as-code, infra/observability/alerts). Anything non-zero: see the table below.",
+      "description": "Count of Prometheus alerts currently firing (alerts-as-code, infra/observability/alerts). Anything non-zero: see the table below. Excludes the Watchdog, which always fires by construction (ADR-0502) — counting it would make zero unreachable and the tile unreadable as an all-clear. Its own tile beside the table reports the alerting pipeline.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -36,7 +36,7 @@
           "refId": "A",
           "instant": true,
           "range": false,
-          "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)"
+          "expr": "count(ALERTS{alertstate=\"firing\", alertname!=\"Watchdog\"}) or vector(0)"
         }
       ],
       "fieldConfig": {
@@ -302,11 +302,11 @@
     {
       "type": "table",
       "title": "Firing alerts — what and where",
-      "description": "One row per firing Prometheus alert. severity=page means act now; severity=ticket means file and fix in hours. Rules live in infra/observability/alerts/.",
+      "description": "One row per firing Prometheus alert. severity=page means act now; severity=ticket means file and fix in hours. Rules live in infra/observability/alerts/. Excludes the Watchdog — see the tile beside this table.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 6,
-        "w": 24,
+        "w": 20,
         "x": 0,
         "y": 10
       },
@@ -316,7 +316,7 @@
           "format": "table",
           "instant": true,
           "range": false,
-          "expr": "ALERTS{alertstate=\"firing\"}"
+          "expr": "ALERTS{alertstate=\"firing\", alertname!=\"Watchdog\"}"
         }
       ],
       "transformations": [
@@ -388,6 +388,68 @@
             ]
           }
         ]
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Alerting pipeline",
+      "description": "The Watchdog (infra/observability/alerts/watchdog.yaml) — a dead man's switch that always fires, so only its ABSENCE carries information (ADR-0502). DEAD means alerts are not being evaluated, and no other panel on this dashboard can tell you that: every tile here would read all-clear whether the platform is healthy or the rule files stopped loading. Separated from the count beside it because a heartbeat is not a condition anyone acts on.",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "expr": "count(ALERTS{alertstate=\"firing\", alertname=\"Watchdog\"}) or vector(0)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DEAD",
+                  "index": 0
+                },
+                "1": {
+                  "text": "ALIVE",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
       }
     },
     {
