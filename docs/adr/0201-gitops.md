@@ -95,7 +95,7 @@ Adding a service is the service folder ([ADR-0101](0101-monorepo.md)) plus one v
 
 ### Fan-out and ordering
 
-Four ApplicationSets per environment, ordered by sync wave on the root app-of-apps.
+Five ApplicationSets per environment, ordered by sync wave on the root app-of-apps.
 
 | Wave | Set | Components | Gated on |
 | --- | --- | --- | --- |
@@ -103,9 +103,12 @@ Four ApplicationSets per environment, ordered by sync wave on the root app-of-ap
 | `0` | `platform-base` | sops-operator, cert-manager, network-policies | — |
 | `1` | secrets | the per-env `SopsSecret` | base — the operator and its CRD are up |
 | `2` | `platform-data` | postgres, seaweedfs | secrets — credentials decrypted |
-| `3` | `platform-core` | observability, ory, temporal, openfga, pgweb, headlamp, lowdefy, public-tls | data — live Postgres, buckets exist |
+| `3` | `platform-core` | zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal, openfga, public-tls | data — live Postgres, buckets exist |
 | `4` | gateway | Traefik middlewares and cross-cutting IngressRoutes | core |
 | `5` | services | one Application per service, from a git-directory generator over the values files | gateway |
+| `6` | `platform-ops` | observability, alertmanager, pgweb, headlamp, lowdefy | nothing — it is last on purpose |
+
+**A wave holds only what a later wave resolves.** An operator console is a read surface over the platform ([ADR-0501](0501-operator-uis-and-dashboards.md)): no workload looks one up, and the gateway's ops routes are `IngressRoute`s that answer as soon as their backend appears. Placing them in the tier the services wave waits on made every service wait for the slowest dashboard, and put their pods on the node while the data-tier consumers were still electing. They are last instead, which costs nothing — a tier is Healthy when its Applications are, and no Application depends on these.
 
 Cilium and Argo CD are in no tier, in any environment. Both are installed imperatively before Argo runs, which is the one-time bootstrap step this ADR permits: no pod schedules before the CNI exists, and Argo cannot apply its own first install.
 

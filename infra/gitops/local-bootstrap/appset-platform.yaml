@@ -10,12 +10,13 @@
 # by the `local` AppProject + labels (appproject.yaml), not the ApplicationSet
 # name.
 #
-# The platform tier is split into three dependency layers so ArgoCD can order
-# them; see bootstrap/appset-platform.yaml for the full rationale (why three sets
+# The platform tier is split into four dependency layers so ArgoCD can order
+# them; see bootstrap/appset-platform.yaml for the full rationale (why four sets
 # and not per-chart sync-waves — generated-Application waves are inert). Wave
 # ladder (root children): -10 projects · 0 base · 1 secrets · 2 data · 3 core ·
-# 4 gateway · 25→5 services. local-secrets (wave 1) delivers the SopsSecret CR the
-# base-tier sops-operator decrypts into the Secrets the data/core tiers consume.
+# 4 gateway · 5 services · 6 ops. local-secrets (wave 1) delivers the SopsSecret CR
+# the base-tier sops-operator decrypts into the Secrets the data/core tiers
+# consume.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -216,8 +217,10 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
-    # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
+    # Wave 3: after the data tier is Healthy, so Ory, Temporal and OpenFGA find a
+    # live Postgres and zot finds its bucket. Holds only what a later wave resolves
+    # — the services wave waits on this set, so a chart nothing depends on belongs
+    # in wave 6 instead.
     argocd.argoproj.io/sync-wave: "3"
 spec:
   goTemplate: true
@@ -245,8 +248,6 @@ spec:
                 # The registry (ADR-0105). Wave 3 rather than beside the store: it
                 # reads the bucket, so it starts after the data tier is Healthy.
                 - { path: "infra/helm/platform/zot" }
-                - { path: "infra/helm/platform/observability" }
-                - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.
@@ -270,6 +271,93 @@ spec:
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: local-platform-ops
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: ops
+  annotations:
+    # Wave 6: LAST, because nothing waits on an operator console. These are read
+    # surfaces over the platform (ADR-0501) — no workload resolves them, and the
+    # gateway's ops routes are IngressRoutes that answer once the backend appears.
+    # Gating the services wave on them made every service wait for a dashboard, and
+    # put ~25 more pods on one node while Temporal was electing.
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: local, server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                # The metrics/logs/traces backends and the dashboards over them.
+                - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/alertmanager" }
                 - { path: "infra/helm/platform/pgweb" }
                 - { path: "infra/helm/platform/headlamp" }
                 - { path: "infra/helm/platform/lowdefy" }

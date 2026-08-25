@@ -1,4 +1,4 @@
-# Platform ApplicationSets (ADR-0201). The platform tier is split into three
+# Platform ApplicationSets (ADR-0201). The platform tier is split into four
 # dependency layers, each its own ApplicationSet so ArgoCD can order them:
 #
 #   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance
@@ -8,11 +8,16 @@
 #                    installed imperatively in every tier (see the generator).
 #   data (wave 2)  — postgres, seaweedfs. The storage layer everything else sits on;
 #                    needs the Secrets produced by the base + secrets tiers.
-#   core (wave 3)  — observability, ory, temporal, temporal-worker-controller,
-#                    openfga, pgweb, headlamp, lowdefy. Consumers of the data
-#                    layer (Postgres DSNs, the trace/log buckets).
+#   core (wave 3)  — zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal,
+#                    temporal-worker-controller, openfga. Consumers of the data
+#                    layer (Postgres DSNs, the buckets), and everything a later
+#                    wave resolves by name.
+#   ops (wave 6)   — observability, alertmanager, pgweb, headlamp, lowdefy. Read
+#                    surfaces (ADR-0501). Last, because no workload waits on a
+#                    console, and holding the services wave open for one costs the
+#                    whole tier the slowest dashboard.
 #
-# WHY THREE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
+# WHY FOUR SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
 # single ApplicationSet generates are INERT — those Applications are created by
 # the ApplicationSet controller, not synced as resources of a parent, so ArgoCD
 # never sequences them (it applies them all concurrently). Real ordering exists
@@ -25,9 +30,9 @@
 # still applied concurrently and must tolerate that.
 #
 # Wave ladder (root children): -10 projects · 0 base · 1 secrets · 2 data ·
-# 3 core · 4 gateway · 5 services.
+# 3 core · 4 gateway · 5 services · 6 ops.
 #
-# The three sets share an identical template body (the same auth valueFiles /
+# The four sets share an identical template body (the same auth valueFiles /
 # fileParameters wiring as before; non-Ory/OpenFGA charts ignore the extra keys).
 # Only the generator's directory list and the set's own sync-wave differ.
 apiVersion: argoproj.io/v1alpha1
@@ -272,8 +277,10 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
-    # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
+    # Wave 3: after the data tier is Healthy, so Ory, Temporal and OpenFGA find a
+    # live Postgres and zot finds its bucket. Holds only what a later wave resolves
+    # — the services wave waits on this set, so a chart nothing depends on belongs
+    # in wave 6 instead.
     argocd.argoproj.io/sync-wave: "3"
 spec:
   goTemplate: true
@@ -316,8 +323,6 @@ spec:
                   # in the base tier it holds wave 0 open against a secret only a
                   # later wave can produce.
                 - { path: "infra/helm/platform/public-tls" }
-                - { path: "infra/helm/platform/observability" }
-                - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.
@@ -338,6 +343,94 @@ spec:
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-ops
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: ops
+  annotations:
+    # Wave 6: LAST, because nothing waits on an operator console. These are read
+    # surfaces over the platform (ADR-0501) — no workload resolves them, and the
+    # gateway's ops routes are IngressRoutes that answer once the backend appears.
+    # Gating the services wave on them made every service wait for a dashboard, and
+    # put ~25 more pods on one node while Temporal was electing.
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                # The metrics/logs/traces backends and the dashboards over them.
+                - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/alertmanager" }
                 - { path: "infra/helm/platform/pgweb" }
                 - { path: "infra/helm/platform/headlamp" }
                 - { path: "infra/helm/platform/lowdefy" }
