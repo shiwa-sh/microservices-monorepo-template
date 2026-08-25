@@ -49,55 +49,74 @@ metadata:
   labels: { app.kubernetes.io/name: alloy, app.kubernetes.io/part-of: observability }
 data:
   config.alloy: |
-    // Discover every pod, then keep only platform-namespace pods that expose the
-    // `admin` container port (9090) — i.e. the Go services' pprof endpoint.
-    discovery.kubernetes "pods" {
-      role = "pod"
-    }
+    {{- include "observability.alloy.config" . | nindent 4 }}
+{{/* Config in a define so the Deployment stamps checksum/config and rolls on
+     config edits (same pattern as pyroscope.yaml / otel-cluster.yaml). Without it
+     a config change updates the ConfigMap, kubelet syncs the file into the pod,
+     and the running process keeps the config it parsed at startup — the edit is
+     live on disk and inert in memory, which reads as a fix that did not work. */}}
+{{- define "observability.alloy.config" }}
+// Discover every pod, then keep only platform-namespace pods that expose the
+// `admin` container port (9090) — i.e. the Go services' pprof endpoint.
+discovery.kubernetes "pods" {
+  role = "pod"
+}
 
-    discovery.relabel "pprof" {
-      targets = discovery.kubernetes.pods.targets
+discovery.relabel "pprof" {
+  targets = discovery.kubernetes.pods.targets
 
-      rule {
-        source_labels = ["__meta_kubernetes_namespace"]
-        regex         = "platform"
-        action        = "keep"
-      }
-      // Matched by port NUMBER, not by the port's name. `admin` is the Go
-      // services' pprof port (9090, service chart values.yaml `server.adminPort`),
-      // but SeaweedFS names its admin UI port `admin` too (23646). That port
-      // serves no /debug/pprof, and the edge is the only caller its policy admits
-      // (network-policies 15-object-storage.yaml), so selecting it by name yields
-      // a permanently denied scrape that fills PolicyDropsDetected.
-      rule {
-        source_labels = ["__meta_kubernetes_pod_container_port_number"]
-        regex         = "9090"
-        action        = "keep"
-      }
-      // Label profiles so Grafana can filter by service and pod. service_name
-      // matches the RED/log/trace label the rest of the dashboards use.
-      rule {
-        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
-        target_label  = "service_name"
-      }
-      rule {
-        source_labels = ["__meta_kubernetes_pod_name"]
-        target_label  = "pod"
-      }
-    }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    regex         = "platform"
+    action        = "keep"
+  }
+  // The pprof target is the port named `admin` AND numbered 9090 (service chart
+  // values.yaml `server.adminPort`). Both rules are required, because each name
+  // and each number is used by something that is not a pprof endpoint:
+  //
+  //   - SeaweedFS names its admin UI port `admin` at 23646. It serves no
+  //     /debug/pprof, and its policy admits the edge alone
+  //     (network-policies 15-object-storage.yaml).
+  //   - Prometheus (`http`) and the four Temporal roles (`metrics`) use 9090 for
+  //     something else, and their policies do not admit Alloy either.
+  //
+  // Keeping on one condition alone selects those, and every scrape of them is a
+  // permanent netpol drop that fills PolicyDropsDetected.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_name"]
+    regex         = "admin"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_number"]
+    regex         = "9090"
+    action        = "keep"
+  }
+  // Label profiles so Grafana can filter by service and pod. service_name
+  // matches the RED/log/trace label the rest of the dashboards use.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    target_label  = "service_name"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+}
 
-    // Scrape the standard Go pprof profiles (CPU, heap, goroutine on by default)
-    // from /debug/pprof and forward them to Pyroscope.
-    pyroscope.scrape "pprof" {
-      targets    = discovery.relabel.pprof.output
-      forward_to = [pyroscope.write.local.receiver]
-    }
+// Scrape the standard Go pprof profiles (CPU, heap, goroutine on by default)
+// from /debug/pprof and forward them to Pyroscope.
+pyroscope.scrape "pprof" {
+  targets    = discovery.relabel.pprof.output
+  forward_to = [pyroscope.write.local.receiver]
+}
 
-    pyroscope.write "local" {
-      endpoint {
-        url = "http://pyroscope.platform.svc.cluster.local:4040"
-      }
-    }
+pyroscope.write "local" {
+  endpoint {
+    url = "http://pyroscope.platform.svc.cluster.local:4040"
+  }
+}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -111,6 +130,10 @@ spec:
   template:
     metadata:
       labels: { app.kubernetes.io/name: alloy }
+      # Roll the pod whenever the config changes — Alloy parses its config at
+      # startup and does not re-read the mounted file.
+      annotations:
+        checksum/config: {{ include "observability.alloy.config" . | sha256sum }}
     spec:
       serviceAccountName: alloy
       # `restricted` (ADR-0200). The alloy image ships USER root, so runAsNonRoot
