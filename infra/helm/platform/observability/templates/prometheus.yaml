@@ -45,12 +45,21 @@
       # why the disk alerts key off k8s_node_filesystem_* instead. On a real CSI
       # storage class these attributes appear and the per-volume panel becomes the
       # per-claim signal it looks like.
+      #
+      # k8s.node.name: the kubeletstats `node` metric group reports per-NODE
+      # numbers, and the node's identity is resource-level like the volume
+      # attributes above. Unpromoted, every node's k8s_node_* series carries an
+      # empty labelset, so a multi-node cluster collapses them all onto one
+      # identity and NodeDiskSpaceLow fires without naming the node or the
+      # filesystem it read. A single-node cluster hides this, because one
+      # collapsed series and one real series look the same.
       promote_resource_attributes:
         [
           "service.name",
           "service.namespace",
           "k8s.deployment.name",
           "k8s.statefulset.name",
+          "k8s.node.name",
           "k8s.persistentvolumeclaim.name",
           "k8s.volume.name",
           "k8s.volume.type",
