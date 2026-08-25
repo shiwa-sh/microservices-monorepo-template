@@ -113,6 +113,14 @@ test.describe("full purchase scenario", () => {
   test("shopper registers, checks out, and the order is traced end to end @smoke", async ({
     browser,
   }) => {
+    // The config's 60s default is a per-STEP budget, and this test is four steps
+    // whose own waits already add up past it: the saga has 60s to reach a terminal
+    // status and Tempo 90s to make the trace searchable, because a span is only
+    // queryable once the ingester has flushed it. Under the default the test dies
+    // mid-poll and reports the timeout rather than what it was waiting for, which
+    // reads as a broken checkout. The budget is the sum of the waits below plus the
+    // two auth flows in front of them.
+    test.setTimeout(240_000);
     expect(productId, "product from step 1").toBeTruthy();
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
     try {

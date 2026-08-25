@@ -25,6 +25,9 @@ const TERMINAL = new Set(["confirmed", "completed", "failed", "cancelled", "sett
 type PollOpts = {
   intervalMs?: number;
   timeoutMs?: number;
+  // How long a 403 on the polled resource is read as "the grant has not landed
+  // yet" rather than as a denial. See the note in the loop below.
+  forbiddenGraceMs?: number;
   signal?: AbortSignal;
 };
 
@@ -34,12 +37,13 @@ type PollOpts = {
 // "failed" vs "confirmed" (a failed charge is still a completed poll, not an error).
 export async function pollWorkflow<T extends TerminalResource>(
   handle: WorkflowHandle,
-  { intervalMs = 1000, timeoutMs = 60_000, signal }: PollOpts = {},
+  { intervalMs = 1000, timeoutMs = 60_000, forbiddenGraceMs = 10_000, signal }: PollOpts = {},
 ): Promise<T> {
   if (!handle.result_url) {
     throw new Error("workflow handle has no result_url to poll");
   }
   const deadline = Date.now() + timeoutMs;
+  const graceEnds = Date.now() + forbiddenGraceMs;
   // biome-ignore lint/suspicious/noUnnecessaryConditions: poll loop exits via return/throw below
   while (true) {
     if (signal?.aborted) {
@@ -51,7 +55,19 @@ export async function pollWorkflow<T extends TerminalResource>(
     // every non-ok status is treated as "not settled yet", so a session that
     // expires mid-workflow spins silently until the timeout and then reports the
     // workflow as slow. This raises the same interrupt the fetch clients do.
-    raiseForAuthDenial(res.status);
+    //
+    // With one exception, and it is the first status this poll ever sees. The
+    // resource being polled is created by the workflow being polled, and so are the
+    // tuples that say who may read it — the dual write is the workflow's own first
+    // leg (ADR-0304). Between the 202 and that leg the resource is genuinely
+    // forbidden to the buyer who just placed it, so raising on it turns a checkout
+    // that is about to succeed into "You do not have access". Measured locally the
+    // window is ~100ms; the grace is two orders of magnitude wider so a loaded
+    // cluster stays inside it, and a 403 that outlives it is a real denial and
+    // raises exactly as before. 401 never waits: no session is no session.
+    if (res.status !== 403 || Date.now() > graceEnds) {
+      raiseForAuthDenial(res.status);
+    }
     if (res.ok) {
       const body = (await res.json()) as T;
       if (TERMINAL.has(body.status)) {

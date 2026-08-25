@@ -10,7 +10,12 @@ server:  { replicas: 1 }
 # through Faro, and the collector's routing connector delivers here east-west
 # (ADR-0700). An edge route would be a public surface for an internal write path.
 ingress: { enabled: false }
-otel:    { deployEnv: local }
+# Keep every trace the service starts (ADR-0500: local overrides healthy traces
+# to 100%). The chart default samples 10% in the SDK, and the collector's local
+# 100% cannot restore a span the SDK never started — so a developer looking for
+# the request they just made, and the e2e trace assertion, would both be playing
+# odds.
+otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 secrets: { envFrom: [analytics-db] }
 networkPolicy:
   allowFromGateway: false

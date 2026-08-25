@@ -50,7 +50,12 @@ server:
 # soon as it is removed.
 ingress: { enabled: true, host: dev.localtest.me, pathPrefix: "/" }
 migrations: { enabled: false }
-otel: { deployEnv: local }
+# Keep every trace the service starts (ADR-0500: local overrides healthy traces
+# to 100%). The chart default samples 10% in the SDK, and the collector's local
+# 100% cannot restore a span the SDK never started — so a developer looking for
+# the request they just made, and the e2e trace assertion, would both be playing
+# odds.
+otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 env:
   # East-west targets for the cluster-audience services the analytics panel reads
   # (ADR-0700). These have no /api route, so the edge origin above cannot reach

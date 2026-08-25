@@ -210,7 +210,24 @@ opentelemetry-collector:
         check_interval: 1s
         limit_percentage: 80
         spike_limit_percentage: 25
-      batch: {}
+      # A batch small enough that the request carrying it fits the receiver's frame.
+      #
+      # Loki's gRPC server accepts 4MiB per message and the collector's default
+      # batch is 8192 records with no size ceiling — so a burst fills a batch that
+      # Loki refuses whole. It is not a slow path: the exporter retries the same
+      # oversized batch until the retries run out, then drops every record in it.
+      # Measured on a bring-up, when the filelog receiver reads every pod's backlog
+      # at once: 4586 records, 4290034 bytes, 96KiB over the limit, dropped — and
+      # the platform workloads whose whole log history was in that batch have an
+      # empty Logs panel for the rest of the cluster's life.
+      #
+      # 1000 records is ~1MiB at the ~935B/record this cluster measures, a quarter
+      # of the ceiling, which leaves room for records well above the average without
+      # a second knob to keep in sync. `send_batch_max_size` is the hard split; the
+      # equal `send_batch_size` keeps a full batch from waiting on the timeout.
+      batch:
+        send_batch_size: 1000
+        send_batch_max_size: 1000
       # Head sampling at the agent (ADR-0500). Error traces are kept at 100% by
       # the services' parentbased SDK sampler (OTEL_TRACES_SAMPLER_ARG); this
       # caps healthy-trace volume. Tail sampling needs the gateway tier and is a

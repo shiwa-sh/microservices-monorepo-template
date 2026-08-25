@@ -104,5 +104,18 @@ export function initBrowserObservability(): void {
   // that keeps it out of Art. 5(3) — nothing is stored, so nothing is read back.
   // It is enough to stitch one visit's errors and Web Vitals together, which is
   // what the RUM path is for.
-  faro.api.setSession({ id: crypto.randomUUID() });
+  //
+  // `isSampled` is not decoration, and it is the one attribute this session cannot
+  // go without. Faro's tracing sampler asks the SESSION whether it is sampled and
+  // records nothing when the attribute is absent (@grafana/faro-web-tracing
+  // `getSamplingDecision`) — so an unset flag does not merely drop browser spans,
+  // it stamps `traceparent: …-00` on every request the page makes to the API, and
+  // the services' parentbased sampler honours it. One missing attribute therefore
+  // deletes the whole server-side trace of anything a user did, end to end, and the
+  // signal that normally exposes a sampling mistake — a trace that is thin — never
+  // appears, because there is no trace at all.
+  //
+  // The rate that keeps volume down stays where ADR-0500 puts it, in the collector's
+  // head sampler. This says only that the browser has no opinion to enforce.
+  faro.api.setSession({ id: crypto.randomUUID(), attributes: { isSampled: "true" } });
 }

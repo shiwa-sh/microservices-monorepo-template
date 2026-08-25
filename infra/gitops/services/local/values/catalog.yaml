@@ -15,7 +15,12 @@ ingress: { enabled: true, host: dev.localtest.me, resources: [products] }
 # dials catalog east-west (ADR-0302), so it must be admitted here too (both the
 # orders server and worker pods share the app.kubernetes.io/name=orders label).
 networkPolicy: { allowFrom: [lowdefy, orders] }
-otel:    { deployEnv: local }
+# Keep every trace the service starts (ADR-0500: local overrides healthy traces
+# to 100%). The chart default samples 10% in the SDK, and the collector's local
+# 100% cannot restore a span the SDK never started — so a developer looking for
+# the request they just made, and the e2e trace assertion, would both be playing
+# odds.
+otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 secrets: { envFrom: [catalog-db, openfga-creds] }
 env:
   # Write authz (ADR-0304): dial OpenFGA via the shared Checker. Blank preshared key

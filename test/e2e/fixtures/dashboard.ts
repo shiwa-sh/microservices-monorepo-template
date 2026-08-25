@@ -11,7 +11,10 @@ import { OPERATOR_STATE, USER_STATE, opsURL } from "./env";
 // surfacing as a spurious gated-check failure rather than a real authz result. A
 // DNS/connection blip is not the signal these tests exist to catch, so retry the
 // bare request a few times; a genuine 401/403/200 returns immediately.
-async function statusFor(tool: string, storageState?: string): Promise<number> {
+async function statusFor(
+  tool: string,
+  storageState?: string,
+): Promise<{ status: number; location: string }> {
   const ctx: APIRequestContext = await request.newContext({
     ignoreHTTPSErrors: true,
     storageState,
@@ -24,7 +27,7 @@ async function statusFor(tool: string, storageState?: string): Promise<number> {
           maxRedirects: 0,
           headers: { accept: "*/*" },
         });
-        return res.status();
+        return { status: res.status(), location: res.headers().location ?? "" };
       } catch (err) {
         // Only retry transient name-resolution / connection errors, never a real
         // HTTP response (get() resolves for any status, so those never throw).
@@ -42,13 +45,32 @@ async function statusFor(tool: string, storageState?: string): Promise<number> {
 }
 
 export async function expectUnauthenticatedDenied(tool: string): Promise<void> {
-  expect([401, 302, 303]).toContain(await statusFor(tool));
+  expect([401, 302, 303]).toContain((await statusFor(tool)).status);
 }
 
 export async function expectAal1Forbidden(tool: string): Promise<void> {
-  expect([403, 302, 303]).toContain(await statusFor(tool, USER_STATE));
+  expect([403, 302, 303]).toContain((await statusFor(tool, USER_STATE)).status);
 }
 
+// The operator passes when the answer came from the TOOL rather than from the gate
+// in front of it. A 200 is that answer, and so is a redirect the tool sends to its
+// own origin: SeaweedFS's admin UI 307s `/` to its own `/login`, which is the shell
+// the sibling render test then asserts. Reading only the status would call that a
+// failure, having just proved the grant worked.
+//
+// It cannot be confused with a denial. Oathkeeper answers this Accept with 401/403,
+// and its html branch redirects to the product apex's /auth/login — a different
+// origin, which is exactly what this checks.
 export async function expectOperatorAllowed(tool: string): Promise<void> {
-  expect(await statusFor(tool, OPERATOR_STATE)).toBe(200);
+  const { status, location } = await statusFor(tool, OPERATOR_STATE);
+  if (status === 200) {
+    return;
+  }
+  // Resolved against the tool's origin, because a tool's own redirect is usually
+  // path-only ("/login") while the edge's is absolute and elsewhere.
+  const target = location ? new URL(location, `${opsURL(tool)}/`).href : "";
+  expect(
+    [301, 302, 303, 307, 308].includes(status) && target.startsWith(`${opsURL(tool)}/`),
+    `operator was not passed through to ${tool}: ${status} → ${target || "(no location)"}`,
+  ).toBe(true);
 }
