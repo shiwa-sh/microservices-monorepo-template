@@ -63,9 +63,15 @@ data:
         regex         = "platform"
         action        = "keep"
       }
+      // Matched by port NUMBER, not by the port's name. `admin` is the Go
+      // services' pprof port (9090, service chart values.yaml `server.adminPort`),
+      // but SeaweedFS names its admin UI port `admin` too (23646). That port
+      // serves no /debug/pprof, and the edge is the only caller its policy admits
+      // (network-policies 15-object-storage.yaml), so selecting it by name yields
+      // a permanently denied scrape that fills PolicyDropsDetected.
       rule {
-        source_labels = ["__meta_kubernetes_pod_container_port_name"]
-        regex         = "admin"
+        source_labels = ["__meta_kubernetes_pod_container_port_number"]
+        regex         = "9090"
         action        = "keep"
       }
       // Label profiles so Grafana can filter by service and pod. service_name
