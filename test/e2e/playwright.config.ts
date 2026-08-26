@@ -29,5 +29,9 @@ export default defineConfig({
   projects: [
     { name: "setup", testMatch: /fixtures\/auth\.setup\.ts/ },
     { name: "platform", testDir: "platform", dependencies: ["setup"] },
+    // Visual regression is its own project so `--project visual` iterates on a
+    // baseline without a full acceptance run, and so a baseline update is a diff
+    // in one directory (ADR-0601).
+    { name: "visual", testDir: "visual", dependencies: ["setup"] },
   ],
 });

@@ -1005,6 +1005,11 @@ run = "mise run -C test/perf soak"
 # The axe scan alone (ADR-0400), for iterating on an accessibility fix.
 run = "mise run -C test/e2e test:a11y"
 
+[tasks."e2e:visual"]
+# The committed screenshot baselines alone (ADR-0601), for iterating on an
+# intentional UI change without a full acceptance run.
+run = "mise run -C test/e2e test:visual"
+
 [tasks."lighthouse"]
 # Web vitals and the per-route bundle budgets, as merge gates (ADR-0400):
 # LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile.

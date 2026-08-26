@@ -43,6 +43,12 @@ run = "npm run test"
 env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
 run = "npm run test:smoke"
 
+[tasks."test:visual"]
+# The screenshot baselines alone, for updating one after an intentional UI change:
+# add `-- --update-snapshots`, and commit the result with the change that caused it.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm run test:visual"
+
 [tasks.lighthouse]
 # Web vitals + bundle budgets against the running edge (ADR-0400). Same NO_PROXY
 # reasoning as the suites above: the edge is hit directly, never through a proxy.
