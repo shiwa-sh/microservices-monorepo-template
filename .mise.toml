@@ -298,13 +298,13 @@ run = "bash scripts/proxy-setup.sh"
 # or NetworkPolicy fix before it lands on master). The cluster keeps running —
 # only reconciliation stops. ALWAYS pair with argo:resume; a paused controller
 # means the cluster silently stops tracking master.
-run = "kubectl --context kind-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=0"
+run = "bash scripts/argo.sh pause"
 
 [tasks."argo:resume"]
 # Close the live-patch window and hand the cluster back to GitOps. Anything patched
 # live that is not committed to master is reverted on the next sync — that is the
 # point: push first, then resume, or lose the change.
-run = "kubectl --context kind-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=1"
+run = "bash scripts/argo.sh resume"
 
 [tasks."dev:forward"]
 # Port-forward the inner-loop deps so a natively-run service can reach them.
