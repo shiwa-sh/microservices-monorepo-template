@@ -850,6 +850,12 @@ run = "bash scripts/promote-verify.sh"
 [tasks."ci:build"]
 depends = ["build"]
 
+[tasks."forge:apply"]
+# Reconcile the committed branch protection and required checks into the forge
+# (ADR-0102). Idempotent, and it puts a UI edit back — which is the reason the
+# rules are a file. Needs FORGE_URL, FORGE_REPO and FORGE_TOKEN.
+run = "bash scripts/forge-apply.sh"
+
 [tasks."temporal:schedules"]
 # The platform's periodic obligations, from infra/temporal/schedules.yaml
 # (ADR-0302). Idempotent — an existing schedule is updated rather than duplicated,

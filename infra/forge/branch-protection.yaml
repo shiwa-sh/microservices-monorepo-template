@@ -1,0 +1,45 @@
+# Branch protection and required checks, as configuration (ADR-0102).
+#
+# The forge's UI is not where these live: a setting made through a UI is invisible
+# in review, absent from a restore, and different on the next forge. `mise run
+# forge:apply` reconciles this file into the forge; nothing else is authorised to
+# change it, and a drift is a diff on this file rather than a discovery.
+#
+# Applies to the forge the project actually runs. The template's provider-hosted
+# workflows are the bootstrap path and their protection is set from the same file
+# — the field names below are Forgejo's, and the apply script maps them.
+
+branch: master
+
+# Nothing reaches master except through a reviewed pull request.
+protection:
+  enable_push: false # no direct push, by anyone, including an admin
+  required_approvals: 1
+  # A dismissed-on-push approval is the difference between reviewing a change and
+  # reviewing the change that was there when the reviewer looked.
+  dismiss_stale_approvals: true
+  block_on_rejected_reviews: true
+  # A merge whose base has moved is a merge of two green runs that were never
+  # green together.
+  block_on_outdated_branch: true
+  require_signed_commits: false # ADR-0104 signs images, not commits
+  enable_status_check: true
+  # The gates, by job name. Each is a thin caller of `mise run ci:*` (ADR-0102),
+  # so this list is the CI contract and not a duplicate of it.
+  status_check_contexts:
+    - lint
+    - test
+    - build
+    - drift
+
+# Workflow runs proposed from OUTSIDE the organisation.
+#
+# A fork's pull request carries code the runner would execute against the
+# runner's own host and secrets. Approval is what stands between a pull request
+# and that execution, and it is per-run rather than per-contributor: an approved
+# author who pushes again is approved again.
+actions:
+  approval_for_outside_collaborators: true
+  # A secret is never handed to a fork's run, approved or not. Approval bounds
+  # who runs code on the runner; it does not make the code trusted.
+  secrets_for_fork_pull_requests: false
