@@ -850,6 +850,12 @@ run = "bash scripts/promote-verify.sh"
 [tasks."ci:build"]
 depends = ["build"]
 
+[tasks."ci:preview"]
+# The pull-request preview environment (ADR-0205): the full tier at one pull
+# request's images and manifests, destroyed with the run that made it. Takes the
+# verb as an argument; PREVIEW_PR and PREVIEW_REVISION come from the run.
+run = "bash scripts/ci-preview.sh"
+
 [tasks."forge:apply"]
 # Reconcile the committed branch protection and required checks into the forge
 # (ADR-0102). Idempotent, and it puts a UI edit back — which is the reason the

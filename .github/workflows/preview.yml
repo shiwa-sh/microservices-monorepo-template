@@ -1,0 +1,61 @@
+# The pull-request preview environment (ADR-0205).
+#
+# Label-gated, like the e2e and perf lanes and for the same reason: a preview is a
+# full-platform bring-up (~16GB, see the note in e2e.yml), so it is opt-in per
+# pull request rather than a cost every pull request pays. The `preview` label is
+# applied by a maintainer, which is also what keeps a fork's code from bringing up
+# an environment on the runner before anyone has read it (infra/forge).
+#
+# The environment is the full LOCAL tier at this pull request's images and
+# manifests: the committed local secrets, the committed test identities, no
+# deployed environment's data. Nothing is promoted or released from it, and it is
+# destroyed with the run — a preview that outlived its run would be a persistent
+# environment nobody decided to operate.
+name: preview
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+# One preview per pull request. A new push replaces the environment rather than
+# racing a second bring-up against it on the same runner.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: contains(github.event.pull_request.labels.*.name, 'preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      PREVIEW_PR: ${{ github.event.pull_request.number }}
+      PREVIEW_REVISION: ${{ github.head_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Provision the local SOPS age key
+        run: mise run secrets:age
+      - name: Bring up the preview
+        run: mise run ci:preview -- up
+      - name: Install Playwright (Node island)
+        run: mise run e2e:install
+      - name: Smoke the preview
+        run: mise run e2e:smoke
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-preview
+          path: |
+            test/e2e/playwright-report/
+            test/e2e/test-results/
+          retention-days: 7
+      - name: Destroy the preview
+        if: always()
+        run: mise run ci:preview -- down
