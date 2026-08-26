@@ -64,8 +64,11 @@ async function freshTotp(page: Page, secret: string): Promise<string> {
 // page loads. Retrying only the first leaves the second failing identically, and
 // gives the fixture nothing to catch. `expectVisible` is the selector that proves
 // the form actually rendered.
+// Exported for the one caller that navigates to an auth route without driving a
+// flow through it: the visual baseline, which only needs the form on screen. Every
+// other route into Kratos goes through the named flows below.
 const RATE_LIMIT_WAIT_MS = 7_000;
-async function gotoFlow(page: Page, url: string, expectVisible?: string): Promise<void> {
+export async function gotoFlow(page: Page, url: string, expectVisible?: string): Promise<void> {
   const navigate = async () => {
     await page.goto(url, { waitUntil: "domcontentloaded" }).catch((err: unknown) => {
       if (!String(err).includes("ERR_ABORTED")) {
@@ -378,12 +381,20 @@ export async function ensureAal2(page: Page, secret: string): Promise<void> {
 // code rather than a magic link, and the flow stays open until that code is
 // entered, so starting recovery does not change the account it names.
 export async function startRecovery(page: Page, email: string): Promise<void> {
-  await gotoFlow(page, init("recovery"), 'input[name="email"]');
-  await page.fill('input[name="email"]', email);
-  await page.click(submitFor("code"));
-  // Kratos advances the same flow to the code form. Enumeration protection makes
-  // it render identically for an address that has no account, so this proves the
-  // flow moved and NOT that anything was sent — the sink is the only evidence of
-  // that, which is the whole reason a sink exists.
-  await page.locator('input[name="code"]').waitFor({ state: "visible", timeout: 30_000 });
+  // Wrapped like every other flow that POSTs: `gotoFlow` waits its turn for the
+  // init, and `auth-ratelimit` covers the submit that follows it just the same.
+  // Unwrapped, a refused POST leaves Traefik's bare "Too Many Requests" on screen
+  // and the step fails naming the code input, for a limit it never mentions.
+  // Re-running from the init is safe here for the same reason it is elsewhere: a
+  // POST Traefik refused never reached Kratos, so no recovery flow advanced.
+  await throughRateLimit(page, async () => {
+    await gotoFlow(page, init("recovery"), 'input[name="email"]');
+    await page.fill('input[name="email"]', email);
+    await page.click(submitFor("code"));
+    // Kratos advances the same flow to the code form. Enumeration protection makes
+    // it render identically for an address that has no account, so this proves the
+    // flow moved and NOT that anything was sent — the sink is the only evidence of
+    // that, which is the whole reason a sink exists.
+    await page.locator('input[name="code"]').waitFor({ state: "visible", timeout: 30_000 });
+  });
 }
