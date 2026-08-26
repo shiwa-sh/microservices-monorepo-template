@@ -31,6 +31,9 @@ script="scenarios/${scenario}.js"
 
 CLUSTER="${CLUSTER:-platform}"
 source ../../scripts/lib/cluster.sh
+# The tier comes from whichever cluster is up, so a load run says "no cluster" when
+# there is none rather than reporting a forward that could never have worked.
+require_cluster
 # Loopback port for the collector forward. High and specific so it does not
 # collide with the e2e suite's forwards (13100/13200/19090) if both are running.
 OTLP_PORT="${PERF_OTLP_PORT:-14317}"
@@ -62,7 +65,9 @@ if [ "${PERF_OTLP:-1}" = "1" ]; then
     sleep 0.25
   done
   if ! (echo >"/dev/tcp/127.0.0.1/${OTLP_PORT}") 2>/dev/null; then
-    fail "otel-collector port-forward did not come up — is the full tier running? (PERF_OTLP=0 to run without metrics export)"
+    fail "otel-collector port-forward did not come up on the $(cluster_tier) tier —
+  the collector ships with the observability stack, so a base tier has none.
+  (PERF_OTLP=0 runs the scenario without exporting metrics.)"
   fi
 
   export K6_OTEL_GRPC_EXPORTER_ENDPOINT="127.0.0.1:${OTLP_PORT}"

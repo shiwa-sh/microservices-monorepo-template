@@ -36,14 +36,12 @@ FORCE="${FORCE:-}"
 
 # Validated at source time, not inside cluster_ctx: the functions are called as
 # `$(cluster_ctx)`, where an exit kills only the subshell and the caller carries on
-# against whatever the current kube-context happens to be.
-case "${TIER:=base}" in
-base | full) ;;
+# against whatever the current kube-context happens to be. Empty is allowed here and
+# resolved below, once the functions the resolution needs exist.
+case "${TIER:-}" in
+"" | base | full) ;;
 *) fail "'${TIER}' is not a tier — use \"base\" or \"full\"" ;;
 esac
-# Exported, because stages shell out to scripts that resolve the context from it.
-# Unexported, `identity-seed.sh` seeds the inner loop while the full tier waits.
-export TIER
 
 cluster_tier() { printf '%s' "$TIER"; }
 # The tier is an argument, so a message naming a command names its tier too.
@@ -68,6 +66,63 @@ other_tier_hint() {
   return 0
 }
 cluster_ctx() { printf 'kind-%s' "$(cluster_name)"; }
+
+# Is this cluster's node up, as opposed to merely created? Both tiers can exist at
+# once; only one can hold the edge ports, so only one is ever serving.
+cluster_running() {
+  docker inspect -f '{{.State.Running}}' "${1}-control-plane" 2>/dev/null | grep -qx true
+}
+
+# The tier that is up, or nothing. Running beats merely created, and an ambiguous
+# answer is no answer: a caller that has to guess between two clusters must be told
+# which one it meant rather than be given one of them.
+detect_tier() {
+  # One listing for both tiers: this runs on every source, and `kind get clusters`
+  # is a docker round-trip. `if`, not `&&`, so a stopped cluster is an answer rather
+  # than a non-zero status that ends the caller under `set -e`.
+  local tier name clusters running=() present=()
+  clusters="$(kind get clusters 2>/dev/null || true)"
+  for tier in base full; do
+    name="$(cluster_name_of "$tier")"
+    printf '%s\n' "$clusters" | grep -qx "$name" || continue
+    present+=("$tier")
+    if cluster_running "$name"; then running+=("$tier"); fi
+  done
+  if [ "${#running[@]}" -eq 1 ]; then
+    printf '%s' "${running[0]}"
+  elif [ "${#running[@]}" -eq 0 ] && [ "${#present[@]}" -eq 1 ]; then
+    printf '%s' "${present[0]}"
+  else
+    return 1
+  fi
+}
+
+# WHICH TIER a script acts on, for every script that is not cluster.sh.
+#
+# Only cluster.sh chooses a tier: it takes one as an argument and creates it. Every
+# other script here acts on a cluster someone else already brought up, and naming a
+# tier is not its call to make — so the default is read off the machine rather than
+# fixed to a constant. A constant is wrong half the time and wrong silently: with
+# `base` hardcoded, a script run against a live full tier resolved to context
+# `kind-platform`, every kubectl in it failed against a context that does not exist,
+# and the failure read as "the platform is down" while the platform served traffic.
+#
+# Precedence, highest first:
+#
+#   TIER in the environment  a caller naming a tier on purpose, including a stopped
+#                            one. cluster.sh exports it so its stages inherit it.
+#   TIER_FROM_ARGV=1         cluster.sh, which parses the tier out of argv after
+#                            this file is sourced, and whose bare `up` means base.
+#   the tier that is up      the only cluster there is to act on.
+#   base                     nothing is up, or both are: the tier the docs create
+#                            first, so "not created" names the command to run.
+if [ -z "${TIER:-}" ] && [ -z "${TIER_FROM_ARGV:-}" ]; then
+  TIER="$(detect_tier || true)"
+fi
+TIER="${TIER:-base}"
+# Exported, because stages shell out to scripts that resolve the context from it.
+# Unexported, `identity-seed.sh` seeds the inner loop while the full tier waits.
+export TIER
 
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 h() { helm --kube-context "$(cluster_ctx)" "$@"; }
@@ -107,7 +162,7 @@ require_tools() {
 require_cluster() {
   require_tools kubectl
   k cluster-info >/dev/null 2>&1 ||
-    fail "cluster $(cluster_ctx) is not reachable — run 'mise run cluster:up' first"
+    fail "cluster $(cluster_ctx) is not reachable — run '$(up_hint)' first"
 }
 
 # The Application managing a service, or nothing. The committed ApplicationSet named
@@ -241,8 +296,7 @@ stage_cluster() {
   # conflict rather than letting docker report a bind failure from inside a
   # half-created cluster.
   other="$(cluster_name_of "$(other_tier)")"
-  if cluster_exists "$other" &&
-    docker inspect -f '{{.State.Running}}' "${other}-control-plane" 2>/dev/null | grep -qx true; then
+  if cluster_exists "$other" && cluster_running "$other"; then
     fail "cluster '${other}' is running and holds the edge ports 8080/8443.
   Run one tier at a time:
     mise run cluster:stop -- $([ "$TIER" = full ] && echo base || echo full)"

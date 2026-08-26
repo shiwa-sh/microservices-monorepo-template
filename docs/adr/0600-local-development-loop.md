@@ -161,6 +161,8 @@ The full platform runs the same charts on the same distribution a deployed envir
 
 **The two tiers are two clusters, not two states of one.** The inner loop survives a full-tier teardown and neither bring-up disturbs the other. Each is addressed by its own `kubectl` context, and a service's local port is the same in both (`scripts/lib/ports.sh`).
 
+**Only the entrypoint names a tier.** `scripts/cluster.sh` takes the tier as an argument because it creates one ([ADR-0101](0101-monorepo.md)); every other script acts on a cluster it did not create and reads the tier off the machine instead. The tiers share the edge's host ports, so at most one is ever serving and the answer is never ambiguous. A hardcoded default is what the argument was meant to remove: a tool that assumes the inner loop while the full tier serves resolves to a context that does not exist, and every call inside it fails as though the platform were down.
+
 Images reach the full tier through a local registry, which is the path a deployed environment uses: Argo CD pulls a tag from a registry rather than finding an image already resident on the node. The inner loop keeps the direct import, because nothing there reconciles from git.
 
 ### Native and in-cluster are per service
@@ -369,6 +371,7 @@ A short enumerated set of manifests has no production analogue:
 
 - Local development runs two tiers: the `cluster:up` inner loop and `cluster:up full`. There are no named profiles.
 - Both local tiers run on kind, as two clusters with two contexts. Neither tier's bring-up alters the other, and no local tier shares a cluster with another.
+- `scripts/cluster.sh` is the only script that names a tier, and it takes one as an argument. Every other script resolves the tier from the cluster that is running; a tier hardcoded as a consumer's default is a defect.
 - Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built, and a difference introduced between them is a defect.
 - No local tier exercises the cross-node datapath. Service routing between nodes and the WireGuard encryption [ADR-0206](0206-cluster-networking.md) enables are first exercised in a deployed environment.
 - Every local cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used.

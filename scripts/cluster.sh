@@ -18,6 +18,11 @@
 # environment once with proxy:setup and then runs these commands unchanged.
 set -euo pipefail
 
+# This script owns the tier: it takes one as an argument, below, and `up` with no
+# argument creates the base tier. Every other script resolves the tier from the
+# cluster that is running (see lib/cluster.sh), which would make a bare `up` repair
+# whatever is already there instead of creating base.
+TIER_FROM_ARGV=1
 source "$(dirname "$0")/lib/cluster.sh"
 cd "$ROOT"
 

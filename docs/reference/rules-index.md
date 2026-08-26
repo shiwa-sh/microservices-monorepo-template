@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 159 |
-| Review-enforced | 315 |
-| **Total** | **474** |
+| Review-enforced | 316 |
+| **Total** | **475** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -670,6 +670,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Local development runs two tiers: the `cluster:up` inner loop and `cluster:up full`. There are no named profiles. | review |
 | Both local tiers run on kind, as two clusters with two contexts. Neither tier's bring-up alters the other, and no local tier shares a cluster with another. | review |
+| `scripts/cluster.sh` is the only script that names a tier, and it takes one as an argument. Every other script resolves the tier from the cluster that is running; a tier hardcoded as a consumer's default is a defect. | review |
 | Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built, and a difference introduced between them is a defect. | review |
 | No local tier exercises the cross-node datapath. Service routing between nodes and the WireGuard encryption [ADR-0206](../adr/0206-cluster-networking.md) enables are first exercised in a deployed environment. | review |
 | Every local cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
