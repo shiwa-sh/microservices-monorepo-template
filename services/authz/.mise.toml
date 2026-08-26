@@ -34,5 +34,10 @@ run = "go test ./..."
 [tasks.lint]
 run = "golangci-lint run ./..."
 
+[tasks.generate]
+# No sqlc pass: this service owns no schema (see [tasks.worker]). The spec is the
+# only codegen input it has.
+run = "bash ../../scripts/gen-openapi.sh"
+
 [tasks.build]
 run = "go build ./..."

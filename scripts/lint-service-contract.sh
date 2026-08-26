@@ -56,11 +56,22 @@ for dir in services/*/; do
   # `worker` instead, and demanding both would force it to ship a task that runs
   # nothing — which is worse than the gap, because a task that exists is a task
   # someone will run.
+  #
+  # `generate` and `migrate` follow the same shape for the same reason: they are
+  # required of a service that HAS the input — a spec or a sqlc query for the
+  # first, a migrations directory for the second — and demanded of no service
+  # that has neither.
   tasks="test lint build"
   if [ -d "services/${svc}/cmd/server" ]; then
     tasks="server ${tasks}"
   else
     tasks="worker ${tasks}"
+  fi
+  if [ -f "${dir}openapi.yaml" ] || [ -d "${dir}queries" ]; then
+    tasks="generate ${tasks}"
+  fi
+  if [ -d "${dir}migrations" ]; then
+    tasks="migrate ${tasks}"
   fi
   for t in ${tasks}; do
     grep -q "^\[tasks\.${t}\]" "${dir}.mise.toml" 2>/dev/null || {
@@ -68,6 +79,17 @@ for dir in services/*/; do
       rc=1
     }
   done
+
+  # ── A declared objective (ADR-0500) ─────────────────────────────────────────
+  #
+  # Both SLIs are computed from the RED histogram of a request, so the file is
+  # owed by a service that answers requests. A worker-only deployable serves none
+  # — its admin port is excluded from both SLIs by the template's own file — and
+  # an SLO over no traffic is a target that can never be missed.
+  if [ -d "services/${svc}/cmd/server" ] && [ ! -f "${dir}slo.yaml" ]; then
+    warn "${svc}: no slo.yaml — ADR-0500 requires an availability and a latency SLI per service. Copy services/_template/slo.yaml"
+    rc=1
+  fi
 
   # ── Isolated from its siblings by depguard (ADR-0101) ───────────────────────
   # The constraint is relational — services/X may not import services/Y — and

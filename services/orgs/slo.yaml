@@ -1,0 +1,21 @@
+# Service level objectives for orgs (ADR-0500).
+#
+# Both SLIs read the RED histogram the service already emits; the mechanics, the
+# recording rules each objective needs, and why the objective ships unset are in
+# services/_template/slo.yaml.
+
+window: 30d # rolling (ADR-0500)
+
+availability:
+  # Good event: a response that is not 5xx.
+  objective: null # set per project — docs/reference/detection-latency.md bounds it
+
+latency:
+  # Membership reads and writes, consulted by every other service.
+  threshold: 0.5 # seconds, and an `le` bucket boundary the histogram has
+  objective: null # set per project
+
+exclude:
+  - /livez
+  - /readyz
+  - admin-port
