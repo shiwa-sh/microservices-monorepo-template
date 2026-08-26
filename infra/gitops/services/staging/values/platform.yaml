@@ -1,0 +1,26 @@
+# Staging values for the platform worker (ADR-0302, ADR-0301).
+#
+# Worker-only: this deployable answers no requests, so the shared chart renders no
+# Deployment, no Service and no route for it.
+name: platform
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/platform-worker
+  tag: "0000000000000000000000000000000000000000"
+server:
+  enabled: false
+worker:
+  enabled: true
+  image:
+    repository: ghcr.io/tabmadi/microservices-monorepo-template/platform-worker
+    tag: "0000000000000000000000000000000000000000"
+env:
+  # The analytics service, east-west (ADR-0303). The funnel rollup asks it to
+  # recompute rather than reading its store: the events belong to that service, and
+  # a worker holding a second connection to someone else's schema would need its
+  # own migrations to stay current.
+  ANALYTICS_API_URL: "http://analytics.platform.svc.cluster.local:8080"
+ingress:    { enabled: false }
+migrations: { enabled: false }   # owns no schema
+otel:       { deployEnv: staging }
+networkPolicy:
+  allowFromGateway: false

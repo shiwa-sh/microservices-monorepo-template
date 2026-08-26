@@ -8,7 +8,7 @@ worker:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/orgs-worker
     tag: "0000000000000000000000000000000000000000"
 server:  { replicas: 1 }
-ingress: { enabled: true, host: dev.example.com, resources: [orgs] }
+ingress: { enabled: true, host: staging.example.com, resources: [orgs] }
 # Kratos calls /identity-created east-west on the server port (ADR-0304); the
 # edge (allowFromGateway) only covers Traefik → /api/orgs, so allow Kratos too.
 # The Lowdefy admin console (apps/admin) also calls orgs server-side (ADR-0401).

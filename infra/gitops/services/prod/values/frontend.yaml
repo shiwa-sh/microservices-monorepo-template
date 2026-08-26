@@ -1,0 +1,35 @@
+name: frontend
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/frontend
+  tag: "0000000000000000000000000000000000000000"
+  digest: ""   # promote-on-release pins prod by digest (ADR-0103)
+worker: { enabled: false }
+server:
+  port: 3000
+  # No admin port: a Next standalone server serves one port. This used to claim
+  # 3001, which nothing listened on — the chart's default probes hit /readyz and
+  # /livez there and would have failed had they ever been exercised.
+  adminPort: null
+  replicas: 1
+  probes:
+    readiness: { httpGet: { path: /api/healthz, port: http }, initialDelaySeconds: 2, timeoutSeconds: 4 }
+    liveness:  { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
+ingress: { enabled: true, host: prod.example.com, pathPrefix: "/" }
+migrations: { enabled: false }
+# Server components call the edge, not a service directly: the /api routes match on
+# Host(<env host>) and Oathkeeper injects identity there (ADR-0305/0010/0014). Same
+# origin as `ingress.host` — the browser and the server hit the same URLs.
+env:
+  # East-west targets for the cluster-audience services the analytics panel reads
+  # (ADR-0700). These have no /api route, so the edge origin above cannot reach
+  # them and the panel dials the Services directly.
+  ANALYTICS_URL: http://analytics-server.platform.svc.cluster.local
+  AUTHZ_URL: http://authz-server.platform.svc.cluster.local
+  # Kratos public, for resolving the session cookie to an identity on a page
+  # render. A page carries no injected identity header — see the note in the
+  # shared chart's ingressroute template for why.
+  KRATOS_PUBLIC_URL: http://ory-kratos-public.platform.svc.cluster.local
+  EDGE_PUBLIC_ORIGIN: https://prod.example.com
+  # In-cluster the pod dials the edge directly; same host (the IngressRoutes match
+  # on it and the cert is issued for it), no browser-facing port.
+  EDGE_INTERNAL_ORIGIN: https://prod.example.com
