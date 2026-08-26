@@ -1,0 +1,67 @@
+# The template's own interface (ADR-0106).
+#
+# A project is generated with `copier copy` and tracks this repository afterwards
+# through the answers file below: `copier update` re-renders the template at a
+# newer commit and 3-way merges it into the project, so a file the project
+# rewrote arrives as a conflict rather than as an overwrite. There is no
+# compatibility promise, and resolving the conflict is the project's work.
+#
+# ONLY `*.jinja` FILES ARE RENDERED. The tree carries Helm charts and Go
+# templates, both of which use `{{ }}` for their own purposes, so rendering every
+# file through Jinja would corrupt them at generation time. Everything the
+# generated project must rename instead goes through scripts/project-rename.sh,
+# which runs once, on generation, against literal strings.
+_min_copier_version: "9"
+_templates_suffix: ".jinja"
+_answers_file: .copier-answers.yml
+
+_exclude:
+  - ".git"
+  - "node_modules"
+  - "copier.yml"
+  - "*.local.md" # per-engineer working files (AGENTS.md), never inherited
+  - ".idea"
+  - ".run"
+  - "test-results"
+  - "playwright-report"
+  - ".rumdl_cache"
+
+_tasks:
+  # Generation only. On an update the project already carries its own names, and
+  # re-running the rename would rewrite the merge result.
+  - command: "bash scripts/project-rename.sh {{ project_slug }} {{ module_path }} {{ apex_host }} {{ image_registry }}"
+    when: "{{ _copier_operation == 'copy' }}"
+
+project_name:
+  type: str
+  help: "The product's name, as a person writes it"
+  default: "Acme Platform"
+
+project_slug:
+  type: str
+  help: "The project slug (ADR-0003): 6-11 characters, globally unique, no org prefix"
+  default: "acmeplat"
+  # The grammar is ADR-0003's, enforced here at generation as well as by
+  # lint:naming afterwards — a name is cheapest to fix before it is in a provider
+  # console.
+  validator: >-
+    {% if not (project_slug | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
+    a slug is lower-case alphanumeric with single hyphens
+    {% elif project_slug | length < 6 or project_slug | length > 11 %}
+    a project slug is 6-11 characters
+    {% endif %}
+
+module_path:
+  type: str
+  help: "The Go module path — the repository's own import path"
+  default: "github.com/acme/{{ project_slug }}"
+
+apex_host:
+  type: str
+  help: "The apex host the product is served at; environments are dev./staging./prod. below it"
+  default: "{{ project_slug }}.example"
+
+image_registry:
+  type: str
+  help: "The registry namespace images are published under (ADR-0105)"
+  default: "ghcr.io/acme/{{ project_slug }}"
