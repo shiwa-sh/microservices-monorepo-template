@@ -72,4 +72,18 @@ spec:
         # Leaving this empty falls back to the chart placeholder, which is a real
         # relay host — the one outcome the Rule forbids.
         smtpConnectionURI: ""
+    # Only when `hydra_thirdparty` is on (ADR-0305). The Ory release deploys
+    # Hydra beside Kratos and reads all three keys from this Secret, because
+    # `hydra.secret.enabled` is false in infra/helm/platform/ory/values.yaml.
+    # `dsn` names the same owner role every other DSN here does, against the
+    # `hydra` database; the chart's plaintext default carries no password and is
+    # never read.
+    # `secretsSystem` encrypts every issued token and consent record, so rotate
+    # it by prepending a new value and dropping the old one once the tokens
+    # signed under it have expired — replacing it outright invalidates them all.
+    - name: hydra-secrets
+      stringData:
+        secretsSystem: ""
+        secretsCookie: ""
+        dsn: ""
 ```

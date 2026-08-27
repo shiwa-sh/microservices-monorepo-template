@@ -65,6 +65,10 @@ cluster:
       - orgs
       - payment
       - kratos
+      # Hydra's, created here even though `hydra_thirdparty` is off by default:
+      # this list runs once at bootstrap, so a database left out now is a manual
+      # CREATE DATABASE against a live cluster the day the flag is turned on.
+      - hydra
       - temporal
       - temporal_visibility
       - analytics

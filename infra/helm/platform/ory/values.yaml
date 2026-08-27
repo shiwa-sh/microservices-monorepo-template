@@ -58,7 +58,19 @@ kratos:
 hydra:
   enabled: false
   hydra:
+    # Migrations run as an init container before the service container, in every
+    # environment (docs/guide/database-migrations.md) — the same shape Kratos
+    # runs above. The chart default is a separate Job, applied in the same sync
+    # wave as the Deployment with nothing ordering the two.
+    automigration:
+      enabled: true
+      type: initContainer
     config:
+      # A placeholder, not the connection Hydra uses: `secret.nameOverride`
+      # below sends every pod to the `hydra-secrets` key of the same name. It
+      # stays non-empty because the chart wires the DSN env var only when this
+      # renders to something, and it carries no password for the same reason
+      # the Kratos default does not (infra/auth/kratos/values.yaml).
       dsn: "postgres://hydra@postgres-rw.platform.svc.cluster.local:5432/hydra?sslmode=disable"
       urls:
         self:
@@ -66,3 +78,20 @@ hydra:
         login:   https://dev.example.com/auth/login
         consent: https://dev.example.com/auth/consent
         logout:  https://dev.example.com/auth/logout
+  # System/cookie secrets + dsn come from a SOPS-managed Secret, never inline
+  # values (ADR-0202) — the same wiring Kratos uses. `secret` is a top-level
+  # hydra-subchart key (sibling of the `hydra:` config block above), so it sits
+  # one level up. `enabled: false` stops the chart minting its own Secret, and
+  # `nameOverride` points the deployment, the migration init container and the
+  # janitor CronJob at ours instead — `dsn` for all three, plus `secretsSystem`
+  # and `secretsCookie` for the server. Any env that sets `hydra_thirdparty`
+  # must carry a `hydra-secrets` Secret with those three keys (skeleton:
+  # infra/gitops/platform/<env>/secrets/README.md); without it the pods sit in
+  # CreateContainerConfigError.
+  #
+  # `secretsSystem` encrypts every token and consent record Hydra has issued.
+  # Rotation is prepend-then-drop, like Kratos's: a value removed while tokens
+  # signed under it are live invalidates them all.
+  secret:
+    enabled: false
+    nameOverride: hydra-secrets
