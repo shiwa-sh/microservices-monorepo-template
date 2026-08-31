@@ -255,11 +255,7 @@ stage_warm() {
     # Docker Hub keeps its own images under `library/`.
     [ "$host" != docker.io ] || [[ "$path" == */* ]] || path="library/${path}"
     [ -n "$reference" ] || reference="$tag"
-
-    # Is it already here? The tags API reads local storage only, so it answers in
-    # microseconds. A manifest GET does not: with sync enabled zot re-checks the
-    # upstream on every one, which is the cost this whole stage exists to pay once.
-    if [ -n "$tag" ] && curl -sf --noproxy '*' --max-time 10 \
+    if [[ "$ref" != *@* ]] && [ -n "$tag" ] && curl -sf --noproxy '*' --max-time 10 \
       "http://127.0.0.1:5000/v2/${path}/tags/list" 2>/dev/null |
       yq -e ".tags // [] | contains([\"${tag}\"])" >/dev/null 2>&1; then
       warmed=$((warmed + 1))
