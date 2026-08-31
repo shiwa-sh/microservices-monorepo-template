@@ -255,7 +255,8 @@ stage_warm() {
     # Docker Hub keeps its own images under `library/`.
     [ "$host" != docker.io ] || [[ "$path" == */* ]] || path="library/${path}"
     [ -n "$reference" ] || reference="$tag"
-   # The tags API is sufficient only for an unpinned reference. A cached tag can
+
+    # The tags API is sufficient only for an unpinned reference. A cached tag can
     # coexist with an absent platform digest, which defers the download until pods
     # pull concurrently and exceed containerd's deadline.
     if [[ "$ref" != *@* ]] && [ -n "$tag" ] && curl -sf --noproxy '*' --max-time 10 \
